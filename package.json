@@ -1,0 +1,49 @@
+{
+  "name": "louvor-ide",
+  "version": "2.0.0",
+  "description": "Sistema completo para gerenciamento de cifras musicais",
+  "main": "index.html",
+  "scripts": {
+    "start": "make dev",
+    "serve": "firebase serve --port 5000",
+    "build": "make build",
+    "deploy": "make deploy",
+    "test": "make test",
+    "setup": "./setup.sh",
+    "dev": "make dev",
+    "status": "make status",
+    "clean": "make clean"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seu-usuario/louvor-ide.git"
+  },
+  "keywords": [
+    "cifras",
+    "musicas",
+    "louvor",
+    "acordes",
+    "transposicao",
+    "firebase",
+    "javascript"
+  ],
+  "author": "Sua Equipe",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/seu-usuario/louvor-ide/issues"
+  },
+  "homepage": "https://louvor-ide.web.app",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.0.0"
+  },
+  "dependencies": {},
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}

@@ -1,0 +1,111 @@
+name: 🚀 Deploy to Firebase Hosting
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📂 Checkout código
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Instalar dependências
+        run: make install
+
+      - name: 🧪 Executar testes
+        run: make test
+
+      - name: 🏗️ Build do projeto
+        run: make build
+
+      - name: 📋 Verificar arquivos de build
+        run: |
+          echo "📋 Listando arquivos para deploy:"
+          ls -la
+          echo ""
+          echo "📁 Estrutura de diretórios:"
+          find . -type f -name "*.html" -o -name "*.js" -o -name "*.css" | head -20
+
+  deploy:
+    needs: build_and_test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+      - name: 📂 Checkout código
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Instalar dependências
+        run: make install
+
+      - name: 🏗️ Build do projeto
+        run: make build
+
+      - name: 🚀 Deploy para Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
+          channelId: live
+          projectId: louvor-ide
+
+      - name: 🔍 Verificar deploy
+        run: |
+          echo "✅ Deploy concluído!"
+          echo "🌐 Site disponível em:"
+          echo "   https://louvor-ide.web.app"
+          echo "   https://louvor-ide.firebaseapp.com"
+          echo ""
+          echo "🕐 Aguardando propagação..."
+          sleep 30
+          
+      - name: 🧪 Teste pós-deploy
+        run: |
+          echo "🧪 Testando conectividade do site..."
+          if command -v curl >/dev/null 2>&1; then
+            response=$(curl -s -o /dev/null -w "%{http_code}" https://louvor-ide.web.app/ || echo "000")
+            if [ "$response" = "200" ]; then
+              echo "✅ Site respondendo corretamente (HTTP $response)"
+            else
+              echo "⚠️ Site retornou HTTP $response"
+            fi
+          else
+            echo "ℹ️ curl não disponível para teste"
+          fi
+
+  notify:
+    needs: [build_and_test, deploy]
+    runs-on: ubuntu-latest
+    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+      - name: 📢 Notificação de status
+        run: |
+          if [ "${{ needs.deploy.result }}" = "success" ]; then
+            echo "🎉 Deploy realizado com sucesso!"
+            echo "🌐 Louvor IDE está online em: https://louvor-ide.web.app"
+          else
+            echo "❌ Falha no deploy"
+            echo "📋 Verifique os logs acima para mais detalhes"
+          fi
