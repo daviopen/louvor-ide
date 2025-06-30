@@ -4,9 +4,9 @@ Este arquivo contém as instruções para configurar os secrets necessários par
 
 ## 📋 Secrets Necessários
 
-### 1. FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE
+### 1. FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE (Deploy)
 
-Este é o secret mais importante para o deploy funcionar.
+Este secret é necessário para o deploy automático.
 
 #### Como configurar
 
@@ -27,7 +27,25 @@ Este é o secret mais importante para o deploy funcionar.
    - Nome: `FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE`
    - Valor: Cole todo o conteúdo do arquivo JSON baixado
 
-### 2. GITHUB_TOKEN (Automático)
+### 2. Configurações do Firebase (Build)
+
+Configure cada variável de ambiente do Firebase como secret:
+
+**No GitHub: `Settings` → `Secrets and variables` → `Actions`**
+
+| Secret | Valor | Descrição |
+|--------|-------|-----------|
+| `VITE_FIREBASE_API_KEY` | Sua API Key | Chave de API do Firebase |
+| `VITE_FIREBASE_AUTH_DOMAIN` | projeto.firebaseapp.com | Domínio de autenticação |
+| `VITE_FIREBASE_PROJECT_ID` | seu-projeto-id | ID do projeto Firebase |
+| `VITE_FIREBASE_STORAGE_BUCKET` | projeto.firebasestorage.app | Bucket de storage |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | ID do sender | ID do messaging |
+| `VITE_FIREBASE_APP_ID` | ID do app | ID da aplicação |
+| `VITE_FIREBASE_MEASUREMENT_ID` | ID do analytics | ID do Google Analytics |
+
+**💡 Dica:** Copie os valores do seu arquivo `.env` local.
+
+### 3. GITHUB_TOKEN (Automático)
 
 O `GITHUB_TOKEN` é automaticamente fornecido pelo GitHub Actions, não precisa ser configurado manualmente.
 

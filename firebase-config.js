@@ -1,12 +1,12 @@
-// Configuração do Firebase
+// Configuração do Firebase - usando variáveis de ambiente
 const firebaseConfig = {
-  apiKey: "AIzaSyDilWbw9CETFiAi-hsrHhqK0ovwvpmK2V0",
-  authDomain: "louvor-ide.firebaseapp.com",
-  projectId: "louvor-ide",
-  storageBucket: "louvor-ide.firebasestorage.app",
-  messagingSenderId: "742542004330",
-  appId: "1:742542004330:web:e9db92bb88ea06c5e77a13",
-  measurementId: "G-S6YHEVQE0G"
+  apiKey: import.meta?.env?.VITE_FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY || "AIzaSyDilWbw9CETFiAi-hsrHhqK0ovwvpmK2V0",
+  authDomain: import.meta?.env?.VITE_FIREBASE_AUTH_DOMAIN || process.env.VITE_FIREBASE_AUTH_DOMAIN || "louvor-ide.firebaseapp.com",
+  projectId: import.meta?.env?.VITE_FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || "louvor-ide",
+  storageBucket: import.meta?.env?.VITE_FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET || "louvor-ide.firebasestorage.app",
+  messagingSenderId: import.meta?.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "742542004330",
+  appId: import.meta?.env?.VITE_FIREBASE_APP_ID || process.env.VITE_FIREBASE_APP_ID || "1:742542004330:web:e9db92bb88ea06c5e77a13",
+  measurementId: import.meta?.env?.VITE_FIREBASE_MEASUREMENT_ID || process.env.VITE_FIREBASE_MEASUREMENT_ID || "G-S6YHEVQE0G"
 };
 
 // Estado de inicialização
