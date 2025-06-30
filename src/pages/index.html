@@ -6,7 +6,7 @@
   <title>Louvor IDE - Sistema de Cifras</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script src="src/config/firebase-config.js"></script>
+  <script src="firebase-config.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     * {
@@ -457,12 +457,12 @@
       </div>
       
       <div class="action-buttons">
-        <a href="src/pages/nova-musica.html" class="add-button">
+        <a href="nova-musica.html" class="add-button">
           <i class="fas fa-plus"></i>
           Nova Música
         </a>
         
-        <a href="src/pages/consultar.html" class="add-button" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
+        <a href="consultar.html" class="add-button" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
           <i class="fas fa-search"></i>
           Consultar
         </a>
@@ -559,7 +559,7 @@
     function createMusicCard(musica) {
       const card = document.createElement("div");
       card.className = "music-card";
-      card.onclick = () => window.location.href = `src/pages/ver.html?id=${musica.id}`;
+      card.onclick = () => window.location.href = `ver.html?id=${musica.id}`;
 
       // Processar ministros
       let ministrosDisplay = '';
@@ -614,7 +614,7 @@
           ` : ''}
         </div>
         <div class="music-actions" onclick="event.stopPropagation()">
-          <a href="src/pages/ver.html?id=${musica.id}" class="action-btn btn-view">
+          <a href="ver.html?id=${musica.id}" class="action-btn btn-view">
             <i class="fas fa-eye"></i>
             Ver
           </a>
@@ -950,7 +950,7 @@
     // Funções globais para os botões
     window.clearFilters = clearFilters;
     window.editMusica = function(id) {
-      window.location.href = `src/pages/nova-musica.html?edit=${id}`;
+      window.location.href = `nova-musica.html?edit=${id}`;
     };
     window.deleteMusica = function(id, titulo) {
       if (confirm(`Tem certeza que deseja excluir "${titulo}"?`)) {
