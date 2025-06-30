@@ -26,8 +26,14 @@ Sistema completo para gerenciamento de cifras musicais com suporte híbrido Fire
 ### 🗂️ Estrutura de Arquivos
 ```
 louvor-ide/
-├── index.html              # Página principal
-├── consultar.html          # Página de consulta e transposição
+├── index.html              # Página principal (Firebase Hosting)
+├── README.md               # Documentação principal
+├── Makefile                # Comandos padronizados
+├── package.json            # Configuração Node.js
+├── src/                    # Código fonte
+│   ├── pages/              # Páginas HTML da aplicação
+│   │   ├── index.html      # Página principal (fonte)
+│   │   ├── consultar.html  # Página de consulta e transposição
 ├── nova-musica.html        # Formulário de nova música
 ├── ver.html               # Visualização de música
 ├── firebase-config.js     # Configuração híbrida do banco de dados
