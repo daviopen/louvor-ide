@@ -72,26 +72,26 @@
     .nav-button {
       background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
       color: white;
-      padding: 12px 20px;
+      padding: 15px 25px;
       border: none;
       border-radius: 25px;
       text-decoration: none;
       font-weight: 600;
-      font-size: 14px;
+      font-size: 16px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       transition: all 0.3s ease;
       cursor: pointer;
     }
 
     .nav-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
     }
 
     .nav-button.secondary {
-      background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+      background: linear-gradient(135deg, #607d8b 0%, #455a64 100%);
     }
 
     .container {
@@ -405,6 +405,13 @@
       .nav-buttons {
         flex-wrap: wrap;
         justify-content: center;
+        width: 100%;
+      }
+
+      .nav-button {
+        flex: 1;
+        justify-content: center;
+        min-width: 120px;
       }
 
       .container {
@@ -482,22 +489,22 @@
   <header class="header">
     <div class="header-content">
       <a href="index.html" class="logo">
-        <i class="fas fa-music"></i>
+        <i class="fas fa-guitar"></i>
         <span>Louvor IDE</span>
       </a>
       
       <div class="nav-buttons">
-        <a href="index.html" class="nav-button">
+        <a href="setlists.html" class="nav-button" style="background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);">
+          <i class="fas fa-calendar-alt"></i>
+          Setlist
+        </a>
+        <a href="consultar.html" class="nav-button" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
+          <i class="fas fa-compact-disc"></i>
+          Músicas
+        </a>
+        <a href="index.html" class="nav-button secondary">
           <i class="fas fa-home"></i>
           Início
-        </a>
-        <a href="nova-musica.html" class="nav-button">
-          <i class="fas fa-plus"></i>
-          Nova Música
-        </a>
-        <a href="consultar.html" class="nav-button secondary">
-          <i class="fas fa-search"></i>
-          Consultar
         </a>
       </div>
     </div>
@@ -505,7 +512,7 @@
 
   <div class="container">
     <h1 class="page-title">
-      <i class="fas fa-list-ol"></i>
+      <i class="fas fa-calendar-plus"></i>
       Criar Setlist
     </h1>
     <p class="page-subtitle">
