@@ -583,7 +583,7 @@
       let tomMinistroDisplay = '';
       if (musica.tomMinistro && typeof musica.tomMinistro === 'object') {
         const tomsMinistros = Object.entries(musica.tomMinistro)
-          .map(([nome, tom]) => `${nome}: ${tom}`)
+          .map(([nome, tom]) => nome)
           .join(', ');
         tomMinistroDisplay = tomsMinistros;
       }
@@ -703,11 +703,24 @@
       const ministrosSet = new Set();
       
       allMusicas.forEach(musica => {
+        // Processar campo ministro (separar por vírgula se necessário)
         if (musica.ministro) {
-          ministrosSet.add(musica.ministro);
+          const nomes = musica.ministro.split(',').map(nome => nome.trim()).filter(nome => nome.length > 0);
+          nomes.forEach(nome => ministrosSet.add(nome));
         }
+        
+        // Processar array ministros
         if (musica.ministros && Array.isArray(musica.ministros)) {
-          musica.ministros.forEach(m => ministrosSet.add(m));
+          musica.ministros.forEach(m => {
+            if (m && m.trim()) ministrosSet.add(m.trim());
+          });
+        }
+        
+        // Processar tomMinistro (extrair nomes das chaves)
+        if (musica.tomMinistro && typeof musica.tomMinistro === 'object') {
+          Object.keys(musica.tomMinistro).forEach(nome => {
+            if (nome && nome.trim()) ministrosSet.add(nome.trim());
+          });
         }
       });
       
@@ -744,15 +757,33 @@
         
         if (musica.tomMinistro && typeof musica.tomMinistro === 'object') {
           const tomMinistroText = Object.entries(musica.tomMinistro)
-            .map(([nome, tom]) => `${nome} ${tom}`)
+            .map(([nome, tom]) => nome)
             .join(' ').toLowerCase();
           searchFields += ' ' + tomMinistroText;
         }
         
         const matchesSearch = !searchTerm || searchFields.includes(searchTerm);
-        const matchesMinistro = !selectedMinistro || 
-          musica.ministro === selectedMinistro ||
-          (musica.ministros && musica.ministros.includes(selectedMinistro));
+        
+        // Verificar se o ministro selecionado corresponde
+        let matchesMinistro = !selectedMinistro;
+        if (selectedMinistro) {
+          // Verificar no campo ministro (separado por vírgula)
+          if (musica.ministro) {
+            const nomesMinistro = musica.ministro.split(',').map(nome => nome.trim());
+            matchesMinistro = nomesMinistro.includes(selectedMinistro);
+          }
+          
+          // Verificar no array ministros
+          if (!matchesMinistro && musica.ministros && Array.isArray(musica.ministros)) {
+            matchesMinistro = musica.ministros.includes(selectedMinistro);
+          }
+          
+          // Verificar nas chaves do tomMinistro
+          if (!matchesMinistro && musica.tomMinistro && typeof musica.tomMinistro === 'object') {
+            matchesMinistro = Object.keys(musica.tomMinistro).includes(selectedMinistro);
+          }
+        }
+        
         const matchesTom = !selectedTom || musica.tom === selectedTom ||
           (musica.tomMinistro && Object.values(musica.tomMinistro).includes(selectedTom));
 
@@ -780,7 +811,32 @@
 
     function updateStats() {
       const totalMusicas = allMusicas.length;
-      const totalMinistros = new Set(allMusicas.map(m => m.ministro).filter(Boolean)).size;
+      
+      // Contar ministros únicos usando a mesma lógica do filtro
+      const ministrosSet = new Set();
+      allMusicas.forEach(musica => {
+        // Processar campo ministro (separar por vírgula se necessário)
+        if (musica.ministro) {
+          const nomes = musica.ministro.split(',').map(nome => nome.trim()).filter(nome => nome.length > 0);
+          nomes.forEach(nome => ministrosSet.add(nome));
+        }
+        
+        // Processar array ministros
+        if (musica.ministros && Array.isArray(musica.ministros)) {
+          musica.ministros.forEach(m => {
+            if (m && m.trim()) ministrosSet.add(m.trim());
+          });
+        }
+        
+        // Processar tomMinistro (extrair nomes das chaves)
+        if (musica.tomMinistro && typeof musica.tomMinistro === 'object') {
+          Object.keys(musica.tomMinistro).forEach(nome => {
+            if (nome && nome.trim()) ministrosSet.add(nome.trim());
+          });
+        }
+      });
+      
+      const totalMinistros = ministrosSet.size;
       const totalTons = new Set(allMusicas.map(m => m.tom).filter(Boolean)).size;
 
       document.getElementById("total-musicas").textContent = totalMusicas;
@@ -942,6 +998,20 @@
           cifra: '[C]Before I spoke a word, You were [Am]singing over me\n[F]You have been so, so [G]good to me',
           timestamp: Date.now() - 172800000,
           criadoEm: new Date(Date.now() - 172800000)
+        },
+        {
+          id: 'backup4',
+          titulo: 'Oceanos',
+          artista: 'Hillsong United',
+          ministro: 'Lara',
+          ministros: ['Lara'],
+          tom: 'A',
+          tomMinistro: { 'Lara': 'A' },
+          bpm: 75,
+          link: '',
+          cifra: '[A]Oceanos onde os [E]meus pés podem [F#m]falhar\n[D]E ali Te encontro no [A]mistério',
+          timestamp: Date.now() - 259200000,
+          criadoEm: new Date(Date.now() - 259200000)
         }
       ];
       

@@ -978,7 +978,7 @@
         if (musica.tomMinistro && typeof musica.tomMinistro === 'object') {
           const tomMinistroText = Object.entries(musica.tomMinistro)
             .filter(([nome, tom]) => nome && tom)
-            .map(([nome, tom]) => `${nome} ${tom}`)
+            .map(([nome, tom]) => nome)
             .join(' ').toLowerCase();
           searchFields += ' ' + tomMinistroText;
         }
@@ -1021,7 +1021,7 @@
         if (musica.tomMinistro && typeof musica.tomMinistro === 'object') {
           const tomsMinistros = Object.entries(musica.tomMinistro)
             .filter(([nome, tom]) => nome && tom)
-            .map(([nome, tom]) => `${nome}: ${tom}`)
+            .map(([nome, tom]) => nome)
             .join(', ');
           
           if (tomsMinistros) {
@@ -1080,7 +1080,7 @@
       if (musica.tomMinistro && typeof musica.tomMinistro === 'object') {
         const tomsMinistros = Object.entries(musica.tomMinistro)
           .filter(([nome, tom]) => nome && tom)
-          .map(([nome, tom]) => `${nome}: ${tom}`)
+          .map(([nome, tom]) => nome)
           .join(', ');
         
         if (tomsMinistros) {

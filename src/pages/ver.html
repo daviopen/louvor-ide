@@ -709,7 +709,7 @@
         if (data.tomMinistro && typeof data.tomMinistro === 'object') {
           const tomsMinistros = Object.entries(data.tomMinistro)
             .filter(([nome, tom]) => nome && tom)
-            .map(([nome, tom]) => `${nome}: ${tom}`)
+            .map(([nome, tom]) => nome)
             .join(', ');
           
           if (tomsMinistros) {
