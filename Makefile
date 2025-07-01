@@ -99,7 +99,15 @@ serve: dev
 ## 🏗️ Build para produção
 build:
 	@echo "$(BLUE)🏗️ Preparando build para produção...$(NC)"
-	@echo "$(GREEN)✅ Arquivos estáticos prontos$(NC)"
+	@echo "$(YELLOW)🧹 Limpando arquivos antigos...$(NC)"
+	@rm -f *.html 2>/dev/null || true
+	@rm -rf js/ scripts/ config/ 2>/dev/null || true
+	@echo "$(YELLOW)📁 Copiando arquivos do src para a raiz...$(NC)"
+	@cp -r src/pages/* ./ 2>/dev/null || true
+	@cp -r src/js ./ 2>/dev/null || true
+	@cp -r src/scripts ./ 2>/dev/null || true
+	@cp -r src/config ./ 2>/dev/null || true
+	@echo "$(GREEN)✅ Arquivos copiados$(NC)"
 	@echo "$(BLUE)📋 Arquivos para deploy:$(NC)"
 	@ls -la *.html *.js *.css 2>/dev/null || echo "$(YELLOW)⚠️  Alguns arquivos podem não existir$(NC)"
 	@if [ -d "js/" ]; then echo "$(GREEN)✅ Diretório js/$(NC)"; fi
@@ -146,7 +154,13 @@ clean:
 	@rm -rf .firebase/
 	@rm -f firebase-debug.log
 	@rm -f firebase-debug.*.log
+	@echo "$(YELLOW)🗑️ Limpando arquivos copiados do build...$(NC)"
+	@rm -f *.html 2>/dev/null || true
+	@rm -rf js/ scripts/ config/ 2>/dev/null || true
 	@echo "$(GREEN)✅ Limpeza concluída$(NC)"
+
+## 🏗️ Build limpo (limpa antes de construir)
+clean-build: clean build
 
 ## 📊 Informações do projeto
 info:
