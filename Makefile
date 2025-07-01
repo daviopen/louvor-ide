@@ -159,11 +159,22 @@ build:
 	@cp -r src/scripts ./ 2>/dev/null || true
 	@cp -r src/config ./ 2>/dev/null || true
 	@echo "$(YELLOW)🔧 Processando variáveis de ambiente...$(NC)"
-	@if [ ! -f ".env" ]; then \
-		echo "$(RED)❌ Arquivo .env não encontrado$(NC)"; \
-		exit 1; \
-	fi
-	@export $$(cat .env | grep -v '^#' | xargs) && \
+	@if [ "$$GITHUB_ACTIONS" = "true" ]; then \
+		echo "$(BLUE)🤖 Executando no GitHub Actions - usando variables/secrets$(NC)"; \
+		if [ -z "$$VITE_FIREBASE_API_KEY" ] || [ -z "$$VITE_FIREBASE_PROJECT_ID" ]; then \
+			echo "$(RED)❌ Variáveis de ambiente do GitHub não encontradas$(NC)"; \
+			echo "$(YELLOW)💡 Configure as secrets/variables no GitHub$(NC)"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "$(BLUE)💻 Executando localmente - carregando .env$(NC)"; \
+		if [ ! -f ".env" ]; then \
+			echo "$(RED)❌ Arquivo .env não encontrado$(NC)"; \
+			echo "$(YELLOW)💡 Copie .env.example para .env e configure suas credenciais$(NC)"; \
+			exit 1; \
+		fi; \
+		export $$(cat .env | grep -v '^#' | xargs); \
+	fi && \
 	mkdir -p js && \
 	echo "// ARQUIVO GERADO AUTOMATICAMENTE - NÃO EDITAR" > js/env-config.js && \
 	echo "window.ENV = {" >> js/env-config.js && \

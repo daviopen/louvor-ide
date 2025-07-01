@@ -45,6 +45,7 @@ build/
 # Ignorar todos os HTMLs copiados do src/pages durante o build
 consultar.html
 debug-setlist.html
+index.html
 nova-musica.html
 setlist-view.html
 setlist.html
@@ -52,8 +53,6 @@ setlists.html
 test-firebase.html
 teste-transposicao.html
 ver.html
-# Manter index.html apenas se for um arquivo específico da raiz
-# index.html
 
 # Diretórios copiados durante o build
 js/
