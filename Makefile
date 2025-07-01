@@ -159,7 +159,34 @@ build:
 	@cp -r src/scripts ./ 2>/dev/null || true
 	@cp -r src/config ./ 2>/dev/null || true
 	@echo "$(YELLOW)🔧 Processando variáveis de ambiente...$(NC)"
-	@bash process-env.sh
+	@if [ ! -f ".env" ]; then \
+		echo "$(RED)❌ Arquivo .env não encontrado$(NC)"; \
+		exit 1; \
+	fi
+	@export $$(cat .env | grep -v '^#' | xargs) && \
+	mkdir -p js && \
+	echo "// ARQUIVO GERADO AUTOMATICAMENTE - NÃO EDITAR" > js/env-config.js && \
+	echo "window.ENV = {" >> js/env-config.js && \
+	echo "    VITE_FIREBASE_API_KEY: '$${VITE_FIREBASE_API_KEY}'," >> js/env-config.js && \
+	echo "    VITE_FIREBASE_AUTH_DOMAIN: '$${VITE_FIREBASE_AUTH_DOMAIN}'," >> js/env-config.js && \
+	echo "    VITE_FIREBASE_PROJECT_ID: '$${VITE_FIREBASE_PROJECT_ID}'," >> js/env-config.js && \
+	echo "    VITE_FIREBASE_STORAGE_BUCKET: '$${VITE_FIREBASE_STORAGE_BUCKET}'," >> js/env-config.js && \
+	echo "    VITE_FIREBASE_MESSAGING_SENDER_ID: '$${VITE_FIREBASE_MESSAGING_SENDER_ID}'," >> js/env-config.js && \
+	echo "    VITE_FIREBASE_APP_ID: '$${VITE_FIREBASE_APP_ID}'," >> js/env-config.js && \
+	echo "    VITE_FIREBASE_MEASUREMENT_ID: '$${VITE_FIREBASE_MEASUREMENT_ID}'" >> js/env-config.js && \
+	echo "};" >> js/env-config.js
+	@echo "$(GREEN)✅ Arquivo env-config.js criado$(NC)"
+	@echo "$(YELLOW)🔗 Adicionando referências ao env-config.js nos arquivos HTML...$(NC)"
+	@for html_file in *.html; do \
+		if [ -f "$$html_file" ]; then \
+			if ! grep -q "js/env-config.js" "$$html_file"; then \
+				if grep -q "firebase-app.js" "$$html_file"; then \
+					sed -i 's|<script src=".*firebase-config.js"></script>|<script src="js/env-config.js"></script>\n  &|' "$$html_file"; \
+					echo "$(GREEN)  ✅ Atualizado: $$html_file$(NC)"; \
+				fi; \
+			fi; \
+		fi; \
+	done
 	@echo "$(GREEN)✅ Arquivos copiados e variáveis processadas$(NC)"
 	@echo "$(BLUE)📋 Arquivos para deploy:$(NC)"
 	@ls -la *.html *.js *.css 2>/dev/null || echo "$(YELLOW)⚠️  Alguns arquivos podem não existir$(NC)"
