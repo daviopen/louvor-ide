@@ -519,6 +519,10 @@
         </button>
       </div>
       
+      <div class="status-info" id="status-info" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; text-align: center; font-size: 0.9rem;">
+        <span id="status">Carregando...</span>
+      </div>
+      
       <div id="loading" class="loading">Carregando música...</div>
       <div id="error" class="error" style="display: none;"></div>
       
@@ -555,6 +559,7 @@
     const btnDescer = document.getElementById("btn-descer");
     const btnSubir = document.getElementById("btn-subir");
     const btnReset = document.getElementById("btn-reset");
+    const statusEl = document.getElementById("status");
 
     // Função para mostrar erro
     function showError(message) {
@@ -578,15 +583,23 @@
 
     // Função para verificar ChordTransposer e habilitar botões
     function checkChordTransposerAndEnableButtons() {
-      if (typeof ChordTransposer !== 'undefined') {
-        console.log("✅ ChordTransposer carregado, habilitando botões de transposição");
-      } else {
-        console.warn("⚠️ ChordTransposer não carregado, mas habilitando botões com fallback manual");
-      }
-      
-      // Habilitar botões independentemente da biblioteca
-      btnDescer.disabled = false;
-      btnSubir.disabled = false;
+      // Aguardar um pouco antes de verificar
+      setTimeout(() => {
+        if (typeof ChordTransposer !== 'undefined') {
+          console.log("✅ ChordTransposer carregado, habilitando botões de transposição");
+          statusEl.textContent = '✅ ChordTransposer carregado - Transposição disponível';
+          statusEl.style.color = 'green';
+        } else {
+          console.warn("⚠️ ChordTransposer não carregado, mas habilitando botões com fallback manual");
+          statusEl.textContent = '⚠️ ChordTransposer não carregado - Usando fallback manual';
+          statusEl.style.color = 'orange';
+        }
+        
+        // Habilitar botões independentemente da biblioteca
+        btnDescer.disabled = false;
+        btnSubir.disabled = false;
+        btnReset.disabled = false;
+      }, 500); // Aguardar 500ms para garantir que a biblioteca carregue
     }
 
     // Função para calcular o tom atual

@@ -1,39 +1,44 @@
-# ✅ CORREÇÃO FINALIZADA: Problema de Transposição Gerando Acordes Inválidos
+# 🎵 Correção da Transposição - Louvor IDE
 
-## 🎯 PROBLEMA IDENTIFICADO
-O sistema estava gerando acordes musicalmente inválidos como `C##`, `F##`, `D/E#`, etc., durante a transposição manual, especialmente em casos como transpor de D# para D (-1 semitom).
+## 📋 Resumo das Melhorias
 
-## 🔧 CORREÇÕES APLICADAS
+### ✅ Problema Resolvido
+A funcionalidade de transposição não estava funcionando corretamente devido a:
+1. **Versões inconsistentes** da biblioteca ChordTransposer
+2. **Problemas de carregamento** da biblioteca externa
+3. **Acordes inválidos** sendo gerados na transposição manual
+4. **Falta de feedback** para o usuário sobre o status da transposição
 
-### 1. **Normalização de Chaves de Entrada**
-- Implementada função `normalizeKey()` que remove sufixos (m, 7, etc.) e converte bemóis para sustenidos
-- Padronização: `Db → C#`, `Eb → D#`, `Gb → F#`, `Ab → G#`, `Bb → A#`
+### 🔧 Correções Aplicadas
 
-### 2. **Cálculo de Steps Corrigido**
-```javascript
-// ANTES (incorreto):
-let steps = toIndex - fromIndex;
-if (steps < 0) steps += 12;
+#### 1. Padronização da Biblioteca ChordTransposer
+- **Antes**: Versões diferentes (1.0.0 e 3.0.9) em páginas diferentes
+- **Depois**: Versão 3.0.9 padronizada em todas as páginas:
+  - `setlist-view.html`
+  - `consultar.html`
+  - `ver.html`
+  - `teste-transposicao.html`
 
-// DEPOIS (correto):
-let steps = toIndex - fromIndex;
-if (steps > 6) steps -= 12;   // Caminho mais curto
-if (steps < -6) steps += 12;
-```
+#### 2. Melhoramento do Carregamento da Biblioteca
+- Adicionado tempo de espera para garantir carregamento da biblioteca
+- Implementado fallback manual quando a biblioteca não carrega
+- Sistema de retry com timeout para verificação de disponibilidade
 
-### 3. **Verificação de Acordes Inválidos**
-- Lista de acordes musicalmente inválidos para evitar: `['C##', 'D##', 'E#', 'F##', 'G##', 'A##', 'B#', 'Cb', 'Dbb', 'Ebb', 'Fb', 'Gbb', 'Abb', 'Bbb']`
-- Fallback: se a transposição geraria um acorde inválido, mantém o acorde original
+#### 3. Correção da API de Transposição
+- Função `transposeCifra` tornada `async` para aguardar carregamento
+- Implementado sistema de retry para carregamento da biblioteca
+- Melhorado tratamento de erros e fallbacks
 
-### 4. **Mapeamento Enarmônico Robusto**
-- Uso de `Map` ao invés de objeto para melhor performance
-- Mapeamentos bidirecionais entre sustenidos e bemóis
-- Suporte completo para todas as equivalências enarmônicas
+#### 4. Interface de Status Melhorada
+- Adicionado elemento de status na página `ver.html`
+- Indicador visual do estado da transposição
+- Melhor feedback para o usuário sobre bibliotecas carregadas
 
-### 5. **Regex Melhorada**
-- Detecção mais precisa de acordes vs. palavras comuns
-- Tratamento específico para acordes com baixo (ex: `C/E`)
-- Ignorar vogais isoladas e palavras comuns
+#### 5. Prevenção de Acordes Inválidos
+- Lista de acordes musicalmente inválidos: `['C##', 'D##', 'E#', 'F##', 'G##', 'A##', 'B#', 'Cb', 'Dbb', 'Ebb', 'Fb', 'Gbb', 'Abb', 'Bbb']`
+- Fallback automático para acordes válidos
+- Normalização de chaves de entrada
+- Cálculo de steps usando caminho mais curto
 
 ## 📁 ARQUIVOS CORRIGIDOS
 

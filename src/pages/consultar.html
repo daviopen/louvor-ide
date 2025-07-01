@@ -7,7 +7,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="../config/firebase-config.js"></script>
-  <script src="https://unpkg.com/chord-transposer@1.0.0/dist/chord-transposer.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chord-transposer@3.0.9/dist/index.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     * {
@@ -623,15 +623,15 @@
             Controles de Transposição
           </div>
           <div class="transpose-buttons">
-            <button class="transpose-btn btn-down" id="btn-down" onclick="transpose(-1)">
+            <button class="transpose-btn btn-down" id="btn-down" onclick="transpose(-1)" disabled>
               <i class="fas fa-arrow-down"></i>
               Descer Semitom
             </button>
-            <button class="transpose-btn btn-up" id="btn-up" onclick="transpose(1)">
+            <button class="transpose-btn btn-up" id="btn-up" onclick="transpose(1)" disabled>
               <i class="fas fa-arrow-up"></i>
               Subir Semitom
             </button>
-            <button class="transpose-btn btn-reset" id="btn-reset" onclick="resetTranspose()">
+            <button class="transpose-btn btn-reset" id="btn-reset" onclick="resetTranspose()" disabled>
               <i class="fas fa-undo"></i>
               Tom da Música
             </button>
@@ -724,6 +724,9 @@
         return;
       }
       
+      // Verificar ChordTransposer
+      checkChordTransposerAndEnableButtons();
+      
       if (!window.db) {
         console.log("⏳ Consultar: DB não disponível, aguardando...");
         updateDebug("DB não disponível");
@@ -746,6 +749,23 @@
       updateDebug("DB disponível - carregando...");
       loadMusicas();
       setupEventListeners();
+    }
+
+    // Função para verificar ChordTransposer e habilitar botões
+    function checkChordTransposerAndEnableButtons() {
+      // Aguardar um pouco antes de verificar
+      setTimeout(() => {
+        if (typeof ChordTransposer !== 'undefined') {
+          console.log("✅ Consultar: ChordTransposer carregado, habilitando botões de transposição");
+        } else {
+          console.warn("⚠️ Consultar: ChordTransposer não carregado, mas habilitando botões com fallback manual");
+        }
+        
+        // Habilitar botões independentemente da biblioteca (fallback manual)
+        if (btnDown) btnDown.disabled = false;
+        if (btnUp) btnUp.disabled = false;
+        if (btnReset) btnReset.disabled = false;
+      }, 500); // Aguardar 500ms para garantir que a biblioteca carregue
     }
 
     // Múltiplas estratégias de inicialização
@@ -1092,6 +1112,11 @@
         musicActions.style.display = 'flex';
       }
       
+      // Habilitar botões de transposição quando uma música é selecionada
+      if (btnDown) btnDown.disabled = false;
+      if (btnUp) btnUp.disabled = false;
+      if (btnReset) btnReset.disabled = false;
+      
       // Atualizar lista
       renderMusicList();
       
@@ -1105,6 +1130,11 @@
       selectedMusica = null;
       currentStep = 0;
       originalCifra = "";
+      
+      // Desabilitar botões de transposição
+      if (btnDown) btnDown.disabled = true;
+      if (btnUp) btnUp.disabled = true;
+      if (btnReset) btnReset.disabled = true;
       
       emptyViewer.style.display = 'block';
       musicViewer.style.display = 'none';
@@ -1172,21 +1202,96 @@
       }
     }
 
+    // Função de transposição manual como fallback
+    function transposeManual(originalCifra, totalSteps) {
+      try {
+        console.log(`🔧 Consultar: Transposição manual: ${totalSteps} semitons`);
+        
+        // Mapa de correspondência das notas com índices
+        const chordMap = {
+          'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3, 'E': 4, 'F': 5, 
+          'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8, 'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
+        };
+        
+        const chordNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        
+        // Lista de acordes inválidos a evitar
+        const invalidChords = ['C##', 'D##', 'E#', 'F##', 'G##', 'A##', 'B#', 'Cb', 'Dbb', 'Ebb', 'Fb', 'Gbb', 'Abb', 'Bbb'];
+        
+        let transposed = originalCifra.replace(/\b([A-G](?:#|b)?(?:m|maj|dim|aug|sus|add|\d)*(?:\/[A-G](?:#|b)?)?)\b/g, function(match, chord) {
+          console.log(`  Consultar: Processando acorde: ${chord}`);
+          
+          // Tratar acordes com baixo
+          if (chord.includes('/')) {
+            const [mainChord, bassNote] = chord.split('/');
+            const transposedMain = transposeChordSingle(mainChord);
+            const transposedBass = transposeChordSingle(bassNote);
+            const result = `${transposedMain}/${transposedBass}`;
+            console.log(`  Consultar: ${chord} (com baixo) → ${result}`);
+            return result;
+          }
+          
+          return transposeChordSingle(chord);
+        });
+        
+        // Função auxiliar para transpor um acorde individual
+        function transposeChordSingle(chord) {
+          // Extrair a nota raiz
+          const rootMatch = chord.match(/^([A-G](?:#|b)?)/);
+          if (!rootMatch) return chord;
+          
+          const root = rootMatch[1];
+          const suffix = chord.substring(root.length);
+          const rootIndex = chordMap[root];
+          
+          if (rootIndex === undefined) return chord;
+          
+          // Calcular nova nota
+          let newIndex = (rootIndex + totalSteps) % 12;
+          if (newIndex < 0) newIndex += 12;
+          
+          const newRoot = chordNames[newIndex];
+          const tentativeResult = newRoot + suffix;
+          
+          // Verificar se seria um acorde inválido
+          if (invalidChords.some(invalid => tentativeResult.startsWith(invalid))) {
+            console.warn(`  Consultar: ⚠️ Acorde inválido evitado: ${tentativeResult}, mantendo: ${chord}`);
+            return chord;
+          }
+          
+          console.log(`  Consultar: ${chord} → ${tentativeResult}`);
+          return tentativeResult;
+        }
+        
+        console.log(`✅ Consultar: Transposição manual bem-sucedida`);
+        return transposed;
+        
+      } catch (error) {
+        console.error("❌ Consultar: Erro na transposição manual:", error);
+        throw error;
+      }
+    }
+
     function transpose(step) {
-      if (!selectedMusica || !originalCifra) return;
+      if (!selectedMusica || !originalCifra) {
+        console.warn("⚠️ Consultar: Música não selecionada ou cifra não disponível");
+        return;
+      }
       
       try {
         currentStep += step;
         
         // Verificar se ChordTransposer está disponível
-        if (typeof ChordTransposer === 'undefined') {
-          console.error("❌ ChordTransposer não disponível");
-          alert("Biblioteca de transposição não carregada. Recarregue a página.");
-          return;
+        if (typeof ChordTransposer !== 'undefined') {
+          console.log("✅ Consultar: Usando ChordTransposer para transposição");
+          const transposed = ChordTransposer.transpose(originalCifra).up(currentStep).toString();
+          displayCifra(transposed);
+        } else {
+          console.warn("⚠️ Consultar: ChordTransposer não disponível, usando transposição manual");
+          const transposed = transposeManual(originalCifra, currentStep);
+          displayCifra(transposed);
         }
         
-        const transposed = ChordTransposer.transpose(originalCifra).up(currentStep).toString();
-        displayCifra(transposed);
         updateCurrentKey();
         
         // Efeito visual
@@ -1196,14 +1301,27 @@
         }, 150);
         
       } catch (error) {
-        console.error("❌ Erro ao transpor:", error);
-        alert("Erro ao transpor a música: " + error.message);
+        console.error("❌ Consultar: Erro ao transpor:", error);
+        // Tentar fallback manual
+        try {
+          console.log("🔧 Consultar: Tentando fallback manual");
+          const transposed = transposeManual(originalCifra, currentStep);
+          displayCifra(transposed);
+          updateCurrentKey();
+        } catch (fallbackError) {
+          console.error("❌ Consultar: Erro no fallback manual:", fallbackError);
+          alert("Erro ao transpor a música: " + error.message);
+        }
       }
     }
 
     function resetTranspose() {
-      if (!selectedMusica || !originalCifra) return;
+      if (!selectedMusica || !originalCifra) {
+        console.warn("⚠️ Consultar: Música não selecionada ou cifra não disponível");
+        return;
+      }
       
+      console.log("🔄 Consultar: Resetando para tom original");
       currentStep = 0;
       displayCifra(originalCifra);
       updateCurrentKey();
@@ -1265,6 +1383,40 @@
         alert('Erro ao excluir música: ' + (error.message || error));
       }
     }
+
+    // Atalhos de teclado para melhor experiência
+    document.addEventListener('keydown', function(event) {
+      // Evitar atalhos se algum input estiver focado
+      if (document.activeElement.tagName === 'INPUT' || 
+          document.activeElement.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Só funcionar se uma música estiver selecionada
+      if (!selectedMusica || !originalCifra) {
+        return;
+      }
+
+      switch(event.key) {
+        case 'ArrowUp':
+          event.preventDefault();
+          if (btnUp && !btnUp.disabled) transpose(1);
+          break;
+        case 'ArrowDown':
+          event.preventDefault();
+          if (btnDown && !btnDown.disabled) transpose(-1);
+          break;
+        case 'r':
+        case 'R':
+          event.preventDefault();
+          if (btnReset && !btnReset.disabled) resetTranspose();
+          break;
+        case 'Escape':
+          event.preventDefault();
+          clearSelection();
+          break;
+      }
+    });
   </script>
 </body>
 </html>

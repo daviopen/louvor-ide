@@ -7,7 +7,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="../config/firebase-config.js"></script>
-  <script src="https://unpkg.com/chord-transposer@1.0.0/dist/chord-transposer.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chord-transposer@3.0.9/dist/index.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     * {
@@ -404,6 +404,10 @@
           <i class="fas fa-arrow-left"></i>
           Voltar
         </button>
+        <button onclick="debugSetlists()" class="btn btn-secondary" title="Ver todas as setlists no console do navegador">
+          <i class="fas fa-bug"></i>
+          Debug
+        </button>
       </div>
     </div>
 
@@ -456,14 +460,37 @@
     // Inicializar Firebase
     async function initFirebase() {
       try {
+        console.log('🔥 Iniciando Firebase...');
+        console.log('🔥 Firebase apps existentes:', firebase.apps.length);
+        
         if (!firebase.apps.length) {
+          console.log('🔥 Inicializando nova instância do Firebase...');
+          console.log('🔥 Config do Firebase:', firebaseConfig);
           firebase.initializeApp(firebaseConfig);
+        } else {
+          console.log('🔥 Usando instância existente do Firebase');
         }
+        
         db = firebase.firestore();
-        console.log('🔥 Firebase inicializado');
+        console.log('🔥 Firestore inicializado');
+        
+        // Teste de conexão
+        try {
+          console.log('🔥 Testando conexão com Firestore...');
+          await db.collection('test').limit(1).get();
+          console.log('✅ Conexão com Firestore confirmada');
+        } catch (testError) {
+          console.error('❌ Erro no teste de conexão:', testError);
+          throw new Error(`Falha na conexão: ${testError.message}`);
+        }
+        
         return true;
       } catch (error) {
-        console.error('❌ Erro ao inicializar Firebase:', error);
+        console.error('❌ Erro detalhado ao inicializar Firebase:', {
+          message: error.message,
+          code: error.code,
+          stack: error.stack
+        });
         return false;
       }
     }
@@ -471,6 +498,49 @@
     // Obter ID da setlist da URL
     const urlParams = new URLSearchParams(window.location.search);
     const setlistId = urlParams.get('id');
+
+    console.log('🔍 ID da setlist extraído da URL:', setlistId);
+    console.log('🔍 URL completa:', window.location.href);
+    console.log('🔍 URL params:', Object.fromEntries(urlParams));
+
+    // Função para validar ID da setlist
+    function validateSetlistId(id) {
+      if (!id) {
+        return { valid: false, error: 'ID não fornecido' };
+      }
+      
+      if (typeof id !== 'string') {
+        return { valid: false, error: 'ID deve ser uma string' };
+      }
+      
+      if (id.trim().length === 0) {
+        return { valid: false, error: 'ID está vazio' };
+      }
+      
+      // Verificar se o ID tem formato válido do Firestore (incluindo pontos para timestamps)
+      if (!/^[a-zA-Z0-9._-]+$/.test(id)) {
+        return { valid: false, error: 'ID contém caracteres inválidos' };
+      }
+      
+      return { valid: true };
+    }
+
+    // Validar ID
+    if (setlistId) {
+      console.log('🔍 Validando ID da setlist:', setlistId);
+      console.log('🔍 Tipo do ID:', typeof setlistId);
+      console.log('🔍 Comprimento do ID:', setlistId.length);
+      console.log('🔍 ID contém apenas caracteres válidos:', /^[a-zA-Z0-9._-]+$/.test(setlistId));
+      
+      const validation = validateSetlistId(setlistId);
+      if (!validation.valid) {
+        console.error('❌ ID inválido:', validation.error);
+      } else {
+        console.log('✅ ID válido:', setlistId);
+      }
+    } else {
+      console.error('❌ Nenhum ID fornecido na URL');
+    }
 
     // Elementos DOM
     const loadingEl = document.getElementById('loading');
@@ -490,9 +560,33 @@
     function showError(message) {
       loadingEl.style.display = 'none';
       errorEl.style.display = 'block';
-      errorEl.textContent = message;
+      errorEl.innerHTML = message.replace(/\n/g, '<br>');
       contentEl.style.display = 'none';
     }
+
+    // Função de debug para verificar setlists disponíveis
+    window.debugSetlists = async function() {
+      try {
+        console.log('🔍 Listando todas as setlists disponíveis...');
+        const snapshot = await db.collection('setlists').get();
+        console.log(`📊 Total de setlists encontradas: ${snapshot.size}`);
+        
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          console.log(`📋 Setlist: ${doc.id}`, {
+            nome: data.nome,
+            data: data.data,
+            musicas: data.musicas?.length || 0
+          });
+        });
+        
+        if (snapshot.empty) {
+          console.log('❌ Nenhuma setlist encontrada no banco de dados');
+        }
+      } catch (error) {
+        console.error('❌ Erro ao listar setlists:', error);
+      }
+    };
 
     // Função para mostrar conteúdo
     function showContent() {
@@ -647,7 +741,7 @@
     }
 
     // Função para transpor cifra
-    function transposeCifra(cifra, fromKey, toKey) {
+    async function transposeCifra(cifra, fromKey, toKey) {
       console.log(`🔄 transposeCifra chamada: "${fromKey}" → "${toKey}"`);
       console.log(`   Cifra original: "${cifra.substring(0, 50)}..."`);
       
@@ -657,6 +751,22 @@
       }
 
       try {
+        // Aguardar um pouco para garantir que a biblioteca seja carregada
+        await new Promise(resolve => {
+          if (typeof ChordTransposer !== 'undefined') {
+            resolve();
+          } else {
+            let attempts = 0;
+            const interval = setInterval(() => {
+              attempts++;
+              if (typeof ChordTransposer !== 'undefined' || attempts > 50) {
+                clearInterval(interval);
+                resolve();
+              }
+            }, 100);
+          }
+        });
+        
         if (typeof ChordTransposer !== 'undefined') {
           console.log(`   ✅ ChordTransposer disponível, tentando usar...`);
           
@@ -673,7 +783,7 @@
             
             console.log(`   Steps para transposição: ${steps}`);
             
-            // Método direto
+            // Método direto com a API correta da versão 3.0.9
             const transposed = ChordTransposer.transpose(cifra).up(steps).toString();
             console.log(`   ✅ Transposição ChordTransposer realizada`);
             
@@ -682,7 +792,7 @@
             console.warn(`   ⚠️ Chaves não reconhecidas: ${fromKey}(${fromIndex}) ou ${toKey}(${toIndex})`);
           }
         } else {
-          console.warn(`   ⚠️ ChordTransposer não disponível, usando transposição manual`);
+          console.warn(`   ⚠️ ChordTransposer não disponível após aguardar, usando transposição manual`);
         }
       } catch (error) {
         console.error('❌ Erro no ChordTransposer, usando transposição manual:', error);
@@ -722,22 +832,101 @@
     // Função para carregar setlist
     async function loadSetlist() {
       if (!setlistId) {
+        console.error('❌ ID da setlist não fornecido');
         showError('ID da setlist não fornecido na URL');
         return;
       }
 
       try {
-        console.log('🔍 Carregando setlist:', setlistId);
+        console.log('🔍 Carregando setlist com ID:', setlistId);
+        console.log('🔍 URL completa:', window.location.href);
+        console.log('🔍 URL params:', Object.fromEntries(urlParams));
         
-        const doc = await db.collection('setlists').doc(setlistId).get();
+        // Verificar se o Firebase está inicializado
+        if (!db) {
+          console.error('❌ Database não inicializado');
+          showError('Erro de conexão com o banco de dados');
+          return;
+        }
+        
+        console.log('🔍 Tentando buscar documento...');
+        const docRef = db.collection('setlists').doc(setlistId);
+        console.log('🔍 Referência do documento:', docRef.path);
+        
+        const doc = await docRef.get();
+        
+        console.log('🔍 Documento retornado:', {
+          exists: doc.exists,
+          id: doc.id,
+          metadata: doc.metadata
+        });
         
         if (!doc.exists) {
-          showError('Setlist não encontrada');
+          console.error('❌ Documento não existe');
+          console.log('🔍 Verificando se é um problema de permissões ou se o documento realmente não existe...');
+          
+          // Vamos tentar listar algumas setlists para debug
+          try {
+            const allSetlists = await db.collection('setlists').limit(10).get();
+            console.log(`🔍 Setlists disponíveis (primeiras 10): ${allSetlists.size} encontradas`);
+            
+            let foundSimilar = false;
+            allSetlists.forEach(setlist => {
+              const data = setlist.data();
+              console.log(`  - ID: ${setlist.id}, Nome: ${data.nome || 'Sem nome'}`);
+              
+              // Verificar se há IDs similares
+              if (setlist.id.includes(setlistId) || setlistId.includes(setlist.id)) {
+                console.log(`    ⚠️ ID similar encontrado: ${setlist.id}`);
+                foundSimilar = true;
+              }
+            });
+            
+            if (foundSimilar) {
+              showError(`Setlist não encontrada com o ID exato: ${setlistId}
+              
+IDs similares foram encontrados no banco de dados.
+Verifique o console do navegador para ver os IDs disponíveis.
+
+Possível solução:
+• Verifique se copiou o ID completo
+• Clique em "Debug" para ver todas as setlists
+• Volte à lista de setlists e clique novamente em "Visualizar"`);
+            } else {
+              showError(`Setlist não encontrada!
+
+ID procurado: ${setlistId}
+Total de setlists no banco: ${allSetlists.size}
+
+Possíveis causas:
+• O ID da setlist está incorreto na URL
+• A setlist foi removida do banco de dados
+• Problemas de permissão no Firestore
+
+Clique em "Debug" para ver todas as setlists disponíveis.`);
+            }
+          } catch (listError) {
+            console.error('❌ Erro ao listar setlists:', listError);
+            showError(`Setlist não encontrada: ${setlistId}
+
+Erro adicional ao verificar setlists disponíveis:
+${listError.message}
+
+Possíveis causas:
+• Problemas de conexão com o banco de dados
+• Regras de segurança do Firestore muito restritivas
+• Configuração incorreta do Firebase`);
+          }
+          
           return;
         }
 
         setlistData = doc.data();
-        console.log('✅ Setlist carregada:', setlistData);
+        console.log('✅ Setlist carregada:', {
+          nome: setlistData.nome,
+          musicas: setlistData.musicas?.length || 0,
+          data: setlistData.data
+        });
 
         // Preencher informações básicas
         setlistTitleEl.textContent = setlistData.nome || 'Setlist sem nome';
@@ -775,8 +964,18 @@
         showContent();
         
       } catch (error) {
-        console.error('❌ Erro ao carregar setlist:', error);
-        showError('Erro ao carregar setlist: ' + error.message);
+        console.error('❌ Erro detalhado ao carregar setlist:', {
+          message: error.message,
+          code: error.code,
+          stack: error.stack
+        });
+        showError(`Erro ao carregar setlist: ${error.message}
+        
+Detalhes técnicos:
+• Código: ${error.code || 'N/A'}
+• ID da setlist: ${setlistId}
+
+Tente recarregar a página ou volte e tente novamente.`);
       }
     }
 
@@ -815,7 +1014,7 @@
             let cifra = songData.cifra || 'Cifra não disponível';
             if (originalKey !== finalKey) {
               console.log(`   🔄 EXECUTANDO TRANSPOSIÇÃO: ${originalKey} → ${finalKey}`);
-              cifra = transposeCifra(cifra, originalKey, finalKey);
+              cifra = await transposeCifra(cifra, originalKey, finalKey);
               console.log(`   ✅ Cifra transposta aplicada`);
             } else {
               console.log(`   ⏹️ Sem transposição necessária`);
@@ -914,6 +1113,20 @@
     // Inicializar aplicação
     async function init() {
       console.log('🚀 Iniciando visualizador de setlist...');
+      console.log('🔍 ID da setlist:', setlistId);
+      
+      // Verificar se o ID foi fornecido
+      if (!setlistId) {
+        showError(`ID da setlist não encontrado na URL!
+        
+A URL deve ter o formato:
+setlist-view.html?id=ID_DA_SETLIST
+
+URL atual: ${window.location.href}
+
+Volte para a lista de setlists e clique em "Visualizar" novamente.`);
+        return;
+      }
       
       // Verificar ChordTransposer
       if (typeof ChordTransposer !== 'undefined') {
@@ -933,7 +1146,14 @@
       
       const firebaseReady = await initFirebase();
       if (!firebaseReady) {
-        showError('Erro ao conectar com o sistema. Tente novamente mais tarde.');
+        showError(`Erro ao conectar com o sistema!
+        
+Possíveis causas:
+• Problemas de conexão com a internet
+• Configuração do Firebase incorreta
+• Serviços do Firebase indisponíveis
+
+Tente recarregar a página em alguns segundos.`);
         return;
       }
       

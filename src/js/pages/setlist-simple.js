@@ -2,6 +2,69 @@
  * Setlist Management - Versão Simplificada
  */
 
+// Função global de debug para verificar setlists
+window.debugSetlistsSimple = async function() {
+  try {
+    console.log('🔍 Debug: Listando todas as setlists...');
+    console.log('🔍 URL atual:', window.location.href);
+    
+    // Verificar parâmetros da URL
+    const urlParams = new URLSearchParams(window.location.search);
+    console.log('🔍 Parâmetros da URL:', Object.fromEntries(urlParams));
+    
+    // Verificar Firebase
+    console.log('🔥 Firebase disponível:', typeof firebase !== 'undefined');
+    console.log('🔥 firebaseConfig disponível:', typeof firebaseConfig !== 'undefined');
+    
+    if (typeof firebase !== 'undefined') {
+      console.log('🔥 Firebase apps:', firebase.apps.length);
+      
+      if (firebase.apps.length > 0) {
+        const db = firebase.firestore();
+        console.log('🔥 Firestore conectado');
+        
+        try {
+          const snapshot = await db.collection('setlists').get();
+          console.log(`📊 Firestore: ${snapshot.size} setlists encontradas`);
+          
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            console.log(`📋 Firestore - ID: "${doc.id}", Nome: "${data.nome || 'Sem nome'}", Músicas: ${data.musicas?.length || 0}`);
+          });
+        } catch (firestoreError) {
+          console.error('❌ Erro ao acessar Firestore:', firestoreError);
+        }
+      } else {
+        console.log('⚠️ Firebase não inicializado');
+      }
+    } else {
+      console.log('⚠️ Firebase não carregado');
+    }
+    
+    // Verificar localStorage
+    const stored = localStorage.getItem('setlists');
+    const setlists = stored ? JSON.parse(stored) : [];
+    console.log(`💾 localStorage: ${setlists.length} setlists encontradas`);
+    
+    setlists.forEach((setlist, index) => {
+      console.log(`📋 localStorage - ${index + 1}. ID: "${setlist.id}", Nome: "${setlist.nome || 'Sem nome'}", Músicas: ${setlist.musicas?.length || 0}`);
+    });
+    
+    // Verificar se existe uma instância do SetlistManager
+    if (window.setlistManager) {
+      console.log('🔧 Instância do SetlistManager encontrada');
+      console.log('🔧 Modo de edição:', window.setlistManager.editMode);
+      console.log('🔧 ID atual:', window.setlistManager.currentSetlistId);
+      console.log('🔧 Database inicializado:', !!window.setlistManager.db);
+    } else {
+      console.log('⚠️ SetlistManager não encontrado');
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro no debug:', error);
+  }
+};
+
 class SetlistManager {
   constructor() {
     this.allSongs = [];
@@ -34,32 +97,55 @@ class SetlistManager {
     
     try {
       // Inicializar Firebase se disponível
-      let db = null;
       if (typeof firebase !== 'undefined') {
+        console.log('🔥 Firebase disponível, tentando inicializar...');
+        
+        // Aguardar um pouco para garantir que firebaseConfig foi carregado
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         if (firebase.apps.length === 0) {
-          const firebaseConfig = {
-            apiKey: "AIzaSyDilWbw9CETFiAi-hsrHhqK0ovwvpmK2V0",
-            authDomain: "louvor-ide.firebaseapp.com",
-            projectId: "louvor-ide",
-            storageBucket: "louvor-ide.firebasestorage.app",
-            messagingSenderId: "742542004330",
-            appId: "1:742542004330:web:e9db92bb88ea06c5e77a13",
-            measurementId: "G-S6YHEVQE0G"
-          };
-          firebase.initializeApp(firebaseConfig);
+          console.log('🔥 Inicializando nova instância do Firebase...');
+          
+          // Verificar se firebaseConfig está disponível
+          if (typeof firebaseConfig === 'undefined') {
+            console.error('❌ firebaseConfig não está definido');
+            
+            // Tentar usar configuração hardcoded como fallback
+            const fallbackConfig = {
+              apiKey: "AIzaSyDilWbw9CETFiAi-hsrHhqK0ovwvpmK2V0",
+              authDomain: "louvor-ide.firebaseapp.com",
+              projectId: "louvor-ide",
+              storageBucket: "louvor-ide.firebasestorage.app",
+              messagingSenderId: "742542004330",
+              appId: "1:742542004330:web:e9db92bb88ea06c5e77a13",
+              measurementId: "G-S6YHEVQE0G"
+            };
+            
+            console.log('🔥 Usando configuração de fallback');
+            firebase.initializeApp(fallbackConfig);
+          } else {
+            console.log('🔥 Config do Firebase encontrado:', firebaseConfig);
+            firebase.initializeApp(firebaseConfig);
+          }
+        } else {
+          console.log('🔥 Usando instância existente do Firebase');
         }
-        db = firebase.firestore();
-        console.log('🔥 Firebase inicializado com sucesso');
+        
+        this.db = firebase.firestore();
+        console.log('🔥 Firestore inicializado com sucesso');
         
         // Teste de conexão com Firestore
-        await this.testFirestoreConnection(db);
+        await this.testFirestoreConnection(this.db);
+      } else {
+        console.warn('⚠️ Firebase não está disponível');
+        this.db = null;
       }
 
       // Tentar carregar do Firestore primeiro
-      if (db) {
+      if (this.db) {
         try {
           console.log('🔍 Buscando músicas no Firestore...');
-          const snapshot = await db.collection('musicas').get();
+          const snapshot = await this.db.collection('musicas').get();
           
           if (!snapshot.empty) {
             this.allSongs = [];
@@ -262,10 +348,13 @@ class SetlistManager {
     const urlParams = new URLSearchParams(window.location.search);
     const editId = urlParams.get('edit');
     
-    console.log('🔍 Verificando modo de edição...', { 
-      urlParams: urlParams.toString(), 
-      editId 
-    });
+    console.log('🔍 Verificando modo de edição...');
+    console.log('🔍 URL completa:', window.location.href);
+    console.log('🔍 URL params string:', urlParams.toString());
+    console.log('🔍 Todos os parâmetros:', Object.fromEntries(urlParams));
+    console.log('🔍 Edit ID extraído:', editId);
+    console.log('🔍 Tipo do Edit ID:', typeof editId);
+    console.log('🔍 Comprimento do Edit ID:', editId ? editId.length : 'N/A');
     
     if (editId) {
       console.log('📝 Modo de edição detectado para ID:', editId);
@@ -298,6 +387,8 @@ class SetlistManager {
 
   async loadSetlistForEdit(id) {
     console.log('🔍 Carregando setlist para edição:', id);
+    console.log('🔍 Tipo do ID:', typeof id);
+    console.log('🔍 Comprimento do ID:', id ? id.length : 'N/A');
     
     try {
       let setlist = null;
@@ -305,15 +396,42 @@ class SetlistManager {
       // Tentar carregar do Firestore primeiro
       if (this.db) {
         console.log('🔥 Tentando carregar do Firestore...');
+        console.log('🔥 Referência do documento:', `setlists/${id}`);
+        
         const doc = await this.db.collection('setlists').doc(id).get();
+        console.log('🔥 Resultado da busca:', {
+          exists: doc.exists,
+          id: doc.id,
+          hasData: !!doc.data()
+        });
+        
         if (doc.exists) {
           setlist = {
             id: doc.id,
             ...doc.data(),
             criadoEm: doc.data().criadoEm?.toDate?.() || doc.data().criadoEm
           };
-          console.log('✅ Setlist carregada do Firestore');
+          console.log('✅ Setlist carregada do Firestore:', {
+            nome: setlist.nome,
+            musicas: setlist.musicas?.length || 0
+          });
+        } else {
+          console.warn('⚠️ Documento não existe no Firestore');
+          
+          // Listar algumas setlists para debug
+          try {
+            const snapshot = await this.db.collection('setlists').limit(5).get();
+            console.log('🔍 Setlists disponíveis (primeiras 5):');
+            snapshot.forEach(doc => {
+              const data = doc.data();
+              console.log(`  - ID: ${doc.id}, Nome: ${data.nome || 'Sem nome'}`);
+            });
+          } catch (listError) {
+            console.error('❌ Erro ao listar setlists:', listError);
+          }
         }
+      } else {
+        console.warn('⚠️ Database não inicializado');
       }
       
       // Fallback para localStorage se não encontrou no Firestore
@@ -321,12 +439,80 @@ class SetlistManager {
         console.log('💾 Fallback: tentando carregar do localStorage...');
         const stored = localStorage.getItem('setlists');
         const setlists = stored ? JSON.parse(stored) : [];
+        console.log('💾 Setlists no localStorage:', setlists.length);
+        
+        setlists.forEach((s, index) => {
+          console.log(`  ${index + 1}. ID: ${s.id}, Nome: ${s.nome || 'Sem nome'}`);
+        });
+        
         setlist = setlists.find(s => s.id === id);
+        
+        if (setlist) {
+          console.log('✅ Setlist encontrada no localStorage');
+        } else {
+          console.warn('⚠️ Setlist não encontrada no localStorage');
+        }
       }
       
       if (!setlist) {
         console.error('❌ Setlist não encontrada:', id);
-        alert('Setlist não encontrada!');
+        
+        // Vamos procurar IDs similares
+        let similarIds = [];
+        
+        // Verificar no Firestore
+        if (this.db) {
+          try {
+            const snapshot = await this.db.collection('setlists').get();
+            snapshot.forEach(doc => {
+              const docId = doc.id;
+              // Verificar se há sobreposição de caracteres
+              if (docId.includes(id) || id.includes(docId) || 
+                  this.calculateSimilarity(id, docId) > 0.7) {
+                similarIds.push({
+                  id: docId,
+                  name: doc.data().nome || 'Sem nome',
+                  similarity: this.calculateSimilarity(id, docId)
+                });
+              }
+            });
+          } catch (error) {
+            console.error('❌ Erro ao buscar IDs similares:', error);
+          }
+        }
+        
+        // Verificar no localStorage
+        const stored = localStorage.getItem('setlists');
+        const setlists = stored ? JSON.parse(stored) : [];
+        setlists.forEach(s => {
+          if (s.id.includes(id) || id.includes(s.id) || 
+              this.calculateSimilarity(id, s.id) > 0.7) {
+            similarIds.push({
+              id: s.id,
+              name: s.nome || 'Sem nome',
+              similarity: this.calculateSimilarity(id, s.id),
+              source: 'localStorage'
+            });
+          }
+        });
+        
+        // Ordenar por similaridade
+        similarIds.sort((a, b) => b.similarity - a.similarity);
+        
+        let errorMessage = `Setlist não encontrada!\n\nID procurado: ${id}`;
+        
+        if (similarIds.length > 0) {
+          errorMessage += '\n\nIDs similares encontrados:';
+          similarIds.slice(0, 3).forEach(similar => {
+            errorMessage += `\n• ${similar.id} - "${similar.name}" (${Math.round(similar.similarity * 100)}% similar)`;
+          });
+          errorMessage += '\n\nVerifique se o ID está correto ou clique em "Debug" para ver todos os IDs.';
+        } else {
+          errorMessage += '\n\nNenhum ID similar encontrado.';
+          errorMessage += '\nClique em "Debug" para ver todas as setlists disponíveis.';
+        }
+
+        alert(errorMessage);
         window.location.href = 'setlists.html';
         return;
       }
@@ -338,7 +524,7 @@ class SetlistManager {
       
     } catch (error) {
       console.error('❌ Erro ao carregar setlist:', error);
-      alert('Erro ao carregar setlist para edição!');
+      alert(`Erro ao carregar setlist: ${error.message}`);
       window.location.href = 'setlists.html';
     }
   }
@@ -370,6 +556,9 @@ class SetlistManager {
       console.log('🎵 Carregando músicas com ministros individuais...');
       
       this.selectedSongs = setlist.musicas.map((song, index) => {
+        // Buscar dados completos da música no banco de dados
+        const fullSongData = this.allSongs.find(s => s.id === song.id) || {};
+        
         // Determinar ministro específico da música
         let assignedMinister = null;
         
@@ -381,15 +570,22 @@ class SetlistManager {
           assignedMinister = song.ministro;
         }
         
-        console.log(`  Música: ${song.titulo} - Ministro: ${assignedMinister || 'padrão'} - Tom: ${song.tomFinal || song.tom}`);
+        // Verificar se o ministro tem tom específico para esta música
+        let ministerSpecific = false;
+        if (assignedMinister && fullSongData.tomMinistro && fullSongData.tomMinistro[assignedMinister]) {
+          ministerSpecific = true;
+        }
+        
+        console.log(`  Música: ${song.titulo} - Ministro: ${assignedMinister || 'padrão'} - Tom: ${song.tomFinal || song.tom} - Tom específico: ${ministerSpecific}`);
         
         return {
           id: song.id,
           titulo: song.titulo,
           artista: song.artista,
           tom: song.tomOriginal || song.tom, // tom original da música
+          tomMinistro: fullSongData.tomMinistro || {}, // incluir dados de tom por ministro
           finalKey: song.tomFinal || song.tom, // tom final aplicado
-          ministerSpecific: song.tomEspecificoMinistro || false,
+          ministerSpecific: ministerSpecific,
           assignedMinister: assignedMinister, // ministro específico para esta música
           order: song.ordem || (index + 1)
         };
@@ -521,7 +717,7 @@ class SetlistManager {
               <option value="">Selecione um ministro...</option>
               ${this.getMinistersForSong(song).map(minister => `
                 <option value="${minister.name}" ${song.assignedMinister === minister.name ? 'selected' : ''}>
-                  ${minister.name} ${minister.specificKey ? `(Tom específico: ${minister.specificKey})` : `(Tom preferido: ${minister.preferredKey})`}
+                  ${minister.name} ${minister.specificKey ? `(Tom nesta música: ${minister.specificKey})` : `(Tom preferido: ${minister.preferredKey})`}
                 </option>
               `).join('')}
             </select>
@@ -531,7 +727,7 @@ class SetlistManager {
             <div style="font-size: 0.85rem; color: #4CAF50; margin-bottom: 8px;">
               <i class="fas fa-check-circle" style="margin-right: 5px;"></i>
               Ministro: <strong>${song.assignedMinister}</strong>
-              ${song.ministerSpecific ? ' (Tom específico aplicado)' : ' (Tom preferido aplicado)'}
+              ${song.ministerSpecific ? ` (usando tom específico desta música: ${song.finalKey})` : ` (usando tom preferido: ${song.finalKey})`}
             </div>
           ` : `
             <div style="font-size: 0.85rem; color: #f44336; margin-bottom: 8px;">
@@ -736,6 +932,48 @@ class SetlistManager {
     return ministersForSong;
   }
 
+  // Função para calcular similaridade entre duas strings
+  calculateSimilarity(str1, str2) {
+    if (!str1 || !str2) return 0;
+    
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) return 1.0;
+    
+    const editDistance = this.levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  }
+  
+  // Função para calcular distância de Levenshtein
+  levenshteinDistance(str1, str2) {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+    
+    return matrix[str2.length][str1.length];
+  }
+
   async saveSetlist() {
     console.log('💾 Iniciando processo de salvamento...');
     
@@ -811,21 +1049,20 @@ class SetlistManager {
     try {
       console.log('🔥 Verificando Firebase...');
       // Tentar salvar no Firestore primeiro
-      if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+      if (this.db) {
         console.log('🔥 Firebase disponível, tentando salvar...');
-        const db = firebase.firestore();
         
         console.log('📡 Conectando com Firestore...');
         
         if (this.editMode) {
           console.log(`✏️ Atualizando setlist existente com ID: ${this.currentSetlistId}`);
           // Atualizar setlist existente no Firestore
-          await db.collection('setlists').doc(this.currentSetlistId).update(cleanSetlistData);
+          await this.db.collection('setlists').doc(this.currentSetlistId).update(cleanSetlistData);
           console.log('✅ Setlist atualizada no Firestore com sucesso!');
         } else {
           console.log(`➕ Criando nova setlist com ID: ${cleanSetlistData.id}`);
           // Adicionar nova setlist no Firestore
-          await db.collection('setlists').doc(cleanSetlistData.id).set(cleanSetlistData);
+          await this.db.collection('setlists').doc(cleanSetlistData.id).set(cleanSetlistData);
           console.log('✅ Nova setlist salva no Firestore com sucesso!');
         }
         
@@ -1026,8 +1263,14 @@ window.forceSaveTest = async function() {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   console.log('🌐 DOM carregado');
+  
+  // Aguardar um pouco para garantir que todos os scripts sejam carregados
+  console.log('⏳ Aguardando carregamento de scripts...');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  console.log('🚀 Iniciando SetlistManager...');
   setlistManager = new SetlistManager();
   window.setlistManager = setlistManager;
 });
