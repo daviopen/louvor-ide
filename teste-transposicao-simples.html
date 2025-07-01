@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Teste de Transposição</title>
+  <script src="https://unpkg.com/chord-transposer@1.0.0/dist/chord-transposer.min.js"></script>
+</head>
+<body>
+  <h1>Teste de Transposição</h1>
+  <div id="resultado"></div>
+
+  <script>
+    // Função manual de transposição (versão corrigida)
+    function manualTranspose(cifra, fromKey, toKey) {
+      console.log(`🛠️ Transposição manual: ${fromKey} → ${toKey}`);
+      
+      // Normalizar as chaves de entrada
+      const normalizeKey = (key) => {
+        if (!key) return 'C';
+        const cleanKey = key.replace(/[^A-G#b]/g, '').toUpperCase();
+        const keyMap = {
+          'DB': 'C#', 'EB': 'D#', 'GB': 'F#', 'AB': 'G#', 'BB': 'A#'
+        };
+        return keyMap[cleanKey] || cleanKey;
+      };
+
+      const normalizedFrom = normalizeKey(fromKey);
+      const normalizedTo = normalizeKey(toKey);
+      
+      const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const fromIndex = keys.indexOf(normalizedFrom);
+      const toIndex = keys.indexOf(normalizedTo);
+      
+      if (fromIndex === -1 || toIndex === -1) {
+        console.warn(`⚠️ Chaves inválidas: ${normalizedFrom} ou ${normalizedTo}`);
+        return cifra;
+      }
+      
+      // Calcular steps usando o caminho mais curto
+      let steps = toIndex - fromIndex;
+      if (steps > 6) steps -= 12;
+      if (steps < -6) steps += 12;
+      
+      console.log(`   Steps: ${steps} (${normalizedFrom}[${fromIndex}] → ${normalizedTo}[${toIndex}])`);
+      
+      if (steps === 0) {
+        console.log(`   ⏹️ Nenhuma transposição necessária`);
+        return cifra;
+      }
+      
+      // Mapa direto de transposição
+      const transposeMap = new Map();
+      keys.forEach((note, index) => {
+        let newIndex = (index + steps) % 12;
+        if (newIndex < 0) newIndex += 12;
+        transposeMap.set(note, keys[newIndex]);
+      });
+      
+      // Mapeamentos enarmônicos
+      const enharmonics = [
+        ['C#', 'Db'], ['D#', 'Eb'], ['F#', 'Gb'], ['G#', 'Ab'], ['A#', 'Bb']
+      ];
+      enharmonics.forEach(([sharp, flat]) => {
+        if (transposeMap.has(sharp)) {
+          transposeMap.set(flat, transposeMap.get(sharp));
+        }
+        if (transposeMap.has(flat)) {
+          transposeMap.set(sharp, transposeMap.get(flat));
+        }
+      });
+      
+      console.log('   Mapa:', Object.fromEntries(transposeMap));
+      
+      // Lista de acordes inválidos a evitar
+      const invalidChords = ['C##', 'D##', 'E#', 'F##', 'G##', 'A##', 'B#', 'Cb', 'Dbb', 'Ebb', 'Fb', 'Gbb', 'Abb', 'Bbb'];
+      
+      function transposeChord(chord) {
+        console.log(`     Processando: "${chord}"`);
+        
+        if (chord.includes('/')) {
+          const [mainChord, bassNote] = chord.split('/');
+          const transposedMain = transposeChord(mainChord.trim());
+          const transposedBass = transposeChord(bassNote.trim());
+          const result = `${transposedMain}/${transposedBass}`;
+          console.log(`     ${chord} → ${result}`);
+          return result;
+        }
+        
+        const rootMatch = chord.match(/^([A-G](?:#|b)?)/i);
+        if (!rootMatch) return chord;
+        
+        const root = rootMatch[1].toUpperCase();
+        const suffix = chord.substring(rootMatch[1].length);
+        
+        const newRoot = transposeMap.get(root);
+        if (!newRoot) {
+          console.warn(`     ⚠️ Não transposto: ${root}`);
+          return chord;
+        }
+        
+        const tentativeResult = newRoot + suffix;
+        
+        // Verificar se seria um acorde inválido
+        if (invalidChords.some(invalid => tentativeResult.startsWith(invalid))) {
+          console.warn(`     ⚠️ Acorde inválido evitado: ${tentativeResult}, mantendo: ${chord}`);
+          return chord;
+        }
+        
+        const result = tentativeResult;
+        console.log(`     ${chord} → ${result}`);
+        return result;
+      }
+      
+      const chordRegex = /\b([A-G](?:#|b)?(?:(?:sus|add|maj|min|dim|aug|m|\d)*)*(?:\/[A-G](?:#|b)?)?)\b/gi;
+      
+      return cifra.replace(chordRegex, (match, chord) => {
+        const cleanMatch = match.trim();
+        
+        // Ignorar vogais isoladas e palavras comuns
+        if (cleanMatch.length === 1 && /^[AaEeIiOoUu]$/.test(cleanMatch)) {
+          return match;
+        }
+        
+        const commonWords = ['a', 'e', 'o', 'da', 'de', 'do', 'em', 'um', 'uma', 'para', 'com', 'se', 'que'];
+        if (commonWords.includes(cleanMatch.toLowerCase())) {
+          return match;
+        }
+        
+        return transposeChord(cleanMatch);
+      });
+    }
+    
+    function testarTransposicao() {
+      console.log('🧪 Iniciando teste de transposição...');
+      
+      const cifraOriginal = `
+        C          F          G           Am
+        Eu te amo, meu Jesus, te amo sim
+        Dm         G          C           C7
+        És a fonte da minha alegria
+        
+        F          C          G           Am
+        Tua graça me alcançou, me salvou
+        F          C/E        G           C
+        Jesus Cristo é minha alegria
+      `;
+      
+      // Testar o problema específico exato: D# para D (-1 semitom)
+      const cifraProblem = `Estrofe:
+D#         Bm         D#          Bm
+
+Ponte:
+D/F#       F#         D#          G#
+
+Refrão:
+F#         D#         Bm          G#
+D/F#       F#         Bm          G#         F#         Bm         G#
+
+3ª Parte:
+F#         G#         Bm          F#m`;
+      
+      const resultado = document.getElementById('resultado');
+      
+      try {
+        // Teste 1: C para G
+        const testeCG = manualTranspose(cifraOriginal, 'C', 'G');
+           // Teste 2: D# para D (o problema reportado)
+      const testeDD = manualTranspose(cifraProblem, 'D#', 'D');
+      
+      // Teste 3: Casos extremos que podem gerar acordes inválidos
+      const casosExtremos = `
+        F#          Gb          F
+        C#          Db          C
+        G#          Ab          G
+        A#          Bb          A
+        D#          Eb          D
+        E           E#          F
+        B           B#          C
+      `;
+      
+      const testeExtremos1 = manualTranspose(casosExtremos, 'F#', 'G');   // +1 semitom
+      const testeExtremos2 = manualTranspose(casosExtremos, 'F#', 'F');   // -1 semitom  
+      const testeExtremos3 = manualTranspose(casosExtremos, 'C', 'B');    // -1 semitom
+      
+      // Teste 4: Acordes com baixo
+      const acordesBaixo = `
+        C/E         F/A         G/B         Am/C
+        D/F#        G/D         A/C#        Bm/D
+      `;
+      
+      const testeBaixo = manualTranspose(acordesBaixo, 'C', 'D');
+        
+        resultado.innerHTML = `
+          <h2>✅ Teste de Transposição Manual</h2>
+          
+          <h3>Teste 1: C para G (+7 semitons)</h3>
+          <h4>Original:</h4>
+          <pre>${cifraOriginal}</pre>
+          <h4>Transposto:</h4>
+          <pre>${testeCG}</pre>
+          
+          <h3>Teste 2: D# para D (-1 semitom) - Problema Reportado</h3>
+          <h4>Original:</h4>
+          <pre>${cifraProblem}</pre>
+          <h4>Transposto:</h4>
+          <pre>${testeDD}</pre>
+          
+          <h3>Teste 3: Casos Extremos - F# para G (+1 semitom)</h3>
+          <h4>Original:</h4>
+          <pre>${casosExtremos}</pre>
+          <h4>Transposto:</h4>
+          <pre>${testeExtremos1}</pre>
+          
+          <h3>Teste 4: Casos Extremos - F# para F (-1 semitom)</h3>
+          <h4>Transposto:</h4>
+          <pre>${testeExtremos2}</pre>
+          
+          <h3>Teste 5: Casos Extremos - C para B (-1 semitom)</h3>
+          <h4>Transposto:</h4>
+          <pre>${testeExtremos3}</pre>
+          
+          <h3>Teste 6: Acordes com Baixo - C para D (+2 semitons)</h3>
+          <h4>Original:</h4>
+          <pre>${acordesBaixo}</pre>
+          <h4>Transposto:</h4>
+          <pre>${testeBaixo}</pre>
+        `;
+        
+        console.log('✅ Teste concluído!');
+        
+      } catch (error) {
+        console.error('❌ Erro:', error);
+        resultado.innerHTML = `<h2>❌ Erro: ${error.message}</h2>`;
+      }
+    }
+    
+    // Aguardar e testar
+    setTimeout(testarTransposicao, 500);
+  </script>
+</body>
+</html>

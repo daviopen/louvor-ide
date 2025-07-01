@@ -91,13 +91,23 @@ class DatabaseService {
 
   // Inicializar localStorage
   initializeLocalStorage() {
+    console.log("🔧 Inicializando localStorage...");
+    
     if (!localStorage.getItem('musicas')) {
       console.log("🎵 Criando dados de exemplo no localStorage...");
-      localStorage.setItem('musicas', JSON.stringify(this.getExampleData()));
-      console.log(`✅ ${this.getExampleData().length} músicas de exemplo salvas`);
+      const exampleData = this.getExampleData();
+      localStorage.setItem('musicas', JSON.stringify(exampleData));
+      console.log(`✅ ${exampleData.length} músicas de exemplo salvas`);
     } else {
       console.log("📦 Dados já existem no localStorage");
+      const existingData = JSON.parse(localStorage.getItem('musicas'));
+      console.log(`📊 ${existingData.length} músicas encontradas no localStorage`);
     }
+    
+    // Verificar se as músicas têm o campo tomMinistro
+    const musicas = JSON.parse(localStorage.getItem('musicas') || '[]');
+    const musicasComTomMinistro = musicas.filter(m => m.tomMinistro);
+    console.log(`🎤 ${musicasComTomMinistro.length} músicas com campo tomMinistro no localStorage`);
   }
 
   // Criar coleção híbrida
@@ -339,7 +349,48 @@ class DatabaseService {
             }
           }
         };
-      }
+      },
+
+      get: () => {
+        return new Promise(async (resolve, reject) => {
+          try {
+            // Tentar Firebase primeiro se disponível
+            if (this.firestoreDB) {
+              try {
+                const snapshot = await this.firestoreDB.collection(collectionName).get();
+                const docs = [];
+                snapshot.forEach(doc => {
+                  docs.push({
+                    id: doc.id,
+                    data: () => doc.data(),
+                    exists: true
+                  });
+                });
+                resolve({ docs });
+                return;
+              } catch (firebaseError) {
+                console.warn("⚠️ Erro no Firebase, usando localStorage:", firebaseError);
+              }
+            }
+            
+            // Fallback localStorage
+            const items = JSON.parse(localStorage.getItem(collectionName) || '[]');
+            const docs = items.map(item => ({
+              id: item.id,
+              data: () => {
+                const { id, ...data } = item;
+                return data;
+              },
+              exists: true
+            }));
+            
+            resolve({ docs });
+          } catch (error) {
+            console.error(`❌ Erro ao buscar coleção:`, error);
+            reject(error);
+          }
+        });
+      },
     };
   }
 

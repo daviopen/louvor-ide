@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste de Transposição</title>
+  <script src="https://cdn.jsdelivr.net/npm/chord-transposer@3.0.9/dist/index.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .cifra {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      white-space: pre-line;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+    }
+    .buttons {
+      margin: 20px 0;
+      text-align: center;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 0 5px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .info {
+      background: #e3f2fd;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+    }
+    .chord {
+      background: #4CAF50;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin: 0 2px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎵 Teste de Transposição de Acordes</h1>
+    
+    <div class="info">
+      <strong>Tom Original:</strong> <span id="tom-original">C</span><br>
+      <strong>Tom Atual:</strong> <span id="tom-atual">C</span><br>
+      <strong>Semitons:</strong> <span id="semitons">0</span>
+    </div>
+
+    <div class="buttons">
+      <button onclick="transpose(-1)">♭ Descer Semitom</button>
+      <button onclick="resetTranspose()">🔄 Reset</button>
+      <button onclick="transpose(1)">♯ Subir Semitom</button>
+    </div>
+
+    <h3>Cifra de Teste:</h3>
+    <div class="cifra" id="cifra">
+Am        F         C         G
+Verso 1:
+Am                F
+Texto da primeira linha
+         C                 G
+Segunda linha da música
+Am        F         C         G
+Refrão aqui com mais acordes
+
+Dm        Am        G         C
+Ponte musical diferente
+F         G         Am
+Final da música
+    </div>
+
+    <div class="info">
+      <strong>Status:</strong> <span id="status">Carregando...</span>
+    </div>
+  </div>
+
+  <script>
+    let currentStep = 0;
+    const originalKey = 'C';
+    let originalCifra = '';
+    
+    const cifraEl = document.getElementById('cifra');
+    const tomOriginalEl = document.getElementById('tom-original');
+    const tomAtualEl = document.getElementById('tom-atual');
+    const semitonasEl = document.getElementById('semitons');
+    const statusEl = document.getElementById('status');
+
+    // Inicializar
+    document.addEventListener('DOMContentLoaded', function() {
+      originalCifra = cifraEl.textContent;
+      const highlightedCifra = highlightChords(originalCifra);
+      cifraEl.innerHTML = highlightedCifra;
+      
+      // Verificar ChordTransposer
+      setTimeout(checkChordTransposer, 100);
+    });
+
+    function checkChordTransposer() {
+      if (typeof ChordTransposer !== 'undefined') {
+        statusEl.textContent = '✅ ChordTransposer carregado - Transposição disponível';
+        statusEl.style.color = 'green';
+      } else {
+        statusEl.textContent = '⚠️ ChordTransposer não carregado - Usando fallback manual';
+        statusEl.style.color = 'orange';
+      }
+    }
+
+    function transpose(step) {
+      if (!originalCifra) return;
+      
+      try {
+        currentStep += step;
+        
+        let transposed;
+        if (typeof ChordTransposer !== 'undefined') {
+          transposed = ChordTransposer.transpose(originalCifra).up(currentStep).toString();
+        } else {
+          transposed = transposeManual(originalCifra, currentStep);
+        }
+        
+        const highlightedTransposed = highlightChords(transposed);
+        cifraEl.innerHTML = highlightedTransposed;
+        updateCurrentKey();
+        
+      } catch (error) {
+        console.error('Erro ao transpor:', error);
+        alert('Erro ao transpor: ' + error.message);
+      }
+    }
+
+    function resetTranspose() {
+      currentStep = 0;
+      const highlightedOriginal = highlightChords(originalCifra);
+      cifraEl.innerHTML = highlightedOriginal;
+      updateCurrentKey();
+    }
+
+    function transposeManual(cifra, steps) {
+      const chordMap = {
+        'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3, 'E': 4, 'F': 5, 
+        'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8, 'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
+      };
+      
+      const chordNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const invalidChords = ['C##', 'D##', 'E#', 'F##', 'G##', 'A##', 'B#', 'Cb', 'Dbb', 'Ebb', 'Fb', 'Gbb', 'Abb', 'Bbb'];
+      
+      return cifra.replace(/\b([A-G](?:#|b)?(?:m|maj|dim|aug|sus|add|\d)*(?:\/[A-G](?:#|b)?)?)\b/g, function(match, chord) {
+        // Tratar acordes com baixo
+        if (chord.includes('/')) {
+          const [mainChord, bassNote] = chord.split('/');
+          const transposedMain = transposeChordSingle(mainChord);
+          const transposedBass = transposeChordSingle(bassNote);
+          return `${transposedMain}/${transposedBass}`;
+        }
+        
+        return transposeChordSingle(chord);
+      });
+      
+      function transposeChordSingle(chord) {
+        const rootMatch = chord.match(/^([A-G](?:#|b)?)/);
+        if (!rootMatch) return chord;
+        
+        const root = rootMatch[1];
+        const suffix = chord.substring(root.length);
+        const rootIndex = chordMap[root];
+        
+        if (rootIndex === undefined) return chord;
+        
+        let newIndex = (rootIndex + steps) % 12;
+        if (newIndex < 0) newIndex += 12;
+        
+        const newRoot = chordNames[newIndex];
+        const tentativeResult = newRoot + suffix;
+        
+        // Verificar se seria um acorde inválido
+        if (invalidChords.some(invalid => tentativeResult.startsWith(invalid))) {
+          console.warn(`Acorde inválido evitado: ${tentativeResult}, mantendo: ${chord}`);
+          return chord;
+        }
+        
+        return tentativeResult;
+      }
+    }
+
+    function getCurrentKey() {
+      if (currentStep === 0) return originalKey;
+      
+      const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const currentIndex = keys.indexOf(originalKey);
+      
+      if (currentIndex === -1) return originalKey;
+      
+      let newIndex = (currentIndex + currentStep) % 12;
+      if (newIndex < 0) newIndex += 12;
+      
+      return keys[newIndex];
+    }
+
+    function updateCurrentKey() {
+      tomAtualEl.textContent = getCurrentKey();
+      semitonasEl.textContent = currentStep;
+    }
+
+    function highlightChords(text) {
+      const chordRegex = /\b([A-G](?:#|b)?(?:m|maj|dim|aug|sus|add|\d)*(?:\/[A-G](?:#|b)?)?)\b/g;
+      return text.replace(chordRegex, '<span class="chord">$1</span>');
+    }
+  </script>
+</body>
+</html>

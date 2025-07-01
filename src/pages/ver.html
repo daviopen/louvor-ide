@@ -6,7 +6,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="../config/firebase-config.js"></script>
-  <script src="https://unpkg.com/chord-transposer"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chord-transposer@3.0.9/dist/index.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -378,6 +378,71 @@
       color: #66d9ef;
       font-weight: bold;
     }
+
+    /* Estilos para botões de ação */
+    .action-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      padding: 20px;
+      border-radius: 15px;
+      margin: 20px 0;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .action-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 120px;
+      justify-content: center;
+    }
+
+    .action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .edit-btn {
+      background: linear-gradient(135deg, #4CAF50, #388E3C);
+    }
+
+    .delete-btn {
+      background: linear-gradient(135deg, #F44336, #D32F2F);
+    }
+
+    @media (max-width: 768px) {
+      .action-buttons {
+        flex-direction: column;
+      }
+
+      .action-btn {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
@@ -396,23 +461,19 @@
     <div class="content">
       <div class="info-section">
         <div class="info-item">
-          <span class="info-label">🎤 Ministros:</span> 
-          <span class="info-value" id="ministro">-</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">🎸 Artista/Banda:</span> 
+          <span class="info-label"> Artista/Banda:</span> 
           <span class="info-value" id="artista">-</span>
         </div>
         <div class="info-item">
-          <span class="info-label">🎵 Tom Original:</span> 
+          <span class="info-label">🎵 Tom da Música:</span> 
           <span class="info-value" id="tom">-</span>
         </div>
         <div class="info-item" id="tom-ministro-container" style="display: none;">
-          <span class="info-label">🎼 Tom do Ministro:</span> 
+          <span class="info-label">🎤 Tom do Ministro:</span> 
           <span class="info-value" id="tom-ministro">-</span>
         </div>
-        <div class="info-item">
-          <span class="info-label">🎶 Tom Atual:</span> 
+        <div class="info-item" id="tom-atual-container" style="display: none;">
+          <span class="info-label">🎶 Tom Transposto:</span> 
           <span id="tom-atual">-</span>
         </div>
         <div class="info-item">
@@ -425,6 +486,24 @@
         </div>
       </div>
       
+      <!-- Seção de Ações -->
+      <div class="action-section" id="action-section" style="display: none;">
+        <div class="action-title">
+          <i class="fas fa-tools"></i>
+          Ações da Música
+        </div>
+        <div class="action-buttons">
+          <button class="action-btn edit-btn" onclick="editMusica()" title="Editar Música">
+            <i class="fas fa-edit"></i>
+            Editar
+          </button>
+          <button class="action-btn delete-btn" onclick="deleteMusica()" title="Excluir Música">
+            <i class="fas fa-trash"></i>
+            Excluir
+          </button>
+        </div>
+      </div>
+      
       <div class="controls">
         <button onclick="transpose(-1)" id="btn-descer" class="btn-transpose-down" disabled>
           ↓ Descer Semitom
@@ -433,7 +512,7 @@
           ↑ Subir Semitom
         </button>
         <button onclick="resetTranspose()" id="btn-reset" class="btn-reset" disabled>
-          🔄 Tom Original
+          🔄 Tom da Música
         </button>
         <button onclick="window.history.back()" class="btn-back">
           ← Voltar
@@ -455,6 +534,7 @@
     let original = "";
     let currentStep = 0;
     let originalKey = "";
+    let currentMusicData = null; // Para armazenar dados da música atual
 
     // Elementos DOM
     const loadingEl = document.getElementById("loading");
@@ -462,13 +542,16 @@
     const cifraEl = document.getElementById("cifra");
     const cifraContainer = document.getElementById("cifra-container");
     const tituloEl = document.getElementById("titulo");
-    const ministroEl = document.getElementById("ministro");
     const artistaEl = document.getElementById("artista");
     const tomEl = document.getElementById("tom");
     const tomAtualEl = document.getElementById("tom-atual");
     const bpmEl = document.getElementById("bpm");
     const linkContainer = document.getElementById("link-container");
     const linkMusicaEl = document.getElementById("link-musica");
+    const tomMinistroContainer = document.getElementById("tom-ministro-container");
+    const tomMinistroEl = document.getElementById("tom-ministro");
+    const tomAtualContainer = document.getElementById("tom-atual-container");
+    const actionSection = document.getElementById("action-section");
     const btnDescer = document.getElementById("btn-descer");
     const btnSubir = document.getElementById("btn-subir");
     const btnReset = document.getElementById("btn-reset");
@@ -488,10 +571,22 @@
       cifraContainer.style.display = "block";
       cifraContainer.classList.add("fade-in");
       
-      // Habilitar botões
+      // Verificar se ChordTransposer está disponível antes de habilitar botões
+      checkChordTransposerAndEnableButtons();
+      updateCurrentKey();
+    }
+
+    // Função para verificar ChordTransposer e habilitar botões
+    function checkChordTransposerAndEnableButtons() {
+      if (typeof ChordTransposer !== 'undefined') {
+        console.log("✅ ChordTransposer carregado, habilitando botões de transposição");
+      } else {
+        console.warn("⚠️ ChordTransposer não carregado, mas habilitando botões com fallback manual");
+      }
+      
+      // Habilitar botões independentemente da biblioteca
       btnDescer.disabled = false;
       btnSubir.disabled = false;
-      updateCurrentKey();
     }
 
     // Função para calcular o tom atual
@@ -512,7 +607,14 @@
     // Função para atualizar o tom atual na interface
     function updateCurrentKey() {
       const currentKey = getCurrentKey();
-      tomAtualEl.textContent = currentKey;
+      
+      // Só mostrar tom transposto se for diferente do original
+      if (currentStep === 0 || currentKey === originalKey) {
+        tomAtualContainer.style.display = "none";
+      } else {
+        tomAtualEl.textContent = currentKey;
+        tomAtualContainer.style.display = "flex";
+      }
       
       // Atualizar estado do botão reset
       if (currentStep === 0) {
@@ -579,36 +681,33 @@
     }
 
     function displayMusica(data) {
+        // Armazenar dados da música atual
+        currentMusicData = data;
 
         // Preencher dados
         tituloEl.textContent = data.titulo;
         
-        // Processar ministros
-        let ministrosDisplay = 'Não informado';
-        if (data.ministros && Array.isArray(data.ministros)) {
-          ministrosDisplay = data.ministros.join(', ');
-        } else if (data.ministro) {
-          ministrosDisplay = data.ministro;
-        }
-        ministroEl.textContent = ministrosDisplay;
-        
         artistaEl.textContent = data.artista || "Não informado";
         tomEl.textContent = data.tom || "Não informado";
         
+        bpmEl.textContent = data.bpm ? `${data.bpm} BPM` : "Não informado";
+        
         // Tom do Ministro
-        const tomMinistroContainer = document.getElementById('tom-ministro-container');
-        const tomMinistroEl = document.getElementById('tom-ministro');
         if (data.tomMinistro && typeof data.tomMinistro === 'object') {
-          const tomMinistroText = Object.entries(data.tomMinistro)
+          const tomsMinistros = Object.entries(data.tomMinistro)
+            .filter(([nome, tom]) => nome && tom)
             .map(([nome, tom]) => `${nome}: ${tom}`)
             .join(', ');
-          tomMinistroEl.textContent = tomMinistroText;
-          tomMinistroContainer.style.display = "flex";
+          
+          if (tomsMinistros) {
+            tomMinistroEl.textContent = tomsMinistros;
+            tomMinistroContainer.style.display = 'flex';
+          } else {
+            tomMinistroContainer.style.display = 'none';
+          }
         } else {
-          tomMinistroContainer.style.display = "none";
+          tomMinistroContainer.style.display = 'none';
         }
-        
-        bpmEl.textContent = data.bpm ? `${data.bpm} BPM` : "Não informado";
         
         // Link da música
         if (data.link) {
@@ -628,20 +727,38 @@
         // Inicializar tom atual
         updateCurrentKey();
         showContent();
+        
+        // Exibir seção de ações
+        if (actionSection) {
+          actionSection.style.display = 'block';
+        }
 
         // Atualizar título da página
         document.title = `${data.titulo} - Louvor IDE`;
     }
 
     function transpose(step) {
-      if (!original) return;
+      if (!original) {
+        console.error("❌ Cifra original não disponível");
+        return;
+      }
+      
+      // Verificar se ChordTransposer está disponível
+      if (typeof ChordTransposer === 'undefined') {
+        console.warn("⚠️ ChordTransposer não disponível, usando transposição manual");
+        transposeManual(step);
+        return;
+      }
       
       try {
+        console.log(`🎼 Transpondo ${step} semitons (atual: ${currentStep})`);
         currentStep += step;
         const transposed = ChordTransposer.transpose(original).up(currentStep).toString();
         const highlightedTransposed = highlightChords(transposed);
         cifraEl.innerHTML = highlightedTransposed;
         updateCurrentKey();
+        
+        console.log(`✅ Transposição bem-sucedida. Novo tom: ${getCurrentKey()}`);
         
         // Adicionar efeito visual
         cifraContainer.style.transform = "scale(0.98)";
@@ -650,18 +767,105 @@
         }, 150);
         
       } catch (error) {
-        console.error("Erro ao transpor:", error);
-        showError("Erro ao transpor a música");
+        console.error("❌ Erro ao transpor:", error);
+        console.warn("⚠️ Tentando transposição manual como fallback");
+        transposeManual(step);
+      }
+    }
+
+    // Função de transposição manual como fallback - VERSÃO CORRIGIDA
+    function transposeManual(step) {
+      try {
+        console.log(`🔧 Transposição manual: ${step} semitons`);
+        currentStep += step;
+        
+        // Mapa de correspondência das notas com índices
+        const chordMap = {
+          'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3, 'E': 4, 'F': 5, 
+          'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8, 'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
+        };
+        
+        const chordNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        
+        // Lista de acordes inválidos a evitar
+        const invalidChords = ['C##', 'D##', 'E#', 'F##', 'G##', 'A##', 'B#', 'Cb', 'Dbb', 'Ebb', 'Fb', 'Gbb', 'Abb', 'Bbb'];
+        
+        let transposed = original.replace(/\b([A-G](?:#|b)?(?:m|maj|dim|aug|sus|add|\d)*(?:\/[A-G](?:#|b)?)?)\b/g, function(match, chord) {
+          console.log(`  Processando acorde: ${chord}`);
+          
+          // Tratar acordes com baixo
+          if (chord.includes('/')) {
+            const [mainChord, bassNote] = chord.split('/');
+            const transposedMain = transposeChordSingle(mainChord);
+            const transposedBass = transposeChordSingle(bassNote);
+            const result = `${transposedMain}/${transposedBass}`;
+            console.log(`  ${chord} (com baixo) → ${result}`);
+            return result;
+          }
+          
+          return transposeChordSingle(chord);
+        });
+        
+        // Função auxiliar para transpor um acorde individual
+        function transposeChordSingle(chord) {
+          // Extrair a nota raiz
+          const rootMatch = chord.match(/^([A-G](?:#|b)?)/);
+          if (!rootMatch) return chord;
+          
+          const root = rootMatch[1];
+          const suffix = chord.substring(root.length);
+          const rootIndex = chordMap[root];
+          
+          if (rootIndex === undefined) return chord;
+          
+          // Calcular nova nota
+          let newIndex = (rootIndex + currentStep) % 12;
+          if (newIndex < 0) newIndex += 12;
+          
+          const newRoot = chordNames[newIndex];
+          const tentativeResult = newRoot + suffix;
+          
+          // Verificar se seria um acorde inválido
+          if (invalidChords.some(invalid => tentativeResult.startsWith(invalid))) {
+            console.warn(`  ⚠️ Acorde inválido evitado: ${tentativeResult}, mantendo: ${chord}`);
+            return chord;
+          }
+          
+          console.log(`  ${chord} → ${tentativeResult}`);
+          return tentativeResult;
+        }
+        
+        const highlightedTransposed = highlightChords(transposed);
+        cifraEl.innerHTML = highlightedTransposed;
+        updateCurrentKey();
+        
+        console.log(`✅ Transposição manual bem-sucedida. Novo tom: ${getCurrentKey()}`);
+        
+        // Adicionar efeito visual
+        cifraContainer.style.transform = "scale(0.98)";
+        setTimeout(() => {
+          cifraContainer.style.transform = "scale(1)";
+        }, 150);
+        
+      } catch (error) {
+        console.error("❌ Erro na transposição manual:", error);
+        showError("Erro ao transpor a música: " + error.message);
       }
     }
 
     function resetTranspose() {
-      if (!original) return;
+      if (!original) {
+        console.error("❌ Cifra original não disponível");
+        return;
+      }
       
+      console.log("🔄 Resetando para tom original");
       currentStep = 0;
       const highlightedOriginal = highlightChords(original);
       cifraEl.innerHTML = highlightedOriginal;
       updateCurrentKey();
+      
+      console.log(`✅ Reset bem-sucedido. Tom original: ${originalKey}`);
       
       // Efeito visual de reset
       cifraContainer.style.transform = "scale(1.02)";
@@ -701,10 +905,79 @@
 
     // Adicionar título da página dinamicamente
     document.addEventListener('DOMContentLoaded', function() {
+      console.log("🚀 Página carregada, verificando dependências...");
+      
+      // Verificar se ChordTransposer está disponível
+      if (typeof ChordTransposer !== 'undefined') {
+        console.log("✅ ChordTransposer disponível na inicialização");
+      } else {
+        console.warn("⚠️ ChordTransposer não disponível na inicialização");
+      }
+
       if (id) {
         document.title = "Ver Música - Louvor IDE";
       }
     });
+
+    // Verificar quando ChordTransposer for carregado
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        if (typeof ChordTransposer !== 'undefined') {
+          console.log("✅ ChordTransposer carregado após window.load");
+        } else {
+          console.error("❌ ChordTransposer ainda não carregado após window.load");
+        }
+      }, 1000);
+    });
+
+    // Função para editar música
+    function editMusica() {
+      if (!currentMusicData || !id) {
+        alert('Erro: Dados da música não disponíveis para edição.');
+        return;
+      }
+      
+      console.log('📝 Editando música:', currentMusicData.titulo);
+      window.location.href = `nova-musica.html?edit=${id}`;
+    }
+
+    // Função para excluir música
+    async function deleteMusica() {
+      if (!currentMusicData || !id) {
+        alert('Erro: Dados da música não disponíveis para exclusão.');
+        return;
+      }
+      
+      const confirmDelete = confirm(`Tem certeza que deseja excluir a música "${currentMusicData.titulo}"?\n\nEsta ação não pode ser desfeita.`);
+      
+      if (!confirmDelete) {
+        return;
+      }
+      
+      try {
+        console.log('🗑️ Excluindo música:', currentMusicData.titulo);
+        
+        // Verificar se o database está disponível
+        if (!window.db) {
+          throw new Error('Sistema de dados não disponível');
+        }
+        
+        // Excluir do Firestore
+        await window.db.collection('musicas').doc(id).delete();
+        
+        console.log('✅ Música excluída com sucesso do Firestore');
+        
+        // Mostrar mensagem de sucesso
+        alert(`Música "${currentMusicData.titulo}" excluída com sucesso!`);
+        
+        // Redirecionar para a página de consulta
+        window.location.href = 'consultar.html';
+        
+      } catch (error) {
+        console.error('❌ Erro ao excluir música:', error);
+        alert('Erro ao excluir música: ' + (error.message || error));
+      }
+    }
   </script>
 </body>
 </html>

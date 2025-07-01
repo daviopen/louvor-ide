@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste de Transposição em Setlist</title>
+  <script src="https://unpkg.com/chord-transposer@1.0.0/dist/chord-transposer.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-case {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .cifra {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      border: 1px solid #dee2e6;
+    }
+    .chord {
+      color: #007bff;
+      font-weight: bold;
+    }
+    .error {
+      color: #dc3545;
+      background: #f8d7da;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+    }
+    .success {
+      color: #155724;
+      background: #d4edda;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+    }
+    h1 { color: #333; }
+    h2 { color: #666; }
+    h3 { color: #888; }
+    .test-info {
+      background: #e3f2fd;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Teste de Transposição em Setlist</h1>
+  <p>Este teste simula o ambiente de transposição usado na página setlist-view.html</p>
+  
+  <div id="resultado"></div>
+
+  <script>
+    // Copiar a função exata da setlist-view.html (versão corrigida)
+    function manualTranspose(cifra, fromKey, toKey) {
+      console.log(`🛠️ Transposição manual: ${fromKey} → ${toKey}`);
+      
+      // Normalizar as chaves de entrada (remover sufixos como m, 7, etc.)
+      const normalizeKey = (key) => {
+        if (!key) return 'C';
+        const cleanKey = key.replace(/[^A-G#b]/g, '').toUpperCase();
+        // Converter bemóis para sustenidos para padronização
+        const keyMap = {
+          'DB': 'C#', 'EB': 'D#', 'GB': 'F#', 'AB': 'G#', 'BB': 'A#'
+        };
+        return keyMap[cleanKey] || cleanKey;
+      };
+
+      const normalizedFrom = normalizeKey(fromKey);
+      const normalizedTo = normalizeKey(toKey);
+      
+      console.log(`   Chaves normalizadas: ${fromKey} → ${normalizedFrom}, ${toKey} → ${normalizedTo}`);
+      
+      const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const fromIndex = keys.indexOf(normalizedFrom);
+      const toIndex = keys.indexOf(normalizedTo);
+      
+      if (fromIndex === -1 || toIndex === -1) {
+        console.warn(`⚠️ Chaves inválidas para transposição manual: ${normalizedFrom} ou ${normalizedTo}`);
+        return cifra;
+      }
+      
+      // Calcular steps considerando o caminho mais curto
+      let steps = toIndex - fromIndex;
+      if (steps > 6) steps -= 12;
+      if (steps < -6) steps += 12;
+      
+      console.log(`   Steps manuais: ${steps} (${normalizedFrom}[${fromIndex}] → ${normalizedTo}[${toIndex}])`);
+      
+      // Se não há transposição necessária
+      if (steps === 0) {
+        console.log(`   ⏹️ Nenhuma transposição necessária`);
+        return cifra;
+      }
+      
+      // Criar mapa de transposição robusto
+      const transposeMap = new Map();
+      
+      // Mapeamento direto das 12 notas
+      keys.forEach((note, index) => {
+        let newIndex = (index + steps) % 12;
+        if (newIndex < 0) newIndex += 12;
+        transposeMap.set(note, keys[newIndex]);
+      });
+      
+      // Adicionar mapeamentos enarmônicos
+      const enharmonics = [
+        ['C#', 'Db'], ['D#', 'Eb'], ['F#', 'Gb'], ['G#', 'Ab'], ['A#', 'Bb']
+      ];
+      
+      enharmonics.forEach(([sharp, flat]) => {
+        if (transposeMap.has(sharp)) {
+          transposeMap.set(flat, transposeMap.get(sharp));
+        }
+        if (transposeMap.has(flat)) {
+          transposeMap.set(sharp, transposeMap.get(flat));
+        }
+      });
+      
+      console.log('   Mapa de transposição:', Object.fromEntries(transposeMap));
+      
+      // Função para transpor um acorde individual
+      function transposeChord(chord) {
+        console.log(`     Processando acorde: "${chord}"`);
+        
+        // Tratar acordes com baixo (ex: C/E)
+        if (chord.includes('/')) {
+          const [mainChord, bassNote] = chord.split('/');
+          const transposedMain = transposeChord(mainChord.trim());
+          const transposedBass = transposeChord(bassNote.trim());
+          const result = `${transposedMain}/${transposedBass}`;
+          console.log(`     Acorde com baixo: ${chord} → ${result}`);
+          return result;
+        }
+        
+        // Extrair a nota raiz usando regex mais específica
+        const rootMatch = chord.match(/^([A-G](?:#|b)?)/i);
+        if (!rootMatch) {
+          console.log(`     Não é um acorde reconhecido: ${chord}`);
+          return chord;
+        }
+        
+        const root = rootMatch[1].toUpperCase();
+        const suffix = chord.substring(rootMatch[1].length);
+        
+        // Buscar a transposição da raiz
+        const newRoot = transposeMap.get(root);
+        
+        if (!newRoot) {
+          console.warn(`     ⚠️ Não foi possível transpor a raiz: ${root}`);
+          return chord;
+        }
+        
+        // Verificar se o resultado seria um acorde inválido
+        const invalidChords = ['C##', 'D##', 'E#', 'F##', 'G##', 'A##', 'B#', 'Cb', 'Dbb', 'Ebb', 'Fb', 'Gbb', 'Abb', 'Bbb'];
+        const tentativeResult = newRoot + suffix;
+        
+        if (invalidChords.some(invalid => tentativeResult.startsWith(invalid))) {
+          console.warn(`     ⚠️ Acorde inválido detectado: ${tentativeResult}, mantendo original: ${chord}`);
+          return chord;
+        }
+        
+        const result = tentativeResult;
+        console.log(`     ${chord} → ${result}`);
+        return result;
+      }
+      
+      // Aplicar transposição na cifra com regex melhorada
+      const chordRegex = /\b([A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add|\d)*(?:\/[A-G](?:#|b)?)?)\b/gi;
+      
+      const transposed = cifra.replace(chordRegex, (match, chord) => {
+        // Verificar se é realmente um acorde válido
+        const cleanMatch = match.trim();
+        
+        // Ignorar vogais isoladas e palavras comuns
+        if (cleanMatch.length === 1 && /^[AaEeIiOoUu]$/.test(cleanMatch)) {
+          return match;
+        }
+        
+        // Ignorar palavras muito comuns que podem ter letras de acordes
+        const commonWords = ['a', 'e', 'o', 'da', 'de', 'do', 'em', 'um', 'uma', 'para', 'com', 'se', 'que'];
+        if (commonWords.includes(cleanMatch.toLowerCase())) {
+          return match;
+        }
+        
+        return transposeChord(cleanMatch);
+      });
+      
+      console.log(`✅ Transposição manual concluída`);
+      return transposed;
+    }
+
+    function transposeCifra(cifra, fromKey, toKey) {
+      console.log(`🔄 transposeCifra chamada: "${fromKey}" → "${toKey}"`);
+      console.log(`   Cifra original: "${cifra.substring(0, 50)}..."`);
+      
+      if (!fromKey || !toKey || fromKey === toKey) {
+        console.log(`   ⏹️ Transposição desnecessária (${fromKey} === ${toKey})`);
+        return cifra;
+      }
+
+      try {
+        if (typeof ChordTransposer !== 'undefined') {
+          console.log(`   ✅ ChordTransposer disponível, tentando usar...`);
+          
+          const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+          const fromIndex = keys.indexOf(fromKey.toUpperCase());
+          const toIndex = keys.indexOf(toKey.toUpperCase());
+          
+          console.log(`   Índices: ${fromKey}(${fromIndex}) → ${toKey}(${toIndex})`);
+          
+          if (fromIndex !== -1 && toIndex !== -1) {
+            let steps = toIndex - fromIndex;
+            if (steps < 0) steps += 12;
+            
+            console.log(`   Steps para transposição: ${steps}`);
+            
+            // Método direto
+            const transposed = ChordTransposer.transpose(cifra).up(steps).toString();
+            console.log(`   ✅ Transposição ChordTransposer realizada`);
+            
+            return transposed;
+          } else {
+            console.warn(`   ⚠️ Chaves não reconhecidas: ${fromKey}(${fromIndex}) ou ${toKey}(${toIndex})`);
+          }
+        } else {
+          console.warn(`   ⚠️ ChordTransposer não disponível, usando transposição manual`);
+        }
+      } catch (error) {
+        console.error('❌ Erro no ChordTransposer, usando transposição manual:', error);
+      }
+      
+      // Fallback: transposição manual
+      return manualTranspose(cifra, fromKey, toKey);
+    }
+
+    function highlightChords(text) {
+      const chordRegex = /\b([A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add|\d)*(?:\/[A-G](?:#|b)?)?)\b/gi;
+      return text.replace(chordRegex, '<span class="chord">$1</span>');
+    }
+
+    function verificarAcordesInvalidos(cifra) {
+      const invalidChords = ['C##', 'D##', 'E#', 'F##', 'G##', 'A##', 'B#', 'Cb', 'Dbb', 'Ebb', 'Fb', 'Gbb', 'Abb', 'Bbb'];
+      const encontrados = [];
+      
+      invalidChords.forEach(invalid => {
+        if (cifra.includes(invalid)) {
+          encontrados.push(invalid);
+        }
+      });
+      
+      return encontrados;
+    }
+
+    function executarTestes() {
+      console.log('🧪 Iniciando testes de transposição...');
+      
+      const testCases = [
+        {
+          name: "Caso do Problema Reportado: D# para D",
+          fromKey: "D#",
+          toKey: "D",
+          cifra: `Estrofe:
+D#         Bm         D#          Bm
+Ponte:
+D/F#       F#         D#          G#
+Refrão:
+F#         D#         Bm          G#
+D/F#       F#         Bm          G#         F#         Bm         G#`
+        },
+        {
+          name: "Transposições Extremas: F# para F",
+          fromKey: "F#",
+          toKey: "F",
+          cifra: `F#         C#         D#m        A#m
+Gb         Db         Ebm        Bbm`
+        },
+        {
+          name: "Acordes com Baixo: C para D",
+          fromKey: "C",
+          toKey: "D",
+          cifra: `C/E        F/A        G/B        Am/C
+D/F#       G/D        A/C#       Bm/D`
+        },
+        {
+          name: "Tons Bemóis para Sustenidos: Bb para A#",
+          fromKey: "Bb",
+          toKey: "A#",
+          cifra: `Bb         Eb         F          Cm
+Ab         Db         Bb/D       Eb`
+        },
+        {
+          name: "Transposição Normal: C para G",
+          fromKey: "C",
+          toKey: "G",
+          cifra: `C          F          G          Am
+Dm         G          C          C7`
+        }
+      ];
+      
+      const resultado = document.getElementById('resultado');
+      let html = '';
+      
+      testCases.forEach((test, index) => {
+        console.log(`\n--- Teste ${index + 1}: ${test.name} ---`);
+        
+        const transposed = transposeCifra(test.cifra, test.fromKey, test.toKey);
+        const invalidFound = verificarAcordesInvalidos(transposed);
+        
+        html += `
+          <div class="test-case">
+            <h2>Teste ${index + 1}: ${test.name}</h2>
+            <div class="test-info">
+              <strong>Transposição:</strong> ${test.fromKey} → ${test.toKey}
+            </div>
+            
+            <h3>Original (${test.fromKey}):</h3>
+            <div class="cifra">${highlightChords(test.cifra)}</div>
+            
+            <h3>Transposto (${test.toKey}):</h3>
+            <div class="cifra">${highlightChords(transposed)}</div>
+            
+            ${invalidFound.length > 0 ? 
+              `<div class="error">⚠️ <strong>Acordes inválidos encontrados:</strong> ${invalidFound.join(', ')}</div>` :
+              `<div class="success">✅ <strong>Nenhum acorde inválido encontrado!</strong></div>`
+            }
+          </div>
+        `;
+      });
+      
+      resultado.innerHTML = html;
+      console.log('✅ Todos os testes concluídos!');
+    }
+
+    // Aguardar ChordTransposer carregar e executar testes
+    setTimeout(executarTestes, 1000);
+  </script>
+</body>
+</html>

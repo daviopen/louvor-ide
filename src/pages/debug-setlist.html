@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste - Setlist Debug</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+    .debug-title { font-weight: bold; color: #333; margin-bottom: 10px; }
+    .debug-content { background: #f9f9f9; padding: 10px; border-radius: 3px; }
+    pre { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Debug - Sistema de Setlists</h1>
+  
+  <div class="debug-section">
+    <div class="debug-title">Status do Sistema</div>
+    <div class="debug-content" id="system-status">Carregando...</div>
+  </div>
+  
+  <div class="debug-section">
+    <div class="debug-title">Músicas Carregadas</div>
+    <div class="debug-content" id="songs-debug">Carregando...</div>
+  </div>
+  
+  <div class="debug-section">
+    <div class="debug-title">Ministros Encontrados</div>
+    <div class="debug-content" id="ministers-debug">Carregando...</div>
+  </div>
+  
+  <div class="debug-section">
+    <div class="debug-title">Teste de Busca</div>
+    <input type="text" id="test-search" placeholder="Digite algo para buscar..." style="width: 300px; padding: 5px;">
+    <div class="debug-content" id="search-debug" style="margin-top: 10px;">Digite algo para testar a busca</div>
+  </div>
+
+  <script src="../js/modules/database.js"></script>
+  <script src="../js/modules/transpose-service-simple.js"></script>
+  
+  <script>
+    async function debugSystem() {
+      const systemStatus = document.getElementById('system-status');
+      const songsDebug = document.getElementById('songs-debug');
+      const ministersDebug = document.getElementById('ministers-debug');
+      const searchDebug = document.getElementById('search-debug');
+      
+      try {
+        systemStatus.innerHTML = 'Iniciando sistema...';
+        
+        // Inicializar database
+        const db = new DatabaseService();
+        db.initializeFirebase();
+        db.initializeLocalStorage();
+        
+        systemStatus.innerHTML = 'Database inicializado. Carregando músicas...';
+        
+        // Carregar músicas
+        const response = await db.collection('musicas').get();
+        const allSongs = response.docs ? response.docs.map(doc => ({ id: doc.id, ...doc.data() })) : [];
+        
+        systemStatus.innerHTML = `✅ Sistema funcionando. ${allSongs.length} músicas carregadas.`;
+        
+        // Debug das músicas
+        songsDebug.innerHTML = '<pre>' + JSON.stringify(allSongs.slice(0, 3), null, 2) + '</pre>';
+        
+        // Extrair ministros
+        const ministerData = new Map();
+        
+        allSongs.forEach(song => {
+          if (song.tomMinistro && typeof song.tomMinistro === 'object') {
+            Object.entries(song.tomMinistro).forEach(([ministerName, ministerKey]) => {
+              if (ministerName && ministerKey) {
+                if (!ministerData.has(ministerName)) {
+                  ministerData.set(ministerName, {
+                    name: ministerName,
+                    keys: [],
+                    songCount: 0
+                  });
+                }
+                const minister = ministerData.get(ministerName);
+                minister.keys.push(ministerKey);
+                minister.songCount++;
+              }
+            });
+          }
+        });
+        
+        const ministers = Array.from(ministerData.values());
+        ministersDebug.innerHTML = '<pre>' + JSON.stringify(ministers, null, 2) + '</pre>';
+        
+        // Configurar busca
+        const testSearch = document.getElementById('test-search');
+        testSearch.addEventListener('input', (e) => {
+          const query = e.target.value.toLowerCase();
+          if (!query.trim()) {
+            searchDebug.innerHTML = 'Digite algo para testar a busca';
+            return;
+          }
+          
+          const filteredSongs = allSongs.filter(song => {
+            return song.titulo.toLowerCase().includes(query) ||
+                   song.artista.toLowerCase().includes(query) ||
+                   (song.ministro && song.ministro.toLowerCase().includes(query));
+          }).slice(0, 5);
+          
+          searchDebug.innerHTML = `<strong>Busca por "${query}":</strong><br>` +
+            (filteredSongs.length > 0 ? 
+              '<pre>' + JSON.stringify(filteredSongs.map(s => ({ titulo: s.titulo, artista: s.artista, tom: s.tom })), null, 2) + '</pre>' :
+              'Nenhuma música encontrada'
+            );
+        });
+        
+      } catch (error) {
+        systemStatus.innerHTML = '❌ Erro: ' + error.message;
+        console.error('Erro no debug:', error);
+      }
+    }
+    
+    document.addEventListener('DOMContentLoaded', debugSystem);
+  </script>
+</body>
+</html>

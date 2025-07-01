@@ -5,7 +5,6 @@ function salvarMusica(event) {
   
   const titulo = document.getElementById('titulo').value.trim();
   const artista = document.getElementById('artista').value.trim();
-  const ministro = document.getElementById('ministro').value.trim();
   const tom = document.getElementById('tom').value.trim();
   const tomMinistro = document.getElementById('tomMinistro').value.trim();
   const bpm = document.getElementById('bpm').value.trim();
@@ -36,9 +35,6 @@ function salvarMusica(event) {
     showMessage("Por favor, insira um link válido.", "error");
     return;
   }
-
-  // Processar ministros (separar por vírgula)
-  const ministros = ministro ? ministro.split(',').map(m => m.trim()).filter(m => m.length > 0) : [];
 
   // Processar tom do ministro
   let tomMinistroObj = null;
@@ -79,8 +75,6 @@ function salvarMusica(event) {
   window.db.collection("musicas").add({
     titulo: titulo,
     artista: artista || null,
-    ministro: ministro || null,
-    ministros: ministros.length > 0 ? ministros : null,
     tom: tom || null,
     tomMinistro: tomMinistroObj,
     bpm: bpm ? parseInt(bpm) : null,
@@ -113,7 +107,6 @@ function salvarMusica(event) {
 function limparFormulario() {
   document.getElementById('titulo').value = "";
   document.getElementById('artista').value = "";
-  document.getElementById('ministro').value = "";
   document.getElementById('tom').value = "";
   document.getElementById('tomMinistro').value = "";
   document.getElementById('bpm').value = "";

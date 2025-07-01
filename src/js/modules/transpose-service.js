@@ -125,13 +125,27 @@ export class TransposeService {
       throw new Error("Tom original não definido");
     }
 
-    const originalIndex = this.keys.indexOf(this.originalKey);
-    const targetIndex = this.keys.indexOf(targetKey);
+    // Normalizar as chaves
+    const normalizeKey = (key) => {
+      if (!key) return 'C';
+      const cleanKey = key.replace(/[^A-G#b]/g, '').toUpperCase();
+      const keyMap = {
+        'DB': 'C#', 'EB': 'D#', 'GB': 'F#', 'AB': 'G#', 'BB': 'A#'
+      };
+      return keyMap[cleanKey] || cleanKey;
+    };
+
+    const normalizedOriginal = normalizeKey(this.originalKey);
+    const normalizedTarget = normalizeKey(targetKey);
+
+    const originalIndex = this.keys.indexOf(normalizedOriginal);
+    const targetIndex = this.keys.indexOf(normalizedTarget);
 
     if (originalIndex === -1 || targetIndex === -1) {
       throw new Error("Tom inválido");
     }
 
+    // Calcular steps usando o caminho mais curto
     let steps = targetIndex - originalIndex;
     if (steps > 6) steps -= 12;
     if (steps < -6) steps += 12;
@@ -219,6 +233,47 @@ export class TransposeService {
   clearTransposePreferences() {
     localStorage.removeItem('transposePreferences');
     console.log("🗑️ TransposeService: Preferências de transposição limpas");
+  }
+
+  // Transpor diretamente de um tom para outro
+  transposeKey(fromKey, toKey) {
+    if (!fromKey || !toKey) {
+      console.warn("⚠️ TransposeService: Tons não fornecidos");
+      return fromKey || 'C';
+    }
+
+    // Normalizar os tons (remover sufixos como m, 7, etc.)
+    const normalizeKey = (key) => {
+      const cleanKey = key.replace(/[^A-G#b]/g, '').toUpperCase();
+      // Converter bemóis para sustenidos para padronização
+      const keyMap = {
+        'DB': 'C#', 'EB': 'D#', 'GB': 'F#', 'AB': 'G#', 'BB': 'A#'
+      };
+      return keyMap[cleanKey] || cleanKey;
+    };
+
+    const normalizedFrom = normalizeKey(fromKey);
+    const normalizedTo = normalizeKey(toKey);
+
+    if (normalizedFrom === normalizedTo) {
+      return toKey; // Mesma tonalidade
+    }
+
+    const fromIndex = this.keys.indexOf(normalizedFrom);
+    const toIndex = this.keys.indexOf(normalizedTo);
+
+    if (fromIndex === -1 || toIndex === -1) {
+      console.warn("⚠️ TransposeService: Tom não reconhecido:", fromKey, "->", toKey);
+      return toKey; // Retornar o tom de destino mesmo se não conseguir transpor
+    }
+
+    // Calcular a diferença em semitons usando o caminho mais curto
+    let semitones = toIndex - fromIndex;
+    if (semitones > 6) semitones -= 12;
+    if (semitones < -6) semitones += 12;
+
+    console.log(`🎼 TransposeService: ${fromKey} -> ${toKey} (${semitones} semitons)`);
+    return toKey;
   }
 }
 

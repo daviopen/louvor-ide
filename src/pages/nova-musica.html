@@ -304,12 +304,6 @@
           <div class="help-text">Artista ou banda original da música</div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="ministro">Ministros/Cantores</label>
-          <input type="text" id="ministro" class="form-input" placeholder="Nome dos ministros ou cantores...">
-          <div class="help-text">Separe múltiplos nomes com vírgula (ex: João, Maria, Pedro)</div>
-        </div>
-
         <div class="form-row">
           <div class="form-group">
             <label class="form-label" for="tom">Tom Original</label>
@@ -347,9 +341,9 @@
             <i class="fas fa-save"></i>
             Salvar Música
           </button>
-          <button type="button" class="btn btn-secondary" onclick="limparFormulario()">
-            <i class="fas fa-eraser"></i>
-            Limpar
+          <button type="button" class="btn btn-secondary" onclick="cancelarEdicao()">
+            <i class="fas fa-times"></i>
+            Cancelar
           </button>
         </div>
       </form>
@@ -414,13 +408,6 @@
               document.getElementById('link').value = data.link || '';
               document.getElementById('cifra').value = data.cifra || '';
               
-              // Ministros
-              if (data.ministros && Array.isArray(data.ministros)) {
-                document.getElementById('ministro').value = data.ministros.join(', ');
-              } else if (data.ministro) {
-                document.getElementById('ministro').value = data.ministro;
-              }
-              
               // Tom do ministro
               if (data.tomMinistro && typeof data.tomMinistro === 'object') {
                 const tomText = Object.entries(data.tomMinistro)
@@ -466,7 +453,6 @@
         
         const titulo = document.getElementById('titulo').value.trim();
         const artista = document.getElementById('artista').value.trim();
-        const ministro = document.getElementById('ministro').value.trim();
         const tom = document.getElementById('tom').value.trim();
         const tomMinistro = document.getElementById('tomMinistro').value.trim();
         const bpm = document.getElementById('bpm').value.trim();
@@ -479,9 +465,6 @@
           showMessage("Preencha ao menos o título e a cifra.", "error");
           return;
         }
-        
-        // Processar ministros
-        const ministros = ministro ? ministro.split(',').map(m => m.trim()).filter(m => m.length > 0) : [];
         
         // Processar tom do ministro
         let tomMinistroObj = null;
@@ -504,8 +487,6 @@
         const updateData = {
           titulo,
           artista: artista || null,
-          ministro: ministros.length > 0 ? ministros.join(', ') : null,
-          ministros: ministros.length > 0 ? ministros : null,
           tom: tom || null,
           tomMinistro: tomMinistroObj,
           bpm: bpm ? parseInt(bpm) : null,
@@ -559,6 +540,25 @@
       
     } else {
       console.log("➕ Modo de nova música (sem parâmetro edit)");
+    }
+
+    // Função para cancelar edição/criação
+    function cancelarEdicao() {
+      // Verificar se está editando ou criando nova música
+      const urlParams = new URLSearchParams(window.location.search);
+      const editId = urlParams.get('edit');
+      
+      if (editId) {
+        // Se está editando, perguntar se deseja cancelar
+        if (confirm('Tem certeza que deseja cancelar a edição? As alterações não salvas serão perdidas.')) {
+          window.history.back(); // Voltar para a página anterior
+        }
+      } else {
+        // Se está criando nova música, perguntar se deseja cancelar
+        if (confirm('Tem certeza que deseja cancelar? Os dados não salvos serão perdidos.')) {
+          window.location.href = 'index.html'; // Ir para a página inicial
+        }
+      }
     }
   </script>
 </body>

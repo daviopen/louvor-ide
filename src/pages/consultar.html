@@ -429,6 +429,101 @@
         gap: 10px;
       }
     }
+
+    /* Estilos para botões de ação das setlists */
+    .setlist-actions {
+      display: flex;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .setlist-card:hover .setlist-actions {
+      opacity: 1;
+    }
+
+    .action-btn {
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      color: white;
+    }
+
+    .action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .action-btn.view {
+      background: linear-gradient(135deg, #2196F3, #1976D2);
+    }
+
+    .action-btn.cifras {
+      background: linear-gradient(135deg, #FF9800, #F57C00);
+    }
+
+    .action-btn.edit {
+      background: linear-gradient(135deg, #4CAF50, #388E3C);
+    }
+
+    .action-btn.delete {
+      background: linear-gradient(135deg, #F44336, #D32F2F);
+    }
+
+    /* Estilos para botões de ação das músicas */
+    .music-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 2px solid #e0e0e0;
+      justify-content: flex-end;
+    }
+
+    .music-action-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .music-action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .edit-btn {
+      background: linear-gradient(135deg, #4CAF50, #388E3C);
+    }
+
+    .delete-btn {
+      background: linear-gradient(135deg, #F44336, #D32F2F);
+    }
+
+    @media (max-width: 768px) {
+      .music-actions {
+        flex-direction: column;
+      }
+
+      .music-action-btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
   </style>
 </head>
 <body>
@@ -484,24 +579,20 @@
           <div class="music-title-display" id="current-title">Título da Música</div>
           <div class="music-meta">
             <div class="meta-item">
-              <i class="fas fa-user"></i>
-              <span id="current-ministro">Ministro</span>
-            </div>
-            <div class="meta-item">
               <i class="fas fa-microphone"></i>
               <span id="current-artista">Artista</span>
             </div>
             <div class="meta-item">
               <i class="fas fa-music"></i>
-              <span>Tom Original: <span id="current-original-key">C</span></span>
+              <span>Tom da Música: <span id="current-original-key">C</span></span>
             </div>
             <div class="meta-item" id="tom-ministro-container-consulta" style="display: none;">
               <i class="fas fa-user-music"></i>
               <span>Tom do Ministro: <span id="current-tom-ministro">-</span></span>
             </div>
-            <div class="meta-item">
+            <div class="meta-item" id="tom-atual-container-consulta" style="display: none;">
               <i class="fas fa-arrow-right"></i>
-              <span>Tom Atual: <span id="current-key" class="current-key">C</span></span>
+              <span>Tom Transposto: <span id="current-key" class="current-key">C</span></span>
             </div>
             <div class="meta-item" id="bpm-container">
               <i class="fas fa-tachometer-alt"></i>
@@ -511,6 +602,18 @@
               <i class="fas fa-external-link-alt"></i>
               <a id="current-link" href="#" target="_blank">Abrir Música</a>
             </div>
+          </div>
+          
+          <!-- Botões de Ação -->
+          <div class="music-actions" id="music-actions" style="display: none;">
+            <button class="music-action-btn edit-btn" onclick="editMusica()" title="Editar Música">
+              <i class="fas fa-edit"></i>
+              Editar
+            </button>
+            <button class="music-action-btn delete-btn" onclick="deleteMusica()" title="Excluir Música">
+              <i class="fas fa-trash"></i>
+              Excluir
+            </button>
           </div>
         </div>
 
@@ -530,7 +633,7 @@
             </button>
             <button class="transpose-btn btn-reset" id="btn-reset" onclick="resetTranspose()">
               <i class="fas fa-undo"></i>
-              Tom Original
+              Tom da Música
             </button>
           </div>
         </div>
@@ -557,10 +660,10 @@
 
     // Elementos DOM
     let searchInput, musicList, loading, emptyViewer, musicViewer, cifraContent;
-    let currentTitle, currentMinistro, currentArtista, currentOriginalKey, currentKey;
+    let currentTitle, currentArtista, currentOriginalKey, currentKey;
     let currentBpm, bpmContainer, linkContainerConsulta, currentLink;
     let btnDown, btnUp, btnReset;
-    let tomMinistroContainerConsulta, currentTomMinistro;
+    let tomMinistroContainerConsulta, currentTomMinistro, tomAtualContainerConsulta;
 
     function initializeElements() {
       console.log("🔧 Consultar: Inicializando elementos DOM...");
@@ -573,7 +676,6 @@
         musicViewer = document.getElementById('music-viewer');
         cifraContent = document.getElementById('cifra-content');
         currentTitle = document.getElementById('current-title');
-        currentMinistro = document.getElementById('current-ministro');
         currentArtista = document.getElementById('current-artista');
         currentOriginalKey = document.getElementById('current-original-key');
         currentKey = document.getElementById('current-key');
@@ -586,6 +688,7 @@
         btnReset = document.getElementById('btn-reset');
         tomMinistroContainerConsulta = document.getElementById('tom-ministro-container-consulta');
         currentTomMinistro = document.getElementById('current-tom-ministro');
+        tomAtualContainerConsulta = document.getElementById('tom-atual-container-consulta');
 
         // Verificar elementos críticos
         const criticalElements = {
@@ -847,16 +950,9 @@
         let searchFields = [
           musica.titulo || '',
           musica.artista || '',
-          musica.ministro || '',
           musica.tom || '',
           musica.bpm?.toString() || ''
         ].join(' ').toLowerCase();
-        
-        // Incluir ministros do array se existir
-        if (musica.ministros && Array.isArray(musica.ministros)) {
-          const ministrosText = musica.ministros.filter(Boolean).join(' ').toLowerCase();
-          searchFields += ' ' + ministrosText;
-        }
         
         // Incluir tom do ministro na busca
         if (musica.tomMinistro && typeof musica.tomMinistro === 'object') {
@@ -900,32 +996,26 @@
           item.classList.add('selected');
         }
         
-        // Processar ministros para exibição de forma mais robusta
-        let ministrosDisplay = '';
-        if (musica.ministros && Array.isArray(musica.ministros) && musica.ministros.length > 0) {
-          ministrosDisplay = musica.ministros.filter(Boolean).join(', ');
-        } else if (musica.ministro && typeof musica.ministro === 'string') {
-          ministrosDisplay = musica.ministro;
-        }
-        
-        // Processar tom do ministro para exibição
-        let tomMinistroDisplay = '';
+        // Processar tom do ministro para exibição no card
+        let tomMinistroInfo = '';
         if (musica.tomMinistro && typeof musica.tomMinistro === 'object') {
           const tomsMinistros = Object.entries(musica.tomMinistro)
             .filter(([nome, tom]) => nome && tom)
             .map(([nome, tom]) => `${nome}: ${tom}`)
             .join(', ');
-          tomMinistroDisplay = tomsMinistros;
+          
+          if (tomsMinistros) {
+            tomMinistroInfo = `<span><i class="fas fa-user-music"></i> ${tomsMinistros}</span>`;
+          }
         }
         
         item.innerHTML = `
           <div class="music-item-title">${musica.titulo || 'Título não informado'}</div>
           ${musica.artista ? `<div class="music-item-artist">${musica.artista}</div>` : ''}
           <div class="music-item-info">
-            ${ministrosDisplay ? `<span><i class="fas fa-user"></i> ${ministrosDisplay}</span>` : ''}
             ${musica.tom ? `<span><i class="fas fa-music"></i> ${musica.tom}</span>` : ''}
-            ${tomMinistroDisplay ? `<span style="color: #4CAF50;"><i class="fas fa-user-music"></i> Tom: ${tomMinistroDisplay}</span>` : ''}
             ${musica.bpm && !isNaN(musica.bpm) ? `<span><i class="fas fa-tachometer-alt"></i> ${musica.bpm} BPM</span>` : ''}
+            ${tomMinistroInfo}
           </div>
         `;
         
@@ -947,33 +1037,8 @@
       // Atualizar informações
       currentTitle.textContent = musica.titulo || 'Título não informado';
       
-      // Processar ministros de forma mais robusta
-      let ministrosDisplay = 'Não informado';
-      if (musica.ministros && Array.isArray(musica.ministros) && musica.ministros.length > 0) {
-        ministrosDisplay = musica.ministros.join(', ');
-      } else if (musica.ministro && typeof musica.ministro === 'string') {
-        ministrosDisplay = musica.ministro;
-      }
-      currentMinistro.textContent = ministrosDisplay;
-      
       currentArtista.textContent = musica.artista || 'Não informado';
       currentOriginalKey.textContent = musica.tom || 'N/A';
-      
-      // Tom do Ministro
-      if (musica.tomMinistro && typeof musica.tomMinistro === 'object' && Object.keys(musica.tomMinistro).length > 0) {
-        const tomMinistroText = Object.entries(musica.tomMinistro)
-          .filter(([nome, tom]) => nome && tom) // Filtrar entradas vazias
-          .map(([nome, tom]) => `${nome}: ${tom}`)
-          .join(', ');
-        if (tomMinistroText) {
-          currentTomMinistro.textContent = tomMinistroText;
-          tomMinistroContainerConsulta.style.display = 'flex';
-        } else {
-          tomMinistroContainerConsulta.style.display = 'none';
-        }
-      } else {
-        tomMinistroContainerConsulta.style.display = 'none';
-      }
       
       // BPM
       if (musica.bpm && !isNaN(musica.bpm)) {
@@ -991,6 +1056,23 @@
         linkContainerConsulta.style.display = 'none';
       }
       
+      // Tom do Ministro
+      if (musica.tomMinistro && typeof musica.tomMinistro === 'object') {
+        const tomsMinistros = Object.entries(musica.tomMinistro)
+          .filter(([nome, tom]) => nome && tom)
+          .map(([nome, tom]) => `${nome}: ${tom}`)
+          .join(', ');
+        
+        if (tomsMinistros) {
+          currentTomMinistro.textContent = tomsMinistros;
+          tomMinistroContainerConsulta.style.display = 'flex';
+        } else {
+          tomMinistroContainerConsulta.style.display = 'none';
+        }
+      } else {
+        tomMinistroContainerConsulta.style.display = 'none';
+      }
+      
       // Exibir cifra
       if (originalCifra) {
         displayCifra(originalCifra);
@@ -1003,6 +1085,12 @@
       // Mostrar viewer
       emptyViewer.style.display = 'none';
       musicViewer.style.display = 'block';
+      
+      // Mostrar botões de ação
+      const musicActions = document.getElementById('music-actions');
+      if (musicActions) {
+        musicActions.style.display = 'flex';
+      }
       
       // Atualizar lista
       renderMusicList();
@@ -1020,6 +1108,12 @@
       
       emptyViewer.style.display = 'block';
       musicViewer.style.display = 'none';
+      
+      // Ocultar botões de ação
+      const musicActions = document.getElementById('music-actions');
+      if (musicActions) {
+        musicActions.style.display = 'none';
+      }
       
       renderMusicList();
       
@@ -1054,7 +1148,19 @@
 
     function updateCurrentKey() {
       const key = getCurrentKey();
-      currentKey.textContent = key;
+      const originalKey = selectedMusica?.tom;
+      
+      // Só mostrar tom transposto se for diferente do original
+      if (currentStep === 0 || key === originalKey) {
+        if (tomAtualContainerConsulta) {
+          tomAtualContainerConsulta.style.display = 'none';
+        }
+      } else {
+        currentKey.textContent = key;
+        if (tomAtualContainerConsulta) {
+          tomAtualContainerConsulta.style.display = 'flex';
+        }
+      }
       
       // Atualizar estado do botão reset
       if (currentStep === 0) {
@@ -1107,6 +1213,57 @@
       setTimeout(() => {
         cifraContent.style.transform = 'scale(1)';
       }, 200);
+    }
+
+    // Função para editar música
+    function editMusica() {
+      if (!selectedMusica) {
+        alert('Nenhuma música selecionada para editar.');
+        return;
+      }
+      
+      console.log('📝 Editando música:', selectedMusica.titulo);
+      window.location.href = `nova-musica.html?edit=${selectedMusica.id}`;
+    }
+
+    // Função para excluir música
+    async function deleteMusica() {
+      if (!selectedMusica) {
+        alert('Nenhuma música selecionada para excluir.');
+        return;
+      }
+      
+      const confirmDelete = confirm(`Tem certeza que deseja excluir a música "${selectedMusica.titulo}"?\n\nEsta ação não pode ser desfeita.`);
+      
+      if (!confirmDelete) {
+        return;
+      }
+      
+      try {
+        console.log('🗑️ Excluindo música:', selectedMusica.titulo);
+        
+        // Verificar se o database está disponível
+        if (!window.db) {
+          throw new Error('Sistema de dados não disponível');
+        }
+        
+        // Excluir do Firestore
+        await window.db.collection('musicas').doc(selectedMusica.id).delete();
+        
+        console.log('✅ Música excluída com sucesso do Firestore');
+        
+        // Limpar seleção atual
+        clearSelection();
+        
+        // Mostrar mensagem de sucesso
+        alert(`Música "${selectedMusica.titulo}" excluída com sucesso!`);
+        
+        // A lista será atualizada automaticamente pelo onSnapshot
+        
+      } catch (error) {
+        console.error('❌ Erro ao excluir música:', error);
+        alert('Erro ao excluir música: ' + (error.message || error));
+      }
     }
   </script>
 </body>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Debug - Setlists Disponíveis</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="../src/config/firebase-config.js"></script>
+</head>
+<body>
+  <h1>Debug - Setlists no Firestore</h1>
+  <div id="resultado"></div>
+
+  <script>
+    async function listarSetlists() {
+      console.log('🔍 Listando setlists no Firestore...');
+      
+      const resultado = document.getElementById('resultado');
+      
+      try {
+        // Aguardar Firebase inicializar
+        await new Promise(resolve => {
+          const checkFirebase = () => {
+            if (window.db) {
+              resolve();
+            } else {
+              setTimeout(checkFirebase, 100);
+            }
+          };
+          checkFirebase();
+        });
+        
+        console.log('✅ Firebase conectado');
+        
+        const snapshot = await window.db.collection('setlists').get();
+        
+        if (snapshot.empty) {
+          resultado.innerHTML = '<h2>📭 Nenhuma setlist encontrada</h2>';
+          return;
+        }
+        
+        let html = '<h2>📋 Setlists Encontradas:</h2>';
+        
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          console.log('Setlist:', doc.id, data);
+          
+          html += `
+            <div style="border: 1px solid #ccc; padding: 10px; margin: 10px 0;">
+              <h3>ID: ${doc.id}</h3>
+              <p><strong>Nome:</strong> ${data.nome || 'Sem nome'}</p>
+              <p><strong>Data:</strong> ${data.data || 'Sem data'}</p>
+              <p><strong>Músicas:</strong> ${data.musicas?.length || 0}</p>
+              <p><strong>Ministro:</strong> ${data.ministro || 'Não definido'}</p>
+              
+              <a href="src/pages/setlist-view.html?id=${doc.id}" target="_blank">
+                🔗 Ver Setlist
+              </a>
+              
+              <details style="margin-top: 10px;">
+                <summary>Ver dados completos</summary>
+                <pre style="background: #f5f5f5; padding: 10px;">${JSON.stringify(data, null, 2)}</pre>
+              </details>
+            </div>
+          `;
+        });
+        
+        resultado.innerHTML = html;
+        
+      } catch (error) {
+        console.error('❌ Erro:', error);
+        resultado.innerHTML = `<h2>❌ Erro: ${error.message}</h2>`;
+      }
+    }
+    
+    // Iniciar quando carregar
+    document.addEventListener('DOMContentLoaded', listarSetlists);
+  </script>
+</body>
+</html>
