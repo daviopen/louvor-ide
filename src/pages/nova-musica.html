@@ -6,6 +6,7 @@
   <title>Nova Música - Louvor IDE</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="../js/env-config.js"></script>
   <script src="../config/firebase-config.js"></script>
   <script src="../scripts/salvar.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -354,21 +355,27 @@
 
   <!-- Script de edição - executa no final para garantir que tudo está carregado -->
   <script>
-    // Função para mostrar mensagem (caso não exista)
-    function showMessage(message, type) {
-      const messageEl = document.getElementById('mensagem');
-      if (messageEl) {
-        messageEl.textContent = message;
-        messageEl.className = `message ${type}`;
-        messageEl.style.display = 'block';
-        
-        if (type === 'success' || type === 'info') {
-          setTimeout(() => {
-            messageEl.style.display = 'none';
-          }, 3000);
+    // Função para mostrar mensagem (fallback caso não exista)
+    if (typeof showMessage === 'undefined') {
+      function showMessage(message, type) {
+        const messageEl = document.getElementById('mensagem');
+        if (messageEl) {
+          messageEl.textContent = message;
+          messageEl.className = `message ${type}`;
+          messageEl.classList.add('show');
+          messageEl.style.display = 'block';
+          
+          if (type === 'success' || type === 'info') {
+            setTimeout(() => {
+              messageEl.classList.remove('show');
+              setTimeout(() => {
+                messageEl.style.display = 'none';
+              }, 300);
+            }, 3000);
+          }
         }
+        console.log(`Message (${type}): ${message}`);
       }
-      console.log(`Message (${type}): ${message}`);
     }
 
     // Verificar se estamos em modo de edição

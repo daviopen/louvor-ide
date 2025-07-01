@@ -3,15 +3,30 @@ function salvarMusica(event) {
     event.preventDefault();
   }
   
-  const titulo = document.getElementById('titulo').value.trim();
-  const artista = document.getElementById('artista').value.trim();
-  const tom = document.getElementById('tom').value.trim();
-  const tomMinistro = document.getElementById('tomMinistro').value.trim();
-  const bpm = document.getElementById('bpm').value.trim();
-  const link = document.getElementById('link').value.trim();
-  const cifra = document.getElementById('cifra').value.trim();
+  // Verificar se todos os elementos necessários existem
+  const tituloEl = document.getElementById('titulo');
+  const artistaEl = document.getElementById('artista');
+  const tomEl = document.getElementById('tom');
+  const tomMinistroEl = document.getElementById('tomMinistro');
+  const bpmEl = document.getElementById('bpm');
+  const linkEl = document.getElementById('link');
+  const cifraEl = document.getElementById('cifra');
   const mensagemEl = document.getElementById('mensagem');
   const saveBtn = document.getElementById('save-btn');
+
+  if (!tituloEl || !artistaEl || !tomEl || !tomMinistroEl || !bpmEl || !linkEl || !cifraEl || !mensagemEl || !saveBtn) {
+    console.error('❌ Erro: Alguns elementos do formulário não foram encontrados');
+    alert('Erro interno: Elementos do formulário não encontrados. Tente recarregar a página.');
+    return;
+  }
+
+  const titulo = tituloEl.value.trim();
+  const artista = artistaEl.value.trim();
+  const tom = tomEl.value.trim();
+  const tomMinistro = tomMinistroEl.value.trim();
+  const bpm = bpmEl.value.trim();
+  const link = linkEl.value.trim();
+  const cifra = cifraEl.value.trim();
 
   // Validações
   if (!titulo || !cifra) {
@@ -83,39 +98,62 @@ function salvarMusica(event) {
     timestamp: Date.now(),
     criadoEm: new Date()
   }).then(() => {
-    showMessage("Música salva com sucesso!", "success");
+    console.log('✅ Música salva com sucesso no Firebase');
+    showMessage("🎵 Música salva com sucesso! Redirecionando...", "success");
+    
+    // Reabilitar botão com feedback visual de sucesso
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = '<i class="fas fa-check"></i> Salvo!';
+    saveBtn.style.background = '#4CAF50';
     
     // Limpar formulário após sucesso
     setTimeout(() => {
       limparFormulario();
-      // Redirecionar para página inicial após 2 segundos
+      // Redirecionar para página inicial após 3 segundos
       setTimeout(() => {
         window.location.href = 'index.html';
-      }, 2000);
-    }, 1000);
+      }, 3000);
+    }, 1500);
     
   }).catch((error) => {
-    console.error("Erro ao salvar música:", error);
-    showMessage("Erro ao salvar música. Tente novamente.", "error");
-  }).finally(() => {
-    // Reabilitar botão
+    console.error("❌ Erro ao salvar música:", error);
+    showMessage("❌ Erro ao salvar música. Tente novamente.", "error");
+    
+    // Reabilitar botão em caso de erro
     saveBtn.disabled = false;
     saveBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Música';
+    saveBtn.style.background = ''; // Remove cor personalizada
+  }).finally(() => {
+    // Garantir que o botão seja reabilitado se ainda estiver desabilitado
+    setTimeout(() => {
+      if (saveBtn.disabled) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Música';
+        saveBtn.style.background = ''; // Remove cor personalizada
+      }
+    }, 5000);
   });
 }
 
 function limparFormulario() {
-  document.getElementById('titulo').value = "";
-  document.getElementById('artista').value = "";
-  document.getElementById('tom').value = "";
-  document.getElementById('tomMinistro').value = "";
-  document.getElementById('bpm').value = "";
-  document.getElementById('link').value = "";
-  document.getElementById('cifra').value = "";
+  // Verificar se elementos existem antes de limpar
+  const elementos = [
+    'titulo', 'artista', 'tom', 'tomMinistro', 
+    'bpm', 'link', 'cifra'
+  ];
+  
+  elementos.forEach(id => {
+    const elemento = document.getElementById(id);
+    if (elemento) {
+      elemento.value = "";
+    }
+  });
   
   // Limpar mensagem
   const mensagemEl = document.getElementById('mensagem');
-  mensagemEl.classList.remove('show');
+  if (mensagemEl) {
+    mensagemEl.classList.remove('show');
+  }
 }
 
 function isValidURL(string) {
@@ -129,21 +167,48 @@ function isValidURL(string) {
 
 function showMessage(text, type) {
   const mensagemEl = document.getElementById('mensagem');
+  if (!mensagemEl) {
+    console.warn('⚠️ Elemento de mensagem não encontrado');
+    console.log(`Message (${type}): ${text}`);
+    return;
+  }
+
   mensagemEl.textContent = text;
   mensagemEl.className = `message ${type}`;
   mensagemEl.classList.add('show');
+  mensagemEl.style.display = 'block';
   
-  // Auto-hide após 5 segundos para mensagens de erro
+  console.log(`✅ Message displayed (${type}): ${text}`);
+  
+  // Auto-hide para mensagens de sucesso após 4 segundos
+  if (type === 'success') {
+    setTimeout(() => {
+      mensagemEl.classList.remove('show');
+      setTimeout(() => {
+        mensagemEl.style.display = 'none';
+      }, 300); // Aguarda a animação terminar
+    }, 4000);
+  }
+  
+  // Auto-hide para mensagens de erro após 6 segundos
   if (type === 'error') {
     setTimeout(() => {
       mensagemEl.classList.remove('show');
-    }, 5000);
+      setTimeout(() => {
+        mensagemEl.style.display = 'none';
+      }, 300); // Aguarda a animação terminar
+    }, 6000);
   }
 }
 
 // Auto-resize do textarea
 document.addEventListener('DOMContentLoaded', function() {
   const textarea = document.getElementById('cifra');
+  
+  if (!textarea) {
+    console.warn('⚠️ Elemento textarea "cifra" não encontrado');
+    return;
+  }
   
   function autoResize() {
     textarea.style.height = 'auto';
