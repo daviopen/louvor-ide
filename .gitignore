@@ -59,3 +59,7 @@ ver.html
 js/
 scripts/
 config/
+
+# Arquivo gerado automaticamente com variáveis de ambiente
+env-config.js
+process-env.sh

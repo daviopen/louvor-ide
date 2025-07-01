@@ -27,7 +27,21 @@ help:
 	@echo "$(YELLOW)Comandos disponíveis:$(NC)"
 	@echo ""
 	@echo "  $(GREEN)make setup$(NC)       - Configuração inicial completa"
-	@echo "  $(GREEN)make dev$(NC)         - Ambiente de desenvolvimento local"
+	@echo "  $(GREEN)make dev$(NC)         - Ambiente de desenvolvimento (com build)"
+	@echo "  $(GREEN)make serve-fast$(NC)  - Servidor rápido (sem rebuild)"
+	@echo "  $(GREEN)make build$(NC)       - Build para produção"
+	@echo "  $(GREEN)make test$(NC)        - Executar testes"
+	@echo "  $(GREEN)make deploy$(NC)      - Deploy para Firebase Hosting"
+	@echo "  $(GREEN)make clean$(NC)       - Limpar arquivos temporários"
+	@echo ""
+	@echo "$(YELLOW)Desenvolvimento:$(NC)"
+	@echo "  1. $(GREEN)make dev$(NC)        - Primeira execução (setup + build + servidor)"
+	@echo "  2. $(GREEN)make serve-fast$(NC) - Execuções seguintes (apenas servidor)"
+	@echo ""
+	@echo "$(YELLOW)URLs:$(NC)"
+	@echo "  Local:      http://localhost:$(LOCAL_PORT)"
+	@echo "  Produção:   https://$(FIREBASE_PROJECT).web.app"
+	@echo ""
 	@echo "  $(GREEN)make serve$(NC)       - Servidor local (Firebase)"
 	@echo "  $(GREEN)make build$(NC)       - Build para produção"
 	@echo "  $(GREEN)make deploy$(NC)      - Deploy manual para Firebase"
@@ -85,16 +99,53 @@ setup: install
 	fi
 	@echo "$(GREEN)🎉 Setup completo!$(NC)"
 
+## ⚙️ Setup básico (sem verificar index.html)
+setup-basic: install
+	@echo "$(BLUE)⚙️ Configuração básica do projeto...$(NC)"
+	@if [ ! -f "firebase.json" ]; then \
+		echo "$(RED)❌ firebase.json não encontrado$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -f ".firebaserc" ]; then \
+		echo "$(RED)❌ .firebaserc não encontrado$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)✅ Configuração Firebase OK$(NC)"
+	@echo "$(BLUE)🔧 Verificando login no Firebase...$(NC)"
+	@if ! firebase projects:list &> /dev/null; then \
+		echo "$(YELLOW)⚠️  Não logado no Firebase. Execute: firebase login$(NC)"; \
+	else \
+		echo "$(GREEN)✅ Firebase autenticado$(NC)"; \
+	fi
+	@echo "$(GREEN)🎉 Setup básico completo!$(NC)"
+
 ## 🔥 Ambiente de desenvolvimento
-dev: setup
+dev: setup-basic build
 	@echo "$(BLUE)🔥 Iniciando ambiente de desenvolvimento...$(NC)"
 	@echo "$(YELLOW)📍 Servidor será iniciado em: http://localhost:$(LOCAL_PORT)$(NC)"
 	@echo "$(YELLOW)💡 Pressione Ctrl+C para parar$(NC)"
 	@echo ""
-	firebase serve --port $(LOCAL_PORT)
+	@if ! firebase projects:list &> /dev/null; then \
+		echo "$(YELLOW)⚠️  Firebase não autenticado. Executando sem autenticação...$(NC)"; \
+		firebase serve --port $(LOCAL_PORT) --host 0.0.0.0; \
+	else \
+		firebase serve --port $(LOCAL_PORT) --host 0.0.0.0; \
+	fi
 
 ## 🌐 Servidor local (alias para dev)
 serve: dev
+
+## 🚀 Servidor rápido (sem rebuild)
+serve-fast:
+	@echo "$(BLUE)🚀 Iniciando servidor rápido...$(NC)"
+	@echo "$(YELLOW)📍 Servidor em: http://localhost:$(LOCAL_PORT)$(NC)"
+	@echo "$(YELLOW)💡 Pressione Ctrl+C para parar$(NC)"
+	@echo ""
+	@if [ ! -f "index.html" ]; then \
+		echo "$(YELLOW)⚠️  index.html não encontrado, executando build...$(NC)"; \
+		$(MAKE) build; \
+	fi
+	firebase serve --port $(LOCAL_PORT) --host 0.0.0.0
 
 ## 🏗️ Build para produção
 build:
@@ -107,7 +158,9 @@ build:
 	@cp -r src/js ./ 2>/dev/null || true
 	@cp -r src/scripts ./ 2>/dev/null || true
 	@cp -r src/config ./ 2>/dev/null || true
-	@echo "$(GREEN)✅ Arquivos copiados$(NC)"
+	@echo "$(YELLOW)🔧 Processando variáveis de ambiente...$(NC)"
+	@bash process-env.sh
+	@echo "$(GREEN)✅ Arquivos copiados e variáveis processadas$(NC)"
 	@echo "$(BLUE)📋 Arquivos para deploy:$(NC)"
 	@ls -la *.html *.js *.css 2>/dev/null || echo "$(YELLOW)⚠️  Alguns arquivos podem não existir$(NC)"
 	@if [ -d "js/" ]; then echo "$(GREEN)✅ Diretório js/$(NC)"; fi
@@ -157,6 +210,7 @@ clean:
 	@echo "$(YELLOW)🗑️ Limpando arquivos copiados do build...$(NC)"
 	@rm -f *.html 2>/dev/null || true
 	@rm -rf js/ scripts/ config/ 2>/dev/null || true
+	@rm -f env-config.js 2>/dev/null || true
 	@echo "$(GREEN)✅ Limpeza concluída$(NC)"
 
 ## 🏗️ Build limpo (limpa antes de construir)

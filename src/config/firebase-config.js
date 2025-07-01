@@ -1,13 +1,23 @@
-// Configuração do Firebase - Funcionando no navegador
+// Configuração do Firebase - Usando variáveis de ambiente
 const firebaseConfig = {
-  apiKey: "AIzaSyDilWbw9CETFiAi-hsrHhqK0ovwvpmK2V0",
-  authDomain: "louvor-ide.firebaseapp.com",
-  projectId: "louvor-ide",
-  storageBucket: "louvor-ide.firebasestorage.app",
-  messagingSenderId: "742542004330",
-  appId: "1:742542004330:web:e9db92bb88ea06c5e77a13",
-  measurementId: "G-S6YHEVQE0G"
+  apiKey: window.ENV?.VITE_FIREBASE_API_KEY || '',
+  authDomain: window.ENV?.VITE_FIREBASE_AUTH_DOMAIN || '',
+  projectId: window.ENV?.VITE_FIREBASE_PROJECT_ID || '',
+  storageBucket: window.ENV?.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: window.ENV?.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: window.ENV?.VITE_FIREBASE_APP_ID || '',
+  measurementId: window.ENV?.VITE_FIREBASE_MEASUREMENT_ID || ''
 };
+
+// Validar se as variáveis essenciais estão configuradas
+const requiredEnvVars = ['apiKey', 'authDomain', 'projectId'];
+const missingVars = requiredEnvVars.filter(key => !firebaseConfig[key]);
+
+if (missingVars.length > 0) {
+  console.warn(`⚠️ Variáveis de ambiente Firebase faltando: ${missingVars.join(', ')}`);
+  console.warn('📋 Verifique se o arquivo .env está configurado corretamente');
+  console.warn('🔧 Execute: npm run build para processar as variáveis de ambiente');
+}
 
 // Estado de inicialização
 let firebaseApp = null;
