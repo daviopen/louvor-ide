@@ -447,7 +447,7 @@
   <header class="header">
     <div class="header-content">
       <a href="index.html" class="logo">
-        <i class="fas fa-music"></i>
+        <i class="fas fa-guitar"></i>
         <span>Louvor IDE</span>
       </a>
       
@@ -457,24 +457,14 @@
       </div>
       
       <div class="action-buttons">
-        <a href="nova-musica.html" class="add-button">
-          <i class="fas fa-plus"></i>
-          Nova Música
-        </a>
-        
-        <a href="setlist.html" class="add-button" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
-          <i class="fas fa-list-ol"></i>
-          Nova Setlist
-        </a>
-        
         <a href="setlists.html" class="add-button" style="background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);">
-          <i class="fas fa-clipboard-list"></i>
-          Ver Setlists
+          <i class="fas fa-calendar-alt"></i>
+          Setlist
         </a>
         
         <a href="consultar.html" class="add-button" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
-          <i class="fas fa-search"></i>
-          Consultar
+          <i class="fas fa-compact-disc"></i>
+          Músicas
         </a>
       </div>
     </div>
@@ -520,7 +510,7 @@
         </div>
         
         <button class="clear-filters" onclick="clearFilters()">
-          <i class="fas fa-times"></i> Limpar
+          <i class="fas fa-broom"></i> Limpar
         </button>
       </div>
     </div>
@@ -545,7 +535,7 @@
     </div>
 
     <div id="empty-state" class="empty-state" style="display: none;">
-      <i class="fas fa-music"></i>
+      <i class="fas fa-guitar"></i>
       <h3>Nenhuma música encontrada</h3>
       <p>Comece adicionando sua primeira música!</p>
     </div>
@@ -594,25 +584,25 @@
         <div class="music-info">
           ${ministrosDisplay ? `
             <div class="info-tag ministro">
-              <i class="fas fa-user"></i>
+              <i class="fas fa-microphone"></i>
               ${ministrosDisplay}
             </div>
           ` : ''}
           ${musica.tom ? `
             <div class="info-tag tom">
-              <i class="fas fa-music"></i>
+              <i class="fas fa-key"></i>
               ${musica.tom}
             </div>
           ` : ''}
           ${tomMinistroDisplay ? `
             <div class="info-tag tom-ministro">
-              <i class="fas fa-user-music"></i>
+              <i class="fas fa-user-tie"></i>
               ${tomMinistroDisplay}
             </div>
           ` : ''}
           ${musica.bpm ? `
             <div class="info-tag bpm">
-              <i class="fas fa-tachometer-alt"></i>
+              <i class="fas fa-heartbeat"></i>
               ${musica.bpm} BPM
             </div>
           ` : ''}
@@ -625,21 +615,21 @@
         </div>
         <div class="music-actions" onclick="event.stopPropagation()">
           <a href="ver.html?id=${musica.id}" class="action-btn btn-view">
-            <i class="fas fa-eye"></i>
+            <i class="fas fa-play-circle"></i>
             Ver
           </a>
           ${musica.link ? `
             <a href="${musica.link}" target="_blank" class="action-btn btn-link">
-              <i class="fas fa-external-link-alt"></i>
+              <i class="fas fa-globe"></i>
               Link
             </a>
           ` : ''}
           <button class="action-btn btn-edit" onclick="editMusica('${musica.id}')">
-            <i class="fas fa-edit"></i>
+            <i class="fas fa-pen"></i>
             Editar
           </button>
           <button class="action-btn btn-delete" onclick="deleteMusica('${musica.id}', '${musica.titulo}')">
-            <i class="fas fa-trash"></i>
+            <i class="fas fa-trash-alt"></i>
             Excluir
           </button>
         </div>
@@ -666,7 +656,7 @@
 
       if (filteredMusicas.length === 0 && allMusicas.length > 0) {
         emptyState.innerHTML = `
-          <i class="fas fa-search"></i>
+          <i class="fas fa-search-plus"></i>
           <h3>Nenhuma música encontrada</h3>
           <p>Tente ajustar os filtros de busca</p>
         `;
@@ -677,7 +667,7 @@
 
       if (filteredMusicas.length === 0) {
         emptyState.innerHTML = `
-          <i class="fas fa-music"></i>
+          <i class="fas fa-guitar"></i>
           <h3>Nenhuma música encontrada</h3>
           <p>Comece adicionando sua primeira música!</p>
         `;
