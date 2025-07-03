@@ -1,13 +1,12 @@
 # Louvor IDE - Sistema de Cifras 🎵
 
-Sistema completo para gerenciamento de cifras musicais com suporte híbrido Firebase + localStorage.
+Sistema completo para gerenciamento de cifras musicais com suporte ao Firebase.
 
 ## ✅ Melhorias Implementadas (v2.0)
 
 ### 🔧 Sistema de Dados Robusto
-- **Sistema híbrido Firebase + localStorage**: Funciona mesmo sem conexão com internet
-- **Inicialização múltipla**: Várias estratégias de carregamento para garantir funcionamento
-- **Fallback automático**: Se Firebase falhar, usa localStorage automaticamente
+- **Sistema baseado no Firebase**: Funciona mesmo sem conexões instáveis
+- **Inicialização múltipla**: Estratégias de carregamento para garantir funcionamento
 - **Dados de exemplo**: Carrega automaticamente músicas de exemplo na primeira execução
 
 ### 📱 Interface Melhorada
@@ -21,7 +20,7 @@ Sistema completo para gerenciamento de cifras musicais com suporte híbrido Fire
 - **Página de Consulta (consultar.html)**: Visualização e transposição de cifras
 - **Nova Música (nova-musica.html)**: Formulário para adicionar músicas
 - **Visualização (ver.html)**: Exibição completa da cifra com transposição
-- **Sistema de Salvamento**: Salva no Firebase quando possível, localStorage como backup
+- **Sistema de Salvamento**: Salva no Firebase
 
 ### 🗂️ Estrutura de Arquivos
 ```
@@ -30,20 +29,19 @@ louvor-ide/
 ├── consultar.html          # Página de consulta e transposição
 ├── nova-musica.html        # Formulário de nova música
 ├── ver.html               # Visualização de música
-├── firebase-config.js     # Configuração híbrida do banco de dados
+├── firebase-config.js     # Configuração do banco de dados
 └── scripts/
     └── salvar.js          # Script de salvamento de músicas
 ```
 
 ### 🔄 Funcionamento do Sistema
-1. **Carregamento**: Tenta conectar com Firebase, se falhar usa localStorage
+1. **Carregamento**: Conecta com Firebase
 2. **Dados de exemplo**: Na primeira execução, carrega 3 músicas de exemplo
 3. **Sincronização**: Quando Firebase está disponível, dados são sincronizados
-4. **Backup**: LocalStorage sempre mantém cópia local dos dados
 
 ### 🚀 Como Usar
 1. Abra `index.html` em qualquer navegador
-2. O sistema carregará automaticamente (Firebase ou localStorage)
+2. O sistema carregará automaticamente
 3. Use os filtros para buscar músicas
 4. Clique em "Nova Música" para adicionar cifras
 5. Use "Consultar" para transposição interativa
@@ -61,7 +59,6 @@ louvor-ide/
 ### 🛠️ Tecnologias
 - HTML5, CSS3, JavaScript vanilla
 - Firebase Firestore (opcional)
-- LocalStorage (backup)
 - Chord Transposer (transposição)
 - Font Awesome (ícones)
 

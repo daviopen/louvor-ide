@@ -52,7 +52,7 @@
         // Inicializar database
         const db = new DatabaseService();
         db.initializeFirebase();
-        db.initializeLocalStorage();
+        // db.initializeLocalStorage(); // Removido pois localStorage não será mais utilizado
         
         systemStatus.innerHTML = 'Database inicializado. Carregando músicas...';
         

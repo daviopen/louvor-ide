@@ -143,9 +143,9 @@ Esta funcionalidade permite que uma setlist tenha múltiplos ministros, onde cad
 ### 🐛 **Problemas Corrigidos:**
 
 1. **✅ Exclusão de Setlists**
-   - **Problema:** Exclusão não funcionava (apenas removia do localStorage, não do Firestore)
-   - **Solução:** Função `deleteSetlist` agora exclui do Firestore primeiro, depois do localStorage
-   - **Resultado:** Exclusões funcionam corretamente em ambos os sistemas
+   - **Problema:** Exclusão não funcionava corretamente no Firestore
+   - **Solução:** Função `deleteSetlist` agora exclui do Firestore corretamente
+   - **Resultado:** Exclusões funcionam corretamente
 
 2. **✅ Duplicação na Edição**
    - **Problema:** Ao editar e salvar setlist, criava duplicatas
@@ -155,20 +155,18 @@ Esta funcionalidade permite que uma setlist tenha múltiplos ministros, onde cad
      - Verificação por nome/data para evitar setlists duplicadas
    - **Resultado:** Edições agora atualizam corretamente sem duplicar
 
-3. **✅ Sincronização Firestore/localStorage**
-   - **Problema:** Inconsistências entre dados do Firestore e localStorage
+3. **✅ Sincronização Firestore**
+   - **Problema:** Inconsistências entre dados do Firestore
    - **Solução:** 
      - Priorização do Firestore como fonte principal
-     - localStorage usado apenas como backup/fallback
      - Carregamento e salvamento sincronizados
-   - **Resultado:** Dados consistentes entre as duas fontes
+   - **Resultado:** Dados consistentes
 
 ### 🔧 **Funções Modificadas:**
 
 - `deleteSetlist()` - Agora async, exclui do Firestore primeiro
 - `loadSetlistForEdit()` - Agora async, carrega do Firestore primeiro  
 - `saveSetlist()` - Lógica aprimorada para evitar duplicatas
-- `checkEditMode()` - Agora async para suportar carregamento do Firestore
 
 ---
 

@@ -148,15 +148,11 @@ O sistema utiliza o `TransposeService` para:
 
 ## Armazenamento
 
-O sistema utiliza armazenamento híbrido:
+O sistema utiliza armazenamento baseado no Firebase:
 
 1. **Firebase Firestore** (principal)
    - Setlists são salvas em `setlists` collection
    - Sincronização automática
-
-2. **localStorage** (fallback)
-   - Usado quando Firebase não está disponível
-   - Dados persistem localmente
 
 ## Navegação
 
