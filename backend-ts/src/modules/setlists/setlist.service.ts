@@ -14,10 +14,15 @@ export class SetlistService {
       status: 'planejada' as const,
       createdAt: now,
       updatedAt: now,
+      musicas: (data.musicas ?? []).map(m => ({
+        musicId: m.musicId,
+        ordem: m.ordem,
+        tom: m.tom,
+        observacoes: m.observacoes
+      }))
     };
 
     const docRef = await this.collection.add(setlistData);
-    
     return {
       id: docRef.id,
       ...setlistData,

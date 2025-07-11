@@ -60,6 +60,7 @@ export class TransposeService {
       const chords = new Set<string>();
 
       while ((match = chordRegex.exec(cifra)) !== null) {
+        if (!match[1]) continue;
         const chord = match[1].trim();
         if (chord) {
           chords.add(chord);
@@ -211,7 +212,7 @@ export class TransposeService {
         name: teoriaChord.name,
         root: teoriaChord.root.toString(),
         quality: teoriaChord.quality,
-        notes: teoriaChord.notes().map(note => note.toString()),
+        notes: teoriaChord.notes().map((note: any) => note.toString()),
         intervals: teoriaChord.simple(),
       };
     } catch (error) {

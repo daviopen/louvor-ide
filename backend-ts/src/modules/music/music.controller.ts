@@ -46,7 +46,11 @@ export class MusicController {
   findById = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const music = await this.musicService.findById(id);
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID da música não informado' });
+        return;
+      }
+      const music = await this.musicService.findById(String(id));
 
       if (!music) {
         const response: ApiResponse = {
@@ -78,7 +82,11 @@ export class MusicController {
     try {
       const { id } = req.params;
       const data: UpdateMusicDto = req.body;
-      const music = await this.musicService.update(id, data);
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID da música não informado' });
+        return;
+      }
+      const music = await this.musicService.update(String(id), data);
 
       if (!music) {
         const response: ApiResponse = {
@@ -110,7 +118,11 @@ export class MusicController {
   delete = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const deleted = await this.musicService.delete(id);
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID da música não informado' });
+        return;
+      }
+      const deleted = await this.musicService.delete(String(id));
 
       if (!deleted) {
         const response: ApiResponse = {

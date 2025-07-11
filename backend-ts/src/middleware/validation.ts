@@ -5,54 +5,51 @@ import { ApiResponse } from '../types';
 export const validateBody = (schema: Joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const { error, value } = schema.validate(req.body);
-    
     if (error) {
       const response: ApiResponse = {
         success: false,
         error: `Validation error: ${error.details.map(d => d.message).join(', ')}`,
       };
-      
       return res.status(400).json(response);
+    } else {
+      req.body = value;
+      next();
+      return;
     }
-    
-    req.body = value;
-    next();
   };
 };
 
 export const validateQuery = (schema: Joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const { error, value } = schema.validate(req.query);
-    
     if (error) {
       const response: ApiResponse = {
         success: false,
         error: `Query validation error: ${error.details.map(d => d.message).join(', ')}`,
       };
-      
       return res.status(400).json(response);
+    } else {
+      req.query = value;
+      next();
+      return;
     }
-    
-    req.query = value;
-    next();
   };
 };
 
 export const validateParams = (schema: Joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const { error, value } = schema.validate(req.params);
-    
     if (error) {
       const response: ApiResponse = {
         success: false,
         error: `Params validation error: ${error.details.map(d => d.message).join(', ')}`,
       };
-      
       return res.status(400).json(response);
+    } else {
+      req.params = value;
+      next();
+      return;
     }
-    
-    req.params = value;
-    next();
   };
 };
 
@@ -101,6 +98,7 @@ export const validateRequest = (schemas: {
       req.params = paramsValue;
     }
     
+    return;
     next();
   };
 };

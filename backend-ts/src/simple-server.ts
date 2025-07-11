@@ -148,7 +148,7 @@ app.get('/api/v1/music/:id', (req, res) => {
   if (!music) {
     return res.status(404).json({ success: false, error: 'Música não encontrada' });
   }
-  res.json({ success: true, data: music });
+  return res.json({ success: true, data: music });
 });
 
 app.post('/api/v1/music', (req, res) => {
@@ -164,7 +164,7 @@ app.post('/api/v1/music', (req, res) => {
     updatedAt: new Date()
   };
   mockData.musics.push(newMusic);
-  res.status(201).json({ success: true, data: newMusic });
+  return res.status(201).json({ success: true, data: newMusic });
 });
 
 app.put('/api/v1/music/:id', (req, res) => {
@@ -179,7 +179,7 @@ app.put('/api/v1/music/:id', (req, res) => {
     updatedAt: new Date()
   };
   
-  res.json({ success: true, data: mockData.musics[index] });
+  return res.json({ success: true, data: mockData.musics[index] });
 });
 
 app.delete('/api/v1/music/:id', (req, res) => {
@@ -188,16 +188,19 @@ app.delete('/api/v1/music/:id', (req, res) => {
     return res.status(404).json({ success: false, error: 'Música não encontrada' });
   }
   
-  mockData.musics[index].status = 'inativo';
-  mockData.musics[index].updatedAt = new Date();
-  
-  res.json({ success: true, message: 'Música deletada com sucesso' });
+  if (mockData.musics[index]) {
+    mockData.musics[index].status = 'inativo';
+    mockData.musics[index].updatedAt = new Date();
+    return res.json({ success: true, message: 'Música deletada com sucesso' });
+  } else {
+    return res.status(404).json({ success: false, error: 'Música não encontrada' });
+  }
 });
 
 // === CRUD MINISTROS ===
 app.get('/api/v1/ministers', (req, res) => {
   const ministers = mockData.ministers.filter(m => m.status === 'ativo');
-  res.json({ success: true, data: ministers });
+  return res.json({ success: true, data: ministers });
 });
 
 app.get('/api/v1/ministers/:id', (req, res) => {
@@ -205,7 +208,7 @@ app.get('/api/v1/ministers/:id', (req, res) => {
   if (!minister) {
     return res.status(404).json({ success: false, error: 'Ministro não encontrado' });
   }
-  res.json({ success: true, data: minister });
+  return res.json({ success: true, data: minister });
 });
 
 app.post('/api/v1/ministers', (req, res) => {
@@ -217,7 +220,7 @@ app.post('/api/v1/ministers', (req, res) => {
     updatedAt: new Date()
   };
   mockData.ministers.push(newMinister);
-  res.status(201).json({ success: true, data: newMinister });
+  return res.status(201).json({ success: true, data: newMinister });
 });
 
 app.put('/api/v1/ministers/:id', (req, res) => {
@@ -232,7 +235,7 @@ app.put('/api/v1/ministers/:id', (req, res) => {
     updatedAt: new Date()
   };
   
-  res.json({ success: true, data: mockData.ministers[index] });
+  return res.json({ success: true, data: mockData.ministers[index] });
 });
 
 app.delete('/api/v1/ministers/:id', (req, res) => {
@@ -241,16 +244,19 @@ app.delete('/api/v1/ministers/:id', (req, res) => {
     return res.status(404).json({ success: false, error: 'Ministro não encontrado' });
   }
   
-  mockData.ministers[index].status = 'inativo';
-  mockData.ministers[index].updatedAt = new Date();
-  
-  res.json({ success: true, message: 'Ministro deletado com sucesso' });
+  if (mockData.ministers[index]) {
+    mockData.ministers[index].status = 'inativo';
+    mockData.ministers[index].updatedAt = new Date();
+    return res.json({ success: true, message: 'Ministro deletado com sucesso' });
+  } else {
+    return res.status(404).json({ success: false, error: 'Ministro não encontrado' });
+  }
 });
 
 // === CRUD USUÁRIOS ===
 app.get('/api/v1/users', (req, res) => {
   const users = mockData.users.filter(u => u.status === 'ativo');
-  res.json({ success: true, data: users });
+  return res.json({ success: true, data: users });
 });
 
 app.get('/api/v1/users/:id', (req, res) => {
@@ -258,7 +264,7 @@ app.get('/api/v1/users/:id', (req, res) => {
   if (!user) {
     return res.status(404).json({ success: false, error: 'Usuário não encontrado' });
   }
-  res.json({ success: true, data: user });
+  return res.json({ success: true, data: user });
 });
 
 app.post('/api/v1/users', (req, res) => {
@@ -270,7 +276,7 @@ app.post('/api/v1/users', (req, res) => {
     updatedAt: new Date()
   };
   mockData.users.push(newUser);
-  res.status(201).json({ success: true, data: newUser });
+  return res.status(201).json({ success: true, data: newUser });
 });
 
 app.put('/api/v1/users/:id', (req, res) => {
@@ -285,7 +291,7 @@ app.put('/api/v1/users/:id', (req, res) => {
     updatedAt: new Date()
   };
   
-  res.json({ success: true, data: mockData.users[index] });
+  return res.json({ success: true, data: mockData.users[index] });
 });
 
 app.delete('/api/v1/users/:id', (req, res) => {
@@ -294,10 +300,13 @@ app.delete('/api/v1/users/:id', (req, res) => {
     return res.status(404).json({ success: false, error: 'Usuário não encontrado' });
   }
   
-  mockData.users[index].status = 'inativo';
-  mockData.users[index].updatedAt = new Date();
-  
-  res.json({ success: true, message: 'Usuário deletado com sucesso' });
+  if (mockData.users[index]) {
+    mockData.users[index].status = 'inativo';
+    mockData.users[index].updatedAt = new Date();
+    return res.json({ success: true, message: 'Usuário deletado com sucesso' });
+  } else {
+    return res.status(404).json({ success: false, error: 'Usuário não encontrado' });
+  }
 });
 
 // === CRUD SETLISTS ===
@@ -306,7 +315,7 @@ app.get('/api/v1/setlists', (req, res) => {
     ...setlist,
     responsavelNome: mockData.ministers.find(m => m.id === setlist.responsavel)?.nome || 'Não encontrado'
   }));
-  res.json({ success: true, data: setlists });
+  return res.json({ success: true, data: setlists });
 });
 
 app.get('/api/v1/setlists/:id', (req, res) => {
@@ -314,17 +323,15 @@ app.get('/api/v1/setlists/:id', (req, res) => {
   if (!setlist) {
     return res.status(404).json({ success: false, error: 'Setlist não encontrada' });
   }
-  
   const enrichedSetlist = {
     ...setlist,
-    responsavelNome: mockData.ministers.find(m => m.id === setlist.responsavel)?.nome,
-    musicas: setlist.musicas.map(item => ({
+    responsavelNome: mockData.ministers.find(m => m.id === setlist.responsavel)?.nome || 'Não encontrado',
+    musicas: Array.isArray(setlist.musicas) ? setlist.musicas.map(item => ({
       ...item,
-      music: mockData.musics.find(m => m.id === item.musicId)
-    }))
+      music: mockData.musics.find(m => m.id === item.musicId) || null
+    })) : []
   };
-  
-  res.json({ success: true, data: enrichedSetlist });
+  return res.json({ success: true, data: enrichedSetlist });
 });
 
 app.post('/api/v1/setlists', (req, res) => {
@@ -336,7 +343,7 @@ app.post('/api/v1/setlists', (req, res) => {
     updatedAt: new Date()
   };
   mockData.setlists.push(newSetlist);
-  res.status(201).json({ success: true, data: newSetlist });
+  return res.status(201).json({ success: true, data: newSetlist });
 });
 
 app.put('/api/v1/setlists/:id', (req, res) => {
@@ -351,7 +358,7 @@ app.put('/api/v1/setlists/:id', (req, res) => {
     updatedAt: new Date()
   };
   
-  res.json({ success: true, data: mockData.setlists[index] });
+  return res.json({ success: true, data: mockData.setlists[index] });
 });
 
 app.delete('/api/v1/setlists/:id', (req, res) => {
@@ -361,7 +368,7 @@ app.delete('/api/v1/setlists/:id', (req, res) => {
   }
   
   mockData.setlists.splice(index, 1);
-  res.json({ success: true, message: 'Setlist deletada com sucesso' });
+  return res.json({ success: true, message: 'Setlist deletada com sucesso' });
 });
 
 // === TRANSPOSIÇÃO ===

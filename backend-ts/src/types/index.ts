@@ -243,7 +243,7 @@ export interface CreateSetlistDto {
   data: Date;
   local?: string;
   responsavel: string;
-  musicas: Omit<SetlistItem, 'musicId'>[] & { musicId: string }[];
+  musicas: SetlistItem[];
   observacoes?: string;
   tags?: string[];
 }

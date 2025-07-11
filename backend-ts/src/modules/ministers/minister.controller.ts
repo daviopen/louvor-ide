@@ -137,7 +137,11 @@ export class MinisterController {
   findById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = req.params;
-      const minister = await this.ministerService.findById(id);
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID do ministro não informado' });
+        return;
+      }
+      const minister = await this.ministerService.findById(String(id));
       
       if (!minister) {
         res.status(404).json({
@@ -203,8 +207,11 @@ export class MinisterController {
     try {
       const { id } = req.params;
       const data: UpdateMinisterDto = req.body;
-      
-      const minister = await this.ministerService.update(id, data);
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID do ministro não informado' });
+        return;
+      }
+      const minister = await this.ministerService.update(String(id), data);
       
       if (!minister) {
         res.status(404).json({
@@ -247,7 +254,11 @@ export class MinisterController {
   delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = req.params;
-      const deleted = await this.ministerService.delete(id);
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID do ministro não informado' });
+        return;
+      }
+      const deleted = await this.ministerService.delete(String(id));
       
       if (!deleted) {
         res.status(404).json({
@@ -287,7 +298,11 @@ export class MinisterController {
   findByInstrumento = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { instrument } = req.params;
-      const ministers = await this.ministerService.findByInstrumento(instrument);
+      if (!instrument) {
+        res.status(400).json({ success: false, error: 'Instrumento não informado' });
+        return;
+      }
+      const ministers = await this.ministerService.findByInstrumento(String(instrument));
       
       const response: ApiResponse = {
         success: true,
