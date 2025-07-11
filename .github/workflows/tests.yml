@@ -114,7 +114,7 @@ jobs:
       - name: 📦 Instalar dependências do frontend
         run: |
           cd frontend
-          npm install --no-audit --no-fund
+          npm ci
 
       - name: 📦 Instalar dependências do backend
         run: |
@@ -125,7 +125,7 @@ jobs:
       - name: 📦 Instalar dependências de teste
         run: |
           cd tests
-          npm install --no-audit --no-fund
+          npm ci
 
       - name: 🎭 Instalar Playwright
         run: |
