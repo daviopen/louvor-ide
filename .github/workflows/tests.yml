@@ -1,0 +1,255 @@
+name: 🧪 Testes Automatizados
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Testes do Frontend
+  frontend-tests:
+    name: 🔧 Frontend Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+      - name: 📁 Checkout código
+        uses: actions/checkout@v4
+      
+      - name: 🟢 Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      
+      - name: 📦 Instalar dependências do frontend
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: 📦 Instalar dependências de teste
+        run: |
+          cd tests
+          npm ci
+      
+      - name: 🧪 Executar testes unitários
+        run: |
+          cd tests
+          npm run test
+      
+      - name: 📊 Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./tests/coverage/lcov.info
+          flags: frontend
+          name: frontend-coverage
+
+  # Testes do Backend
+  backend-tests:
+    name: 🐍 Backend Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+    
+    steps:
+      - name: 📁 Checkout código
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: 📦 Instalar dependências do backend
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: 📦 Instalar dependências de teste
+        run: |
+          cd tests/backend
+          pip install -r requirements.txt
+      
+      - name: 🧪 Executar testes do backend
+        run: |
+          cd tests
+          python -m pytest backend/ -v --cov=app --cov-report=xml
+      
+      - name: 📊 Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./tests/coverage.xml
+          flags: backend
+          name: backend-coverage
+
+  # Testes E2E
+  e2e-tests:
+    name: 🎭 E2E Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📁 Checkout código
+        uses: actions/checkout@v4
+      
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: 📦 Instalar dependências do frontend
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: 📦 Instalar dependências do backend
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: 📦 Instalar dependências de teste
+        run: |
+          cd tests
+          npm ci
+      
+      - name: 🎭 Instalar Playwright
+        run: |
+          cd tests
+          npx playwright install --with-deps
+      
+      - name: 🚀 Iniciar backend
+        run: |
+          cd backend
+          python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+          curl -f http://localhost:8000/health || exit 1
+      
+      - name: 🚀 Build e iniciar frontend
+        run: |
+          cd frontend
+          npm run build
+          npm run preview &
+          sleep 5
+          curl -f http://localhost:4173 || exit 1
+        env:
+          VITE_API_URL: http://localhost:8000
+      
+      - name: 🧪 Executar testes E2E
+        run: |
+          cd tests
+          npm run test:e2e
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:4173
+      
+      - name: 📁 Upload Playwright report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report
+          path: tests/playwright-report/
+          retention-days: 30
+
+  # Análise de qualidade
+  quality-check:
+    name: 🔍 Quality Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📁 Checkout código
+        uses: actions/checkout@v4
+      
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: 📦 Instalar dependências
+        run: |
+          cd frontend && npm ci
+          cd ../backend && pip install -r requirements.txt
+          pip install black flake8 mypy
+      
+      - name: 🔧 Lint frontend
+        run: |
+          cd frontend
+          npm run lint
+      
+      - name: 🔧 Format check backend
+        run: |
+          cd backend
+          black --check .
+      
+      - name: 🔧 Lint backend
+        run: |
+          cd backend
+          flake8 .
+      
+      - name: 🔧 Type check backend
+        run: |
+          cd backend
+          mypy . --ignore-missing-imports
+
+  # Build de produção
+  build-check:
+    name: 🏗️ Build Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📁 Checkout código
+        uses: actions/checkout@v4
+      
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: 📦 Instalar dependências do frontend
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: 🏗️ Build frontend
+        run: |
+          cd frontend
+          npm run build
+      
+      - name: 🐳 Build backend Docker
+        run: |
+          cd backend
+          docker build -t louvor-ide-api .
+      
+      - name: ✅ Verificar arquivos de build
+        run: |
+          ls -la frontend/dist/
+          echo "✅ Build do frontend concluído"
+          docker images | grep louvor-ide-api
+          echo "✅ Build do backend concluído"

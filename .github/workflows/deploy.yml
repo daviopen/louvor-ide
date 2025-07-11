@@ -5,10 +5,15 @@ on:
     branches:
       - main
       - master
+      - refactory  # Adicionando branch atual
   pull_request:
     branches:
       - main
       - master
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '8.15.0'
 
 jobs:
   build_and_test:
@@ -18,13 +23,33 @@ jobs:
       - name: 📂 Checkout código
         uses: actions/checkout@v4
 
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
 
       - name: 📦 Instalar dependências
-        run: make install
+        run: |
+          echo "📦 Instalando dependências com pnpm..."
+          pnpm install --frozen-lockfile
+          echo "✅ Dependências instaladas com sucesso!"
+
+      - name: 🔍 Verificar estrutura do projeto
+        run: |
+          echo "📋 Estrutura do projeto:"
+          ls -la
+          echo ""
+          echo "📁 Frontend:"
+          ls -la frontend/
+          echo ""
+          echo "📁 Backend:"
+          ls -la backend-ts/
 
       - name: 🏗️ Build do projeto
         env:
@@ -35,99 +60,153 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-        run: make build
-
-      - name: 🧪 Executar testes
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-        run: make test
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          NODE_ENV: production
+        run: |
+          echo "🏗️ Iniciando build do frontend..."
+          cd frontend
+          pnpm build
+          echo "✅ Frontend build concluído!"
+          cd ..
+          
+          echo "🏗️ Iniciando build do backend..."
+          cd backend-ts
+          pnpm build
+          echo "✅ Backend build concluído!"
+          cd ..
 
       - name: 📋 Verificar arquivos de build
         run: |
           echo "📋 Listando arquivos para deploy:"
-          ls -la
+          echo "🎨 Frontend:"
+          ls -la frontend/dist/
           echo ""
-          echo "📁 Estrutura de diretórios:"
-          find . -type f -name "*.html" -o -name "*.js" -o -name "*.css" | head -20
+          echo "🔧 Backend:"
+          ls -la backend-ts/dist/ || ls -la backend-ts/build/ || echo "Backend build não encontrado"
+          echo ""
+          echo "📁 Estrutura do frontend build:"
+          find frontend/dist -type f | head -20
+          echo ""
+          echo "📊 Tamanho dos arquivos principais:"
+          du -h frontend/dist/*.html frontend/dist/assets/*.js frontend/dist/assets/*.css 2>/dev/null || true
+
+      # Upload do build como artifact para reutilizar no deploy
+      - name: 📤 Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-files
+          path: frontend/dist/
+          retention-days: 1
 
   deploy:
     needs: build_and_test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/refactory'
     
     steps:
       - name: 📂 Checkout código
         uses: actions/checkout@v4
 
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
+      - name: 📥 Download build artifact
+        uses: actions/download-artifact@v3
         with:
-          node-version: '20'
+          name: build-files
+          path: frontend/dist/
 
-      - name: 📦 Instalar dependências
-        run: make install
-
-      - name: 🏗️ Build do projeto
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-        run: make build
+      - name: 🔍 Verificar arquivos baixados
+        run: |
+          echo "📋 Arquivos para deploy:"
+          ls -la frontend/dist/
+          echo ""
+          echo "🔍 Verificando index.html:"
+          head -10 frontend/dist/index.html
 
       - name: 🚀 Deploy para Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
-          channelId: live
+          channelId: ${{ github.ref == 'refs/heads/main' && 'live' || 'preview' }}
           projectId: louvor-ide
+          expires: 30d
 
       - name: 🔍 Verificar deploy
         run: |
           echo "✅ Deploy concluído!"
-          echo "🌐 Site disponível em:"
-          echo "   https://louvor-ide.web.app"
-          echo "   https://louvor-ide.firebaseapp.com"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "🌐 Site LIVE disponível em:"
+            echo "   https://louvor-ide.web.app"
+            echo "   https://louvor-ide.firebaseapp.com"
+          else
+            echo "🌐 Deploy de PREVIEW realizado"
+            echo "   Verifique o URL do preview nos logs acima"
+          fi
           echo ""
           echo "🕐 Aguardando propagação..."
-          sleep 30
-          
+          sleep 15
+
       - name: 🧪 Teste pós-deploy
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         run: |
           echo "🧪 Testando conectividade do site..."
-          if command -v curl >/dev/null 2>&1; then
-            response=$(curl -s -o /dev/null -w "%{http_code}" https://louvor-ide.web.app/ || echo "000")
-            if [ "$response" = "200" ]; then
-              echo "✅ Site respondendo corretamente (HTTP $response)"
+          max_attempts=5
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "🔄 Tentativa $attempt de $max_attempts..."
+            
+            if command -v curl >/dev/null 2>&1; then
+              response=$(curl -s -o /dev/null -w "%{http_code}" https://louvor-ide.web.app/ || echo "000")
+              if [ "$response" = "200" ]; then
+                echo "✅ Site respondendo corretamente (HTTP $response)"
+                break
+              else
+                echo "⚠️ Site retornou HTTP $response"
+              fi
             else
-              echo "⚠️ Site retornou HTTP $response"
+              echo "ℹ️ curl não disponível para teste"
+              break
             fi
-          else
-            echo "ℹ️ curl não disponível para teste"
-          fi
+            
+            if [ $attempt -eq $max_attempts ]; then
+              echo "❌ Site não está respondendo após $max_attempts tentativas"
+            else
+              echo "⏳ Aguardando 10 segundos antes da próxima tentativa..."
+              sleep 10
+            fi
+            
+            attempt=$((attempt + 1))
+          done
 
   notify:
     needs: [build_and_test, deploy]
     runs-on: ubuntu-latest
-    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/refactory')
     
     steps:
       - name: 📢 Notificação de status
         run: |
+          echo "🎯 Branch: ${{ github.ref_name }}"
+          echo "👤 Autor: ${{ github.actor }}"
+          echo "📝 Commit: ${{ github.sha }}"
+          echo ""
+          
           if [ "${{ needs.deploy.result }}" = "success" ]; then
-            echo "🎉 Deploy realizado com sucesso!"
-            echo "🌐 Louvor IDE está online em: https://louvor-ide.web.app"
+            if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+              echo "🎉 Deploy LIVE realizado com sucesso!"
+              echo "🌐 Louvor IDE está online em: https://louvor-ide.web.app"
+            else
+              echo "🎉 Deploy de PREVIEW realizado com sucesso!"
+              echo "🌐 Verifique o URL do preview nos logs do deploy"
+            fi
+          elif [ "${{ needs.deploy.result }}" = "skipped" ]; then
+            echo "⏭️ Deploy foi ignorado (não é uma branch de deploy)"
           else
             echo "❌ Falha no deploy"
             echo "📋 Verifique os logs acima para mais detalhes"
           fi
+          
+          echo ""
+          echo "📊 Status dos jobs:"
+          echo "   Build e Teste: ${{ needs.build_and_test.result }}"
+          echo "   Deploy: ${{ needs.deploy.result }}"

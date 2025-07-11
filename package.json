@@ -1,19 +1,29 @@
 {
   "name": "louvor-ide",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Sistema completo para gerenciamento de cifras musicais",
-  "main": "index.html",
+  "main": "frontend/dist/index.html",
+  "packageManager": "pnpm@8.0.0",
   "scripts": {
-    "start": "make dev",
-    "serve": "firebase serve --port 5000",
-    "build": "make build",
-    "deploy": "make deploy",
-    "test": "make test",
-    "setup": "./setup.sh",
     "dev": "make dev",
+    "dev:frontend": "make dev-frontend",
+    "dev:backend": "make dev-backend",
+    "build": "make build",
+    "build:frontend": "make build-frontend",
+    "test": "make test",
+    "test:frontend": "make test-frontend",
+    "test:backend": "make test-backend",
+    "deploy": "make deploy",
+    "deploy:backend": "make deploy-backend",
+    "clean": "make clean",
+    "setup": "make setup",
     "status": "make status",
-    "clean": "make clean"
+    "install:all": "make install"
   },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/seu-usuario/louvor-ide.git"
@@ -25,7 +35,10 @@
     "acordes",
     "transposicao",
     "firebase",
-    "javascript"
+    "react",
+    "typescript",
+    "fastapi",
+    "python"
   ],
   "author": "Sua Equipe",
   "license": "MIT",
@@ -35,7 +48,8 @@
   "homepage": "https://louvor-ide.web.app",
   "engines": {
     "node": ">=18.0.0",
-    "npm": ">=8.0.0"
+    "npm": ">=8.0.0",
+    "python": ">=3.11.0"
   },
   "devDependencies": {
     "firebase-tools": "^13.0.0"

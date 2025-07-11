@@ -1,3 +1,0 @@
-#!/bin/bash
-# Atalho para setup.sh
-./infra/scripts/setup.sh "$@"

@@ -1,0 +1,26 @@
+{
+  "name": "@louvor-ide/tests",
+  "version": "1.0.0",
+  "description": "Testes para Louvor IDE",
+  "private": true,
+  "packageManager": "pnpm@8.0.0",
+  "scripts": {
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^14.5.1",
+    "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^1.0.4",
+    "@vitest/ui": "^1.0.4",
+    "jsdom": "^23.0.1",
+    "msw": "^2.0.11",
+    "vitest": "^1.0.4"
+  }
+}
