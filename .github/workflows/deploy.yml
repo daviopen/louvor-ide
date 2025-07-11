@@ -13,7 +13,6 @@ on:
 
 env:
   NODE_VERSION: '20'
-  PNPM_VERSION: '8.15.0'
 
 jobs:
   build_and_test:
@@ -23,21 +22,16 @@ jobs:
       - name: 📂 Checkout código
         uses: actions/checkout@v4
 
-      - name: 📦 Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: 'npm'
 
       - name: 📦 Instalar dependências
         run: |
-          echo "📦 Instalando dependências com pnpm..."
-          pnpm install --frozen-lockfile
+          echo "📦 Instalando dependências com npm..."
+          npm install --no-audit --no-fund
           echo "✅ Dependências instaladas com sucesso!"
 
       - name: 🔍 Verificar estrutura do projeto
@@ -65,13 +59,13 @@ jobs:
         run: |
           echo "🏗️ Iniciando build do frontend..."
           cd frontend
-          pnpm build
+          npm run build
           echo "✅ Frontend build concluído!"
           cd ..
           
           echo "🏗️ Iniciando build do backend..."
           cd backend-ts
-          pnpm build
+          npm run build
           echo "✅ Backend build concluído!"
           cd ..
 
