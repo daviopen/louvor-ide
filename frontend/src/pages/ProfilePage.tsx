@@ -30,8 +30,18 @@ const ProfilePage: React.FC = () => {
     confirm: false
   });
 
-  const getRoleLabel = (role?: string) => {
-    switch (role) {
+  type RoleType = string | { id: string; displayName: string; permissions: string[] } | undefined;
+
+  const getRoleValue = (role: RoleType): string | undefined => {
+    if (!role) return undefined;
+    if (typeof role === 'string') return role;
+    if ('id' in role) return role.id;
+    return undefined;
+  };
+
+  const getRoleLabel = (role?: RoleType) => {
+    const value = getRoleValue(role);
+    switch (value) {
       case 'admin':
         return 'Administrador';
       case 'minister':
@@ -41,8 +51,9 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const getRoleColor = (role?: string) => {
-    switch (role) {
+  const getRoleColor = (role?: RoleType) => {
+    const value = getRoleValue(role);
+    switch (value) {
       case 'admin':
         return 'bg-red-100 text-red-800';
       case 'minister':

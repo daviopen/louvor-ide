@@ -45,8 +45,18 @@ const UserMenu: React.FC = () => {
     );
   }
 
-  const getRoleColor = (role?: string) => {
-    switch (role) {
+  type RoleType = string | { id: string; displayName: string; permissions: string[] } | undefined;
+
+  const getRoleValue = (role: RoleType): string | undefined => {
+    if (!role) return undefined;
+    if (typeof role === 'string') return role;
+    if ('id' in role) return role.id;
+    return undefined;
+  };
+
+  const getRoleColor = (role?: RoleType) => {
+    const value = getRoleValue(role);
+    switch (value) {
       case 'admin':
         return 'bg-red-100 text-red-800';
       case 'minister':
@@ -54,10 +64,11 @@ const UserMenu: React.FC = () => {
       default:
         return 'bg-gray-100 text-gray-800';
     }
-  };
+  } 
 
-  const getRoleLabel = (role?: string) => {
-    switch (role) {
+  const getRoleLabel = (role?: RoleType) => {
+    const value = getRoleValue(role);
+    switch (value) {
       case 'admin':
         return 'Administrador';
       case 'minister':
@@ -65,7 +76,7 @@ const UserMenu: React.FC = () => {
       default:
         return 'Usuário';
     }
-  };
+  } 
 
   return (
     <div className="relative" ref={menuRef}>
