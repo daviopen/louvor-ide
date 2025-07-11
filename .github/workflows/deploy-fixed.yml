@@ -54,6 +54,14 @@ jobs:
           echo "📁 Backend:"
           ls -la backend-ts/
 
+      - name: 🧹 Limpar cache do TypeScript
+        run: |
+          cd frontend
+          if [ -d node_modules/.tmp ]; then
+            rm -rf node_modules/.tmp
+          fi
+          echo "✅ Cache do TypeScript limpo!"
+
       - name: 🏗️ Build do projeto
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}

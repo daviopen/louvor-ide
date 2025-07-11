@@ -31,7 +31,7 @@ const RegisterPage: React.FC = () => {
     }));
   };
 
-  const handleAtuacaoChange = (atuacao: string) => {
+  const handleAtuacaoChange = (atuacao: string): void => {
     setFormData(prev => ({
       ...prev,
       atuacao: prev.atuacao.includes(atuacao) 
