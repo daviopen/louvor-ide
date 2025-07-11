@@ -34,8 +34,8 @@ export default defineConfig({
   define: {
     // Remove console.log em produção
     ...(process.env.NODE_ENV === 'production' && {
-      'console.log': '(() => {})',
-      'console.debug': '(() => {})'
+      'console.log': 'undefined',
+      'console.debug': 'undefined'
     })
   }
 })

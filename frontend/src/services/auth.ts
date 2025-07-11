@@ -11,7 +11,7 @@ import {
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { apiConfig } from '../config/constants';
-import { shouldBeMinister } from '../config/atuacao';
+// ...existing code...
 import type { AuthUser, LoginCredentials, RegisterCredentials } from '../types/auth';
 
 /**

@@ -145,38 +145,7 @@ jobs:
           echo "🕐 Aguardando propagação..."
           sleep 15
 
-      - name: 🧪 Teste pós-deploy
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        run: |
-          echo "🧪 Testando conectividade do site..."
-          max_attempts=5
-          attempt=1
-          
-          while [ $attempt -le $max_attempts ]; do
-            echo "🔄 Tentativa $attempt de $max_attempts..."
-            
-            if command -v curl >/dev/null 2>&1; then
-              response=$(curl -s -o /dev/null -w "%{http_code}" https://louvor-ide.web.app/ || echo "000")
-              if [ "$response" = "200" ]; then
-                echo "✅ Site respondendo corretamente (HTTP $response)"
-                break
-              else
-                echo "⚠️ Site retornou HTTP $response"
-              fi
-            else
-              echo "ℹ️ curl não disponível para teste"
-              break
-            fi
-            
-            if [ $attempt -eq $max_attempts ]; then
-              echo "❌ Site não está respondendo após $max_attempts tentativas"
-            else
-              echo "⏳ Aguardando 10 segundos antes da próxima tentativa..."
-              sleep 10
-            fi
-            
-            attempt=$((attempt + 1))
-          done
+      # Teste pós-deploy desabilitado temporariamente conforme solicitado
 
   notify:
     needs: [build_and_test, deploy]
