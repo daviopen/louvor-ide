@@ -37,7 +37,13 @@ jobs:
           npm ci
           echo "✅ Dependências instaladas com sucesso!"
 
-      - name: 🔍 Verificar estrutura do projeto
+      - name: � Instalar tipos do React e dependências essenciais
+        run: |
+          cd frontend
+          npm install --save-dev @types/react @types/react-dom
+          echo "✅ Tipos do React instalados!"
+
+      - name: �🔍 Verificar estrutura do projeto
         run: |
           echo "📋 Estrutura do projeto:"
           ls -la
