@@ -114,19 +114,19 @@ jobs:
       - name: 📦 Instalar dependências do frontend
         run: |
           cd frontend
-          npm ci
-      
+          npm install --no-audit --no-fund
+
       - name: 📦 Instalar dependências do backend
         run: |
           cd backend
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
+
       - name: 📦 Instalar dependências de teste
         run: |
           cd tests
-          npm ci
-      
+          npm install --no-audit --no-fund
+
       - name: 🎭 Instalar Playwright
         run: |
           cd tests
@@ -157,7 +157,7 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://localhost:4173
       
       - name: 📁 Upload Playwright report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report
