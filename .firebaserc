@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "louvor-ide"
-  }
+    "default": "louvor-ide",
+    "prd": "louvor-ide"
+  },
+  "targets": {},
+  "etags": {}
 }
