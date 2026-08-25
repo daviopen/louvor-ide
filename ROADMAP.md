@@ -82,13 +82,13 @@
 - [x] `PermissionGuard` / `FormField`.
 - [x] Criar padrão de tela CRUD e de formulário.
 - [x] Documentar os componentes.
-- [ ] Migrar telas existentes para os componentes padronizados.
+- [x] Migrar telas existentes para os componentes padronizados.
 
 ### 6. Paleta e tokens
 - [x] Definir paleta oficial do IDE Music.
 - [x] Tokens: `primary`, `primary-hover`, `primary-active`, `secondary`, `background`, `surface`, `surface-secondary`, `text-primary`, `text-secondary`, `border`, `success`, `warning`, `error`, `info`.
 - [x] Definir spacing, radius, sombras, tipografia, breakpoints e z-index.
-- [ ] Eliminar hexadecimais espalhados pelo código.
+- [x] Eliminar hexadecimais espalhados pelo código.
 - [x] Garantir contraste WCAG.
 
 ### 7. Tema claro/escuro
@@ -99,7 +99,7 @@
 - [x] Seletor no menu do usuário.
 - [x] Persistir preferência.
 - [x] Evitar flash na troca/carregamento do tema.
-- [ ] Validar todos os componentes, Setlist, cifra e letra nos dois temas.
+- [x] Validar todos os componentes, Setlist, cifra e letra nos dois temas.
 
 ### 8. Modelo de dados
 - [ ] `users`.
