@@ -10,7 +10,7 @@ const css = fs.readFileSync(path.join(root, 'src/styles/events.css'), 'utf8');
 const repository = fs.readFileSync(path.join(root, 'src/repositories/event-repository.js'), 'utf8');
 
 test('módulo de eventos expõe CRUD, todos os campos e ciclo de status', () => {
-  assert.match(html, /id="events-content"/);
+  assert.match(html, /id="events-content"[^>]*hidden/);
   assert.match(html, /id="event-name"[^>]*required/);
   assert.match(html, /id="event-date"[^>]*required/);
   assert.match(html, /id="event-time"/);
@@ -42,7 +42,8 @@ test('repository cria evento, escala e Setlist em transação idempotente e audi
   assert.match(repository, /auditLogs/);
 });
 
-test('layout de eventos possui tratamento responsivo para mobile', () => {
+test('layout de eventos respeita rota oculta e possui tratamento responsivo para mobile', () => {
+  assert.match(css, /\.events-page\[hidden\]\{display:none!important\}/);
   assert.match(css, /@media\(max-width:700px\)/);
   assert.match(css, /events-item/);
   assert.match(css, /grid-template-columns:1fr/);
