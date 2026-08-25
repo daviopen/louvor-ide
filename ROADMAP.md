@@ -249,17 +249,17 @@
 ## P3 — Setlist
 
 ### 18. Setlist por escala
-- [ ] Criar automaticamente para cada escala.
-- [ ] Vincular ao evento e à escala.
-- [ ] Exibir integrantes.
-- [ ] Somente pessoas escaladas como Ministro ficam disponíveis como ministro do Setlist.
-- [ ] Adicionar/remover músicas.
-- [ ] Ordenar por drag-and-drop.
-- [ ] Salvar ordem.
-- [ ] Selecionar ministro por música.
-- [ ] Sugerir tom preferido do ministro.
-- [ ] Permitir tom específico para aquela execução sem alterar o padrão permanente.
-- [ ] Observação/transição/momento especial por música.
+- [x] Criar automaticamente para cada escala.
+- [x] Vincular ao evento e à escala.
+- [x] Exibir integrantes.
+- [x] Somente pessoas escaladas como Ministro ficam disponíveis como ministro do Setlist.
+- [x] Adicionar/remover músicas.
+- [x] Ordenar por drag-and-drop.
+- [x] Salvar ordem.
+- [x] Selecionar ministro por música.
+- [x] Sugerir tom preferido do ministro.
+- [x] Permitir tom específico para aquela execução sem alterar o padrão permanente.
+- [x] Observação/transição/momento especial por música.
 
 ### 19. Dress Code
 - [ ] Permitir 0 a 3 cores.
