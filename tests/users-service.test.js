@@ -18,6 +18,24 @@ test('paginate limita página sem perder total', () => {
   assert.deepEqual(result.items, [21, 22, 23]);
 });
 
+test('UserService cria perfil com múltiplas funções, permissões iniciais e auditoria', async () => {
+  const calls = [];
+  const repository = {
+    findByEmail: async () => null,
+    createUser: async input => { calls.push(['create', input]); return { id: input.uid, ...input }; },
+    replaceUserFunctions: async (id, ids) => { calls.push(['functions', id, ids]); return ids; },
+    replaceInitialPermissions: async (id, permissions) => { calls.push(['permissions', id, permissions]); return permissions; },
+    addAuditLog: async (...args) => { calls.push(['audit', ...args]); return {}; }
+  };
+  const service = new UserService(repository, { actorProvider: () => ({ uid: 'admin-1' }) });
+  const permissions = { users: 'READ', songs: 'EDIT' };
+  await service.create({ uid: 'user-1', name: 'Pessoa', email: 'pessoa@ide.com', functionIds: ['dm', 'teclado'], permissions });
+  assert.deepEqual(calls[1], ['functions', 'user-1', ['dm', 'teclado']]);
+  assert.deepEqual(calls[2], ['permissions', 'user-1', permissions]);
+  assert.equal(calls[3][2], 'USER_CREATED');
+  assert.deepEqual(calls[3][4].permissions, permissions);
+});
+
 test('UserService inativa sem exclusão física e registra auditoria', async () => {
   const calls = [];
   const repository = {
