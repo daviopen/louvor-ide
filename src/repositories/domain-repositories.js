@@ -108,15 +108,35 @@
     }
 
     async listOrdered(options = {}) {
-      let query = this.collection().orderBy('order', 'asc');
-      if (options.activeOnly) query = query.where('active', '==', true);
-      const snapshot = await query.get();
-      return snapshot.docs.map(snapshotToEntity);
+      const snapshot = await this.collection().orderBy('order', 'asc').get();
+      const items = snapshot.docs.map(snapshotToEntity);
+      return options.activeOnly ? items.filter(item => item.active) : items;
     }
 
     async findBySlug(slug) {
       const snapshot = await this.collection().where('slug', '==', slug).limit(1).get();
       return snapshot.empty ? null : snapshotToEntity(snapshot.docs[0]);
+    }
+
+    async reorder(functionOrders) {
+      if (!Array.isArray(functionOrders) || functionOrders.length === 0) {
+        throw new TypeError('functionOrders deve conter ao menos uma função.');
+      }
+      if (typeof this.db.batch !== 'function') {
+        throw new Error('O banco configurado não oferece batch writes para reordenação atômica.');
+      }
+
+      const batch = this.db.batch();
+      const collection = this.collection();
+      const updatedAt = this.clock();
+      for (const item of functionOrders) {
+        batch.update(collection.doc(item.functionId), {
+          order: item.order,
+          updatedAt
+        });
+      }
+      await batch.commit();
+      return functionOrders.map(item => ({ ...item, updatedAt }));
     }
   }
 
