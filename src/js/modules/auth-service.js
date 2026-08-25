@@ -88,9 +88,10 @@
     const resolved = resolveTheme(normalized, systemPrefersDark(scope));
     const root = scope.document.documentElement;
 
+    root.dataset = root.dataset || {};
     root.dataset.theme = resolved;
     root.dataset.themePreference = normalized;
-    root.style.colorScheme = resolved;
+    if (root.style) root.style.colorScheme = resolved;
 
     return resolved;
   }
@@ -102,10 +103,10 @@
     } catch (error) {
       // Storage can be unavailable in hardened/private browser contexts.
     }
-    applyTheme(scope, normalized);
+    const resolved = applyTheme(scope, normalized);
     if (scope.dispatchEvent && scope.CustomEvent) {
       scope.dispatchEvent(new scope.CustomEvent('musicIdeThemeChanged', {
-        detail: { preference: normalized, theme: scope.document.documentElement.dataset.theme }
+        detail: { preference: normalized, theme: resolved }
       }));
     }
     return normalized;
@@ -229,7 +230,9 @@
   }
 
   function finishPageReveal(scope) {
-    if (scope.document) scope.document.documentElement.classList.remove('auth-pending');
+    if (scope.document && scope.document.documentElement && scope.document.documentElement.classList) {
+      scope.document.documentElement.classList.remove('auth-pending');
+    }
   }
 
   function bootstrap(scope) {
@@ -241,7 +244,9 @@
     // the page hidden. This prevents a light-theme flash before dark mode loads.
     applyTheme(scope, readThemePreference(scope));
     watchSystemTheme(scope);
-    scope.document.documentElement.classList.add('auth-pending');
+    if (scope.document.documentElement && scope.document.documentElement.classList) {
+      scope.document.documentElement.classList.add('auth-pending');
+    }
 
     let resolveAuthReady;
     scope.musicIdeAuthReady = new Promise(resolve => {
