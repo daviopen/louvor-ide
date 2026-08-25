@@ -152,10 +152,11 @@ build:
 	@echo "$(BLUE)🏗️ Preparando build para produção...$(NC)"
 	@echo "$(YELLOW)🧹 Limpando arquivos antigos...$(NC)"
 	@rm -f *.html 2>/dev/null || true
-	@rm -rf js/ scripts/ config/ 2>/dev/null || true
+	@rm -rf js/ css/ scripts/ config/ 2>/dev/null || true
 	@echo "$(YELLOW)📁 Copiando arquivos do src para a raiz...$(NC)"
 	@cp -r src/pages/* ./ 2>/dev/null || true
 	@cp -r src/js ./ 2>/dev/null || true
+	@cp -r src/css ./ 2>/dev/null || true
 	@cp -r src/scripts ./ 2>/dev/null || true
 	@cp -r src/config ./ 2>/dev/null || true
 	@echo "$(YELLOW)🔧 Processando variáveis de ambiente...$(NC)"
@@ -202,6 +203,7 @@ build:
 	@echo "$(BLUE)📋 Arquivos para deploy:$(NC)"
 	@ls -la *.html *.js *.css 2>/dev/null || echo "$(YELLOW)⚠️  Alguns arquivos podem não existir$(NC)"
 	@if [ -d "js/" ]; then echo "$(GREEN)✅ Diretório js/$(NC)"; fi
+	@if [ -d "css/" ]; then echo "$(GREEN)✅ Diretório css/$(NC)"; fi
 	@if [ -d "scripts/" ]; then echo "$(GREEN)✅ Diretório scripts/$(NC)"; fi
 
 ## 🚀 Deploy manual
@@ -243,7 +245,7 @@ clean:
 	@rm -f firebase-debug.*.log
 	@echo "$(YELLOW)🗑️ Limpando arquivos copiados do build...$(NC)"
 	@rm -f *.html 2>/dev/null || true
-	@rm -rf js/ scripts/ config/ 2>/dev/null || true
+	@rm -rf js/ css/ scripts/ config/ 2>/dev/null || true
 	@rm -f env-config.js 2>/dev/null || true
 	@echo "$(GREEN)✅ Limpeza concluída$(NC)"
 

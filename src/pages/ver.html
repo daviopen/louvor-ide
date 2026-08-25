@@ -5,7 +5,9 @@
   <title>Ver Música</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="../config/firebase-config.js"></script>
+  <script src="../js/modules/auth-service.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chord-transposer@3.0.9/dist/index.js"></script>
   <style>
     * {
@@ -447,6 +449,7 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="../css/music-ide-theme.css">
 </head>
 <body>
   <div class="container">
@@ -758,7 +761,7 @@
         }
 
         // Atualizar título da página
-        document.title = `${data.titulo} - Louvor IDE`;
+        document.title = `${data.titulo} — MUSIC.IDE`;
     }
 
     function transpose(step) {
@@ -939,7 +942,7 @@
       }
 
       if (id) {
-        document.title = "Ver Música - Louvor IDE";
+        document.title = "Ver Música — MUSIC.IDE";
       }
     });
 

@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nova Música - Louvor IDE</title>
+  <title>Nova Música — MUSIC.IDE</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script src="../js/env-config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="../config/firebase-config.js"></script>
+  <script src="../js/modules/auth-service.js"></script>
   <script src="../scripts/salvar.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../css/styles.css">
@@ -271,13 +272,14 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="../css/music-ide-theme.css">
 </head>
 <body>
   <header class="header">
     <div class="header-content">
       <a href="index.html" class="logo">
         <i class="fas fa-guitar"></i>
-        <span>Louvor IDE</span>
+        <span>MUSIC.IDE</span>
       </a>
       
       <a href="index.html" class="back-btn">
@@ -391,7 +393,7 @@
       console.log("🔧 EDIT MODE DETECTED - ID:", editId);
       
       // Alterar título imediatamente
-      document.title = "Editar Música - Louvor IDE";
+      document.title = "Editar Música — MUSIC.IDE";
       
       // Função para carregar e preencher dados
       function loadAndFillData() {

@@ -46,6 +46,7 @@ build/
 consultar.html
 debug-setlist.html
 index.html
+/login.html
 nova-musica.html
 setlist-view.html
 setlist.html
@@ -56,6 +57,7 @@ ver.html
 
 # Diretórios copiados durante o build
 /js/
+/css/
 scripts/
 config/
 

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090b0c">
+  <title>Entrar — MUSIC.IDE</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="../config/firebase-config.js"></script>
+  <script src="../js/modules/auth-service.js"></script>
+  <link rel="stylesheet" href="../css/music-ide-theme.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body.login-page {
+      display: grid;
+      min-height: 100vh;
+      place-items: center;
+      padding: 24px;
+      color: #fff !important;
+      background:
+        radial-gradient(circle at 82% 12%, rgba(132, 120, 255, 0.32), transparent 28rem),
+        radial-gradient(circle at 10% 90%, rgba(216, 255, 69, 0.13), transparent 24rem),
+        #090b0c !important;
+    }
+
+    .login-shell {
+      display: grid;
+      width: min(980px, 100%);
+      min-height: 580px;
+      grid-template-columns: 1.15fr 0.85fr;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 28px;
+      background: rgba(18, 22, 23, 0.92);
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.44);
+    }
+
+    .brand-panel {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(34px, 6vw, 68px);
+      overflow: hidden;
+      background:
+        linear-gradient(140deg, rgba(216, 255, 69, 0.08), transparent 48%),
+        #101415;
+    }
+
+    .brand-panel::after {
+      content: "♪";
+      position: absolute;
+      right: -12px;
+      bottom: -105px;
+      color: rgba(216, 255, 69, 0.08);
+      font: 900 29rem/1 Georgia, serif;
+      transform: rotate(-8deg);
+    }
+
+    .brand-mark {
+      position: relative;
+      z-index: 1;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 900;
+      letter-spacing: 0.18em;
+    }
+
+    .brand-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 470px;
+    }
+
+    .eyebrow {
+      margin-bottom: 18px;
+      color: #d8ff45;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .brand-copy h1 {
+      margin-bottom: 20px;
+      color: #fff;
+      font-size: clamp(2.6rem, 6vw, 5.5rem);
+      line-height: 0.9;
+      letter-spacing: -0.065em;
+    }
+
+    .brand-copy p {
+      max-width: 390px;
+      color: rgba(255, 255, 255, 0.66);
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    .access-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(32px, 5vw, 56px);
+      color: #111415;
+      background: #f4f2eb;
+    }
+
+    .access-panel h2 {
+      margin-bottom: 10px;
+      font-size: 2rem;
+    }
+
+    .access-panel > p {
+      margin-bottom: 30px;
+      color: #69716f;
+      line-height: 1.6;
+    }
+
+    .google-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      padding: 15px 18px;
+      color: #090b0c;
+      border: 1px solid rgba(17, 20, 21, 0.16);
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.96rem;
+      transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .google-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 34px rgba(17, 20, 21, 0.13);
+    }
+
+    .google-icon {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      color: #fff;
+      border-radius: 50%;
+      background: conic-gradient(from -45deg, #4285f4 0 25%, #34a853 0 50%, #fbbc05 0 75%, #ea4335 0);
+      font-weight: 900;
+    }
+
+    #auth-message {
+      margin-top: 18px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      color: #7a1c1c;
+      background: #ffe5e5;
+      font-size: 0.86rem;
+      line-height: 1.5;
+    }
+
+    #auth-message[data-type="info"] {
+      color: #3f4b00;
+      background: rgba(216, 255, 69, 0.38);
+    }
+
+    .privacy-note {
+      margin-top: 24px !important;
+      margin-bottom: 0 !important;
+      font-size: 0.78rem;
+    }
+
+    @media (max-width: 760px) {
+      body.login-page {
+        padding: 12px;
+      }
+
+      .login-shell {
+        min-height: auto;
+        grid-template-columns: 1fr;
+      }
+
+      .brand-panel {
+        min-height: 340px;
+      }
+
+      .brand-copy h1 {
+        font-size: 3.7rem;
+      }
+    }
+  </style>
+</head>
+<body class="login-page">
+  <main class="login-shell">
+    <section class="brand-panel" aria-label="MUSIC.IDE">
+      <div class="brand-mark">MUSIC.IDE</div>
+      <div class="brand-copy">
+        <div class="eyebrow">Comunidade IDE</div>
+        <h1>Uma equipe.<br>Um só som.</h1>
+        <p>Músicas, setlists e, em breve, toda a organização das escalas do ministério em um único lugar.</p>
+      </div>
+    </section>
+
+    <section class="access-panel">
+      <div class="eyebrow">Área da equipe</div>
+      <h2>Bem-vindo</h2>
+      <p>Entre com sua conta Google para acessar o repertório e as setlists.</p>
+
+      <button class="google-button" type="button" onclick="MusicIdeAuth.signInWithGoogle()">
+        <span class="google-icon" aria-hidden="true">G</span>
+        Continuar com Google
+      </button>
+
+      <div id="auth-message" role="status" aria-live="polite" hidden></div>
+      <p class="privacy-note">Seu acesso é mantido pelo Firebase Authentication. O MUSIC.IDE não recebe sua senha do Google.</p>
+    </section>
+  </main>
+</body>
+</html>

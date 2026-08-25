@@ -1,0 +1,16 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isGoogleUser() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    // Primeira etapa: somente contas autenticadas pelo Google acessam os dados.
+    // Os perfis admin/member serão aplicados junto ao módulo de escalas.
+    match /{document=**} {
+      allow read, write: if isGoogleUser();
+    }
+  }
+}
