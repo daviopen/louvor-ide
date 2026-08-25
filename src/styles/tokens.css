@@ -1,0 +1,52 @@
+:root {
+  /* IDE Music — official brand palette */
+  --ide-color-lime-500: #d8ff45;
+  --ide-color-lime-600: #c6ef2d;
+  --ide-color-lime-700: #acd315;
+  --ide-color-violet-500: #8478ff;
+  --ide-color-violet-600: #6f63ee;
+
+  --ide-color-neutral-950: #090b0c;
+  --ide-color-neutral-900: #111415;
+  --ide-color-neutral-700: #4e5754;
+  --ide-color-neutral-600: #69716f;
+  --ide-color-neutral-300: #d8dcda;
+  --ide-color-neutral-200: #e8ebe9;
+  --ide-color-neutral-100: #f4f2eb;
+  --ide-color-neutral-50: #fffef9;
+  --ide-color-white: #ffffff;
+
+  --ide-color-success-700: #137333;
+  --ide-color-warning-700: #8a5a00;
+  --ide-color-error-700: #b42318;
+  --ide-color-info-700: #175cd3;
+
+  /* Semantic color tokens */
+  --ide-primary: var(--ide-color-lime-500);
+  --ide-primary-hover: var(--ide-color-lime-600);
+  --ide-primary-active: var(--ide-color-lime-700);
+  --ide-primary-ink: var(--ide-color-neutral-950);
+  --ide-secondary: var(--ide-color-violet-500);
+  --ide-secondary-hover: var(--ide-color-violet-600);
+
+  --ide-background: var(--ide-color-neutral-100);
+  --ide-surface: var(--ide-color-neutral-50);
+  --ide-surface-secondary: var(--ide-color-neutral-100);
+  --ide-text-primary: var(--ide-color-neutral-900);
+  --ide-text-secondary: var(--ide-color-neutral-600);
+  --ide-border: rgba(17, 20, 21, 0.14);
+
+  --ide-success: var(--ide-color-success-700);
+  --ide-warning: var(--ide-color-warning-700);
+  --ide-error: var(--ide-color-error-700);
+  --ide-info: var(--ide-color-info-700);
+
+  /* Backward-compatible aliases while legacy screens are migrated. */
+  --music-accent: var(--ide-primary);
+  --music-bg: var(--ide-color-neutral-950);
+  --music-card: var(--ide-surface);
+  --music-paper: var(--ide-surface-secondary);
+  --music-ink: var(--ide-text-primary);
+  --music-muted: var(--ide-text-secondary);
+  --music-line: var(--ide-border);
+}
