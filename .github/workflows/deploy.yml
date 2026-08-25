@@ -84,11 +84,6 @@ jobs:
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
         run: make build
 
-      - name: 🔐 Autenticar no Firebase
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
-
       - name: 🚀 Deploy para Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
@@ -96,9 +91,6 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
           channelId: live
           projectId: louvor-ide
-
-      - name: 🔒 Publicar regras do Firestore
-        run: npx firebase deploy --only firestore:rules --project louvor-ide --non-interactive
 
       - name: 🔍 Verificar deploy
         run: |
