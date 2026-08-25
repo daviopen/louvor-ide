@@ -17,6 +17,7 @@
   }
 })(typeof window !== 'undefined' ? window : null, function createAuthModule() {
   const RETURN_URL_KEY = 'musicIdeReturnUrl';
+  const AUTH_MESSAGE_KEY = 'musicIdeAuthMessage';
   const DEFAULT_RETURN_URL = 'index.html';
   const THEME_STORAGE_KEY = 'musicIdeTheme';
   const THEME_MODES = Object.freeze(['light', 'dark', 'system']);
@@ -131,6 +132,10 @@
     ));
   }
 
+  function isActiveProfile(profile) {
+    return Boolean(profile && profile.active === true);
+  }
+
   function friendlyAuthError(error) {
     const messages = {
       'auth/account-exists-with-different-credential': 'Este e-mail já está vinculado a outra forma de acesso.',
@@ -148,7 +153,7 @@
     };
 
     return messages[error && error.code]
-      || 'Não foi possível entrar com o Google. Tente novamente.';
+      || 'Não foi possível concluir a autenticação. Tente novamente.';
   }
 
   function setLoginMessage(scope, message, type = 'error') {
@@ -167,6 +172,25 @@
     element.textContent = message;
     element.dataset.type = type;
     element.hidden = !message;
+  }
+
+  function persistAuthMessage(scope, message) {
+    try {
+      if (scope.sessionStorage) scope.sessionStorage.setItem(AUTH_MESSAGE_KEY, message);
+    } catch (error) {
+      // A mensagem é apenas UX; a autorização não depende do storage.
+    }
+  }
+
+  function consumeAuthMessage(scope) {
+    try {
+      if (!scope.sessionStorage) return null;
+      const message = scope.sessionStorage.getItem(AUTH_MESSAGE_KEY);
+      scope.sessionStorage.removeItem(AUTH_MESSAGE_KEY);
+      return message;
+    } catch (error) {
+      return null;
+    }
   }
 
   function renderAuthenticatedUser(scope, user) {
@@ -224,9 +248,10 @@
     scope.document.body.appendChild(container);
   }
 
-  function exposeAuthState(scope, user) {
+  function exposeAuthState(scope, user, profile = null) {
     scope.currentMusicIdeUser = user;
-    scope.dispatchEvent(new scope.CustomEvent('musicIdeAuthReady', { detail: { user } }));
+    scope.currentMusicIdeProfile = profile;
+    scope.dispatchEvent(new scope.CustomEvent('musicIdeAuthReady', { detail: { user, profile } }));
   }
 
   function finishPageReveal(scope) {
@@ -235,13 +260,74 @@
     }
   }
 
+  function bootstrapProfilePayload(scope, user) {
+    const firestore = scope.firebase && scope.firebase.firestore;
+    const fieldValue = firestore && firestore.FieldValue;
+    const timestamp = fieldValue && typeof fieldValue.serverTimestamp === 'function'
+      ? fieldValue.serverTimestamp()
+      : new Date();
+
+    return {
+      uid: user.uid,
+      name: user.displayName || user.email || 'Usuário IDE Music',
+      email: user.email || '',
+      photoURL: user.photoURL || null,
+      active: true,
+      role: 'SUPER_ADMIN',
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+  }
+
+  async function resolveAuthorizedProfile(scope, user) {
+    if (!scope.firebase || typeof scope.firebase.firestore !== 'function') {
+      const error = new Error('Firestore indisponível para validar autorização.');
+      error.code = 'app/firestore-unavailable';
+      throw error;
+    }
+
+    const profileRef = scope.firebase.firestore().collection('users').doc(user.uid);
+    let snapshot = await profileRef.get();
+
+    if (!snapshot.exists) {
+      try {
+        // O cliente tenta o bootstrap sem conhecer o e-mail privilegiado. As
+        // Firestore Rules permitem esta criação somente para a identidade
+        // inicial de SUPER_ADMIN (ou claim equivalente); para qualquer outra
+        // conta a escrita é negada e o acesso permanece bloqueado.
+        await profileRef.set(bootstrapProfilePayload(scope, user));
+        snapshot = await profileRef.get();
+      } catch (error) {
+        if (error && ['permission-denied', 'firestore/permission-denied'].includes(error.code)) {
+          return { authorized: false, reason: 'not-provisioned', profile: null };
+        }
+        throw error;
+      }
+    }
+
+    const profile = snapshot.data() || null;
+    if (!isActiveProfile(profile)) {
+      return { authorized: false, reason: 'inactive', profile };
+    }
+
+    return { authorized: true, reason: null, profile };
+  }
+
+  function authorizationFailureMessage(reason) {
+    if (reason === 'inactive') {
+      return 'Esta conta está desativada. Procure a liderança do ministério.';
+    }
+    if (reason === 'not-provisioned') {
+      return 'Esta conta ainda não foi liberada pela liderança.';
+    }
+    return 'Não foi possível validar sua autorização. Tente novamente.';
+  }
+
   function bootstrap(scope) {
     if (!scope.document || !scope.location) return;
     if (scope.__musicIdeAuthBootstrapped) return;
     scope.__musicIdeAuthBootstrapped = true;
 
-    // Apply the persisted/resolved theme synchronously while the auth gate keeps
-    // the page hidden. This prevents a light-theme flash before dark mode loads.
     applyTheme(scope, readThemePreference(scope));
     watchSystemTheme(scope);
     if (scope.document.documentElement && scope.document.documentElement.classList) {
@@ -326,8 +412,20 @@
     };
 
     scope.MusicIdeAuth.signOut = async function signOut() {
-      await auth.signOut();
-      scope.location.replace('login.html');
+      try {
+        await auth.signOut();
+        scope.currentMusicIdeUser = null;
+        scope.currentMusicIdeProfile = null;
+        if (scope.sessionStorage) {
+          scope.sessionStorage.removeItem(RETURN_URL_KEY);
+          scope.sessionStorage.removeItem(AUTH_MESSAGE_KEY);
+        }
+        scope.location.replace('login.html');
+        return true;
+      } catch (error) {
+        setLoginMessage(scope, 'Não foi possível encerrar a sessão. Tente novamente.');
+        return false;
+      }
     };
 
     auth.getRedirectResult().catch(error => {
@@ -348,7 +446,9 @@
 
         if (onLoginPage) {
           finishPageReveal(scope);
-          exposeAuthState(scope, null);
+          exposeAuthState(scope, null, null);
+          const pendingMessage = consumeAuthMessage(scope);
+          if (pendingMessage) setLoginMessage(scope, pendingMessage);
           return;
         }
 
@@ -357,8 +457,29 @@
         return;
       }
 
+      let authorization;
+      try {
+        authorization = await resolveAuthorizedProfile(scope, user);
+      } catch (error) {
+        const message = authorizationFailureMessage('validation-error');
+        if (!onLoginPage) persistAuthMessage(scope, message);
+        await auth.signOut().catch(() => null);
+        if (onLoginPage) failInitialization(message);
+        else scope.location.replace('login.html');
+        return;
+      }
+
+      if (!authorization.authorized) {
+        const message = authorizationFailureMessage(authorization.reason);
+        if (!onLoginPage) persistAuthMessage(scope, message);
+        await auth.signOut().catch(() => null);
+        if (onLoginPage) failInitialization(message);
+        else scope.location.replace('login.html');
+        return;
+      }
+
       resolveAuthReady(user);
-      exposeAuthState(scope, user);
+      exposeAuthState(scope, user, authorization.profile);
 
       if (onLoginPage) {
         const destination = sanitizeReturnUrl(scope.sessionStorage.getItem(RETURN_URL_KEY));
@@ -376,13 +497,16 @@
     THEME_MODES,
     THEME_STORAGE_KEY,
     applyTheme,
+    authorizationFailureMessage,
     buildCurrentReturnUrl,
     bootstrap,
     friendlyAuthError,
+    isActiveProfile,
     isAllowedUser,
     isLoginPage,
     normalizeThemePreference,
     readThemePreference,
+    resolveAuthorizedProfile,
     resolveTheme,
     sanitizeReturnUrl,
     setThemePreference
