@@ -7,12 +7,11 @@ const rulesPath = path.join(__dirname, '..', 'firestore.rules');
 const rules = fs.readFileSync(rulesPath, 'utf8');
 
 function extractMatch(collection) {
-  const marker = `match /${collection}/`;
+  const marker = `match /${collection} {`;
   const index = rules.indexOf(marker);
   assert.notEqual(index, -1, `collection ${collection} deve possuir regra explícita`);
-  return rules.slice(index, rules.indexOf('\n    match /', index + marker.length) === -1
-    ? rules.length
-    : rules.indexOf('\n    match /', index + marker.length));
+  const nextMatch = rules.indexOf('\n    match /', index + marker.length);
+  return rules.slice(index, nextMatch === -1 ? rules.length : nextMatch);
 }
 
 test('não existe fallback global permitindo usuário autenticado', () => {
