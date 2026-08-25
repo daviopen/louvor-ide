@@ -1,4 +1,5 @@
 .unavailability-page{width:min(1500px,100%);margin:0 auto;padding:var(--ide-space-8);display:grid;gap:var(--ide-space-6);color:var(--ide-text-primary)}
+.unavailability-page[hidden]{display:none!important}
 .unavailability-header{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--ide-space-5);flex-wrap:wrap}
 .unavailability-header h1,.unavailability-section-heading h2,.unavailability-dialog h2{margin:var(--ide-space-1) 0 var(--ide-space-2)}
 .unavailability-header p{margin:0;max-width:760px;color:var(--ide-text-secondary);line-height:var(--ide-line-height-relaxed)}
