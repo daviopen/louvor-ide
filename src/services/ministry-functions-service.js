@@ -47,7 +47,7 @@
   function canManageMinistryFunctions(profile) {
     if (!profile) return false;
     const role = String(profile.role || '').toUpperCase();
-    if (role === 'SUPER_ADMIN' || role === 'ADMIN' || profile.isSuperAdmin === true) return true;
+    if (role === 'SUPER_ADMIN' || profile.isSuperAdmin === true) return true;
     const permission = profile.permissions && profile.permissions.users;
     const level = typeof permission === 'object' ? permission.level || permission.access : permission;
     return String(level || '').toLowerCase() === 'edit';
