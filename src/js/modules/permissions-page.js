@@ -32,6 +32,15 @@
   const isSuperAdmin = profile => Boolean(profile && (profile.role === 'SUPER_ADMIN' || profile.isSuperAdmin === true));
   const currentSection = () => new URLSearchParams(scope.location.search).get('section');
 
+  function ensureStyles() {
+    if (scope.document.querySelector('link[data-ide-permissions-styles]')) return;
+    const link = scope.document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '../styles/permissions.css?v=20260825-permissions-editor';
+    link.dataset.idePermissionsStyles = 'true';
+    scope.document.head.appendChild(link);
+  }
+
   async function loadUsers(db) {
     const snapshot = await db.collection('users').orderBy('name').get();
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -57,11 +66,11 @@
       <div class="ide-permissions-toolbar">
         <div>
           <h2>Permissões de acesso</h2>
-          <p>Selecione uma pessoa para consultar ou alterar os acessos dela ao sistema.</p>
+          <p>Escolha uma pessoa e defina o nível de acesso dela em cada módulo do IDE Music.</p>
         </div>
       </div>
       ${editable ? '' : '<div class="ide-permissions-note"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>Você está em modo somente leitura. Apenas SUPER_ADMIN pode alterar permissões.</span></div>'}
-      <section class="ide-section-card" style="padding:1rem">
+      <section class="ide-permissions-user-picker">
         <label class="ide-field">
           <span class="ide-field__label">Usuário</span>
           <select id="permissions-user" class="ide-field__control ide-select">
@@ -70,7 +79,7 @@
           </select>
         </label>
       </section>
-      <div id="permissions-editor"></div>
+      <div id="permissions-editor" class="ide-permissions-editor"></div>
       <div id="permissions-status" class="ide-permissions-status" role="status" aria-live="polite"></div>
       <dialog id="permissions-review" class="ide-permissions-dialog">
         <form method="dialog">
@@ -103,13 +112,14 @@
           </div>
           ${user.active === false ? '<span class="ide-permission-inactive">Inativo</span>' : ''}
         </header>
+        <div class="ide-permissions-section-heading"><strong>Acessos aos módulos</strong><span>Edição já inclui permissão de leitura.</span></div>
         <div class="ide-permissions-grid">
           ${MODULES.map(([moduleName, label]) => {
             const current = normalizeLevel(permissions[moduleName]);
             return `<div class="ide-permission-field"><label for="permission-${escapeHtml(moduleName)}">${escapeHtml(label)}</label><select id="permission-${escapeHtml(moduleName)}" data-permission-module="${escapeHtml(moduleName)}" data-original="${current}" data-level="${current}" ${editable ? '' : 'disabled'}>${LEVELS.map(([level, text]) => `<option value="${level}" ${current === level ? 'selected' : ''}>${text}</option>`).join('')}</select></div>`;
           }).join('')}
         </div>
-        ${editable ? '<div style="padding:1rem;border-top:1px solid var(--ide-border);display:flex;justify-content:flex-end"><button id="permissions-save" class="ide-button ide-button--primary" type="button"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Revisar alterações</button></div>' : ''}
+        ${editable ? '<footer class="ide-permissions-user__footer"><span>As alterações só serão aplicadas depois da revisão.</span><button id="permissions-save" class="ide-button ide-button--primary" type="button"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Revisar alterações</button></footer>' : ''}
       </article>`;
     editor.querySelectorAll('select[data-permission-module]').forEach(select => select.addEventListener('change', () => { select.dataset.level = select.value; }));
   }
@@ -163,6 +173,7 @@
 
   async function bootstrap() {
     if (currentSection() !== 'permissions') return;
+    ensureStyles();
     const card = scope.document.querySelector('.ide-module-card');
     if (!card) return;
     try {
