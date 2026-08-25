@@ -262,14 +262,14 @@
 - [x] Observação/transição/momento especial por música.
 
 ### 19. Dress Code
-- [ ] Permitir 0 a 3 cores.
-- [ ] Color Picker.
-- [ ] Entrada por hexadecimal.
-- [ ] Validar hexadecimal.
-- [ ] Sincronizar seletor e código.
-- [ ] Mostrar preview.
-- [ ] Exibir cores no topo do Setlist.
-- [ ] Validar em tema claro, escuro e mobile.
+- [x] Permitir 0 a 3 cores.
+- [x] Color Picker.
+- [x] Entrada por hexadecimal.
+- [x] Validar hexadecimal.
+- [x] Sincronizar seletor e código.
+- [x] Mostrar preview.
+- [x] Exibir cores no topo do Setlist.
+- [x] Validar em tema claro, escuro e mobile.
 
 ### 20. Histórico de Setlists
 - [ ] Submenu Histórico.
