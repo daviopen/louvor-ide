@@ -184,14 +184,14 @@
 - [x] Registrar alterações em Audit Log.
 
 ### 13. Permissões
-- [ ] Níveis: Sem acesso, Leitura, Edição.
-- [ ] Aplicar a Dashboard, Usuários, Permissões, Indisponibilidades, Eventos, Escalas, Setlists, Músicas e Auditoria.
-- [ ] Criar matriz de permissões por usuário.
-- [ ] Mostrar alterações antes de salvar.
-- [ ] Confirmar mudanças administrativas.
-- [ ] Ocultar menu sem acesso.
-- [ ] Bloquear rota direta.
-- [ ] Bloquear leitura/escrita no Firestore independentemente do frontend.
+- [x] Níveis: Sem acesso, Leitura, Edição.
+- [x] Aplicar a Dashboard, Usuários, Permissões, Indisponibilidades, Eventos, Escalas, Setlists, Músicas e Auditoria.
+- [x] Criar matriz de permissões por usuário.
+- [x] Mostrar alterações antes de salvar.
+- [x] Confirmar mudanças administrativas.
+- [x] Ocultar menu sem acesso.
+- [x] Bloquear rota direta.
+- [x] Bloquear leitura/escrita no Firestore independentemente do frontend.
 
 ### 14. Funções ministeriais
 - [ ] Cadastro de funções.
