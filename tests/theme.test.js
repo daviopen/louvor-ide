@@ -8,6 +8,7 @@ const auth = require('../src/js/modules/auth-service.js');
 const root = path.resolve(__dirname, '..');
 const tokens = fs.readFileSync(path.join(root, 'src/styles/tokens.css'), 'utf8');
 const themeCss = fs.readFileSync(path.join(root, 'src/css/music-ide-theme.css'), 'utf8');
+const pages = ['index.html','consultar.html','nova-musica.html','setlist.html','setlists.html','setlist-view.html','ver.html'];
 
 function createThemeScope({ stored = null, prefersDark = false } = {}) {
   const storage = new Map();
@@ -69,4 +70,13 @@ test('tokens e superfícies de cifra/letra possuem cobertura dark mode', () => {
   assert.match(themeCss, /\[data-theme="dark"\][^\n]*\.chord/);
   assert.match(themeCss, /lyrics-content/);
   assert.match(themeCss, /chord-content/);
+});
+
+test('all authenticated user-facing pages load the shared IDE Music theme layer', () => {
+  for (const page of pages) {
+    const html = fs.readFileSync(path.join(root, 'src/pages', page), 'utf8');
+    assert.match(html, /music-ide-theme\.css/, `${page} must load the shared theme stylesheet`);
+    assert.match(html, /auth-service\.js/, `${page} must load auth/theme bootstrap`);
+    assert.match(html, /app-shell\.js/, `${page} must load the authenticated shell`);
+  }
 });
