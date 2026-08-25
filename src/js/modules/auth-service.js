@@ -182,7 +182,11 @@
         const provider = new scope.firebase.auth.GoogleAuthProvider();
         provider.addScope('profile');
         provider.addScope('email');
-        await auth.signInWithRedirect(provider);
+        // O popup é iniciado diretamente pelo clique do usuário e não depende
+        // do armazenamento de terceiros usado pelo fluxo de redirect. Isso
+        // evita o retorno em loop para login em janelas anônimas e navegadores
+        // com proteção reforçada contra rastreamento.
+        await auth.signInWithPopup(provider);
       } catch (error) {
         setLoginMessage(scope, friendlyAuthError(error));
         throw error;
