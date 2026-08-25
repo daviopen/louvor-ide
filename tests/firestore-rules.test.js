@@ -49,6 +49,21 @@ test('audit log é append-only e exige ator autenticado', () => {
   assert.match(audit, /allow update, delete: if false;/);
 });
 
+test('Setlist pode ler somente as dependências operacionais necessárias', () => {
+  assert.match(extractMatch('users/{userId}'), /canRead\('setlists'\)/);
+  assert.match(extractMatch('events/{documentId}'), /canRead\('events'\) \|\| canRead\('setlists'\)/);
+  assert.match(extractMatch('schedules/{documentId}'), /canRead\('schedules'\) \|\| canRead\('setlists'\)/);
+  assert.match(extractMatch('scheduleMembers/{documentId}'), /canRead\('schedules'\) \|\| canRead\('setlists'\)/);
+  assert.match(extractMatch('songs/{documentId}'), /canRead\('songs'\) \|\| canRead\('setlists'\)/);
+  assert.match(extractMatch('songMinisterKeys/{documentId}'), /canRead\('songs'\) \|\| canRead\('setlists'\)/);
+});
+
+test('biblioteca legada de músicas é somente leitura para Setlist/Músicas', () => {
+  const legacySongs = extractMatch('musicas/{documentId}');
+  assert.match(legacySongs, /canRead\('songs'\) \|\| canRead\('setlists'\)/);
+  assert.match(legacySongs, /allow write: if false;/);
+});
+
 test('collections sensíveis possuem regra explícita', () => {
   [
     'users/{userId}',
@@ -60,6 +75,7 @@ test('collections sensíveis possuem regra explícita', () => {
     'setlists/{documentId}',
     'setlistSongs/{documentId}',
     'songs/{documentId}',
+    'musicas/{documentId}',
     'songMinisterKeys/{documentId}',
     'auditLogs/{documentId}',
     'lgpdConsents/{documentId}'
