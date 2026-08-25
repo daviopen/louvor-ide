@@ -1,112 +1,20 @@
-.ide-field {
-  display: grid;
-  gap: 0.45rem;
-  width: 100%;
-}
-
-.ide-field__label {
-  color: var(--music-ink, #111415);
-  font-size: 0.875rem;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.ide-field__required {
-  color: #b42318;
-}
-
-.ide-field__control {
-  width: 100%;
-  min-width: 0;
-  color: var(--music-ink, #111415);
-  border: 1px solid rgba(17, 20, 21, 0.22);
-  border-radius: 12px;
-  outline: none;
-  background: var(--music-card, #fffef9);
-  font: inherit;
-  line-height: 1.4;
-  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
-  box-sizing: border-box;
-}
-
-.ide-field--sm .ide-field__control {
-  min-height: 38px;
-  padding: 0.5rem 0.7rem;
-  font-size: 0.875rem;
-}
-
-.ide-field--md .ide-field__control {
-  min-height: 44px;
-  padding: 0.65rem 0.8rem;
-  font-size: 0.95rem;
-}
-
-.ide-field--lg .ide-field__control {
-  min-height: 50px;
-  padding: 0.8rem 0.9rem;
-  font-size: 1rem;
-}
-
-.ide-field__textarea {
-  min-height: 112px;
-  resize: vertical;
-}
-
-.ide-field__textarea[data-resize='false'] {
-  resize: none;
-}
-
-.ide-field__control::placeholder {
-  color: var(--music-muted, #69716f);
-  opacity: 0.78;
-}
-
-.ide-field__control:hover:not(:disabled):not(:read-only) {
-  border-color: rgba(17, 20, 21, 0.38);
-}
-
-.ide-field__control:focus-visible {
-  border-color: var(--music-accent-dark, #435300);
-  box-shadow: 0 0 0 3px rgba(216, 255, 69, 0.28);
-}
-
-.ide-field--error .ide-field__control {
-  border-color: #b42318;
-}
-
-.ide-field--error .ide-field__control:focus-visible {
-  border-color: #b42318;
-  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.14);
-}
-
-.ide-field__hint,
-.ide-field__error {
-  font-size: 0.8rem;
-  line-height: 1.4;
-}
-
-.ide-field__hint {
-  color: var(--music-muted, #69716f);
-}
-
-.ide-field__error {
-  color: #8a1c13;
-  font-weight: 650;
-}
-
-.ide-field__control:disabled,
-.ide-field--disabled .ide-field__control {
-  cursor: not-allowed;
-  opacity: 0.62;
-  background: rgba(17, 20, 21, 0.05);
-}
-
-.ide-field__control:read-only {
-  background: rgba(17, 20, 21, 0.035);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ide-field__control {
-    transition: none;
-  }
-}
+.ide-field { display: grid; gap: var(--ide-space-2); width: 100%; }
+.ide-field__label { color: var(--ide-text-primary); font-size: var(--ide-font-size-sm); font-weight: var(--ide-font-weight-bold); line-height: 1.35; }
+.ide-field__required { color: var(--ide-error); }
+.ide-field__control { width: 100%; min-width: 0; color: var(--ide-text-primary); border: 1px solid var(--ide-border-strong); border-radius: var(--ide-radius-md); outline: none; background: var(--ide-surface); font: inherit; line-height: var(--ide-line-height-normal); transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease; box-sizing: border-box; }
+.ide-field--sm .ide-field__control { min-height: 38px; padding: var(--ide-space-2) var(--ide-space-3); font-size: var(--ide-font-size-sm); }
+.ide-field--md .ide-field__control { min-height: 44px; padding: .65rem .8rem; font-size: .95rem; }
+.ide-field--lg .ide-field__control { min-height: 50px; padding: .8rem .9rem; font-size: var(--ide-font-size-md); }
+.ide-field__textarea { min-height: 112px; resize: vertical; }
+.ide-field__textarea[data-resize='false'] { resize: none; }
+.ide-field__control::placeholder { color: var(--ide-text-secondary); opacity: .78; }
+.ide-field__control:hover:not(:disabled):not(:read-only) { border-color: var(--ide-text-secondary); }
+.ide-field__control:focus-visible { border-color: var(--music-accent-dark); box-shadow: 0 0 0 3px var(--ide-primary-ring); }
+.ide-field--error .ide-field__control { border-color: var(--ide-error); }
+.ide-field--error .ide-field__control:focus-visible { border-color: var(--ide-error); box-shadow: 0 0 0 3px rgba(180, 35, 24, .14); }
+.ide-field__hint,.ide-field__error { font-size: var(--ide-font-size-xs); line-height: var(--ide-line-height-normal); }
+.ide-field__hint { color: var(--ide-text-secondary); }
+.ide-field__error { color: var(--ide-color-error-800); font-weight: var(--ide-font-weight-semibold); }
+.ide-field__control:disabled,.ide-field--disabled .ide-field__control { cursor: not-allowed; opacity: .62; background: var(--ide-surface-secondary); }
+.ide-field__control:read-only { background: var(--ide-surface-secondary); }
+@media (prefers-reduced-motion: reduce) { .ide-field__control { transition: none; } }
