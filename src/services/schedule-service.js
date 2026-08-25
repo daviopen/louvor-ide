@@ -1,0 +1,172 @@
+/**
+ * Regras de negócio de Escalas.
+ */
+(function initScheduleService(globalScope, factory) {
+  const api = factory();
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (globalScope) globalScope.MusicIdeScheduleService = api;
+})(typeof window !== 'undefined' ? window : null, function createModule() {
+  function dateKey(value) {
+    if (!value) return '';
+    if (typeof value === 'string') return value.slice(0, 10);
+    if (value && typeof value.toDate === 'function') return dateKey(value.toDate());
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
+  function periodForTime(time) {
+    if (!time) return null;
+    const hour = Number(String(time).split(':')[0]);
+    if (!Number.isFinite(hour)) return null;
+    if (hour < 12) return 'MORNING';
+    if (hour < 18) return 'AFTERNOON';
+    return 'EVENING';
+  }
+
+  function unavailabilityMatches(record, event) {
+    if (!record || !event) return false;
+    if (dateKey(record.date) !== dateKey(event.date)) return false;
+    if (record.eventId && record.eventId !== event.id) return false;
+    if (!record.period) return true;
+    const eventPeriod = periodForTime(event.time);
+    return !eventPeriod || record.period === eventPeriod;
+  }
+
+  function normalizeLevel(value) {
+    const level = String(value || 'NONE').toUpperCase();
+    return ['NONE', 'READ', 'EDIT'].includes(level) ? level : 'NONE';
+  }
+
+  function scheduleCompleteness(schedule, members) {
+    const slots = Array.isArray(schedule?.slots) ? schedule.slots : [];
+    const active = (members || []).filter(item => item.active !== false);
+    if (!slots.length) return { complete: false, filled: 0, total: 0, missingSlotIds: [] };
+    const occupied = new Set(active.map(item => item.slotId).filter(Boolean));
+    const missingSlotIds = slots.map(item => item.id).filter(id => !occupied.has(id));
+    return { complete: missingSlotIds.length === 0, filled: slots.length - missingSlotIds.length, total: slots.length, missingSlotIds };
+  }
+
+  class ScheduleService {
+    constructor(repository) {
+      if (!repository) throw new Error('ScheduleRepository é obrigatório.');
+      this.repository = repository;
+    }
+
+    actorId(user) {
+      const id = user && (user.uid || user.id);
+      if (!id) throw new Error('Usuário autenticado não identificado.');
+      return id;
+    }
+
+    async resolveAccess(user, profile = null) {
+      const userId = this.actorId(user);
+      const role = String(profile?.role || '').toUpperCase();
+      if (role === 'SUPER_ADMIN' || profile?.isSuperAdmin === true) return { level: 'EDIT', canRead: true, canEdit: true };
+      const level = normalizeLevel(await this.repository.getPermissionLevel(userId, 'schedules'));
+      return { level, canRead: level === 'READ' || level === 'EDIT', canEdit: level === 'EDIT' };
+    }
+
+    async load(user, profile = null) {
+      const access = await this.resolveAccess(user, profile);
+      if (!access.canRead) throw new Error('Você não possui permissão para consultar escalas.');
+      const [schedules, users, functions, userFunctions, unavailability] = await Promise.all([
+        this.repository.listSchedules(), this.repository.listActiveUsers(), this.repository.listActiveFunctions(),
+        this.repository.listUserFunctions(), this.repository.listUnavailability()
+      ]);
+      const result = [];
+      for (const schedule of schedules) {
+        const members = await this.repository.listMembers(schedule.id);
+        result.push({ ...schedule, members, completeness: scheduleCompleteness(schedule, members) });
+      }
+      return { access, schedules: result, users, functions, userFunctions, unavailability };
+    }
+
+    eligibleUsers(functionId, event, context) {
+      const functionUsers = new Set((context.userFunctions || []).filter(item => item.active !== false && item.functionId === functionId).map(item => item.userId));
+      return (context.users || []).filter(user => {
+        if (user.active === false || !functionUsers.has(user.id || user.uid)) return false;
+        const userId = user.id || user.uid;
+        return !(context.unavailability || []).some(item => item.userId === userId && unavailabilityMatches(item, event));
+      });
+    }
+
+    userConflict(userId, functionId, schedule, event, context) {
+      const unavailable = (context.unavailability || []).find(item => item.userId === userId && unavailabilityMatches(item, event));
+      const duplicateFunction = (schedule.members || []).find(item => item.active !== false && item.userId === userId && item.functionId === functionId);
+      const otherRole = (schedule.members || []).find(item => item.active !== false && item.userId === userId && item.functionId !== functionId);
+      return { unavailable: Boolean(unavailable), unavailability: unavailable || null, duplicateFunction: Boolean(duplicateFunction), otherRole: otherRole || null };
+    }
+
+    async addSlot(scheduleId, functionId, user, profile = null) {
+      const access = await this.resolveAccess(user, profile);
+      if (!access.canEdit) throw new Error('Você não possui permissão para editar escalas.');
+      const schedule = await this.repository.getSchedule(scheduleId);
+      if (!schedule) throw new Error('Escala não encontrada.');
+      const slots = Array.isArray(schedule.slots) ? [...schedule.slots] : [];
+      const slot = { id: `slot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, functionId };
+      slots.push(slot);
+      await this.repository.updateSchedule(scheduleId, { slots, status: 'DRAFT' }, this.actorId(user));
+      await this.repository.addAuditLog(this.actorId(user), 'SCHEDULE_SLOT_ADDED', scheduleId, { slotId: slot.id, functionId });
+      return slot;
+    }
+
+    async removeSlot(scheduleId, slotId, user, profile = null) {
+      const access = await this.resolveAccess(user, profile);
+      if (!access.canEdit) throw new Error('Você não possui permissão para editar escalas.');
+      const schedule = await this.repository.getSchedule(scheduleId);
+      if (!schedule) throw new Error('Escala não encontrada.');
+      const members = await this.repository.listMembers(scheduleId);
+      for (const member of members.filter(item => item.slotId === slotId)) await this.repository.removeMember(member.id, this.actorId(user));
+      const slots = (schedule.slots || []).filter(item => item.id !== slotId);
+      await this.repository.updateSchedule(scheduleId, { slots, status: 'DRAFT' }, this.actorId(user));
+      await this.repository.addAuditLog(this.actorId(user), 'SCHEDULE_SLOT_REMOVED', scheduleId, { slotId });
+    }
+
+    async assign(scheduleId, slotId, userId, user, profile = null, options = {}) {
+      const access = await this.resolveAccess(user, profile);
+      if (!access.canEdit) throw new Error('Você não possui permissão para editar escalas.');
+      const [schedule, context] = await Promise.all([this.repository.getSchedule(scheduleId), this.load(user, profile)]);
+      if (!schedule) throw new Error('Escala não encontrada.');
+      const fullSchedule = context.schedules.find(item => item.id === scheduleId) || { ...schedule, members: [] };
+      const slot = (schedule.slots || []).find(item => item.id === slotId);
+      if (!slot) throw new Error('Função/posição não encontrada na escala.');
+      const event = fullSchedule.event || await this.repository.getEvent(schedule.eventId);
+      const selectedUser = context.users.find(item => (item.id || item.uid) === userId);
+      if (!selectedUser || selectedUser.active === false) throw new Error('Usuário inativo ou inexistente.');
+      const hasFunction = context.userFunctions.some(item => item.active !== false && item.functionId === slot.functionId && item.userId === userId);
+      if (!hasFunction) throw new Error('O usuário selecionado não possui esta função ministerial.');
+      const conflict = this.userConflict(userId, slot.functionId, fullSchedule, event, context);
+      if (conflict.duplicateFunction) throw new Error('Este usuário já está escalado nesta mesma função.');
+      if (conflict.unavailable && !options.override) throw new Error('Usuário indisponível para este evento. Confirme uma exceção administrativa para continuar.');
+      if (conflict.unavailable && options.override && !String(options.reason || '').trim()) throw new Error('Informe o motivo da exceção administrativa.');
+      const existing = fullSchedule.members.find(item => item.slotId === slotId && item.active !== false);
+      if (existing) await this.repository.removeMember(existing.id, this.actorId(user));
+      const member = await this.repository.createMember({
+        scheduleId, slotId, userId, functionId: slot.functionId,
+        exception: conflict.unavailable ? { override: true, reason: String(options.reason).trim() } : null
+      }, this.actorId(user));
+      const members = (await this.repository.listMembers(scheduleId));
+      const completeness = scheduleCompleteness(schedule, members);
+      await this.repository.updateSchedule(scheduleId, { status: completeness.complete ? 'COMPLETE' : 'DRAFT' }, this.actorId(user));
+      await this.repository.addAuditLog(this.actorId(user), conflict.unavailable ? 'SCHEDULE_MEMBER_OVERRIDE_ASSIGNED' : 'SCHEDULE_MEMBER_ASSIGNED', scheduleId, {
+        memberId: member.id, slotId, userId, functionId: slot.functionId, reason: options.reason || null
+      });
+      return { member, conflict, completeness };
+    }
+
+    async removeMember(scheduleId, memberId, user, profile = null) {
+      const access = await this.resolveAccess(user, profile);
+      if (!access.canEdit) throw new Error('Você não possui permissão para editar escalas.');
+      await this.repository.removeMember(memberId, this.actorId(user));
+      const schedule = await this.repository.getSchedule(scheduleId);
+      const members = await this.repository.listMembers(scheduleId);
+      const completeness = scheduleCompleteness(schedule, members);
+      await this.repository.updateSchedule(scheduleId, { status: completeness.complete ? 'COMPLETE' : 'DRAFT' }, this.actorId(user));
+      await this.repository.addAuditLog(this.actorId(user), 'SCHEDULE_MEMBER_REMOVED', scheduleId, { memberId });
+      return completeness;
+    }
+  }
+
+  return Object.freeze({ ScheduleService, dateKey, periodForTime, unavailabilityMatches, scheduleCompleteness });
+});
