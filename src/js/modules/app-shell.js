@@ -1,7 +1,7 @@
 /**
  * Navegação global responsiva do IDE Music.
- * Injeta a barra lateral nas páginas autenticadas sem depender da marcação
- * específica de cada tela legada.
+ * Injeta a barra lateral e aplica o Design System nas páginas autenticadas
+ * sem depender da marcação específica de cada tela legada.
  */
 (function initializeIdeMusicShell(scope) {
   if (!scope || !scope.document) return;
@@ -35,6 +35,45 @@
     return node;
   }
 
+  function ensureDesignSystemStyles() {
+    if (scope.document.querySelector('link[data-ide-design-system]')) return;
+    const link = scope.document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '../styles/design-system.css';
+    link.dataset.ideDesignSystem = 'true';
+    scope.document.head.appendChild(link);
+  }
+
+  function migrateLegacyControls() {
+    const body = scope.document.body;
+    if (!body) return;
+    body.classList.add('ide-ds-migrated');
+
+    scope.document.querySelectorAll('.btn, .action-btn, .add-button, .clear-filters, .back-btn').forEach(node => {
+      node.classList.add('ide-button');
+      if (node.classList.contains('btn-secondary') || node.classList.contains('back-btn')) node.classList.add('ide-button--secondary');
+      else if (node.classList.contains('btn-delete')) node.classList.add('ide-button--danger');
+      else node.classList.add('ide-button--primary');
+      node.classList.add('ide-button--md');
+    });
+
+    scope.document.querySelectorAll('.form-input, .filter-input, .search-box').forEach(node => {
+      node.classList.add('ide-field__control', 'ide-field__input');
+    });
+    scope.document.querySelectorAll('.form-textarea').forEach(node => {
+      node.classList.add('ide-field__control', 'ide-field__textarea');
+    });
+    scope.document.querySelectorAll('select').forEach(node => node.classList.add('ide-field__control', 'ide-select'));
+    scope.document.querySelectorAll('.form-container, .filters').forEach(node => node.classList.add('ide-section-card'));
+    scope.document.querySelectorAll('.music-card, .stat-card').forEach(node => node.classList.add('ide-card'));
+    scope.document.querySelectorAll('.empty-state').forEach(node => node.classList.add('ide-empty-state'));
+    scope.document.querySelectorAll('.loading').forEach(node => {
+      node.classList.add('ide-loading');
+      if (!node.getAttribute('role')) node.setAttribute('role', 'status');
+      if (!node.getAttribute('aria-live')) node.setAttribute('aria-live', 'polite');
+    });
+  }
+
   function setMenuOpen(isOpen) {
     scope.document.body.classList.toggle('ide-sidebar-open', isOpen);
     const toggle = scope.document.getElementById('ide-sidebar-toggle');
@@ -46,6 +85,9 @@
 
     const page = currentPage(scope.location && scope.location.pathname);
     if (page === 'login.html') return;
+
+    ensureDesignSystemStyles();
+    migrateLegacyControls();
 
     const activeId = pageMap[page] || 'home';
     scope.document.body.classList.add('ide-shell-enabled');
