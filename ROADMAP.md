@@ -19,14 +19,14 @@
 - [ ] Evitar duplicação e regras de negócio espalhadas na UI.
 
 ### 1. Arquitetura
-- [ ] Revisar a arquitetura atual.
-- [ ] Adotar arquitetura modular por domínio/feature.
-- [ ] Padronizar diretórios: `core`, `components`, `features`, `services`, `repositories`, `models`, `dtos`, `routes`, `utils`, `styles`, `constants`, `tests`.
-- [ ] Separar UI, regras de negócio e acesso a dados.
-- [ ] Evitar chamadas diretas ao Firestore dentro de componentes.
-- [ ] Criar padrão único de erros, loading, empty states e confirmações.
-- [ ] Avaliar migração gradual para TypeScript.
-- [ ] Caso permaneça em JavaScript, utilizar JSDoc e contratos padronizados.
+- [x] Revisar a arquitetura atual.
+- [x] Adotar arquitetura modular por domínio/feature.
+- [x] Padronizar diretórios: `core`, `components`, `features`, `services`, `repositories`, `models`, `dtos`, `routes`, `utils`, `styles`, `constants`, `tests`.
+- [x] Separar UI, regras de negócio e acesso a dados.
+- [x] Evitar chamadas diretas ao Firestore dentro de componentes.
+- [x] Criar padrão único de erros, loading, empty states e confirmações.
+- [x] Avaliar migração gradual para TypeScript.
+- [x] Caso permaneça em JavaScript, utilizar JSDoc e contratos padronizados.
 
 ### 2. AGENTS.md raiz
 - [ ] Criar `/AGENTS.md`.
