@@ -46,3 +46,51 @@ Regras:
 - `type` usa `button` por padrão para evitar submits acidentais.
 - ícones decorativos recebem `aria-hidden="true"`.
 - não usar `innerHTML` para labels ou conteúdo fornecido pelo usuário.
+
+## Input / Textarea
+
+Arquivos:
+
+- `src/components/input.js`: factories `createInput` e `createTextarea`.
+- `src/styles/input.css`: tamanhos, foco, erro, disabled, readonly, hint e textarea.
+
+Carregue os arquivos e utilize a API global `IDEMusic.Input`.
+
+```html
+<link rel="stylesheet" href="../styles/input.css">
+<script src="../components/input.js"></script>
+```
+
+```js
+const { createInput, createTextarea } = IDEMusic.Input;
+
+const emailField = createInput({
+  id: 'email',
+  name: 'email',
+  type: 'email',
+  label: 'E-mail',
+  autocomplete: 'email',
+  required: true,
+  hint: 'Use o e-mail vinculado à sua conta.'
+});
+
+const notesField = createTextarea({
+  id: 'notes',
+  name: 'notes',
+  label: 'Observações',
+  rows: 5,
+  placeholder: 'Informações adicionais...'
+});
+```
+
+Tamanhos disponíveis: `sm`, `md` e `lg`.
+
+Regras:
+
+- todo `Input` e `Textarea` exige `id` ou `name`; quando apenas `name` é informado, um ID estável é derivado automaticamente.
+- todo controle exige `label` visível ou `ariaLabel` explícito.
+- `error` ativa `aria-invalid="true"` e cria mensagem associada com `role="alert"`.
+- `hint` e `error` são associados ao controle por `aria-describedby`.
+- `required`, `disabled` e `readOnly` são refletidos no controle nativo.
+- `Textarea` usa `rows=4` por padrão e aceita `resize: false`.
+- o conteúdo é inserido via `textContent`/`value`; não usar `innerHTML` para dados fornecidos pelo usuário.
