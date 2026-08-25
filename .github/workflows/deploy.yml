@@ -142,11 +142,47 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
 
-      - name: 🔐 Publicar Firestore Rules
+      - name: 🔐 Publicar Firestore Rules via Rules API
         run: |
-          set -e
-          firebase deploy --only firestore:rules --project louvor-ide
-          echo "✅ Firestore Rules publicadas"
+          set -euo pipefail
+          ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"
+          RULESET_PAYLOAD="$(jq -n --rawfile content firestore.rules '{source:{files:[{name:"firestore.rules",content:$content}]}}')"
+          RULESET_RESPONSE="$(curl --fail-with-body -sS \
+            -X POST \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "${RULESET_PAYLOAD}" \
+            "https://firebaserules.googleapis.com/v1/projects/louvor-ide/rulesets")"
+          RULESET_NAME="$(printf '%s' "${RULESET_RESPONSE}" | jq -er '.name')"
+          RELEASE_NAME="projects/louvor-ide/releases/cloud.firestore"
+          RELEASE_URL="https://firebaserules.googleapis.com/v1/${RELEASE_NAME}"
+          STATUS="$(curl -sS -o /tmp/firestore-release.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            "${RELEASE_URL}")"
+
+          if [ "${STATUS}" = "200" ]; then
+            RELEASE_PAYLOAD="$(jq -n --arg release "${RELEASE_NAME}" --arg ruleset "${RULESET_NAME}" '{release:{name:$release,rulesetName:$ruleset},updateMask:"rulesetName"}')"
+            curl --fail-with-body -sS \
+              -X PATCH \
+              -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "${RELEASE_PAYLOAD}" \
+              "${RELEASE_URL}" >/tmp/firestore-release-updated.json
+          else
+            RELEASE_PAYLOAD="$(jq -n --arg release "${RELEASE_NAME}" --arg ruleset "${RULESET_NAME}" '{name:$release,rulesetName:$ruleset}')"
+            curl --fail-with-body -sS \
+              -X POST \
+              -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "${RELEASE_PAYLOAD}" \
+              "https://firebaserules.googleapis.com/v1/projects/louvor-ide/releases" >/tmp/firestore-release-created.json
+          fi
+
+          VERIFIED_RULESET="$(curl --fail-with-body -sS \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            "${RELEASE_URL}" | jq -er '.rulesetName')"
+          test "${VERIFIED_RULESET}" = "${RULESET_NAME}"
+          echo "✅ Firestore Rules publicadas e release cloud.firestore aponta para ${RULESET_NAME}"
 
       - name: 🚀 Deploy para Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -231,3 +267,4 @@ jobs:
           else
             echo "❌ Falha no deploy"
             echo "📋 Verifique os logs acima para mais detalhes"
+          fi
