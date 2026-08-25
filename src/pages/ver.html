@@ -2,12 +2,13 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Ver Música</title>
+  <title>Ver Música — IDE Music</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="../config/firebase-config.js"></script>
   <script src="../js/modules/auth-service.js?v=20260825-email"></script>
+  <script src="../js/modules/app-shell.js?v=20260825-sidebar" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chord-transposer@3.0.9/dist/index.js"></script>
   <style>
     * {
@@ -761,7 +762,7 @@
         }
 
         // Atualizar título da página
-        document.title = `${data.titulo} — MUSIC.IDE`;
+        document.title = `${data.titulo} — IDE Music`;
     }
 
     function transpose(step) {
@@ -942,7 +943,7 @@
       }
 
       if (id) {
-        document.title = "Ver Música — MUSIC.IDE";
+        document.title = "Ver Música — IDE Music";
       }
     });
 

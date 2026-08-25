@@ -435,7 +435,7 @@ class ConsultaPage {
     
     this.renderMusicList();
     
-    document.title = 'Consulta e Transposição - Louvor IDE';
+    document.title = 'Consulta e Transposição — IDE Music';
   }
 
   // Mostrar erro

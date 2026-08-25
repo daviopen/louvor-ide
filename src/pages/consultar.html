@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Músicas — MUSIC.IDE</title>
+  <title>Músicas — IDE Music</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="../config/firebase-config.js"></script>
   <script src="../js/modules/auth-service.js?v=20260825-email"></script>
+  <script src="../js/modules/app-shell.js?v=20260825-sidebar" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chord-transposer@3.0.9/dist/index.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
@@ -536,7 +537,7 @@
     <div class="header-content">
       <a href="index.html" class="logo">
         <i class="fas fa-compact-disc"></i>
-        <span>MUSIC.IDE</span>
+        <span>IDE Music</span>
       </a>
       
       <div class="nav-buttons">
@@ -1156,7 +1157,7 @@
       
       renderMusicList();
       
-      document.title = 'Músicas — MUSIC.IDE';
+      document.title = 'Músicas — IDE Music';
     }
 
     function displayCifra(cifra) {

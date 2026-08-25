@@ -236,7 +236,7 @@ test('envia recuperação de senha sem revelar se a conta existe', async () => {
   assert.match(message, /se houver uma conta/i);
 });
 
-test('todas as páginas principais carregam autenticação e o tema MUSIC.IDE', () => {
+test('todas as páginas principais carregam autenticação e o tema IDE Music', () => {
   const pages = [
     'index.html',
     'consultar.html',
@@ -251,7 +251,7 @@ test('todas as páginas principais carregam autenticação e o tema MUSIC.IDE', 
     const html = fs.readFileSync(path.join(projectRoot, 'src/pages', page), 'utf8');
     assert.match(html, /firebase-auth\.js/, `${page} sem Firebase Auth`);
     assert.match(html, /auth-service\.js/, `${page} sem proteção de acesso`);
-    assert.match(html, /music-ide-theme\.css/, `${page} sem tema MUSIC.IDE`);
+    assert.match(html, /music-ide-theme\.css/, `${page} sem tema IDE Music`);
   });
 });
 

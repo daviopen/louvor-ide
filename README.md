@@ -1,4 +1,4 @@
-# Louvor IDE - Sistema de Cifras 🎵
+# IDE Music — Sistema de Cifras 🎵
 
 Sistema completo para gerenciamento de cifras musicais com suporte híbrido Firebase + localStorage.
 

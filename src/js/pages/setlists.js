@@ -367,7 +367,7 @@ class SetlistsManager {
       <body>
         <div class="header">
           <h1>${setlist.nome}</h1>
-          <p>Louvor IDE - Sistema de Cifras</p>
+          <p>IDE Music — Sistema de Cifras</p>
         </div>
         
         <div class="info">
