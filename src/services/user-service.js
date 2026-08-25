@@ -71,39 +71,43 @@
 
     async create(input) {
       const email = String(input.email || '').trim().toLowerCase();
+      if (!email) throw new Error('E-mail é obrigatório.');
       if (await this.repository.findByEmail(email)) throw new Error('Já existe um usuário com este e-mail.');
-      let uid = String(input.uid || '').trim();
-      let provisionedAuth = false;
-
-      if (!uid) {
-        if (!this.firebase || !this.firebase.apps || !this.firebase.app) {
-          throw new Error('Informe o UID do Firebase para criar o perfil.');
-        }
-        const appName = `ide-user-provision-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        const secondaryApp = this.firebase.initializeApp(this.firebase.app().options, appName);
-        try {
-          const randomPassword = `${cryptoRandom()}aA1!`;
-          const credential = await secondaryApp.auth().createUserWithEmailAndPassword(email, randomPassword);
-          uid = credential.user.uid;
-          provisionedAuth = true;
-          await secondaryApp.auth().signOut();
-        } finally {
-          await secondaryApp.delete();
-        }
+      if (!this.firebase || typeof this.firebase.initializeApp !== 'function' || typeof this.firebase.app !== 'function') {
+        throw new Error('Firebase Authentication indisponível para provisionar a conta.');
       }
 
-      const user = await this.repository.createUser({ ...input, uid, email });
-      const functionIds = input.functionIds || [];
-      const permissions = input.permissions || {};
-      await this.repository.replaceUserFunctions(user.id, functionIds);
-      if (typeof this.repository.replaceInitialPermissions === 'function') {
-        await this.repository.replaceInitialPermissions(user.id, permissions);
+      const appName = `ide-user-provision-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const secondaryApp = this.firebase.initializeApp(this.firebase.app().options, appName);
+      let credential = null;
+      let profileCreated = false;
+
+      try {
+        const randomPassword = `${cryptoRandom()}aA1!`;
+        credential = await secondaryApp.auth().createUserWithEmailAndPassword(email, randomPassword);
+        const uid = credential.user.uid;
+        const user = await this.repository.createUser({ ...input, uid, email });
+        profileCreated = true;
+        const functionIds = input.functionIds || [];
+        const permissions = input.permissions || {};
+        await this.repository.replaceUserFunctions(user.id, functionIds);
+        if (typeof this.repository.replaceInitialPermissions === 'function') {
+          await this.repository.replaceInitialPermissions(user.id, permissions);
+        }
+        await this.audit('USER_CREATED', user.id, { functionIds, permissions, provisionedAuth: true });
+        if (this.auth && typeof this.auth.sendPasswordResetEmail === 'function') {
+          await this.auth.sendPasswordResetEmail(email);
+        }
+        return user;
+      } catch (error) {
+        if (!profileCreated && credential && credential.user && typeof credential.user.delete === 'function') {
+          try { await credential.user.delete(); } catch (rollbackError) { console.error('Falha ao reverter conta Firebase:', rollbackError); }
+        }
+        throw error;
+      } finally {
+        try { await secondaryApp.auth().signOut(); } catch (_) { /* noop */ }
+        await secondaryApp.delete();
       }
-      await this.audit('USER_CREATED', user.id, { functionIds, permissions, provisionedAuth });
-      if (provisionedAuth && this.auth && typeof this.auth.sendPasswordResetEmail === 'function') {
-        await this.auth.sendPasswordResetEmail(email);
-      }
-      return user;
     }
 
     async update(id, input) {
@@ -123,9 +127,11 @@
       return user;
     }
 
-    async sendPasswordReset(email) {
+    async sendPasswordReset(email, userId = null) {
       if (!this.auth || typeof this.auth.sendPasswordResetEmail !== 'function') throw new Error('Firebase Auth indisponível.');
-      await this.auth.sendPasswordResetEmail(String(email || '').trim().toLowerCase());
+      const normalizedEmail = String(email || '').trim().toLowerCase();
+      await this.auth.sendPasswordResetEmail(normalizedEmail);
+      if (userId) await this.audit('USER_PASSWORD_RESET_REQUESTED', userId, { email: normalizedEmail });
       return true;
     }
 
