@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..');
 const configPath = path.join(projectRoot, 'ops', 'provisioned-users.json');
-const scriptPath = path.join(projectRoot, 'scripts', 'provision-users.cjs');
+const scriptPath = path.join(projectRoot, 'src', 'scripts', 'provision-users.cjs');
 
 test('provisionamento operacional não armazena credenciais e mantém usuário de teste ativo', () => {
   const users = JSON.parse(fs.readFileSync(configPath, 'utf8'));
