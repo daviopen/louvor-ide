@@ -16,17 +16,26 @@ test('módulo de escalas é carregado pela área do sistema sem quebrar Eventos'
   assert.match(loader, /service\.create/);
 });
 
-test('seleção normal usa somente elegíveis e exceção administrativa é explícita', () => {
+test('listagem e edição de escala ficam separadas por scheduleId', () => {
+  assert.match(page, /scheduleId: params\.get\('scheduleId'\)/);
+  assert.match(page, /Editar escala/);
+  assert.match(page, /editorUrl\(schedule\.id\)/);
+  assert.match(page, /renderListView/);
+  assert.match(page, /renderEditorView/);
+  assert.match(page, /Voltar para escalas/);
+});
+
+test('seleção normal usa somente elegíveis e um único campo pesquisável por função', () => {
   assert.match(page, /service\.eligibleUsers/);
+  assert.match(page, /data-user-combobox/);
+  assert.match(page, /<datalist/);
+  assert.doesNotMatch(page, /data-user-search/);
   assert.match(page, /data-exception-user/);
-  assert.match(page, /assign-exception/);
-  assert.match(page, /override: true/);
+  assert.match(page, /override:true/);
   assert.match(page, /motivo da exceção administrativa/i);
 });
 
-test('UI possui busca/autocomplete, avatar, status de completude e filtros históricos', () => {
-  assert.match(page, /data-user-search/);
-  assert.match(page, /handleAutocomplete/);
+test('UI possui avatar, status de completude e filtros históricos na listagem', () => {
   assert.match(page, /schedule-avatar/);
   assert.match(page, /Completa/);
   assert.match(page, /Incompleta/);
@@ -39,5 +48,6 @@ test('UI possui busca/autocomplete, avatar, status de completude e filtros hist�
 test('UI não acessa collections do Firestore diretamente e possui layout mobile', () => {
   assert.doesNotMatch(page, /\.collection\(/);
   assert.match(css, /@media\(max-width:640px\)/);
+  assert.match(css, /schedule-summary-card/);
   assert.match(css, /schedule-slot/);
 });
