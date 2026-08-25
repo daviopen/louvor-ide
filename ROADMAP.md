@@ -218,14 +218,14 @@
 - [x] Exceção administrativa somente com confirmação/auditoria.
 
 ### 16. Eventos
-- [ ] CRUD de eventos.
-- [ ] Campos: nome, data, horário opcional, descrição, local e tema opcionais.
-- [ ] Status: Planejado, Confirmado, Cancelado, Concluído.
-- [ ] Criar escala automaticamente ao criar evento.
-- [ ] Criar estrutura de Setlist vinculada.
-- [ ] Atualizar referências quando data/hora mudar.
-- [ ] Refletir cancelamento na escala e Setlist.
-- [ ] Manter histórico de eventos concluídos.
+- [x] CRUD de eventos.
+- [x] Campos: nome, data, horário opcional, descrição, local e tema opcionais.
+- [x] Status: Planejado, Confirmado, Cancelado, Concluído.
+- [x] Criar escala automaticamente ao criar evento.
+- [x] Criar estrutura de Setlist vinculada.
+- [x] Atualizar referências quando data/hora mudar.
+- [x] Refletir cancelamento na escala e Setlist.
+- [x] Manter histórico de eventos concluídos.
 
 ### 17. Escalas
 - [ ] Uma escala por evento.
