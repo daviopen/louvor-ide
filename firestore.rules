@@ -24,39 +24,48 @@ service cloud.firestore {
     }
 
     function activeUser() {
-      // Compatibilidade segura durante a migração: contas ainda sem documento em
-      // users continuam operacionais, mas um perfil existente com active=false
-      // bloqueia imediatamente o acesso aos dados.
-      return supportedProvider() && (!hasProfile() || profile().data.active == true);
+      return supportedProvider()
+        && hasProfile()
+        && profile().data.active == true;
     }
 
     function hasRole(role) {
-      return hasProfile() && profile().data.role == role;
+      return activeUser() && profile().data.role == role;
     }
 
     function hasClaim(claimName) {
-      return signedIn() && request.auth.token[claimName] == true;
+      return signedIn()
+        && claimName in request.auth.token
+        && request.auth.token[claimName] == true;
+    }
+
+    function bootstrapSuperAdminIdentity() {
+      // Bootstrap exclusivamente server-side. O frontend não conhece nem usa
+      // este e-mail como fonte de autorização.
+      return supportedProvider()
+        && 'email' in request.auth.token
+        && request.auth.token.email == 'davitads@gmail.com';
     }
 
     function initialSuperAdmin() {
-      // Bootstrap exclusivamente server-side. O frontend não conhece nem usa
-      // este e-mail como fonte de autorização.
-      return activeUser() && request.auth.token.email == 'davitads@gmail.com';
+      // A identidade inicial pode criar o próprio perfil uma única vez. Depois
+      // que o perfil existe, active=false também bloqueia o bootstrap.
+      return bootstrapSuperAdminIdentity()
+        && (!hasProfile() || profile().data.active == true);
     }
 
     function isSuperAdmin() {
-      return activeUser() && (
+      return initialSuperAdmin() || (activeUser() && (
         hasClaim('superAdmin')
-        || request.auth.token.role == 'SUPER_ADMIN'
+        || ('role' in request.auth.token && request.auth.token.role == 'SUPER_ADMIN')
         || hasRole('SUPER_ADMIN')
-        || initialSuperAdmin()
-      );
+      ));
     }
 
     function isAdmin() {
       return isSuperAdmin() || (activeUser() && (
         hasClaim('admin')
-        || request.auth.token.role == 'ADMIN'
+        || ('role' in request.auth.token && request.auth.token.role == 'ADMIN')
         || hasRole('ADMIN')
       ));
     }
@@ -103,18 +112,23 @@ service cloud.firestore {
         && request.resource.data.uid == resource.data.uid;
     }
 
+    function validCreatedUser(userId) {
+      return request.resource.data.uid == userId
+        && request.resource.data.active is bool
+        && request.resource.data.role in ['MEMBER', 'ADMIN', 'SUPER_ADMIN'];
+    }
+
     match /users/{userId} {
-      allow get: if ownsUserDocument(userId) || isAdmin();
+      // A própria identidade autenticada pode consultar somente o seu perfil
+      // para descobrir se foi liberada. Isso não concede acesso aos domínios.
+      allow get: if (supportedProvider() && request.auth.uid == userId) || isAdmin();
       allow list: if canRead('users');
 
-      allow create: if request.auth.uid == userId && activeUser() && (
-        (request.resource.data.uid == request.auth.uid
-          && request.resource.data.active == true
-          && request.resource.data.role == 'MEMBER')
-        || (initialSuperAdmin()
-          && request.resource.data.uid == request.auth.uid
-          && request.resource.data.active == true
-          && request.resource.data.role == 'SUPER_ADMIN')
+      // Usuários comuns não podem se autoativar. ADMIN cria MEMBER; somente
+      // SUPER_ADMIN pode criar ADMIN/SUPER_ADMIN e realizar o bootstrap inicial.
+      allow create: if validCreatedUser(userId) && (
+        (isSuperAdmin())
+        || (isAdmin() && request.resource.data.role == 'MEMBER')
       );
 
       allow update: if isSuperAdmin()
