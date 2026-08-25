@@ -112,9 +112,10 @@ test('redireciona páginas protegidas para o login e preserva o retorno', async 
   assert.equal(popupCalls, 0);
 });
 
-test('abre o Google em popup para funcionar com armazenamento restrito', async () => {
+test('abre o Google em popup e força seleção explícita da conta', async () => {
   let popupCalls = 0;
   let persistence = null;
+  let customParameters = null;
 
   const auth = {
     useDeviceLanguage() {},
@@ -130,7 +131,10 @@ test('abre o Google em popup para funcionar com armazenamento restrito', async (
 
   function authFactory() { return auth; }
   authFactory.Auth = { Persistence: { LOCAL: 'local' } };
-  authFactory.GoogleAuthProvider = class GoogleAuthProvider { addScope() {} };
+  authFactory.GoogleAuthProvider = class GoogleAuthProvider {
+    addScope() {}
+    setCustomParameters(value) { customParameters = value; }
+  };
 
   const scope = {
     MusicIdeAuth: {},
@@ -151,6 +155,7 @@ test('abre o Google em popup para funcionar com armazenamento restrito', async (
 
   assert.equal(persistence, 'local');
   assert.equal(popupCalls, 1);
+  assert.deepEqual(customParameters, { prompt: 'select_account' });
 });
 
 test('entra com e-mail e senha usando persistência local', async () => {
