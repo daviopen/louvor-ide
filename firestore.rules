@@ -60,7 +60,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if (supportedProvider() && request.auth.uid == userId) || canRead('users') || canRead('permissions');
       allow list: if canRead('users') || canRead('permissions');
-      allow create: if validCreatedUser(userId) && (isSuperAdmin() || (canEdit('users') && request.resource.data.role == 'MEMBER'));
+      allow create: if validCreatedUser(userId) && (isSuperAdmin() || (isAdmin() && canEdit('users') && request.resource.data.role == 'MEMBER'));
       allow update: if isSuperAdmin()
         || (canEdit('users') && resource.data.role != 'SUPER_ADMIN' && request.resource.data.role == resource.data.role && adminKeepsPrivilegeFields())
         || (ownsUserDocument(userId) && unchangedAuthorizationFields());
