@@ -84,8 +84,13 @@
       }
 
       const user = await this.repository.createUser({ ...input, uid, email });
-      await this.repository.replaceUserFunctions(user.id, input.functionIds || []);
-      await this.audit('USER_CREATED', user.id, { functionIds: input.functionIds || [], provisionedAuth });
+      const functionIds = input.functionIds || [];
+      const permissions = input.permissions || {};
+      await this.repository.replaceUserFunctions(user.id, functionIds);
+      if (typeof this.repository.replaceInitialPermissions === 'function') {
+        await this.repository.replaceInitialPermissions(user.id, permissions);
+      }
+      await this.audit('USER_CREATED', user.id, { functionIds, permissions, provisionedAuth });
       if (provisionedAuth && this.auth && typeof this.auth.sendPasswordResetEmail === 'function') {
         await this.auth.sendPasswordResetEmail(email);
       }
