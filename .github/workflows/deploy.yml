@@ -51,6 +51,12 @@ jobs:
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
         run: make test
 
+      - name: 🔐 Validar Firestore Rules
+        run: |
+          set -e
+          firebase emulators:exec --only firestore --project demo-louvor-ide "node --test tests/firestore-rules.test.js"
+          echo "✅ Firestore Rules compiladas no emulator e contrato de segurança validado"
+
       - name: 📋 Verificar artefato do Design System
         run: |
           set -e
@@ -80,6 +86,19 @@ jobs:
           grep -q "userFunctionDocumentId" models/data-model.js
           grep -q "class MinistryFunctionsService" services/ministry-functions-service.js
           echo "✅ Modelo de dados, N:N e serviço de funções presentes no artefato"
+
+      - name: 🛡️ Verificar contrato de segurança
+        run: |
+          set -e
+          grep -q "function isSuperAdmin()" firestore.rules
+          grep -q "function canRead(moduleName)" firestore.rules
+          grep -q "function canEdit(moduleName)" firestore.rules
+          grep -q "allow read, write: if false;" firestore.rules
+          if grep -R "davitads@gmail.com" src --include='*.js'; then
+            echo "❌ E-mail de bootstrap não pode existir no frontend"
+            exit 1
+          fi
+          echo "✅ Autorização server-side e deny-by-default presentes"
 
   deploy:
     needs: build_and_test
@@ -111,6 +130,17 @@ jobs:
 
       - name: 🎨 Normalizar cores legadas do artefato
         run: node src/scripts/normalize-built-html-colors.js .
+
+      - name: 🔑 Autenticar service account Firebase
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
+
+      - name: 🔐 Publicar Firestore Rules
+        run: |
+          set -e
+          firebase deploy --only firestore:rules --project louvor-ide
+          echo "✅ Firestore Rules publicadas"
 
       - name: 🚀 Deploy para Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -144,6 +174,8 @@ jobs:
             echo "✅ $url (HTTP $response)"
           }
           test_url https://louvor-ide.web.app/
+          test_url https://louvor-ide.web.app/login.html
+          test_url https://louvor-ide.web.app/js/modules/auth-service.js
           test_url https://louvor-ide.web.app/styles/tokens.css
           test_url https://louvor-ide.web.app/styles/design-system.css
           test_url https://louvor-ide.web.app/styles/legacy-migration.css
@@ -160,6 +192,15 @@ jobs:
             echo "❌ Home publicada contém cor hexadecimal fora dos tokens"
             exit 1
           fi
+          auth_service=$(curl -sS https://louvor-ide.web.app/js/modules/auth-service.js)
+          echo "$auth_service" | grep -q 'signInWithGoogle' || { echo "❌ Login Google ausente em produção"; exit 1; }
+          echo "$auth_service" | grep -q 'signInWithEmail' || { echo "❌ Login e-mail/senha ausente em produção"; exit 1; }
+          echo "$auth_service" | grep -q 'sendPasswordReset' || { echo "❌ Recuperação de senha ausente em produção"; exit 1; }
+          echo "$auth_service" | grep -q 'auth.signOut' || { echo "❌ Logout Firebase ausente em produção"; exit 1; }
+          if echo "$auth_service" | grep -q 'davitads@gmail.com'; then
+            echo "❌ Frontend publicado contém e-mail de bootstrap administrativo"
+            exit 1
+          fi
           data_model=$(curl -sS https://louvor-ide.web.app/models/data-model.js)
           for collection in users ministryFunctions userFunctions permissions events unavailability schedules scheduleMembers setlists setlistSongs songs songMinisterKeys auditLogs lgpdConsents; do
             echo "$data_model" | grep -q "'$collection'" || { echo "❌ Collection $collection ausente do modelo em produção"; exit 1; }
@@ -168,7 +209,7 @@ jobs:
           echo "$data_model" | grep -q 'userFunctionDocumentId' || { echo "❌ Relação N:N Pessoa ↔ Função ausente em produção"; exit 1; }
           ministry_service=$(curl -sS https://louvor-ide.web.app/services/ministry-functions-service.js)
           echo "$ministry_service" | grep -q 'class MinistryFunctionsService' || { echo "❌ Serviço de funções ministeriais ausente em produção"; exit 1; }
-          echo "✅ Design System, modelo de dados e assets críticos publicados e válidos"
+          echo "✅ Autenticação, segurança do frontend, Design System, modelo de dados e assets críticos publicados e válidos"
 
   notify:
     needs: [build_and_test, deploy]
