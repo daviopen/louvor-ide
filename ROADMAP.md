@@ -151,22 +151,22 @@
 ## P1 — Identidade e administração
 
 ### 11. Menu principal
-- [ ] Sidebar desktop e navegação mobile.
-- [ ] Sidebar recolhível.
-- [ ] Destacar rota atual.
-- [ ] Ocultar itens sem permissão.
-- [ ] Dashboard.
-- [ ] Usuários > Usuários.
-- [ ] Usuários > Permissões.
-- [ ] Escalas > Indisponibilidade.
-- [ ] Escalas > Eventos.
-- [ ] Escalas > Escalas.
-- [ ] Setlist > Próximos.
-- [ ] Setlist > Histórico.
-- [ ] Músicas > Consultar.
-- [ ] Músicas > Nova Música.
-- [ ] Administração > Auditoria.
-- [ ] Administração > Configurações.
+- [x] Sidebar desktop e navegação mobile.
+- [x] Sidebar recolhível.
+- [x] Destacar rota atual.
+- [x] Ocultar itens sem permissão.
+- [x] Dashboard.
+- [x] Usuários > Usuários.
+- [x] Usuários > Permissões.
+- [x] Escalas > Indisponibilidade.
+- [x] Escalas > Eventos.
+- [x] Escalas > Escalas.
+- [x] Setlist > Próximos.
+- [x] Setlist > Histórico.
+- [x] Músicas > Consultar.
+- [x] Músicas > Nova Música.
+- [x] Administração > Auditoria.
+- [x] Administração > Configurações.
 
 ### 12. CRUD de usuários
 - [ ] Listar usuários.
