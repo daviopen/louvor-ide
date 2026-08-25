@@ -166,12 +166,13 @@
     legend.className = 'ide-field__label';
     legend.textContent = text(options.label);
     group.appendChild(legend);
+    const groupName = text(options.name || uid('ide-radio'));
     (options.options || []).forEach((item) => {
       const label = doc.createElement('label');
       label.className = 'ide-choice';
       const input = doc.createElement('input');
       input.type = 'radio';
-      input.name = text(options.name || uid('ide-radio'));
+      input.name = groupName;
       input.value = optionValue(item);
       input.checked = text(options.value) === input.value;
       const caption = doc.createElement('span');
