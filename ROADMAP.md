@@ -228,23 +228,23 @@
 - [x] Manter histórico de eventos concluídos.
 
 ### 17. Escalas
-- [ ] Uma escala por evento.
-- [ ] Vincular `scheduleId` ao `eventId`.
-- [ ] Garantir geração idempotente sem duplicatas.
-- [ ] Quantidade dinâmica de funções.
-- [ ] Não limitar número de perfis/funções.
-- [ ] Selecionar função antes do usuário.
-- [ ] Mostrar somente usuários que possuem a função.
-- [ ] Mostrar somente usuários ativos e disponíveis.
-- [ ] Considerar indisponibilidades.
-- [ ] Permitir adicionar/remover função e trocar usuário.
-- [ ] Permitir uma pessoa em múltiplas funções quando necessário.
-- [ ] Alertar duplicidades e conflitos.
-- [ ] Exceções administrativas com confirmação.
-- [ ] Avatar, badges, agrupamento e autocomplete.
-- [ ] UX específica mobile.
-- [ ] Indicar escala completa/incompleta.
-- [ ] Histórico com filtros por data, evento, pessoa e função.
+- [x] Uma escala por evento.
+- [x] Vincular `scheduleId` ao `eventId`.
+- [x] Garantir geração idempotente sem duplicatas.
+- [x] Quantidade dinâmica de funções.
+- [x] Não limitar número de perfis/funções.
+- [x] Selecionar função antes do usuário.
+- [x] Mostrar somente usuários que possuem a função.
+- [x] Mostrar somente usuários ativos e disponíveis.
+- [x] Considerar indisponibilidades.
+- [x] Permitir adicionar/remover função e trocar usuário.
+- [x] Permitir uma pessoa em múltiplas funções quando necessário.
+- [x] Alertar duplicidades e conflitos.
+- [x] Exceções administrativas com confirmação.
+- [x] Avatar, badges, agrupamento e autocomplete.
+- [x] UX específica mobile.
+- [x] Indicar escala completa/incompleta.
+- [x] Histórico com filtros por data, evento, pessoa e função.
 
 ## P3 — Setlist
 
