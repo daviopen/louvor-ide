@@ -45,16 +45,19 @@ jobs:
           curl --fail-with-body -sS "${E2E_BASE_URL}/styles/schedules.css" -o /tmp/schedules.css
 
           grep -q 'loadSchedulesSection' /tmp/events-page.js
-          grep -q 'data-user-search' /tmp/schedules-page.js
+          grep -q "params.get('scheduleId')" /tmp/schedules-page.js
+          grep -q 'Editar escala' /tmp/schedules-page.js
+          grep -q 'data-user-combobox' /tmp/schedules-page.js
           grep -q 'data-exception-user' /tmp/schedules-page.js
           grep -q 'service.eligibleUsers' /tmp/schedules-page.js
           grep -q 'Completa' /tmp/schedules-page.js
           grep -q 'Incompleta' /tmp/schedules-page.js
           grep -q 'scheduleCompleteness' /tmp/schedule-service.js
           grep -q 'scheduleIdForEvent' /tmp/schedule-repository.js
+          grep -q 'schedule-summary-card' /tmp/schedules.css
           grep -q '@media(max-width:640px)' /tmp/schedules.css
 
-          echo "✅ Módulo de Escalas e seus artefatos estão publicados no Firebase Hosting"
+          echo "✅ Listagem e editor individual de Escalas estão publicados no Firebase Hosting"
 
       - name: 🔐 Validar autenticação e autorização reais em produção
         env:
