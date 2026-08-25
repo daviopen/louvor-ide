@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consentimento LGPD — IDE Music</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="../config/firebase-config.js"></script>
+  <script src="../js/modules/auth-service.js?v=20260825-email"></script>
+  <script src="../js/modules/lgpd-service.js?v=20260825-lgpd"></script>
+  <link rel="stylesheet" href="../styles/tokens.css">
+  <link rel="stylesheet" href="../styles/design-system.css">
+  <style>
+    *{box-sizing:border-box} body{margin:0;min-height:100vh;font-family:var(--ide-font-family-sans);background:var(--ide-background);color:var(--ide-text-primary);display:grid;place-items:center;padding:24px}.legal-card{width:min(720px,100%);background:var(--ide-surface);border:1px solid var(--ide-border);border-radius:var(--ide-radius-xl);box-shadow:var(--ide-shadow-lg);padding:clamp(24px,5vw,48px)}.eyebrow{font-size:.78rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ide-primary-active)}h1{margin:.45rem 0 .75rem;font-size:clamp(1.8rem,5vw,2.6rem)}p{line-height:1.65;color:var(--ide-text-secondary)}.summary{margin:24px 0;padding:18px;border:1px solid var(--ide-border);border-radius:var(--ide-radius-lg);background:var(--ide-surface-secondary)}.summary strong{color:var(--ide-text-primary)}.consent-row{display:flex;align-items:flex-start;gap:12px;margin:22px 0}.consent-row input{width:20px;height:20px;margin-top:2px}.consent-row label{line-height:1.55}.links{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0 4px}.links a{color:var(--ide-primary-active);font-weight:700}.actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:26px}.actions button{min-width:180px}.status{min-height:24px;font-weight:600;color:var(--ide-text-secondary)}.status[data-type="error"]{color:var(--ide-error)}.version{margin-top:22px;font-size:.82rem;color:var(--ide-text-secondary)}
+  </style>
+</head>
+<body>
+  <main class="legal-card" aria-labelledby="page-title">
+    <div class="eyebrow">IDE Music · Privacidade</div>
+    <h1 id="page-title">Antes de continuar</h1>
+    <p>Precisamos do seu aceite explícito para tratar os dados necessários ao funcionamento do IDE Music. O consentimento não vem marcado por padrão e você pode consultar os documentos completos antes de decidir.</p>
+    <div class="summary">
+      <strong>O que registramos neste aceite:</strong>
+      <p>Seu identificador de usuário, as versões dos documentos aceitos e a data/hora do aceite. Não registramos IP, localização, dispositivo ou comportamento de navegação para esta finalidade.</p>
+      <div class="links">
+        <a href="termos.html" target="_blank" rel="noopener">Ler Termos de Uso</a>
+        <a href="privacidade.html" target="_blank" rel="noopener">Ler Política de Privacidade</a>
+      </div>
+    </div>
+    <div class="consent-row">
+      <input id="lgpd-consent" type="checkbox" autocomplete="off">
+      <label for="lgpd-consent">Li e aceito os <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</label>
+    </div>
+    <div class="actions">
+      <button id="accept-button" class="ide-button ide-button--primary ide-button--md" type="button" disabled>Aceitar e continuar</button>
+      <button id="logout-button" class="ide-button ide-button--secondary ide-button--md" type="button">Sair da conta</button>
+      <span id="consent-status" class="status" role="status" aria-live="polite"></span>
+    </div>
+    <div id="version-info" class="version"></div>
+  </main>
+<script>
+(function () {
+  const checkbox = document.getElementById('lgpd-consent');
+  const acceptButton = document.getElementById('accept-button');
+  const logoutButton = document.getElementById('logout-button');
+  const status = document.getElementById('consent-status');
+  const version = document.getElementById('version-info');
+  checkbox.checked = false;
+  acceptButton.disabled = true;
+  version.textContent = `Termos ${MusicIdeLgpd.TERMS_VERSION} · Privacidade ${MusicIdeLgpd.PRIVACY_VERSION}`;
+  checkbox.addEventListener('change', () => { acceptButton.disabled = !checkbox.checked; });
+  logoutButton.addEventListener('click', () => MusicIdeAuth.signOut());
+
+  function destination() {
+    const params = new URLSearchParams(location.search);
+    return MusicIdeLgpd.sanitizeReturnUrl(params.get('return'));
+  }
+
+  async function initialize(detail) {
+    if (!detail || !detail.user) return;
+    if (!MusicIdeLgpd.needsConsent(detail.profile)) {
+      location.replace(destination());
+      return;
+    }
+    acceptButton.addEventListener('click', async () => {
+      if (!checkbox.checked) return;
+      acceptButton.disabled = true;
+      checkbox.disabled = true;
+      status.dataset.type = 'info';
+      status.textContent = 'Registrando seu aceite...';
+      try {
+        await MusicIdeLgpd.recordConsent(window, detail.user);
+        status.textContent = 'Consentimento registrado.';
+        location.replace(destination());
+      } catch (error) {
+        checkbox.disabled = false;
+        acceptButton.disabled = !checkbox.checked;
+        status.dataset.type = 'error';
+        status.textContent = 'Não foi possível registrar o aceite. Tente novamente.';
+      }
+    }, { once: true });
+  }
+
+  if (window.currentMusicIdeUser) initialize({ user: window.currentMusicIdeUser, profile: window.currentMusicIdeProfile });
+  else window.addEventListener('musicIdeAuthReady', event => initialize(event.detail), { once: true });
+})();
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 /**
  * Navegação global responsiva do IDE Music.
- * Injeta a barra lateral e aplica o Design System nas páginas autenticadas
- * sem depender da marcação específica de cada tela legada.
+ * Injeta a barra lateral, aplica o Design System e inicializa o gate LGPD nas
+ * páginas autenticadas sem depender da marcação específica de cada tela legada.
  */
 (function initializeIdeMusicShell(scope) {
   if (!scope || !scope.document) return;
@@ -23,6 +23,8 @@
     'setlist-view.html': 'setlists',
     'setlist.html': 'new-setlist'
   };
+
+  const shellExcludedPages = new Set(['login.html', 'consentimento.html', 'termos.html', 'privacidade.html']);
 
   function currentPage(pathname) {
     return String(pathname || '').split('/').filter(Boolean).pop() || 'index.html';
@@ -50,6 +52,27 @@
     ensureStylesheet('../styles/legacy-migration.css', 'data-ide-legacy-migration');
   }
 
+  function initializeLgpdGate() {
+    const start = () => {
+      if (scope.MusicIdeLgpd && typeof scope.MusicIdeLgpd.bootstrapGate === 'function') {
+        scope.MusicIdeLgpd.bootstrapGate(scope);
+      }
+    };
+
+    if (scope.MusicIdeLgpd) {
+      start();
+      return;
+    }
+
+    if (scope.document.querySelector('script[data-ide-lgpd]')) return;
+    const script = scope.document.createElement('script');
+    script.src = '../js/modules/lgpd-service.js?v=20260825-lgpd';
+    script.defer = true;
+    script.setAttribute('data-ide-lgpd', 'true');
+    script.addEventListener('load', start, { once: true });
+    scope.document.head.appendChild(script);
+  }
+
   function addClasses(selector, ...classes) {
     scope.document.querySelectorAll(selector).forEach(node => node.classList.add(...classes));
   }
@@ -74,7 +97,6 @@
     addClasses('textarea, .form-textarea', 'ide-field__control', 'ide-field__textarea');
     addClasses('select', 'ide-field__control', 'ide-select');
     addClasses('input[type="checkbox"], input[type="radio"]', 'ide-choice__input');
-
     addClasses('.form-container, .filters, .left-panel, .right-panel, .setlist-info, .music-info-display, .search-section, .transpose-controls, .ministers-summary, .info-section, .controls', 'ide-section-card');
     addClasses('.music-card, .stat-card, .song-card, .setlist-card, .music-item, .song-item, .meta-item, .info-item', 'ide-card');
     addClasses('.empty-state', 'ide-empty-state');
@@ -111,8 +133,9 @@
     if (!scope.document.body || scope.document.getElementById('ide-sidebar')) return;
 
     const page = currentPage(scope.location && scope.location.pathname);
-    if (page === 'login.html') return;
+    if (shellExcludedPages.has(page)) return;
 
+    initializeLgpdGate();
     ensureDesignSystemStyles();
     migrateLegacyControls();
 
@@ -126,16 +149,10 @@
     const brand = element('a', 'ide-sidebar-brand');
     brand.href = 'index.html';
     brand.setAttribute('aria-label', 'IDE Music — início');
-    brand.append(
-      element('span', 'ide-sidebar-brand-main', 'IDE'),
-      element('span', 'ide-sidebar-brand-detail', 'Music')
-    );
+    brand.append(element('span', 'ide-sidebar-brand-main', 'IDE'), element('span', 'ide-sidebar-brand-detail', 'Music'));
 
     const context = element('div', 'ide-sidebar-context');
-    context.append(
-      element('span', 'ide-sidebar-context-label', 'Ministério de louvor'),
-      element('strong', '', 'Comunidade IDE')
-    );
+    context.append(element('span', 'ide-sidebar-context-label', 'Ministério de louvor'), element('strong', '', 'Comunidade IDE'));
 
     const nav = element('nav', 'ide-sidebar-nav');
     nav.setAttribute('aria-label', 'Seções do sistema');
@@ -144,21 +161,24 @@
       const link = element('a', 'ide-sidebar-link');
       link.href = item.href;
       link.dataset.navId = item.id;
-      link.append(
-        element('span', 'ide-sidebar-icon', item.icon),
-        element('span', 'ide-sidebar-label', item.label)
-      );
-
+      link.append(element('span', 'ide-sidebar-icon', item.icon), element('span', 'ide-sidebar-label', item.label));
       if (item.id === activeId) {
         link.classList.add('active');
         link.setAttribute('aria-current', 'page');
       }
-
       link.addEventListener('click', () => setMenuOpen(false));
       nav.appendChild(link);
     });
 
-    const footer = element('div', 'ide-sidebar-footer', 'Repertório · Setlists · Escalas');
+    const privacyLink = element('a', 'ide-sidebar-legal-link', 'Privacidade');
+    privacyLink.href = 'privacidade.html';
+    const termsLink = element('a', 'ide-sidebar-legal-link', 'Termos');
+    termsLink.href = 'termos.html';
+    const footer = element('div', 'ide-sidebar-footer');
+    const footerLabel = element('div', '', 'Repertório · Setlists · Escalas');
+    const legalLinks = element('div', 'ide-sidebar-legal');
+    legalLinks.append(termsLink, privacyLink);
+    footer.append(footerLabel, legalLinks);
     sidebar.append(brand, context, nav, footer);
 
     const toggle = element('button', 'ide-sidebar-toggle');
@@ -167,14 +187,8 @@
     toggle.setAttribute('aria-controls', 'ide-sidebar');
     toggle.setAttribute('aria-expanded', 'false');
     toggle.setAttribute('aria-label', 'Abrir menu');
-    toggle.append(
-      element('span', 'ide-sidebar-toggle-line'),
-      element('span', 'ide-sidebar-toggle-line'),
-      element('span', 'ide-sidebar-toggle-line')
-    );
-    toggle.addEventListener('click', () => {
-      setMenuOpen(!scope.document.body.classList.contains('ide-sidebar-open'));
-    });
+    toggle.append(element('span', 'ide-sidebar-toggle-line'), element('span', 'ide-sidebar-toggle-line'), element('span', 'ide-sidebar-toggle-line'));
+    toggle.addEventListener('click', () => setMenuOpen(!scope.document.body.classList.contains('ide-sidebar-open')));
 
     const overlay = element('button', 'ide-sidebar-overlay');
     overlay.type = 'button';
@@ -188,9 +202,6 @@
     });
   }
 
-  if (scope.document.readyState === 'loading') {
-    scope.document.addEventListener('DOMContentLoaded', buildShell, { once: true });
-  } else {
-    buildShell();
-  }
+  if (scope.document.readyState === 'loading') scope.document.addEventListener('DOMContentLoaded', buildShell, { once: true });
+  else buildShell();
 })(typeof window !== 'undefined' ? window : null);
