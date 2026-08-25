@@ -55,7 +55,7 @@ teste-transposicao.html
 ver.html
 
 # Diretórios copiados durante o build
-js/
+/js/
 scripts/
 config/
 

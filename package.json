@@ -8,7 +8,7 @@
     "serve": "firebase serve --port 5000",
     "build": "make build",
     "deploy": "make deploy",
-    "test": "make test",
+    "test": "node --test tests/*.test.js",
     "setup": "./setup.sh",
     "dev": "make dev",
     "status": "make status",

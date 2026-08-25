@@ -227,17 +227,13 @@ status:
 test:
 	@echo "$(BLUE)🧪 Executando testes...$(NC)"
 	@echo "$(YELLOW)📋 Verificando estrutura de arquivos...$(NC)"
-	@test -f index.html || { echo "$(RED)❌ index.html não encontrado$(NC)"; exit 1; }
+	@test -f src/pages/index.html || { echo "$(RED)❌ src/pages/index.html não encontrado$(NC)"; exit 1; }
 	@test -f firebase.json || { echo "$(RED)❌ firebase.json não encontrado$(NC)"; exit 1; }
 	@test -f .firebaserc || { echo "$(RED)❌ .firebaserc não encontrado$(NC)"; exit 1; }
 	@echo "$(GREEN)✅ Estrutura de arquivos OK$(NC)"
-	@echo "$(YELLOW)🌐 Testando conectividade local...$(NC)"
-	@if command -v curl &> /dev/null; then \
-		echo "$(GREEN)✅ curl disponível$(NC)"; \
-	else \
-		echo "$(YELLOW)⚠️  curl não disponível$(NC)"; \
-	fi
-	@echo "$(GREEN)✅ Testes básicos concluídos$(NC)"
+	@echo "$(YELLOW)🎼 Testando transposição de acordes...$(NC)"
+	@node --test tests/*.test.js
+	@echo "$(GREEN)✅ Testes concluídos$(NC)"
 
 ## 🧹 Limpeza
 clean:
