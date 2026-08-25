@@ -92,14 +92,14 @@
 - [x] Garantir contraste WCAG.
 
 ### 7. Tema claro/escuro
-- [ ] Tema claro.
-- [ ] Tema escuro.
-- [ ] Opção `system`.
-- [ ] Detectar preferência do sistema.
-- [ ] Seletor no menu do usuário.
-- [ ] Persistir preferência.
-- [ ] Evitar flash na troca/carregamento do tema.
-- [ ] Validar todos os componentes, Setlist, cifra e letra nos dois temas.
+- [x] Tema claro.
+- [x] Tema escuro.
+- [x] Opção `system`.
+- [x] Detectar preferência do sistema.
+- [x] Seletor no menu do usuário.
+- [x] Persistir preferência.
+- [x] Evitar flash na troca/carregamento do tema.
+- [x] Validar todos os componentes, Setlist, cifra e letra nos dois temas.
 
 ### 8. Modelo de dados
 - [ ] `users`.
