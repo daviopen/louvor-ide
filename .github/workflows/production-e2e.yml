@@ -1,0 +1,102 @@
+name: 🧭 Validate production application
+
+on:
+  workflow_run:
+    workflows:
+      - "🚀 Deploy to Firebase Hosting"
+    types:
+      - completed
+
+jobs:
+  production_e2e:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'master')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📂 Checkout versão publicada
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 🌐 Instalar navegador E2E
+        run: |
+          set -e
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: 🔐 Validar autenticação e autorização reais em produção
+        env:
+          FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          E2E_BASE_URL: https://louvor-ide.web.app
+        run: |
+          set -euo pipefail
+
+          if [ -z "${FIREBASE_API_KEY:-}" ]; then
+            echo "❌ VITE_FIREBASE_API_KEY não está disponível para o E2E"
+            exit 1
+          fi
+
+          E2E_EMAIL="ide-music-e2e-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@example.com"
+          E2E_PASSWORD="Aa1!$(openssl rand -hex 16)"
+
+          SIGNUP_RESPONSE="$(curl --fail-with-body -sS \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg email "${E2E_EMAIL}" --arg password "${E2E_PASSWORD}" '{email:$email,password:$password,returnSecureToken:true}')" \
+            "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}")"
+
+          ID_TOKEN="$(printf '%s' "${SIGNUP_RESPONSE}" | jq -er '.idToken')"
+          LOCAL_ID="$(printf '%s' "${SIGNUP_RESPONSE}" | jq -er '.localId')"
+
+          cleanup() {
+            curl -sS \
+              -X POST \
+              -H 'Content-Type: application/json' \
+              -d "$(jq -n --arg idToken "${ID_TOKEN}" '{idToken:$idToken}')" \
+              "https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${FIREBASE_API_KEY}" >/dev/null || true
+          }
+          trap cleanup EXIT
+
+          PROFILE_PAYLOAD="$(jq -n \
+            --arg uid "${LOCAL_ID}" \
+            --arg email "${E2E_EMAIL}" \
+            '{fields:{uid:{stringValue:$uid},name:{stringValue:"E2E IDE Music"},email:{stringValue:$email},active:{booleanValue:true},role:{stringValue:"MEMBER"}}}')"
+
+          PROFILE_STATUS="$(curl -sS -o /tmp/e2e-profile.json -w '%{http_code}' \
+            -X PATCH \
+            -H "Authorization: Bearer ${ID_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d "${PROFILE_PAYLOAD}" \
+            "https://firestore.googleapis.com/v1/projects/louvor-ide/databases/(default)/documents/users/${LOCAL_ID}")"
+
+          if [ "${PROFILE_STATUS}" != "403" ]; then
+            echo "❌ Conta comum conseguiu criar/ativar o próprio perfil (HTTP ${PROFILE_STATUS})"
+            cat /tmp/e2e-profile.json
+            exit 1
+          fi
+          echo "✅ Elevação indevida via autoativação foi bloqueada em produção"
+
+          SONGS_STATUS="$(curl -sS -o /tmp/e2e-songs.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${ID_TOKEN}" \
+            "https://firestore.googleapis.com/v1/projects/louvor-ide/databases/(default)/documents/songs?pageSize=1")"
+
+          if [ "${SONGS_STATUS}" != "403" ]; then
+            echo "❌ Conta autenticada sem perfil ativo acessou songs (HTTP ${SONGS_STATUS})"
+            cat /tmp/e2e-songs.json
+            exit 1
+          fi
+          echo "✅ Conta autenticada sem perfil ativo foi bloqueada pelas Firestore Rules em produção"
+
+          E2E_EMAIL="${E2E_EMAIL}" \
+          E2E_PASSWORD="${E2E_PASSWORD}" \
+          E2E_BASE_URL="${E2E_BASE_URL}" \
+          node tests/production-auth.e2e.cjs
+
+          echo "✅ Aplicação validada em navegador real contra produção"
