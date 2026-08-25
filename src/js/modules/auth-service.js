@@ -1,8 +1,8 @@
 /**
- * Autenticação do IDE Music.
+ * Autenticação e preferências globais do IDE Music.
  *
  * O módulo expõe funções puras para testes e inicializa automaticamente o
- * Firebase Auth quando executado no navegador.
+ * Firebase Auth e o tema quando executado no navegador.
  */
 (function initAuthModule(globalScope, factory) {
   const api = factory();
@@ -18,6 +18,8 @@
 })(typeof window !== 'undefined' ? window : null, function createAuthModule() {
   const RETURN_URL_KEY = 'musicIdeReturnUrl';
   const DEFAULT_RETURN_URL = 'index.html';
+  const THEME_STORAGE_KEY = 'musicIdeTheme';
+  const THEME_MODES = Object.freeze(['light', 'dark', 'system']);
 
   function currentPageName(pathname) {
     if (typeof pathname !== 'string') return '';
@@ -56,6 +58,69 @@
     return sanitizeReturnUrl(
       `${currentPageName(locationLike.pathname)}${locationLike.search || ''}${locationLike.hash || ''}`
     );
+  }
+
+  function normalizeThemePreference(value) {
+    return THEME_MODES.includes(value) ? value : 'system';
+  }
+
+  function resolveTheme(preference, prefersDark = false) {
+    const normalized = normalizeThemePreference(preference);
+    if (normalized === 'system') return prefersDark ? 'dark' : 'light';
+    return normalized;
+  }
+
+  function readThemePreference(scope) {
+    try {
+      return normalizeThemePreference(scope.localStorage && scope.localStorage.getItem(THEME_STORAGE_KEY));
+    } catch (error) {
+      return 'system';
+    }
+  }
+
+  function systemPrefersDark(scope) {
+    return Boolean(scope.matchMedia && scope.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+
+  function applyTheme(scope, preference) {
+    if (!scope.document || !scope.document.documentElement) return 'light';
+    const normalized = normalizeThemePreference(preference);
+    const resolved = resolveTheme(normalized, systemPrefersDark(scope));
+    const root = scope.document.documentElement;
+
+    root.dataset.theme = resolved;
+    root.dataset.themePreference = normalized;
+    root.style.colorScheme = resolved;
+
+    return resolved;
+  }
+
+  function setThemePreference(scope, preference) {
+    const normalized = normalizeThemePreference(preference);
+    try {
+      if (scope.localStorage) scope.localStorage.setItem(THEME_STORAGE_KEY, normalized);
+    } catch (error) {
+      // Storage can be unavailable in hardened/private browser contexts.
+    }
+    applyTheme(scope, normalized);
+    if (scope.dispatchEvent && scope.CustomEvent) {
+      scope.dispatchEvent(new scope.CustomEvent('musicIdeThemeChanged', {
+        detail: { preference: normalized, theme: scope.document.documentElement.dataset.theme }
+      }));
+    }
+    return normalized;
+  }
+
+  function watchSystemTheme(scope) {
+    if (!scope.matchMedia || scope.__musicIdeThemeWatcher) return;
+    const media = scope.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      if (readThemePreference(scope) === 'system') applyTheme(scope, 'system');
+    };
+
+    if (typeof media.addEventListener === 'function') media.addEventListener('change', handleChange);
+    else if (typeof media.addListener === 'function') media.addListener(handleChange);
+    scope.__musicIdeThemeWatcher = { media, handleChange };
   }
 
   function isAllowedUser(user) {
@@ -131,13 +196,30 @@
     name.className = 'music-ide-user-name';
     name.textContent = user.displayName || user.email || 'Conta Google';
 
+    const themeLabel = scope.document.createElement('label');
+    themeLabel.className = 'music-ide-theme-control';
+    themeLabel.setAttribute('aria-label', 'Tema da interface');
+
+    const themeIcon = scope.document.createElement('span');
+    themeIcon.className = 'music-ide-theme-icon';
+    themeIcon.setAttribute('aria-hidden', 'true');
+    themeIcon.textContent = '◐';
+
+    const themeSelect = scope.document.createElement('select');
+    themeSelect.className = 'music-ide-theme-select';
+    themeSelect.title = 'Tema da interface';
+    themeSelect.innerHTML = '<option value="system">Sistema</option><option value="light">Claro</option><option value="dark">Escuro</option>';
+    themeSelect.value = readThemePreference(scope);
+    themeSelect.addEventListener('change', event => setThemePreference(scope, event.target.value));
+    themeLabel.append(themeIcon, themeSelect);
+
     const signOutButton = scope.document.createElement('button');
     signOutButton.type = 'button';
     signOutButton.className = 'music-ide-signout';
     signOutButton.textContent = 'Sair';
     signOutButton.addEventListener('click', () => scope.MusicIdeAuth.signOut());
 
-    container.append(avatar, name, signOutButton);
+    container.append(avatar, name, themeLabel, signOutButton);
     scope.document.body.appendChild(container);
   }
 
@@ -155,6 +237,10 @@
     if (scope.__musicIdeAuthBootstrapped) return;
     scope.__musicIdeAuthBootstrapped = true;
 
+    // Apply the persisted/resolved theme synchronously while the auth gate keeps
+    // the page hidden. This prevents a light-theme flash before dark mode loads.
+    applyTheme(scope, readThemePreference(scope));
+    watchSystemTheme(scope);
     scope.document.documentElement.classList.add('auth-pending');
 
     let resolveAuthReady;
@@ -190,10 +276,6 @@
         const provider = new scope.firebase.auth.GoogleAuthProvider();
         provider.addScope('profile');
         provider.addScope('email');
-        // O popup é iniciado diretamente pelo clique do usuário e não depende
-        // do armazenamento de terceiros usado pelo fluxo de redirect. Isso
-        // evita o retorno em loop para login em janelas anônimas e navegadores
-        // com proteção reforçada contra rastreamento.
         return await auth.signInWithPopup(provider);
       } catch (error) {
         setLoginMessage(scope, friendlyAuthError(error));
@@ -286,11 +368,18 @@
   }
 
   return {
+    THEME_MODES,
+    THEME_STORAGE_KEY,
+    applyTheme,
     buildCurrentReturnUrl,
     bootstrap,
     friendlyAuthError,
     isAllowedUser,
     isLoginPage,
-    sanitizeReturnUrl
+    normalizeThemePreference,
+    readThemePreference,
+    resolveTheme,
+    sanitizeReturnUrl,
+    setThemePreference
   };
 });
