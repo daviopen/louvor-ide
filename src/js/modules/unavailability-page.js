@@ -37,6 +37,12 @@
     const date = toDate(value);
     return date ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' }).format(date) : 'Data inválida';
   }
+  function formatDateRange(record) {
+    const startKey = dateKey(record?.date);
+    const endKey = dateKey(record?.endAt || record?.date);
+    if (!startKey || !endKey || startKey === endKey) return formatDate(record?.date);
+    return `${formatDate(record?.date)} até ${formatDate(record?.endAt)}`;
+  }
   function isEditable(record) {
     return scope.MusicIdeUnavailabilityService.isFutureRecord(record, new Date())
       && (record.userId === actorId() || state.access.canManageOthers);
@@ -64,6 +70,16 @@
     if (root) root.setAttribute('aria-busy', String(busy));
   }
 
+  function ensureEndDateField() {
+    if (el('unavailability-end-date')) return;
+    const start = el('unavailability-date');
+    const startLabel = start && start.closest('label');
+    if (!startLabel) return;
+    const label = scope.document.createElement('label');
+    label.innerHTML = '<span class="ide-field__label">Data de fim</span><input id="unavailability-end-date" class="ide-field__control ide-field__input" type="date"><small>Opcional. Se ficar em branco, a indisponibilidade vale somente para a data de início.</small>';
+    startLabel.insertAdjacentElement('afterend', label);
+  }
+
   function renderList() {
     const records = futureRecords();
     el('unavailability-empty').hidden = records.length !== 0;
@@ -71,8 +87,9 @@
       const date = toDate(record.date);
       const day = date ? String(date.getDate()).padStart(2, '0') : '--';
       const month = date ? new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(date).replace('.', '') : '';
-      const administrativeLabel = state.access.canManageOthers ? `<strong>${escapeHtml(personName(record.userId))}</strong>` : `<strong>${escapeHtml(formatDate(record.date))}</strong>`;
-      const dateDescription = state.access.canManageOthers ? escapeHtml(formatDate(record.date)) : '';
+      const range = formatDateRange(record);
+      const administrativeLabel = state.access.canManageOthers ? `<strong>${escapeHtml(personName(record.userId))}</strong>` : `<strong>${escapeHtml(range)}</strong>`;
+      const dateDescription = state.access.canManageOthers ? escapeHtml(range) : '';
       const note = record.note ? `<small>${escapeHtml(record.note)}</small>` : '';
       const actions = isEditable(record) ? `<div class="unavailability-item-actions">
         <button class="ide-button ide-button--secondary ide-button--sm" type="button" data-unavailability-action="edit" data-id="${escapeHtml(record.id)}">Editar</button>
@@ -101,17 +118,13 @@
     const cursor = new Date(first);
     cursor.setDate(cursor.getDate() - cursor.getDay());
     const today = dateKey(new Date());
-    const counts = new Map();
-    filteredRecords().forEach(record => {
-      const key = dateKey(record.date);
-      if (key) counts.set(key, (counts.get(key) || 0) + 1);
-    });
+    const records = filteredRecords();
     const cells = [];
     for (let index = 0; index < 42; index += 1) {
       const date = new Date(cursor);
       date.setDate(cursor.getDate() + index);
       const key = dateKey(date);
-      const count = counts.get(key) || 0;
+      const count = records.filter(record => scope.MusicIdeUnavailabilityService.dateInRange(record, date)).length;
       const outside = date.getMonth() !== month.getMonth();
       const classes = ['unavailability-day'];
       if (outside) classes.push('unavailability-day--outside');
@@ -139,15 +152,19 @@
       const date = toDate(event.date);
       return !date || date >= new Date(now.getFullYear(), now.getMonth(), now.getDate());
     });
-    el('unavailability-event').innerHTML = '<option value="">Qualquer evento nesta data</option>' + events.map(event => `<option value="${escapeHtml(event.id)}">${escapeHtml(event.name || 'Evento')} · ${escapeHtml(formatDate(event.date))}</option>`).join('');
+    el('unavailability-event').innerHTML = '<option value="">Qualquer evento no período</option>' + events.map(event => `<option value="${escapeHtml(event.id)}">${escapeHtml(event.name || 'Evento')} · ${escapeHtml(formatDate(event.date))}</option>`).join('');
   }
 
   function openForm(record = null) {
     state.editingId = record?.id || null;
     el('unavailability-id').value = state.editingId || '';
     el('unavailability-form-title').textContent = record ? 'Editar indisponibilidade' : 'Nova indisponibilidade';
+    const startKey = record ? dateKey(record.date) : dateKey(new Date());
+    const endKey = record ? dateKey(record.endAt || record.date) : '';
     el('unavailability-date').min = dateKey(new Date());
-    el('unavailability-date').value = record ? dateKey(record.date) : dateKey(new Date());
+    el('unavailability-date').value = startKey;
+    el('unavailability-end-date').min = startKey;
+    el('unavailability-end-date').value = endKey && endKey !== startKey ? endKey : '';
     el('unavailability-period').value = record?.period || '';
     el('unavailability-event').value = record?.eventId || '';
     el('unavailability-note').value = record?.note || '';
@@ -166,6 +183,7 @@
     const payload = {
       userId: targetUserId,
       date: el('unavailability-date').value,
+      endDate: el('unavailability-end-date').value,
       period: el('unavailability-period').value,
       eventId: el('unavailability-event').value || null,
       note: el('unavailability-note').value
@@ -236,7 +254,7 @@
       state.events = await repository.listEvents();
     } catch (error) {
       state.events = [];
-      el('unavailability-event-help').textContent = 'O catálogo de eventos não está disponível para sua permissão atual. A indisponibilidade será aplicada de forma geral na data.';
+      el('unavailability-event-help').textContent = 'O catálogo de eventos não está disponível para sua permissão atual. A indisponibilidade será aplicada de forma geral no período informado.';
     }
     renderUserOptions();
     renderEventOptions();
@@ -249,6 +267,11 @@
     el('unavailability-cancel').addEventListener('click', () => el('unavailability-dialog').close());
     el('unavailability-list').addEventListener('click', handleListClick);
     el('unavailability-note').addEventListener('input', event => { el('unavailability-note-count').textContent = String(event.target.value.length); });
+    el('unavailability-date').addEventListener('change', event => {
+      const endInput = el('unavailability-end-date');
+      endInput.min = event.target.value;
+      if (endInput.value && endInput.value < event.target.value) endInput.value = '';
+    });
     el('calendar-prev').addEventListener('click', () => { state.month = new Date(state.month.getFullYear(), state.month.getMonth() - 1, 1); renderCalendar(); });
     el('calendar-next').addEventListener('click', () => { state.month = new Date(state.month.getFullYear(), state.month.getMonth() + 1, 1); renderCalendar(); });
     el('admin-user-filter').addEventListener('change', event => { state.filterUserId = event.target.value; renderList(); renderCalendar(); });
@@ -260,6 +283,9 @@
     if (root) root.hidden = false;
     if (placeholder) placeholder.hidden = true;
     scope.document.title = 'IDE Music — Indisponibilidade';
+
+    ensureEndDateField();
+    el('unavailability-event-help').textContent = 'Opcional. Sem evento selecionado, a indisponibilidade vale para qualquer escala compatível em qualquer data do intervalo.';
 
     const authUser = await scope.musicIdeAuthReady;
     if (!authUser) return;
