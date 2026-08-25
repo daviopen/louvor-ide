@@ -26,13 +26,17 @@ Montar uma escala por evento, relacionando funções ministeriais e usuários at
 ## Permissões e rotas
 - Leitura/edição seguem módulo Escalas.
 - Exceções administrativas exigem privilégio de edição.
-- A área atual é acessada pelo módulo autenticado `module.html?section=schedules`; eventual rota dedicada deve preservar o mesmo contrato de domínio.
+- `module.html?section=schedules` é a listagem/consulta das escalas.
+- A edição deve abrir uma única escala por vez em `module.html?section=schedules&scheduleId=<id>`; não renderizar vários editores na mesma tela.
 
 ## Services / Repositories / Components
 - Service coordena usuários, funções, indisponibilidade, conflitos, completude e membros.
 - Repositories: `schedules`, `scheduleMembers`; não consultar Firestore diretamente na UI.
-- UI: busca/autocomplete de pessoas elegíveis, avatar, badges, agrupamento, troca/remoção, fluxo explícito de exceção e UX específica mobile.
+- Listagem: um card resumido por evento, status de completude, integrantes e ação `Editar escala`, mantendo filtros históricos.
+- Editor: uma escala por tela, breadcrumb/voltar, posições por função, avatar, troca/remoção e adição de função.
+- A seleção normal de pessoa deve usar um único campo pesquisável/autocomplete por função; não duplicar input de busca + select para a mesma ação.
 - A seleção normal nunca deve misturar indisponíveis; usuários indisponíveis só aparecem no fluxo administrativo de exceção.
+- UX deve ser específica para mobile e preservar hierarquia visual clara entre evento, função e pessoa.
 
 ## Collections
 - `schedules`
@@ -56,7 +60,9 @@ Montar uma escala por evento, relacionando funções ministeriais e usuários at
 - conflitos e exceções;
 - múltiplas funções quando permitido e bloqueio de duplicidade na mesma função;
 - completude baseada nas posições configuradas;
+- listagem separada do editor individual por `scheduleId`;
 - histórico/filtros não alteram dados;
 - usuário sem edição não modifica escala;
-- seleção normal não expõe indisponíveis e fluxo de exceção exige confirmação/motivo;
+- seleção normal usa um único combobox pesquisável e não expõe indisponíveis;
+- fluxo de exceção exige confirmação/motivo;
 - regressão de Eventos ao integrar a área de Escalas.
