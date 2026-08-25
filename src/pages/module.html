@@ -14,11 +14,15 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="../config/firebase-config.js"></script>
   <script src="../js/modules/auth-service.js?v=20260825-email"></script>
-  <script src="../js/modules/app-shell.js?v=20260825-menu-main" defer></script>
+  <script src="../js/modules/app-shell.js?v=20260825-permissions" defer></script>
+  <script src="../js/modules/permissions-page.js?v=20260825-permissions" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
   <link rel="stylesheet" href="../css/music-ide-theme.css">
+  <style>
+    .ide-module-card--wide{width:min(1500px,100%);max-width:none}.ide-permissions-root{display:grid;gap:1rem}.ide-permissions-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap}.ide-permissions-toolbar h2{margin:0 0 .35rem}.ide-permissions-toolbar p{margin:0;color:var(--text-secondary)}.ide-permissions-note,.ide-permissions-status{padding:.75rem 1rem;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface-secondary)}.ide-permissions-table th:first-child{position:sticky;left:0;background:var(--surface);z-index:1;min-width:220px}.ide-permissions-table td{min-width:132px}.ide-permissions-table select{width:100%;min-width:120px}.ide-permissions-table th small{display:block;margin-top:.2rem;font-weight:400;color:var(--text-secondary)}.ide-permission-inactive{display:inline-block;margin-top:.35rem;padding:.1rem .4rem;border-radius:999px;background:var(--surface-secondary);font-size:.75rem}.ide-permissions-dialog{width:min(700px,calc(100vw - 2rem));border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);color:var(--text-primary);padding:1.25rem}.ide-permissions-dialog::backdrop{background:rgba(0,0,0,.45)}.ide-permissions-diff{max-height:50vh;overflow:auto;padding-left:1.25rem}.ide-permissions-dialog-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:1rem}@media(max-width:700px){.ide-permissions-toolbar .ide-button{width:100%}.ide-permissions-table th:first-child{min-width:170px}}
+  </style>
 </head>
 <body>
   <main class="ide-module-page">
@@ -35,7 +39,7 @@
     (function renderModuleContext() {
       const sections = {
         users: ['Usuários', 'Cadastro e gestão de usuários estão disponíveis na área dedicada de usuários.'],
-        permissions: ['Permissões', 'A matriz de permissões por usuário será implementada no item 13 do roadmap.'],
+        permissions: ['Permissões', 'Gerencie os níveis Sem acesso, Leitura e Edição por usuário e módulo.'],
         unavailability: ['Indisponibilidade', 'O fluxo completo de indisponibilidades será implementado no item 15 do roadmap.'],
         events: ['Eventos', 'O CRUD e ciclo de vida dos eventos serão implementados no item 16 do roadmap.'],
         schedules: ['Escalas', 'A operação completa das escalas será implementada no item 17 do roadmap.'],
