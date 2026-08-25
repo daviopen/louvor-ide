@@ -194,12 +194,12 @@
 - [x] Bloquear leitura/escrita no Firestore independentemente do frontend.
 
 ### 14. Funções ministeriais
-- [ ] Cadastro de funções.
-- [ ] Uma pessoa pode possuir múltiplas funções.
-- [ ] Ativar/inativar função.
-- [ ] Editar e ordenar funções.
-- [ ] Migrar/compatibilizar funções existentes da planilha.
-- [ ] Não confundir função ministerial com permissão do sistema.
+- [x] Cadastro de funções.
+- [x] Uma pessoa pode possuir múltiplas funções.
+- [x] Ativar/inativar função.
+- [x] Editar e ordenar funções.
+- [x] Migrar/compatibilizar funções existentes da planilha.
+- [x] Não confundir função ministerial com permissão do sistema.
 
 ## P2 — Operação das escalas
 
