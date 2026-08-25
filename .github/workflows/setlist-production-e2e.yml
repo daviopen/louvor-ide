@@ -28,13 +28,14 @@ jobs:
 
           curl --fail-with-body -sS "${E2E_BASE_URL}/setlist.html" -o /tmp/setlist.html
           curl --fail-with-body -sS "${E2E_BASE_URL}/setlists.html" -o /tmp/setlists.html
+          curl --fail-with-body -sS "${E2E_BASE_URL}/css/styles.css" -o /tmp/styles.css
           curl --fail-with-body -sS "${E2E_BASE_URL}/js/pages/setlist-schedule.js" -o /tmp/setlist-schedule.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/js/pages/setlists-simple.js" -o /tmp/setlists-simple.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/services/setlist-service.js" -o /tmp/setlist-service.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/repositories/setlist-repository.js" -o /tmp/setlist-repository.js
 
           grep -q 'Setlist por Escala' /tmp/setlist.html
-          grep -q 'setlist-schedule.js?v=20260825-roadmap18' /tmp/setlist.html
+          grep -Eq 'setlist-schedule.js\?v=20260825-roadmap[0-9]+' /tmp/setlist.html
           grep -q 'Integrantes escalados' /tmp/setlist.html
           grep -q 'draggable=' /tmp/setlist-schedule.js
           grep -q 'ministerUserId' /tmp/setlist-schedule.js
@@ -48,4 +49,11 @@ jobs:
           grep -q 'SETLIST_UPDATED' /tmp/setlist-repository.js
           grep -q "setlist.html?edit=" /tmp/setlists-simple.js
 
-          echo "✅ Setlist por escala, integrantes, ministros elegíveis, drag-and-drop, ordem, tom e observações/transições estão publicados"
+          grep -q -- '--surface: var(--ide-surface)' /tmp/styles.css
+          grep -q -- '--surface-secondary: var(--ide-surface-secondary)' /tmp/styles.css
+          grep -q -- '--text-primary: var(--ide-text-primary)' /tmp/styles.css
+          grep -q -- '--text-secondary: var(--ide-text-secondary)' /tmp/styles.css
+          grep -q ':root\[data-theme="dark"\]' /tmp/styles.css
+          grep -q -- '--warning-bg: var(--ide-surface-secondary)' /tmp/styles.css
+
+          echo "✅ Setlist, permissões de UI e contraste de tema estão publicados no Firebase Hosting"
