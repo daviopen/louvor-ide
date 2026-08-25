@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { filterUsers, paginate, UserService } = require('../src/services/user-service.js');
+const { filterUsers, paginate, canManageUsers, UserService } = require('../src/services/user-service.js');
 
 test('filterUsers busca por nome/e-mail e combina função/status', () => {
   const users = [
@@ -16,6 +16,13 @@ test('paginate limita página sem perder total', () => {
   assert.equal(result.total, 23);
   assert.equal(result.pages, 3);
   assert.deepEqual(result.items, [21, 22, 23]);
+});
+
+test('canManageUsers permite ADMIN e SUPER_ADMIN gerenciarem usuários', () => {
+  assert.equal(canManageUsers({ role: 'ADMIN' }), true);
+  assert.equal(canManageUsers({ role: 'SUPER_ADMIN' }), true);
+  assert.equal(canManageUsers({ role: 'MEMBER' }), false);
+  assert.equal(canManageUsers({ role: 'MEMBER', permissions: { users: 'EDIT' } }), true);
 });
 
 test('UserService cria perfil com múltiplas funções, permissões iniciais e auditoria', async () => {
