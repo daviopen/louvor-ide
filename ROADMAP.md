@@ -121,21 +121,21 @@
 - [x] Permitir ativar/inativar e ordenar funções.
 
 ### 9. Segurança
-- [ ] Manter login Google.
-- [ ] Manter login e-mail/senha.
-- [ ] Recuperação de senha.
-- [ ] Logout seguro.
-- [ ] Tratar sessão expirada e usuário desativado.
-- [ ] Criar `SUPER_ADMIN`.
-- [ ] Definir inicialmente `davitads@gmail.com` como Super Admin.
-- [ ] Não depender do e-mail hardcoded no frontend.
-- [ ] Permitir outros administradores.
-- [ ] Impedir elevação indevida de privilégios.
-- [ ] Aplicar menor privilégio.
-- [ ] Usar Custom Claims quando necessário.
-- [ ] Proteger operações críticas via backend/Cloud Functions quando necessário.
-- [ ] Implementar Firestore Security Rules por permissão.
-- [ ] Criar testes automatizados das Rules.
+- [x] Manter login Google.
+- [x] Manter login e-mail/senha.
+- [x] Recuperação de senha.
+- [x] Logout seguro.
+- [x] Tratar sessão expirada e usuário desativado.
+- [x] Criar `SUPER_ADMIN`.
+- [x] Definir inicialmente `davitads@gmail.com` como Super Admin.
+- [x] Não depender do e-mail hardcoded no frontend.
+- [x] Permitir outros administradores.
+- [x] Impedir elevação indevida de privilégios.
+- [x] Aplicar menor privilégio.
+- [x] Usar Custom Claims quando necessário.
+- [x] Proteger operações críticas via backend/Cloud Functions quando necessário.
+- [x] Implementar Firestore Security Rules por permissão.
+- [x] Criar testes automatizados das Rules.
 
 ### 10. LGPD
 - [ ] Termos de Uso.
