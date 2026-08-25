@@ -54,7 +54,9 @@ test('SearchSelect is an accessible combobox', () => {
 test('Checkbox, radio and switch expose native semantics', () => {
   const doc = fakeDocument();
   assert.equal(controls.createCheckbox({ label: 'Ativo' }, doc).children[0].type, 'checkbox');
-  assert.equal(controls.createRadioGroup({ label: 'Nível', name: 'level', options: ['Leitura','Edição'] }, doc).tagName, 'FIELDSET');
+  const radios = controls.createRadioGroup({ label: 'Nível', options: ['Leitura','Edição'] }, doc);
+  assert.equal(radios.tagName, 'FIELDSET');
+  assert.equal(radios.children[1].children[0].name, radios.children[2].children[0].name);
   assert.equal(controls.createSwitch({ label: 'Receber avisos' }, doc).children[0].getAttribute('role'), 'switch');
 });
 
