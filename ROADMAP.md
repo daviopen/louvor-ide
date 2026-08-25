@@ -169,19 +169,19 @@
 - [x] Administração > Configurações.
 
 ### 12. CRUD de usuários
-- [ ] Listar usuários.
-- [ ] Criar usuário.
-- [ ] Editar usuário.
-- [ ] Inativar/reativar usuário.
-- [ ] Evitar exclusão física quando houver histórico.
-- [ ] Exibir nome, avatar, e-mail, funções, status e último acesso quando disponível.
-- [ ] Buscar por nome/e-mail.
-- [ ] Filtrar por função e status.
-- [ ] Paginação.
-- [ ] Cadastro com múltiplas funções e permissões iniciais.
-- [ ] Fluxo seguro de definição/redefinição de senha pelo Firebase.
-- [ ] Nunca visualizar ou armazenar senha.
-- [ ] Registrar alterações em Audit Log.
+- [x] Listar usuários.
+- [x] Criar usuário.
+- [x] Editar usuário.
+- [x] Inativar/reativar usuário.
+- [x] Evitar exclusão física quando houver histórico.
+- [x] Exibir nome, avatar, e-mail, funções, status e último acesso quando disponível.
+- [x] Buscar por nome/e-mail.
+- [x] Filtrar por função e status.
+- [x] Paginação.
+- [x] Cadastro com múltiplas funções e permissões iniciais.
+- [x] Fluxo seguro de definição/redefinição de senha pelo Firebase.
+- [x] Nunca visualizar ou armazenar senha.
+- [x] Registrar alterações em Audit Log.
 
 ### 13. Permissões
 - [ ] Níveis: Sem acesso, Leitura, Edição.
