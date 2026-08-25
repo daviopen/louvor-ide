@@ -62,10 +62,18 @@
 
   function validateDate(value, now = new Date()) {
     const date = startOfDay(value);
-    if (!date) throw new Error('Data é obrigatória.');
+    if (!date) throw new Error('Data de início é obrigatória.');
     const today = startOfDay(now);
-    if (date < today) throw new Error('A indisponibilidade deve ser registrada para hoje ou uma data futura.');
+    if (date < today) throw new Error('A indisponibilidade deve começar hoje ou em uma data futura.');
     return date;
+  }
+
+  function validateDateRange(startValue, endValue, now = new Date()) {
+    const start = validateDate(startValue, now);
+    const end = endValue ? endOfDay(endValue) : endOfDay(start);
+    if (!end) throw new Error('Data de fim inválida.');
+    if (end < start) throw new Error('A data de fim não pode ser anterior à data de início.');
+    return { start, end };
   }
 
   function isFutureRecord(record, now = new Date()) {
@@ -75,6 +83,13 @@
 
   function sameDate(left, right) {
     return dateKey(left) !== '' && dateKey(left) === dateKey(right);
+  }
+
+  function dateInRange(record, value) {
+    const start = startOfDay(record && record.date);
+    const end = endOfDay((record && record.endAt) || (record && record.date));
+    const target = startOfDay(value);
+    return Boolean(start && end && target && target >= start && target <= end);
   }
 
   function periodConflicts(recordPeriod, contextPeriodOrTime) {
@@ -89,7 +104,7 @@
   }
 
   function recordConflicts(record, context = {}) {
-    return Boolean(record && sameDate(record.date, context.date)
+    return Boolean(record && dateInRange(record, context.date)
       && periodConflicts(record.period, context.period || context.time)
       && eventConflicts(record.eventId, context.eventId));
   }
@@ -165,11 +180,11 @@
       const access = options.access || await this.resolveAccess(actor, profile);
       const userId = String(input.userId || id);
       if (userId !== id && !access.canManageOthers) throw new Error('Somente um administrador autorizado pode registrar indisponibilidade para outra pessoa.');
-      const date = validateDate(input.date, this.clock());
+      const range = validateDateRange(input.date, input.endDate, this.clock());
       const document = {
         userId,
-        date,
-        endAt: endOfDay(date),
+        date: range.start,
+        endAt: range.end,
         period: normalizePeriod(input.period),
         eventId: input.eventId ? String(input.eventId) : null,
         note: sanitizeNote(input.note),
@@ -188,10 +203,14 @@
       if (!current) throw new Error('Indisponibilidade não encontrada.');
       if (!isFutureRecord(current, this.clock())) throw new Error('Somente indisponibilidades futuras podem ser editadas.');
       if (current.userId !== id && !access.canManageOthers) throw new Error('Você não pode editar a indisponibilidade de outra pessoa.');
-      const date = validateDate(input.date || current.date, this.clock());
+      const startInput = input.date || current.date;
+      const endInput = Object.prototype.hasOwnProperty.call(input, 'endDate')
+        ? input.endDate
+        : (input.date ? null : current.endAt);
+      const range = validateDateRange(startInput, endInput, this.clock());
       const patch = {
-        date,
-        endAt: endOfDay(date),
+        date: range.start,
+        endAt: range.end,
         period: normalizePeriod(input.period),
         eventId: input.eventId ? String(input.eventId) : null,
         note: sanitizeNote(input.note),
@@ -248,6 +267,8 @@
       return this.repository.addAuditLog(id, action, entityId, {
         targetUserId: record.userId,
         date: dateKey(record.date),
+        startDate: dateKey(record.date),
+        endDate: dateKey(record.endAt || record.date),
         period: record.period || null,
         eventId: record.eventId || null,
         administrative: Boolean(administrative)
@@ -266,7 +287,10 @@
     normalizePeriod,
     periodFromTime,
     validateDate,
+    validateDateRange,
     isFutureRecord,
+    sameDate,
+    dateInRange,
     periodConflicts,
     eventConflicts,
     recordConflicts,
