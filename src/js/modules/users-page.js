@@ -25,11 +25,7 @@
     return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date);
   }
   function canEdit(profile) {
-    if (!profile) return false;
-    if (profile.role === 'SUPER_ADMIN' || profile.isSuperAdmin === true) return true;
-    const permission = profile.permissions && profile.permissions.users;
-    const level = typeof permission === 'object' ? permission.level || permission.access : permission;
-    return String(level || '').toLowerCase() === 'edit';
+    return Boolean(scope.MusicIdeUserService && scope.MusicIdeUserService.canManageUsers(profile));
   }
   function toast(message, type = 'success') {
     const node = el('users-toast');
@@ -82,7 +78,7 @@
         <td><div class="users-chips">${functions}</div></td>
         <td><span class="ide-badge ${user.active === false ? 'ide-badge--neutral' : 'ide-badge--success'}">${user.active === false ? 'Inativo' : 'Ativo'}</span></td>
         <td>${dateText(user.lastAccessAt)}</td>
-        <td class="users-actions">${editable ? `<button class="ide-button ide-button--secondary ide-button--sm" data-action="edit" data-id="${escapeHtml(user.id)}">Editar</button><button class="ide-button ide-button--secondary ide-button--sm" data-action="password" data-email="${escapeHtml(user.email)}">Senha</button><button class="ide-button ${user.active === false ? 'ide-button--primary' : 'ide-button--danger'} ide-button--sm" data-action="status" data-id="${escapeHtml(user.id)}" data-active="${user.active === false ? 'true' : 'false'}">${user.active === false ? 'Reativar' : 'Inativar'}</button>` : '<span class="users-muted">Somente leitura</span>'}</td>
+        <td class="users-actions">${editable ? `<button class="ide-button ide-button--secondary ide-button--sm" data-action="edit" data-id="${escapeHtml(user.id)}">Editar</button><button class="ide-button ide-button--secondary ide-button--sm" data-action="password" data-email="${escapeHtml(user.email)}">Redefinir senha</button><button class="ide-button ${user.active === false ? 'ide-button--primary' : 'ide-button--danger'} ide-button--sm" data-action="status" data-id="${escapeHtml(user.id)}" data-active="${user.active === false ? 'true' : 'false'}">${user.active === false ? 'Reativar' : 'Inativar'}</button>` : '<span class="users-muted">Somente leitura</span>'}</td>
       </tr>`;
     }).join('');
   }
@@ -172,8 +168,9 @@
         const user = await findUser(button.dataset.id);
         if (user) openForm(user);
       } else if (button.dataset.action === 'password') {
+        if (!scope.confirm(`Enviar um e-mail de redefinição de senha para ${button.dataset.email}?`)) return;
         await service.sendPasswordReset(button.dataset.email);
-        toast('E-mail de redefinição de senha solicitado ao Firebase.');
+        toast('E-mail de redefinição de senha enviado pelo Firebase.');
       } else if (button.dataset.action === 'status') {
         const active = button.dataset.active === 'true';
         if (!scope.confirm(`${active ? 'Reativar' : 'Inativar'} este usuário? O histórico será preservado.`)) return;
