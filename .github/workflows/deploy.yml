@@ -66,6 +66,21 @@ jobs:
           echo "📁 Estrutura de diretórios:"
           find . -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) | head -40
 
+      - name: 🧱 Verificar artefato do modelo de dados
+        run: |
+          set -e
+          test -f models/data-model.js
+          test -f repositories/domain-repositories.js
+          test -f services/ministry-functions-service.js
+          test -f constants/collections.js
+          for collection in users ministryFunctions userFunctions permissions events unavailability schedules scheduleMembers setlists setlistSongs songs songMinisterKeys auditLogs lgpdConsents; do
+            grep -q "'$collection'" models/data-model.js || { echo "❌ Collection $collection ausente do modelo publicado"; exit 1; }
+          done
+          grep -q "DEFAULT_MINISTRY_FUNCTIONS" models/data-model.js
+          grep -q "userFunctionDocumentId" models/data-model.js
+          grep -q "class MinistryFunctionsService" services/ministry-functions-service.js
+          echo "✅ Modelo de dados, N:N e serviço de funções presentes no artefato"
+
   deploy:
     needs: build_and_test
     runs-on: ubuntu-latest
@@ -132,6 +147,10 @@ jobs:
           test_url https://louvor-ide.web.app/styles/tokens.css
           test_url https://louvor-ide.web.app/styles/design-system.css
           test_url https://louvor-ide.web.app/styles/legacy-migration.css
+          test_url https://louvor-ide.web.app/models/data-model.js
+          test_url https://louvor-ide.web.app/repositories/domain-repositories.js
+          test_url https://louvor-ide.web.app/services/ministry-functions-service.js
+          test_url https://louvor-ide.web.app/constants/collections.js
           css=$(curl -sS https://louvor-ide.web.app/styles/tokens.css)
           echo "$css" | grep -q -- '--ide-primary' || { echo "❌ tokens.css publicado não contém --ide-primary"; exit 1; }
           migration=$(curl -sS https://louvor-ide.web.app/styles/legacy-migration.css)
@@ -141,7 +160,15 @@ jobs:
             echo "❌ Home publicada contém cor hexadecimal fora dos tokens"
             exit 1
           fi
-          echo "✅ Design System, tokens e cobertura claro/escuro publicados e válidos"
+          data_model=$(curl -sS https://louvor-ide.web.app/models/data-model.js)
+          for collection in users ministryFunctions userFunctions permissions events unavailability schedules scheduleMembers setlists setlistSongs songs songMinisterKeys auditLogs lgpdConsents; do
+            echo "$data_model" | grep -q "'$collection'" || { echo "❌ Collection $collection ausente do modelo em produção"; exit 1; }
+          done
+          echo "$data_model" | grep -q 'DEFAULT_MINISTRY_FUNCTIONS' || { echo "❌ Catálogo padrão de funções ausente em produção"; exit 1; }
+          echo "$data_model" | grep -q 'userFunctionDocumentId' || { echo "❌ Relação N:N Pessoa ↔ Função ausente em produção"; exit 1; }
+          ministry_service=$(curl -sS https://louvor-ide.web.app/services/ministry-functions-service.js)
+          echo "$ministry_service" | grep -q 'class MinistryFunctionsService' || { echo "❌ Serviço de funções ministeriais ausente em produção"; exit 1; }
+          echo "✅ Design System, modelo de dados e assets críticos publicados e válidos"
 
   notify:
     needs: [build_and_test, deploy]
