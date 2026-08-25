@@ -23,6 +23,21 @@ test('menu lateral possui navegação acessível e comportamento móvel', () => 
   assert.match(shell, /aria-label.*Navegação principal/); assert.match(shell, /aria-current/); assert.match(shell, /aria-expanded/); assert.match(shell, /event\.key === 'Escape'/); assert.match(theme, /@media\(max-width:900px\)/); assert.match(theme, /ide-sidebar-open/);
 });
 
+test('legacy screens are migrated to shared Design System contracts', () => {
+  const shell = read('src/js/modules/app-shell.js');
+  const migration = read('src/styles/legacy-migration.css');
+  assert.match(shell, /legacy-migration\.css/);
+  for (const contract of ['ide-button','ide-field__control','ide-select','ide-section-card','ide-card','ide-empty-state','ide-loading','ide-table']) {
+    assert.match(shell, new RegExp(contract.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `missing runtime migration contract ${contract}`);
+  }
+  for (const legacySurface of ['left-panel','right-panel','form-container','setlist-info','music-info-display','transpose-controls','song-card','setlist-card','music-item']) {
+    assert.match(migration, new RegExp(`\\.${legacySurface}`), `migration CSS must cover .${legacySurface}`);
+  }
+  assert.match(migration, /input,textarea,select/);
+  assert.match(migration, /\.cifra-display/);
+  assert.match(migration, /\.lyrics-content/);
+});
+
 test('tokens de texto usados em superfícies claras atendem contraste AA', () => {
   const tokens = read('src/styles/tokens.css');
   const value = name => { const match = tokens.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, 'i')); assert.ok(match, `${name} não encontrado`); return match[1]; };
