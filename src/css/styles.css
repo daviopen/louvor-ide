@@ -1,4 +1,20 @@
 /* Estilos globais legados — valores visuais vêm de tokens.css */
+:root {
+  --surface: var(--ide-surface);
+  --surface-secondary: var(--ide-surface-secondary);
+  --text-primary: var(--ide-text-primary);
+  --text-secondary: var(--ide-text-secondary);
+  --border: var(--ide-border);
+  --shadow-sm: var(--ide-shadow-sm);
+  --primary: var(--ide-primary);
+  --error: var(--ide-error);
+  --warning: var(--ide-warning);
+  --warning-bg: var(--ide-color-warning-100);
+}
+:root[data-theme="dark"] {
+  --warning: var(--ide-primary);
+  --warning-bg: var(--ide-surface-secondary);
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--ide-font-family-sans); background: var(--ide-background); min-height: 100vh; color: var(--ide-text-primary); }
 .container { max-width: 1400px; margin: 0 auto; padding: var(--ide-space-5); }
