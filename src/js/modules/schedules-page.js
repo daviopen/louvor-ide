@@ -2,7 +2,7 @@
   if (!scope || !scope.document) return;
   if (new URLSearchParams(scope.location.search).get('section') !== 'schedules') return;
 
-  const state = { data: null, selectedId: null, filters: { term: '', person: 'ALL', functionId: 'ALL', from: '', to: '' } };
+  const state = { data: null, filters: { term: '', person: 'ALL', functionId: 'ALL', from: '', to: '' } };
   let repository;
   let service;
   const el = id => scope.document.getElementById(id);
@@ -62,18 +62,26 @@
   function renderSlot(schedule, slot) {
     const member = memberForSlot(schedule, slot.id);
     const event = scheduleEvent(schedule);
-    const candidates = functionUsers(slot.functionId);
-    const options = candidates.map(user => {
+    const eligible = service.eligibleUsers(slot.functionId, event, state.data);
+    const eligibleIds = new Set(eligible.map(userId));
+    const allFunctionUsers = functionUsers(slot.functionId);
+    const unavailable = allFunctionUsers.filter(user => !eligibleIds.has(userId(user)));
+    const currentOutsideNormal = member && !eligibleIds.has(member.userId) ? state.data.users.find(user => userId(user) === member.userId) : null;
+    const normalCandidates = currentOutsideNormal ? [currentOutsideNormal, ...eligible] : eligible;
+    const options = normalCandidates.map(user => {
       const id = userId(user); const conflict = service.userConflict(id, slot.functionId, schedule, event, state.data);
       const current = member?.userId === id;
-      const label = `${user.name || user.email}${conflict.unavailable ? ' — indisponível' : conflict.otherRole ? ` — também em ${functionName(conflict.otherRole.functionId)}` : ''}`;
+      const label = `${user.name || user.email}${currentOutsideNormal && id === member?.userId ? ' — exceção atual' : conflict.otherRole ? ` — também em ${functionName(conflict.otherRole.functionId)}` : ''}`;
       return `<option value="${esc(id)}" ${current?'selected':''}>${esc(label)}</option>`;
     }).join('');
+    const exceptionOptions = unavailable.filter(user => userId(user) !== member?.userId).map(user => `<option value="${esc(userId(user))}">${esc(user.name || user.email)}</option>`).join('');
     const avatar = member ? `<span class="schedule-avatar" aria-hidden="true">${esc((userName(member.userId)[0] || '?').toUpperCase())}</span>` : `<span class="schedule-avatar schedule-avatar--empty" aria-hidden="true">+</span>`;
     return `<div class="schedule-slot" data-slot-id="${esc(slot.id)}">
       <div class="schedule-slot__identity">${avatar}<div><strong>${esc(functionName(slot.functionId))}</strong><span>${member ? esc(userName(member.userId)) : 'Selecione uma pessoa'}</span></div></div>
       <div class="schedule-slot__controls">
-        <select class="ide-field__control ide-select" data-schedule-user ${state.data.access.canEdit?'':'disabled'}><option value="">Selecionar...</option>${options}</select>
+        <input class="ide-field__control ide-field__input schedule-user-search" type="search" data-user-search placeholder="Buscar pessoa disponível..." autocomplete="off" aria-label="Buscar pessoa para ${esc(functionName(slot.functionId))}" ${state.data.access.canEdit?'':'disabled'}>
+        <select class="ide-field__control ide-select" data-schedule-user aria-label="Pessoa disponível para ${esc(functionName(slot.functionId))}" ${state.data.access.canEdit?'':'disabled'}><option value="">Selecionar...</option>${options}</select>
+        ${exceptionOptions && state.data.access.canEdit ? `<div class="schedule-exception-controls"><select class="ide-field__control ide-select" data-exception-user aria-label="Pessoa indisponível para exceção"><option value="">Exceção: pessoa indisponível...</option>${exceptionOptions}</select><button class="ide-button ide-button--secondary ide-button--sm" data-action="assign-exception" type="button">Registrar exceção</button></div>` : ''}
         ${member && state.data.access.canEdit ? `<button class="ide-button ide-button--secondary ide-button--sm" data-action="remove-member" data-member-id="${esc(member.id)}" type="button">Remover pessoa</button>` : ''}
         ${state.data.access.canEdit ? `<button class="ide-button ide-button--danger ide-button--sm" data-action="remove-slot" type="button">Remover função</button>` : ''}
       </div>
@@ -106,23 +114,19 @@
     finally { el('schedules-loading').hidden = true; }
   }
 
-  async function assign(schedule, slot, selectedUserId) {
+  async function assign(schedule, slot, selectedUserId, options = {}) {
     if (!selectedUserId) return;
     const conflict = service.userConflict(selectedUserId, slot.functionId, schedule, scheduleEvent(schedule), state.data);
-    const options = {};
-    if (conflict.unavailable) {
-      if (!scope.confirm(`${userName(selectedUserId)} está indisponível para este evento. Deseja registrar uma exceção administrativa?`)) { render(); return; }
-      const reason = scope.prompt('Informe o motivo da exceção administrativa:');
-      if (!String(reason || '').trim()) { toast('A exceção exige um motivo.', 'error'); render(); return; }
-      options.override = true; options.reason = reason;
-    } else if (conflict.otherRole && !scope.confirm(`${userName(selectedUserId)} já está em ${functionName(conflict.otherRole.functionId)}. Deseja manter a pessoa em múltiplas funções?`)) { render(); return; }
+    if (conflict.unavailable && !options.override) throw new Error('Usuário indisponível. Use o fluxo explícito de exceção administrativa.');
+    if (conflict.otherRole && !scope.confirm(`${userName(selectedUserId)} já está em ${functionName(conflict.otherRole.functionId)}. Deseja manter a pessoa em múltiplas funções?`)) { render(); return; }
     await service.assign(schedule.id, slot.id, selectedUserId, scope.currentMusicIdeUser, scope.currentMusicIdeProfile, options);
-    toast('Escala atualizada.'); await reload();
+    toast(options.override ? 'Exceção administrativa registrada e escala atualizada.' : 'Escala atualizada.'); await reload();
   }
 
   async function handleClick(event) {
     const button = event.target.closest('button[data-action]'); if (!button) return;
     const card = button.closest('[data-schedule-id]'); const schedule = state.data.schedules.find(item => item.id === card?.dataset.scheduleId); if (!schedule) return;
+    const slotNode = button.closest('[data-slot-id]'); const slot = schedule.slots?.find(item => item.id === slotNode?.dataset.slotId);
     try {
       if (button.dataset.action === 'add-slot') {
         const functionId = card.querySelector('[data-new-function]').value; if (!functionId) return toast('Selecione uma função.', 'error');
@@ -130,10 +134,18 @@
       }
       if (button.dataset.action === 'remove-slot') {
         if (!scope.confirm('Remover esta função da escala? A pessoa vinculada, se houver, será removida preservando o histórico.')) return;
-        await service.removeSlot(schedule.id, button.closest('[data-slot-id]').dataset.slotId, scope.currentMusicIdeUser, scope.currentMusicIdeProfile); toast('Função removida.'); await reload();
+        await service.removeSlot(schedule.id, slotNode.dataset.slotId, scope.currentMusicIdeUser, scope.currentMusicIdeProfile); toast('Função removida.'); await reload();
       }
       if (button.dataset.action === 'remove-member') {
         await service.removeMember(schedule.id, button.dataset.memberId, scope.currentMusicIdeUser, scope.currentMusicIdeProfile); toast('Pessoa removida da escala.'); await reload();
+      }
+      if (button.dataset.action === 'assign-exception') {
+        const selectedUserId = slotNode.querySelector('[data-exception-user]').value;
+        if (!selectedUserId) return toast('Selecione a pessoa indisponível para a exceção.', 'error');
+        if (!scope.confirm(`Confirmar exceção administrativa para escalar ${userName(selectedUserId)} mesmo com indisponibilidade registrada?`)) return;
+        const reason = scope.prompt('Informe o motivo da exceção administrativa:');
+        if (!String(reason || '').trim()) return toast('A exceção exige um motivo.', 'error');
+        await assign(schedule, slot, selectedUserId, { override: true, reason: String(reason).trim() });
       }
     } catch (error) { console.error(error); toast(error.message || 'Não foi possível atualizar a escala.', 'error'); }
   }
@@ -147,9 +159,16 @@
     }
   }
 
+  function handleAutocomplete(event) {
+    if (!event.target.matches('[data-user-search]')) return;
+    const term = event.target.value.trim().toLocaleLowerCase('pt-BR');
+    const select = event.target.closest('[data-slot-id]').querySelector('[data-schedule-user]');
+    Array.from(select.options).forEach((option, index) => { if (index === 0 || option.selected) option.hidden = false; else option.hidden = Boolean(term) && !option.textContent.toLocaleLowerCase('pt-BR').includes(term); });
+  }
+
   function wireFilters() {
     [['schedule-filter-term','term','input'],['schedule-filter-person','person','change'],['schedule-filter-function','functionId','change'],['schedule-filter-from','from','change'],['schedule-filter-to','to','change']].forEach(([id,key,type]) => el(id).addEventListener(type, e => { state.filters[key] = e.target.value; render(); }));
-    el('schedules-list').addEventListener('click', handleClick); el('schedules-list').addEventListener('change', handleChange);
+    el('schedules-list').addEventListener('click', handleClick); el('schedules-list').addEventListener('change', handleChange); el('schedules-list').addEventListener('input', handleAutocomplete);
   }
 
   async function bootstrap() {
