@@ -102,23 +102,23 @@
 - [x] Validar todos os componentes, Setlist, cifra e letra nos dois temas.
 
 ### 8. Modelo de dados
-- [ ] `users`.
-- [ ] `ministryFunctions`.
-- [ ] `userFunctions`.
-- [ ] `permissions`.
-- [ ] `events`.
-- [ ] `unavailability`.
-- [ ] `schedules`.
-- [ ] `scheduleMembers`.
-- [ ] `setlists`.
-- [ ] `setlistSongs`.
-- [ ] `songs`.
-- [ ] `songMinisterKeys`.
-- [ ] `auditLogs`.
-- [ ] `lgpdConsents`.
-- [ ] Implementar Pessoa ↔ Função como relação N:N.
-- [ ] Suportar Ministro, Back Vocal, Bateria, Baixo, Guitarra, Violão, Teclado, Sax, DM e novas funções futuramente.
-- [ ] Permitir ativar/inativar e ordenar funções.
+- [x] `users`.
+- [x] `ministryFunctions`.
+- [x] `userFunctions`.
+- [x] `permissions`.
+- [x] `events`.
+- [x] `unavailability`.
+- [x] `schedules`.
+- [x] `scheduleMembers`.
+- [x] `setlists`.
+- [x] `setlistSongs`.
+- [x] `songs`.
+- [x] `songMinisterKeys`.
+- [x] `auditLogs`.
+- [x] `lgpdConsents`.
+- [x] Implementar Pessoa ↔ Função como relação N:N.
+- [x] Suportar Ministro, Back Vocal, Bateria, Baixo, Guitarra, Violão, Teclado, Sax, DM e novas funções futuramente.
+- [x] Permitir ativar/inativar e ordenar funções.
 
 ### 9. Segurança
 - [ ] Manter login Google.
