@@ -47,6 +47,11 @@
   function ensureDesignSystemStyles() {
     ensureStylesheet('../styles/tokens.css', 'data-ide-tokens');
     ensureStylesheet('../styles/design-system.css', 'data-ide-design-system');
+    ensureStylesheet('../styles/legacy-migration.css', 'data-ide-legacy-migration');
+  }
+
+  function addClasses(selector, ...classes) {
+    scope.document.querySelectorAll(selector).forEach(node => node.classList.add(...classes));
   }
 
   function migrateLegacyControls() {
@@ -54,28 +59,45 @@
     if (!body) return;
     body.classList.add('ide-ds-migrated');
 
-    scope.document.querySelectorAll('.btn, .action-btn, .add-button, .clear-filters, .back-btn').forEach(node => {
-      node.classList.add('ide-button');
-      if (node.classList.contains('btn-secondary') || node.classList.contains('back-btn')) node.classList.add('ide-button--secondary');
-      else if (node.classList.contains('btn-delete')) node.classList.add('ide-button--danger');
-      else node.classList.add('ide-button--primary');
-      node.classList.add('ide-button--md');
+    scope.document.querySelectorAll('button, .btn, .action-btn, .add-button, .clear-filters, .back-btn, .nav-btn, .nav-button, .transpose-btn, .music-action-btn, .song-link-btn, .create-setlist-btn').forEach(node => {
+      node.classList.add('ide-button', 'ide-button--md');
+      if (node.classList.contains('btn-delete') || node.classList.contains('delete-btn') || node.classList.contains('btn-down') || node.classList.contains('delete')) {
+        node.classList.add('ide-button--danger');
+      } else if (node.classList.contains('btn-secondary') || node.classList.contains('secondary') || node.classList.contains('back-btn') || node.classList.contains('btn-back')) {
+        node.classList.add('ide-button--secondary');
+      } else {
+        node.classList.add('ide-button--primary');
+      }
     });
 
-    scope.document.querySelectorAll('.form-input, .filter-input, .search-box').forEach(node => {
-      node.classList.add('ide-field__control', 'ide-field__input');
-    });
-    scope.document.querySelectorAll('.form-textarea').forEach(node => {
-      node.classList.add('ide-field__control', 'ide-field__textarea');
-    });
-    scope.document.querySelectorAll('select').forEach(node => node.classList.add('ide-field__control', 'ide-select'));
-    scope.document.querySelectorAll('.form-container, .filters').forEach(node => node.classList.add('ide-section-card'));
-    scope.document.querySelectorAll('.music-card, .stat-card').forEach(node => node.classList.add('ide-card'));
-    scope.document.querySelectorAll('.empty-state').forEach(node => node.classList.add('ide-empty-state'));
+    addClasses('input:not([type="checkbox"]):not([type="radio"]), .form-input, .filter-input, .search-box', 'ide-field__control', 'ide-field__input');
+    addClasses('textarea, .form-textarea', 'ide-field__control', 'ide-field__textarea');
+    addClasses('select', 'ide-field__control', 'ide-select');
+    addClasses('input[type="checkbox"], input[type="radio"]', 'ide-choice__input');
+
+    addClasses('.form-container, .filters, .left-panel, .right-panel, .setlist-info, .music-info-display, .search-section, .transpose-controls, .ministers-summary, .info-section, .controls', 'ide-section-card');
+    addClasses('.music-card, .stat-card, .song-card, .setlist-card, .music-item, .song-item, .meta-item, .info-item', 'ide-card');
+    addClasses('.empty-state', 'ide-empty-state');
+    addClasses('table', 'ide-table');
+
     scope.document.querySelectorAll('.loading').forEach(node => {
       node.classList.add('ide-loading');
       if (!node.getAttribute('role')) node.setAttribute('role', 'status');
       if (!node.getAttribute('aria-live')) node.setAttribute('aria-live', 'polite');
+    });
+
+    scope.document.querySelectorAll('label').forEach(label => {
+      if (!label.classList.contains('ide-field__label')) label.classList.add('ide-field__label');
+    });
+
+    scope.document.querySelectorAll('table').forEach(table => {
+      const parent = table.parentElement;
+      if (parent && !parent.classList.contains('ide-table-wrap')) {
+        const wrapper = scope.document.createElement('div');
+        wrapper.className = 'ide-table-wrap';
+        parent.insertBefore(wrapper, table);
+        wrapper.appendChild(table);
+      }
     });
   }
 
