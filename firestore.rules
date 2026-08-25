@@ -2,78 +2,33 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function supportedProvider() {
-      return signedIn()
-        && request.auth.token.firebase.sign_in_provider in ['google.com', 'password'];
-    }
-
-    function profilePath(uid) {
-      return /databases/$(database)/documents/users/$(uid);
-    }
-
-    function hasProfile() {
-      return supportedProvider() && exists(profilePath(request.auth.uid));
-    }
-
-    function profile() {
-      return get(profilePath(request.auth.uid));
-    }
-
-    function activeUser() {
-      return supportedProvider()
-        && hasProfile()
-        && profile().data.active == true;
-    }
-
-    function hasRole(role) {
-      return activeUser() && profile().data.role == role;
-    }
-
-    function hasClaim(claimName) {
-      return signedIn()
-        && claimName in request.auth.token
-        && request.auth.token[claimName] == true;
-    }
+    function signedIn() { return request.auth != null; }
+    function supportedProvider() { return signedIn() && request.auth.token.firebase.sign_in_provider in ['google.com', 'password']; }
+    function profilePath(uid) { return /databases/$(database)/documents/users/$(uid); }
+    function hasProfile() { return supportedProvider() && exists(profilePath(request.auth.uid)); }
+    function profile() { return get(profilePath(request.auth.uid)); }
+    function activeUser() { return supportedProvider() && hasProfile() && profile().data.active == true; }
+    function hasRole(role) { return activeUser() && profile().data.role == role; }
+    function hasClaim(claimName) { return signedIn() && claimName in request.auth.token && request.auth.token[claimName] == true; }
 
     function bootstrapSuperAdminIdentity() {
-      // Bootstrap exclusivamente server-side. O frontend não conhece nem usa
-      // este e-mail como fonte de autorização.
-      return supportedProvider()
-        && 'email' in request.auth.token
-        && request.auth.token.email == 'davitads@gmail.com';
+      return supportedProvider() && 'email' in request.auth.token && request.auth.token.email == 'davitads@gmail.com';
     }
-
-    function initialSuperAdmin() {
-      // A identidade inicial pode criar o próprio perfil uma única vez. Depois
-      // que o perfil existe, active=false também bloqueia o bootstrap.
-      return bootstrapSuperAdminIdentity()
-        && (!hasProfile() || profile().data.active == true);
-    }
-
+    function initialSuperAdmin() { return bootstrapSuperAdminIdentity() && (!hasProfile() || profile().data.active == true); }
     function isSuperAdmin() {
       return initialSuperAdmin() || (activeUser() && (
-        hasClaim('superAdmin')
-        || ('role' in request.auth.token && request.auth.token.role == 'SUPER_ADMIN')
-        || hasRole('SUPER_ADMIN')
+        hasClaim('superAdmin') || ('role' in request.auth.token && request.auth.token.role == 'SUPER_ADMIN') || hasRole('SUPER_ADMIN')
       ));
     }
-
     function isAdmin() {
       return isSuperAdmin() || (activeUser() && (
-        hasClaim('admin')
-        || ('role' in request.auth.token && request.auth.token.role == 'ADMIN')
-        || hasRole('ADMIN')
+        hasClaim('admin') || ('role' in request.auth.token && request.auth.token.role == 'ADMIN') || hasRole('ADMIN')
       ));
     }
 
     function permissionPath(moduleName) {
       return /databases/$(database)/documents/permissions/$(request.auth.uid + '__' + moduleName);
     }
-
     function explicitPermission(moduleName, acceptedLevels) {
       return activeUser()
         && exists(permissionPath(moduleName))
@@ -81,143 +36,74 @@ service cloud.firestore {
         && get(permissionPath(moduleName)).data.module == moduleName
         && get(permissionPath(moduleName)).data.level in acceptedLevels;
     }
-
-    function legacyReadModule(moduleName) {
-      return moduleName in ['songs', 'setlists'];
-    }
-
-    function legacyEditModule(moduleName) {
-      return moduleName in ['songs', 'setlists'];
-    }
-
-    function canRead(moduleName) {
-      return isAdmin()
-        || explicitPermission(moduleName, ['READ', 'EDIT'])
-        || (activeUser() && legacyReadModule(moduleName));
-    }
-
-    function canEdit(moduleName) {
-      return isAdmin()
-        || explicitPermission(moduleName, ['EDIT'])
-        || (activeUser() && legacyEditModule(moduleName));
-    }
-
-    function ownsUserDocument(userId) {
-      return activeUser() && request.auth.uid == userId;
-    }
-
+    function canRead(moduleName) { return isSuperAdmin() || explicitPermission(moduleName, ['READ', 'EDIT']); }
+    function canEdit(moduleName) { return isSuperAdmin() || explicitPermission(moduleName, ['EDIT']); }
+    function ownsUserDocument(userId) { return activeUser() && request.auth.uid == userId; }
     function unchangedAuthorizationFields() {
-      return request.resource.data.role == resource.data.role
-        && request.resource.data.active == resource.data.active
-        && request.resource.data.uid == resource.data.uid;
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'active', 'uid', 'permissions']);
     }
-
+    function adminKeepsPrivilegeFields() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'permissions']);
+    }
     function validCreatedUser(userId) {
       return request.resource.data.uid == userId
         && request.resource.data.active is bool
         && request.resource.data.role in ['MEMBER', 'ADMIN', 'SUPER_ADMIN'];
     }
+    function validPermissionDocument(permissionId) {
+      return request.resource.data.userId is string
+        && request.resource.data.module in ['dashboard', 'users', 'permissions', 'unavailability', 'events', 'schedules', 'setlists', 'songs', 'audit']
+        && request.resource.data.level in ['READ', 'EDIT']
+        && permissionId == request.resource.data.userId + '__' + request.resource.data.module;
+    }
 
     match /users/{userId} {
-      // A própria identidade autenticada pode consultar somente o seu perfil
-      // para descobrir se foi liberada. Isso não concede acesso aos domínios.
-      allow get: if (supportedProvider() && request.auth.uid == userId) || isAdmin();
-      allow list: if canRead('users');
-
-      // Usuários comuns não podem se autoativar. ADMIN cria MEMBER; somente
-      // SUPER_ADMIN pode criar ADMIN/SUPER_ADMIN e realizar o bootstrap inicial.
-      allow create: if validCreatedUser(userId) && (
-        (isSuperAdmin())
-        || (isAdmin() && request.resource.data.role == 'MEMBER')
-      );
-
+      allow get: if (supportedProvider() && request.auth.uid == userId) || canRead('users') || canRead('permissions');
+      allow list: if canRead('users') || canRead('permissions');
+      allow create: if validCreatedUser(userId) && (isSuperAdmin() || (canEdit('users') && request.resource.data.role == 'MEMBER'));
       allow update: if isSuperAdmin()
-        || (isAdmin()
-          && resource.data.role != 'SUPER_ADMIN'
-          && request.resource.data.role == resource.data.role)
+        || (canEdit('users') && resource.data.role != 'SUPER_ADMIN' && request.resource.data.role == resource.data.role && adminKeepsPrivilegeFields())
         || (ownsUserDocument(userId) && unchangedAuthorizationFields());
-
       allow delete: if false;
     }
 
     match /permissions/{permissionId} {
-      allow get: if isAdmin() || (activeUser() && resource.data.userId == request.auth.uid);
-      allow list: if isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow get: if isSuperAdmin() || canRead('permissions') || (activeUser() && resource.data.userId == request.auth.uid);
+      allow list: if isSuperAdmin() || canRead('permissions');
+      allow create, update: if isSuperAdmin() && validPermissionDocument(permissionId);
+      allow delete: if isSuperAdmin();
     }
 
     match /ministryFunctions/{documentId} {
       allow read: if activeUser();
-      allow write: if isAdmin();
+      allow write: if isSuperAdmin() || canEdit('users');
     }
-
     match /userFunctions/{documentId} {
       allow read: if canRead('users');
       allow write: if canEdit('users');
     }
-
-    match /events/{documentId} {
-      allow read: if canRead('events');
-      allow write: if canEdit('events');
-    }
-
+    match /events/{documentId} { allow read: if canRead('events'); allow write: if canEdit('events'); }
     match /unavailability/{documentId} {
-      allow read: if canRead('unavailability')
-        || (activeUser() && resource.data.userId == request.auth.uid);
-      allow create: if canEdit('unavailability')
-        || (activeUser() && request.resource.data.userId == request.auth.uid);
-      allow update, delete: if canEdit('unavailability')
-        || (activeUser() && resource.data.userId == request.auth.uid
-          && request.resource.data.userId == request.auth.uid);
+      allow read: if canRead('unavailability') || (activeUser() && resource.data.userId == request.auth.uid);
+      allow create: if canEdit('unavailability') || (activeUser() && request.resource.data.userId == request.auth.uid);
+      allow update, delete: if canEdit('unavailability') || (activeUser() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
     }
-
-    match /schedules/{documentId} {
-      allow read: if canRead('schedules');
-      allow write: if canEdit('schedules');
-    }
-
-    match /scheduleMembers/{documentId} {
-      allow read: if canRead('schedules');
-      allow write: if canEdit('schedules');
-    }
-
-    match /setlists/{documentId} {
-      allow read: if canRead('setlists');
-      allow write: if canEdit('setlists');
-    }
-
-    match /setlistSongs/{documentId} {
-      allow read: if canRead('setlists');
-      allow write: if canEdit('setlists');
-    }
-
-    match /songs/{documentId} {
-      allow read: if canRead('songs');
-      allow write: if canEdit('songs');
-    }
-
-    match /songMinisterKeys/{documentId} {
-      allow read: if canRead('songs');
-      allow write: if canEdit('songs');
-    }
-
+    match /schedules/{documentId} { allow read: if canRead('schedules'); allow write: if canEdit('schedules'); }
+    match /scheduleMembers/{documentId} { allow read: if canRead('schedules'); allow write: if canEdit('schedules'); }
+    match /setlists/{documentId} { allow read: if canRead('setlists'); allow write: if canEdit('setlists'); }
+    match /setlistSongs/{documentId} { allow read: if canRead('setlists'); allow write: if canEdit('setlists'); }
+    match /songs/{documentId} { allow read: if canRead('songs'); allow write: if canEdit('songs'); }
+    match /songMinisterKeys/{documentId} { allow read: if canRead('songs'); allow write: if canEdit('songs'); }
     match /auditLogs/{documentId} {
       allow read: if canRead('audit');
-      allow create: if activeUser()
-        && request.resource.data.actorUserId == request.auth.uid;
+      allow create: if activeUser() && request.resource.data.actorUserId == request.auth.uid;
       allow update, delete: if false;
     }
-
     match /lgpdConsents/{documentId} {
-      allow read: if isAdmin()
-        || (activeUser() && resource.data.userId == request.auth.uid);
-      allow create: if activeUser()
-        && request.resource.data.userId == request.auth.uid;
+      allow read: if isSuperAdmin() || (activeUser() && resource.data.userId == request.auth.uid);
+      allow create: if activeUser() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if false;
     }
-
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    match /{document=**} { allow read, write: if false; }
   }
 }
