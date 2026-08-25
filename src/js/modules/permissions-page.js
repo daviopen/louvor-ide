@@ -38,8 +38,23 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
   }
 
+  function initials(name, email) {
+    const source = String(name || email || 'U').trim();
+    const parts = source.split(/\s+/).filter(Boolean);
+    return (parts.length > 1 ? `${parts[0][0]}${parts[parts.length - 1][0]}` : source.slice(0, 2)).toUpperCase();
+  }
+
   function currentSection() {
     return new URLSearchParams(scope.location.search).get('section');
+  }
+
+  function ensureStylesheet() {
+    if (scope.document.querySelector('link[data-permissions-styles]')) return;
+    const link = scope.document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '../styles/permissions.css?v=20260825-responsive';
+    link.dataset.permissionsStyles = 'true';
+    scope.document.head.appendChild(link);
   }
 
   async function loadMatrix(db) {
@@ -57,27 +72,65 @@
     return usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), permissions: permissionsByUser.get(doc.id) || {} }));
   }
 
+  function renderPermissionField(user, module, label, editable) {
+    const current = normalizeLevel(user.permissions[module]);
+    return `
+      <div class="ide-permission-field">
+        <label for="permission-${escapeHtml(user.id)}-${module}">${escapeHtml(label)}</label>
+        <select
+          id="permission-${escapeHtml(user.id)}-${module}"
+          data-permission-module="${module}"
+          data-original="${current}"
+          data-level="${current}"
+          ${editable ? '' : 'disabled'}
+          aria-label="${escapeHtml(label)} de ${escapeHtml(user.name || user.email || 'usuário')}">
+          ${LEVELS.map(([level, levelLabel]) => `<option value="${level}" ${current === level ? 'selected' : ''}>${levelLabel}</option>`).join('')}
+        </select>
+      </div>`;
+  }
+
+  function renderUserCard(user, editable) {
+    const displayName = user.name || user.email || 'Usuário';
+    return `
+      <article class="ide-permissions-user" data-user-id="${escapeHtml(user.id)}" data-user-name="${escapeHtml(displayName)}">
+        <header class="ide-permissions-user__header">
+          <div class="ide-permissions-user__identity">
+            <span class="ide-permissions-user__avatar" aria-hidden="true">${escapeHtml(initials(user.name, user.email))}</span>
+            <div class="ide-permissions-user__text">
+              <strong>${escapeHtml(user.name || 'Sem nome')}</strong>
+              <small>${escapeHtml(user.email || '')}</small>
+            </div>
+          </div>
+          ${user.active === false ? '<span class="ide-permission-inactive">Inativo</span>' : ''}
+        </header>
+        <div class="ide-permissions-grid">
+          ${MODULES.map(([module, label]) => renderPermissionField(user, module, label, editable)).join('')}
+        </div>
+      </article>`;
+  }
+
   function render(root, users, editable) {
     root.innerHTML = `
       <div class="ide-permissions-toolbar">
         <div>
-          <h2>Matriz de permissões</h2>
-          <p>Defina o nível efetivo de cada usuário por módulo. Edição sempre inclui leitura.</p>
+          <h2>Permissões de acesso</h2>
+          <p>Configure o acesso de cada pessoa por módulo. Edição inclui leitura; “Sem acesso” remove o módulo do menu e bloqueia a rota.</p>
         </div>
-        <button id="permissions-save" class="ide-button ide-button--primary" type="button" ${editable ? '' : 'disabled'}>
-          <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Revisar alterações
-        </button>
+        <div class="ide-permissions-toolbar__actions">
+          <button id="permissions-save" class="ide-button ide-button--primary" type="button" ${editable ? '' : 'disabled'}>
+            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Revisar alterações
+          </button>
+        </div>
       </div>
-      ${editable ? '' : '<div class="ide-permissions-note">Somente SUPER_ADMIN pode alterar permissões. Você está em modo somente leitura.</div>'}
-      <div class="ide-table-wrap">
-        <table class="ide-table ide-permissions-table">
-          <thead><tr><th>Usuário</th>${MODULES.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join('')}</tr></thead>
-          <tbody>${users.map(user => `
-            <tr data-user-id="${escapeHtml(user.id)}" data-user-name="${escapeHtml(user.name || user.email || 'Usuário')}">
-              <th scope="row"><strong>${escapeHtml(user.name || 'Sem nome')}</strong><small>${escapeHtml(user.email || '')}</small>${user.active === false ? '<span class="ide-permission-inactive">Inativo</span>' : ''}</th>
-              ${MODULES.map(([module]) => `<td><select data-permission-module="${module}" data-original="${normalizeLevel(user.permissions[module])}" ${editable ? '' : 'disabled'} aria-label="${escapeHtml(module)} de ${escapeHtml(user.name || user.email || 'usuário')}">${LEVELS.map(([level, label]) => `<option value="${level}" ${normalizeLevel(user.permissions[module]) === level ? 'selected' : ''}>${label}</option>`).join('')}</select></td>`).join('')}
-            </tr>`).join('')}</tbody>
-        </table>
+      ${editable ? '' : '<div class="ide-permissions-note"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>Somente SUPER_ADMIN pode alterar permissões. Você está em modo somente leitura.</span></div>'}
+      <div class="ide-permissions-legend" aria-label="Legenda dos níveis de permissão">
+        <strong>Níveis</strong>
+        <span class="ide-permissions-level ide-permissions-level--none"><i class="fa-solid fa-circle" aria-hidden="true"></i> Sem acesso</span>
+        <span class="ide-permissions-level ide-permissions-level--read"><i class="fa-solid fa-circle" aria-hidden="true"></i> Leitura</span>
+        <span class="ide-permissions-level ide-permissions-level--edit"><i class="fa-solid fa-circle" aria-hidden="true"></i> Edição</span>
+      </div>
+      <div class="ide-permissions-users">
+        ${users.length ? users.map(user => renderUserCard(user, editable)).join('') : '<div class="ide-empty-state"><strong>Nenhum usuário encontrado</strong><span>Cadastre usuários antes de configurar permissões.</span></div>'}
       </div>
       <div id="permissions-status" class="ide-permissions-status" role="status" aria-live="polite"></div>
       <dialog id="permissions-review" class="ide-permissions-dialog">
@@ -91,15 +144,19 @@
           </div>
         </form>
       </dialog>`;
+
+    root.querySelectorAll('select[data-permission-module]').forEach(select => {
+      select.addEventListener('change', () => { select.dataset.level = normalizeLevel(select.value); });
+    });
   }
 
   function collectChanges(root) {
     const changes = [];
-    root.querySelectorAll('tr[data-user-id]').forEach(row => {
-      row.querySelectorAll('select[data-permission-module]').forEach(select => {
+    root.querySelectorAll('[data-user-id]').forEach(userCard => {
+      userCard.querySelectorAll('select[data-permission-module]').forEach(select => {
         const before = normalizeLevel(select.dataset.original);
         const after = normalizeLevel(select.value);
-        if (before !== after) changes.push({ userId: row.dataset.userId, userName: row.dataset.userName, module: select.dataset.permissionModule, before, after });
+        if (before !== after) changes.push({ userId: userCard.dataset.userId, userName: userCard.dataset.userName, module: select.dataset.permissionModule, before, after });
       });
     });
     return changes;
@@ -155,6 +212,7 @@
     if (!card) return;
 
     try {
+      ensureStylesheet();
       await scope.musicIdeAuthReady;
       const profile = scope.currentMusicIdeProfile;
       const user = scope.currentMusicIdeUser;
