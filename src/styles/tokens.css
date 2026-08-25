@@ -5,21 +5,26 @@
   --ide-color-lime-700: #acd315;
   --ide-color-violet-500: #8478ff;
   --ide-color-violet-600: #6f63ee;
-
   --ide-color-neutral-950: #090b0c;
   --ide-color-neutral-900: #111415;
+  --ide-color-neutral-800: #1a1f20;
   --ide-color-neutral-700: #4e5754;
   --ide-color-neutral-600: #69716f;
+  --ide-color-neutral-400: #a8afad;
   --ide-color-neutral-300: #d8dcda;
   --ide-color-neutral-200: #e8ebe9;
   --ide-color-neutral-100: #f4f2eb;
   --ide-color-neutral-50: #fffef9;
   --ide-color-white: #ffffff;
-
   --ide-color-success-700: #137333;
-  --ide-color-warning-700: #8a5a00;
+  --ide-color-success-100: #e7f6ec;
+  --ide-color-warning-700: #7a4b00;
+  --ide-color-warning-100: #fff4ce;
+  --ide-color-error-800: #8a1c13;
   --ide-color-error-700: #b42318;
+  --ide-color-error-100: #feeceb;
   --ide-color-info-700: #175cd3;
+  --ide-color-info-100: #eaf2ff;
 
   /* Semantic color tokens */
   --ide-primary: var(--ide-color-lime-500);
@@ -28,25 +33,98 @@
   --ide-primary-ink: var(--ide-color-neutral-950);
   --ide-secondary: var(--ide-color-violet-500);
   --ide-secondary-hover: var(--ide-color-violet-600);
-
   --ide-background: var(--ide-color-neutral-100);
   --ide-surface: var(--ide-color-neutral-50);
   --ide-surface-secondary: var(--ide-color-neutral-100);
+  --ide-surface-dark: var(--ide-color-neutral-800);
   --ide-text-primary: var(--ide-color-neutral-900);
   --ide-text-secondary: var(--ide-color-neutral-600);
+  --ide-text-on-dark: var(--ide-color-white);
   --ide-border: rgba(17, 20, 21, 0.14);
-
+  --ide-border-strong: rgba(17, 20, 21, 0.28);
+  --ide-border-on-dark: rgba(255, 255, 255, 0.16);
+  --ide-focus-ring: rgba(132, 120, 255, 0.42);
+  --ide-primary-ring: rgba(216, 255, 69, 0.28);
   --ide-success: var(--ide-color-success-700);
   --ide-warning: var(--ide-color-warning-700);
   --ide-error: var(--ide-color-error-700);
   --ide-info: var(--ide-color-info-700);
 
+  /* Spacing */
+  --ide-space-0: 0;
+  --ide-space-1: 0.25rem;
+  --ide-space-2: 0.5rem;
+  --ide-space-3: 0.75rem;
+  --ide-space-4: 1rem;
+  --ide-space-5: 1.25rem;
+  --ide-space-6: 1.5rem;
+  --ide-space-8: 2rem;
+  --ide-space-10: 2.5rem;
+  --ide-space-12: 3rem;
+  --ide-space-16: 4rem;
+
+  /* Radius */
+  --ide-radius-sm: 0.5rem;
+  --ide-radius-md: 0.75rem;
+  --ide-radius-lg: 1rem;
+  --ide-radius-xl: 1.125rem;
+  --ide-radius-pill: 999px;
+  --ide-radius-circle: 50%;
+
+  /* Shadows */
+  --ide-shadow-xs: 0 1px 4px rgba(8, 10, 11, 0.12);
+  --ide-shadow-sm: 0 5px 20px rgba(8, 10, 11, 0.08);
+  --ide-shadow-md: 0 14px 40px rgba(8, 10, 11, 0.14);
+  --ide-shadow-lg: 0 22px 60px rgba(8, 10, 11, 0.18);
+  --ide-shadow-overlay: 0 28px 80px rgba(0, 0, 0, 0.30);
+
+  /* Typography */
+  --ide-font-family-sans: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ide-font-family-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --ide-font-size-xs: 0.75rem;
+  --ide-font-size-sm: 0.875rem;
+  --ide-font-size-md: 1rem;
+  --ide-font-size-lg: 1.125rem;
+  --ide-font-size-xl: 1.35rem;
+  --ide-font-size-2xl: clamp(1.6rem, 3vw, 2.25rem);
+  --ide-font-weight-medium: 600;
+  --ide-font-weight-semibold: 650;
+  --ide-font-weight-bold: 750;
+  --ide-font-weight-extrabold: 800;
+  --ide-line-height-tight: 1.2;
+  --ide-line-height-normal: 1.4;
+  --ide-line-height-relaxed: 1.6;
+
+  /* Breakpoints — canonical reference for CSS media queries */
+  --ide-breakpoint-mobile: 480px;
+  --ide-breakpoint-tablet: 768px;
+  --ide-breakpoint-desktop: 900px;
+  --ide-breakpoint-wide: 1200px;
+
+  /* Z-index */
+  --ide-z-dropdown: 1200;
+  --ide-z-sticky: 2000;
+  --ide-z-mobile-nav: 9000;
+  --ide-z-sidebar-overlay: 9100;
+  --ide-z-sidebar: 9200;
+  --ide-z-user-menu: 9250;
+  --ide-z-sidebar-toggle: 9300;
+  --ide-z-modal: 10000;
+  --ide-z-auth-gate: 99999;
+
   /* Backward-compatible aliases while legacy screens are migrated. */
   --music-accent: var(--ide-primary);
+  --music-accent-dark: #435300;
+  --music-accent-text: #354200;
+  --music-violet: var(--ide-secondary);
   --music-bg: var(--ide-color-neutral-950);
+  --music-surface: var(--ide-color-neutral-900);
+  --music-surface-soft: var(--ide-color-neutral-800);
   --music-card: var(--ide-surface);
   --music-paper: var(--ide-surface-secondary);
   --music-ink: var(--ide-text-primary);
   --music-muted: var(--ide-text-secondary);
   --music-line: var(--ide-border);
+  --music-radius: var(--ide-radius-xl);
+  --music-shadow: var(--ide-shadow-md);
 }
