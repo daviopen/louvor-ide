@@ -53,6 +53,7 @@ test('traduz erros importantes do Firebase Authentication', () => {
 test('redireciona páginas protegidas para o login e preserva o retorno', async () => {
   const storage = new Map();
   let redirect = null;
+  let popupCalls = 0;
 
   const auth = {
     useDeviceLanguage() {},
@@ -62,6 +63,10 @@ test('redireciona páginas protegidas para o login e preserva o retorno', async 
     },
     signOut: async () => null,
     setPersistence: async () => null,
+    signInWithPopup: async () => {
+      popupCalls += 1;
+      return { user: { providerData: [{ providerId: 'google.com' }] } };
+    },
     signInWithRedirect: async () => null
   };
 
@@ -103,6 +108,48 @@ test('redireciona páginas protegidas para o login e preserva o retorno', async 
 
   assert.equal(redirect, 'login.html');
   assert.equal(storage.get('musicIdeReturnUrl'), 'setlist-view.html?id=123');
+  assert.equal(popupCalls, 0);
+});
+
+test('abre o Google em popup para funcionar com armazenamento restrito', async () => {
+  let popupCalls = 0;
+  let persistence = null;
+
+  const auth = {
+    useDeviceLanguage() {},
+    getRedirectResult: async () => null,
+    onAuthStateChanged(callback) { callback(null); },
+    signOut: async () => null,
+    setPersistence: async value => { persistence = value; },
+    signInWithPopup: async () => {
+      popupCalls += 1;
+      return { user: { providerData: [{ providerId: 'google.com' }] } };
+    }
+  };
+
+  function authFactory() { return auth; }
+  authFactory.Auth = { Persistence: { LOCAL: 'local' } };
+  authFactory.GoogleAuthProvider = class GoogleAuthProvider { addScope() {} };
+
+  const scope = {
+    MusicIdeAuth: {},
+    firebase: { auth: authFactory },
+    location: { pathname: '/login.html', search: '', hash: '', replace() {} },
+    sessionStorage: { getItem() { return null; }, removeItem() {}, setItem() {} },
+    document: {
+      body: {},
+      documentElement: { classList: { add() {}, remove() {} } },
+      getElementById() { return null; }
+    },
+    CustomEvent: class CustomEvent {},
+    dispatchEvent() {}
+  };
+
+  bootstrap(scope);
+  await scope.MusicIdeAuth.signInWithGoogle();
+
+  assert.equal(persistence, 'local');
+  assert.equal(popupCalls, 1);
 });
 
 test('todas as páginas principais carregam autenticação e o tema MUSIC.IDE', () => {
