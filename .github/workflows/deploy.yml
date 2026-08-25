@@ -23,6 +23,12 @@ jobs:
         with:
           node-version: '20'
 
+      - name: ☕ Setup Java para Firestore Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
       - name: 📦 Instalar dependências
         run: make install
 
@@ -225,4 +231,3 @@ jobs:
           else
             echo "❌ Falha no deploy"
             echo "📋 Verifique os logs acima para mais detalhes"
-          fi
