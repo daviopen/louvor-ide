@@ -133,14 +133,25 @@
         const level = PERMISSION_LEVELS.includes(requested) ? requested : 'NONE';
         normalized[moduleName] = level;
         const id = permissionDocumentId(userId, moduleName);
-        writes.push(this.permissions().doc(id).set({
-          userId,
-          module: moduleName,
-          level,
-          createdAt: now,
-          updatedAt: now
-        }, { merge: true }));
+        if (level === 'NONE') {
+          writes.push(this.permissions().doc(id).delete().catch(error => {
+            if (error && error.code === 'not-found') return null;
+            throw error;
+          }));
+        } else {
+          writes.push(this.permissions().doc(id).set({
+            userId,
+            module: moduleName,
+            level,
+            createdAt: now,
+            updatedAt: now
+          }, { merge: true }));
+        }
       }
+      const profilePermissions = Object.fromEntries(
+        Object.entries(normalized).filter(([, level]) => level !== 'NONE')
+      );
+      writes.push(this.users().doc(userId).update({ permissions: profilePermissions, updatedAt: now }));
       await Promise.all(writes);
       return normalized;
     }
