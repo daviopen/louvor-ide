@@ -31,6 +31,31 @@ jobs:
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
 
+      - name: 🎼 Validar módulo de Escalas publicado
+        env:
+          E2E_BASE_URL: https://louvor-ide.web.app
+        run: |
+          set -euo pipefail
+
+          curl --fail-with-body -sS "${E2E_BASE_URL}/module.html?section=schedules" -o /tmp/module.html
+          curl --fail-with-body -sS "${E2E_BASE_URL}/js/modules/events-page.js" -o /tmp/events-page.js
+          curl --fail-with-body -sS "${E2E_BASE_URL}/js/modules/schedules-page.js" -o /tmp/schedules-page.js
+          curl --fail-with-body -sS "${E2E_BASE_URL}/services/schedule-service.js" -o /tmp/schedule-service.js
+          curl --fail-with-body -sS "${E2E_BASE_URL}/repositories/schedule-repository.js" -o /tmp/schedule-repository.js
+          curl --fail-with-body -sS "${E2E_BASE_URL}/styles/schedules.css" -o /tmp/schedules.css
+
+          grep -q 'loadSchedulesSection' /tmp/events-page.js
+          grep -q 'data-user-search' /tmp/schedules-page.js
+          grep -q 'data-exception-user' /tmp/schedules-page.js
+          grep -q 'service.eligibleUsers' /tmp/schedules-page.js
+          grep -q 'Completa' /tmp/schedules-page.js
+          grep -q 'Incompleta' /tmp/schedules-page.js
+          grep -q 'scheduleCompleteness' /tmp/schedule-service.js
+          grep -q 'scheduleIdForEvent' /tmp/schedule-repository.js
+          grep -q '@media(max-width:640px)' /tmp/schedules.css
+
+          echo "✅ Módulo de Escalas e seus artefatos estão publicados no Firebase Hosting"
+
       - name: 🔐 Validar autenticação e autorização reais em produção
         env:
           FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
