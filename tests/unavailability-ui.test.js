@@ -10,7 +10,7 @@ const css = fs.readFileSync(path.join(root, 'src/styles/unavailability.css'), 'u
 const repository = fs.readFileSync(path.join(root, 'src/repositories/unavailability-repository.js'), 'utf8');
 
 test('módulo de indisponibilidade expõe formulário, calendário e campos opcionais', () => {
-  assert.match(html, /id="unavailability-content"/);
+  assert.match(html, /id="unavailability-content"[^>]*hidden/);
   assert.match(html, /id="unavailability-calendar"/);
   assert.match(html, /id="unavailability-date"[^>]*required/);
   assert.match(html, /id="unavailability-period"/);
@@ -27,7 +27,8 @@ test('UI confirma atuação administrativa e registra sem acesso direto ao Fires
   assert.match(repository, /collection\('unavailability'\)/);
 });
 
-test('layout possui tratamento responsivo para mobile', () => {
+test('layout respeita rota oculta e possui tratamento responsivo para mobile', () => {
+  assert.match(css, /\.unavailability-page\[hidden\]\{display:none!important\}/);
   assert.match(css, /@media\(max-width:700px\)/);
   assert.match(css, /unavailability-layout/);
   assert.match(css, /grid-template-columns:1fr/);
