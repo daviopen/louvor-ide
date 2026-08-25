@@ -12,8 +12,16 @@
     songs: 'Músicas',
     audit: 'Auditoria'
   });
-  const state = { page: 1, pageSize: 10, filters: { search: '', status: 'ALL', functionId: 'ALL' }, editingId: null, functions: [] };
+  const state = {
+    page: 1,
+    pageSize: 10,
+    filters: { search: '', status: 'ALL', functionId: 'ALL' },
+    editingId: null,
+    editingFunctionId: null,
+    functions: []
+  };
   let service;
+  let ministryService;
 
   function el(id) { return scope.document.getElementById(id); }
   function escapeHtml(value) {
@@ -26,6 +34,9 @@
   }
   function canEdit(profile) {
     return Boolean(scope.MusicIdeUserService && scope.MusicIdeUserService.canManageUsers(profile));
+  }
+  function canEditFunctions(profile) {
+    return Boolean(scope.MusicIdeMinistryFunctions && scope.MusicIdeMinistryFunctions.canManageMinistryFunctions(profile));
   }
   function toast(message, type = 'success') {
     const node = el('users-toast');
@@ -181,6 +192,126 @@
     }
   }
 
+  function resetFunctionForm() {
+    state.editingFunctionId = null;
+    el('function-id').value = '';
+    el('function-name').value = '';
+    el('function-slug').value = '';
+    el('function-submit').textContent = 'Adicionar função';
+    el('function-cancel').hidden = true;
+  }
+
+  function renderFunctions(functions) {
+    const editable = canEditFunctions(scope.currentMusicIdeProfile);
+    el('functions-empty').hidden = functions.length !== 0;
+    el('functions-list').innerHTML = functions.map((fn, index) => `
+      <article class="function-row" data-function-id="${escapeHtml(fn.id)}">
+        <div class="function-order" aria-label="Posição ${index + 1}">${index + 1}</div>
+        <div class="function-main"><strong>${escapeHtml(fn.name)}</strong><small>${escapeHtml(fn.slug)}</small></div>
+        <span class="ide-badge ${fn.active === false ? 'ide-badge--neutral' : 'ide-badge--success'}">${fn.active === false ? 'Inativa' : 'Ativa'}</span>
+        <div class="function-actions">${editable ? `
+          <button class="ide-button ide-button--secondary ide-button--sm" type="button" data-function-action="up" data-id="${escapeHtml(fn.id)}" ${index === 0 ? 'disabled' : ''} aria-label="Mover ${escapeHtml(fn.name)} para cima"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+          <button class="ide-button ide-button--secondary ide-button--sm" type="button" data-function-action="down" data-id="${escapeHtml(fn.id)}" ${index === functions.length - 1 ? 'disabled' : ''} aria-label="Mover ${escapeHtml(fn.name)} para baixo"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
+          <button class="ide-button ide-button--secondary ide-button--sm" type="button" data-function-action="edit" data-id="${escapeHtml(fn.id)}">Editar</button>
+          <button class="ide-button ${fn.active === false ? 'ide-button--primary' : 'ide-button--danger'} ide-button--sm" type="button" data-function-action="status" data-id="${escapeHtml(fn.id)}" data-active="${fn.active === false ? 'true' : 'false'}">${fn.active === false ? 'Reativar' : 'Inativar'}</button>` : '<span class="users-muted">Somente leitura</span>'}</div>
+      </article>`).join('');
+  }
+
+  async function loadFunctions({ seedDefaults = false } = {}) {
+    el('functions-loading').hidden = false;
+    try {
+      if (seedDefaults && canEditFunctions(scope.currentMusicIdeProfile)) await ministryService.ensureDefaultFunctions();
+      state.functions = await ministryService.listFunctions();
+      renderFunctions(state.functions);
+      renderFilters(state.functions);
+    } finally {
+      el('functions-loading').hidden = true;
+    }
+  }
+
+  async function openFunctionsDialog() {
+    const editable = canEditFunctions(scope.currentMusicIdeProfile);
+    el('function-form').hidden = !editable;
+    resetFunctionForm();
+    el('functions-dialog').showModal();
+    try {
+      await loadFunctions({ seedDefaults: true });
+      if (editable) el('function-name').focus();
+    } catch (error) {
+      console.error(error);
+      toast(error.message || 'Não foi possível carregar as funções ministeriais.', 'error');
+    }
+  }
+
+  function beginFunctionEdit(functionId) {
+    const fn = state.functions.find(item => item.id === functionId);
+    if (!fn) return;
+    state.editingFunctionId = fn.id;
+    el('function-id').value = fn.id;
+    el('function-name').value = fn.name;
+    el('function-slug').value = fn.slug;
+    el('function-submit').textContent = 'Salvar alterações';
+    el('function-cancel').hidden = false;
+    el('function-name').focus();
+  }
+
+  async function submitFunction(event) {
+    event.preventDefault();
+    if (!canEditFunctions(scope.currentMusicIdeProfile)) return;
+    const name = el('function-name').value.trim();
+    const slug = el('function-slug').value.trim();
+    el('function-submit').disabled = true;
+    try {
+      if (state.editingFunctionId) {
+        await ministryService.updateFunction(state.editingFunctionId, { name, ...(slug ? { slug } : {}) });
+        toast('Função ministerial atualizada.');
+      } else {
+        const maxOrder = state.functions.reduce((max, item) => Math.max(max, Number(item.order) || 0), 0);
+        await ministryService.createFunction({ name, ...(slug ? { slug } : {}), order: maxOrder + 10, active: true });
+        toast('Função ministerial adicionada.');
+      }
+      resetFunctionForm();
+      await loadFunctions();
+      await load();
+    } catch (error) {
+      console.error(error);
+      toast(error.message || 'Não foi possível salvar a função ministerial.', 'error');
+    } finally {
+      el('function-submit').disabled = false;
+    }
+  }
+
+  async function handleFunctionListClick(event) {
+    const button = event.target.closest('button[data-function-action]');
+    if (!button || !canEditFunctions(scope.currentMusicIdeProfile)) return;
+    const action = button.dataset.functionAction;
+    const id = button.dataset.id;
+    const index = state.functions.findIndex(item => item.id === id);
+    if (index < 0) return;
+    try {
+      if (action === 'edit') return beginFunctionEdit(id);
+      if (action === 'status') {
+        const active = button.dataset.active === 'true';
+        const fn = state.functions[index];
+        if (!scope.confirm(`${active ? 'Reativar' : 'Inativar'} a função ${fn.name}? Os vínculos históricos serão preservados.`)) return;
+        await ministryService.setFunctionActive(id, active);
+        toast(active ? 'Função reativada.' : 'Função inativada sem apagar o histórico.');
+      } else if (action === 'up' || action === 'down') {
+        const targetIndex = action === 'up' ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= state.functions.length) return;
+        const reordered = [...state.functions];
+        [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+        await ministryService.reorder(reordered.map(item => ({ functionId: item.id })));
+        toast('Ordem das funções atualizada.');
+      }
+      await loadFunctions();
+      await load();
+    } catch (error) {
+      console.error(error);
+      toast(error.message || 'Não foi possível alterar a função ministerial.', 'error');
+    }
+  }
+
   function alignUsersNavigation() {
     const link = scope.document.querySelector('[data-nav-id="users"]');
     if (!link) return false;
@@ -198,10 +329,19 @@
     const authUser = await scope.musicIdeAuthReady;
     if (!authUser) return;
     if (!scope.firebase || typeof scope.firebase.firestore !== 'function') return toast('Firestore indisponível.', 'error');
-    const repository = new scope.MusicIdeUserRepository.UserRepository(scope.firebase.firestore());
+    const database = scope.firebase.firestore();
+    const repository = new scope.MusicIdeUserRepository.UserRepository(database);
     service = new scope.MusicIdeUserService.UserService(repository, {
       auth: scope.firebase.auth(),
       firebase: scope.firebase,
+      actorProvider: () => scope.currentMusicIdeUser
+    });
+
+    const registry = scope.MusicIdeDomainRepositories.createRepositoryRegistry(database);
+    ministryService = new scope.MusicIdeMinistryFunctions.MinistryFunctionsService({
+      ministryFunctionsRepository: registry.ministryFunctions,
+      userFunctionsRepository: registry.userFunctions,
+      auditRepository: registry.auditLogs,
       actorProvider: () => scope.currentMusicIdeUser
     });
 
@@ -210,9 +350,14 @@
     el('users-readonly').hidden = editable;
 
     el('new-user').addEventListener('click', () => openForm());
+    el('manage-functions').addEventListener('click', openFunctionsDialog);
     el('user-form').addEventListener('submit', submitForm);
     el('user-cancel').addEventListener('click', () => el('user-dialog').close());
     el('users-body').addEventListener('click', handleTableClick);
+    el('functions-close').addEventListener('click', () => el('functions-dialog').close());
+    el('function-cancel').addEventListener('click', resetFunctionForm);
+    el('function-form').addEventListener('submit', submitFunction);
+    el('functions-list').addEventListener('click', handleFunctionListClick);
     el('filter-search').addEventListener('input', event => { state.filters.search = event.target.value; state.page = 1; load(); });
     el('filter-status').addEventListener('change', event => { state.filters.status = event.target.value; state.page = 1; load(); });
     el('filter-function').addEventListener('change', event => { state.filters.functionId = event.target.value; state.page = 1; load(); });
