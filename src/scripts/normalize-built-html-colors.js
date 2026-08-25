@@ -34,9 +34,11 @@ const replacements = new Map([
 ]);
 
 const hexPattern = /#[0-9a-fA-F]{3,8}\b/g;
+const themeColorPattern = /(<meta\s+name=["']theme-color["']\s+content=["'])#[0-9a-fA-F]{3,8}(["'][^>]*>)/gi;
 
 function normalizeHtml(content) {
-  return content.replace(hexPattern, value => replacements.get(value.toLowerCase()) || value);
+  const validThemeColor = content.replace(themeColorPattern, '$1black$2');
+  return validThemeColor.replace(hexPattern, value => replacements.get(value.toLowerCase()) || 'var(--ide-text-primary)');
 }
 
 function normalizeDirectory(directory = '.') {
