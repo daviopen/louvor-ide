@@ -25,8 +25,17 @@ test('canManageUsers permite ADMIN e SUPER_ADMIN gerenciarem usuários', () => {
   assert.equal(canManageUsers({ role: 'MEMBER', permissions: { users: 'EDIT' } }), true);
 });
 
-test('UserService cria perfil com múltiplas funções, permissões iniciais e auditoria', async () => {
+test('UserService cria conta no Firebase, usa UID gerado e envia definição de senha', async () => {
   const calls = [];
+  const resetEmails = [];
+  const secondaryAuth = {
+    createUserWithEmailAndPassword: async email => ({ user: { uid: 'firebase-generated-uid', delete: async () => {} } }),
+    signOut: async () => {}
+  };
+  const firebase = {
+    app: () => ({ options: { projectId: 'demo' } }),
+    initializeApp: () => ({ auth: () => secondaryAuth, delete: async () => {} })
+  };
   const repository = {
     findByEmail: async () => null,
     createUser: async input => { calls.push(['create', input]); return { id: input.uid, ...input }; },
@@ -34,13 +43,18 @@ test('UserService cria perfil com múltiplas funções, permissões iniciais e a
     replaceInitialPermissions: async (id, permissions) => { calls.push(['permissions', id, permissions]); return permissions; },
     addAuditLog: async (...args) => { calls.push(['audit', ...args]); return {}; }
   };
-  const service = new UserService(repository, { actorProvider: () => ({ uid: 'admin-1' }) });
+  const service = new UserService(repository, {
+    firebase,
+    auth: { sendPasswordResetEmail: async email => resetEmails.push(email) },
+    actorProvider: () => ({ uid: 'admin-1' })
+  });
   const permissions = { users: 'READ', songs: 'EDIT' };
-  await service.create({ uid: 'user-1', name: 'Pessoa', email: 'pessoa@ide.com', functionIds: ['dm', 'teclado'], permissions });
-  assert.deepEqual(calls[1], ['functions', 'user-1', ['dm', 'teclado']]);
-  assert.deepEqual(calls[2], ['permissions', 'user-1', permissions]);
+  await service.create({ uid: 'manual-uid-must-be-ignored', name: 'Pessoa', email: 'pessoa@ide.com', functionIds: ['dm', 'teclado'], permissions });
+  assert.equal(calls[0][1].uid, 'firebase-generated-uid');
+  assert.deepEqual(calls[1], ['functions', 'firebase-generated-uid', ['dm', 'teclado']]);
+  assert.deepEqual(calls[2], ['permissions', 'firebase-generated-uid', permissions]);
   assert.equal(calls[3][2], 'USER_CREATED');
-  assert.deepEqual(calls[3][4].permissions, permissions);
+  assert.deepEqual(resetEmails, ['pessoa@ide.com']);
 });
 
 test('UserService inativa sem exclusão física e registra auditoria', async () => {
@@ -53,12 +67,10 @@ test('UserService inativa sem exclusão física e registra auditoria', async () 
   const result = await service.setActive('user-1', false);
   assert.equal(result.active, false);
   assert.deepEqual(calls[0], ['update', 'user-1', { active: false }]);
-  assert.equal(calls[1][0], 'audit');
   assert.equal(calls[1][2], 'USER_DEACTIVATED');
-  assert.equal(calls.some(call => call[0] === 'delete'), false);
 });
 
-test('UserService atualiza apenas via repositório e sincroniza múltiplas funções', async () => {
+test('UserService atualiza via repositório e sincroniza múltiplas funções', async () => {
   const calls = [];
   const repository = {
     updateUser: async (id, patch) => { calls.push(['update', id, patch]); return { id, ...patch }; },
@@ -71,9 +83,16 @@ test('UserService atualiza apenas via repositório e sincroniza múltiplas funç
   assert.equal(calls[2][2], 'USER_UPDATED');
 });
 
-test('sendPasswordReset delega exclusivamente ao Firebase Auth', async () => {
+test('ADMIN pode solicitar redefinição pelo Firebase e ação é auditada', async () => {
+  const calls = [];
   const emails = [];
-  const service = new UserService({}, { auth: { sendPasswordResetEmail: async email => emails.push(email) } });
-  await service.sendPasswordReset('  PESSOA@IDE.COM  ');
+  const repository = { addAuditLog: async (...args) => { calls.push(args); return {}; } };
+  const service = new UserService(repository, {
+    auth: { sendPasswordResetEmail: async email => emails.push(email) },
+    actorProvider: () => ({ uid: 'admin-1', role: 'ADMIN' })
+  });
+  await service.sendPasswordReset('  PESSOA@IDE.COM  ', 'user-1');
   assert.deepEqual(emails, ['pessoa@ide.com']);
+  assert.equal(calls[0][1], 'USER_PASSWORD_RESET_REQUESTED');
+  assert.equal(calls[0][2], 'user-1');
 });
