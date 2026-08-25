@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="auth-pending">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IDE Music — Usuários</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="../config/firebase-config.js"></script>
+  <script src="../models/data-model.js"></script>
+  <script src="../repositories/user-repository.js"></script>
+  <script src="../services/user-service.js"></script>
+  <script src="../js/modules/auth-service.js?v=20260825-users"></script>
+  <script src="../js/modules/app-shell.js?v=20260825-users" defer></script>
+  <script src="../js/modules/users-page.js?v=20260825-users" defer></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="../styles/tokens.css">
+  <link rel="stylesheet" href="../styles/design-system.css">
+  <link rel="stylesheet" href="../styles/users.css">
+  <link rel="stylesheet" href="../css/music-ide-theme.css">
+</head>
+<body>
+  <main class="users-page" id="users-content">
+    <header class="users-header">
+      <div>
+        <div class="ide-module-kicker">Administração · Pessoas</div>
+        <h1>Usuários</h1>
+        <p>Gerencie perfis, funções ministeriais, acesso ativo e recuperação de senha sem armazenar credenciais.</p>
+      </div>
+      <button id="new-user" class="ide-button ide-button--primary" type="button"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Novo usuário</button>
+    </header>
+
+    <p id="users-readonly" class="users-readonly" hidden>Você possui acesso somente para consulta neste módulo.</p>
+
+    <section class="ide-section-card users-toolbar" aria-label="Filtros de usuários">
+      <label class="users-search"><span>Buscar</span><input id="filter-search" class="ide-field__control ide-field__input" type="search" placeholder="Nome ou e-mail" autocomplete="off"></label>
+      <label><span>Status</span><select id="filter-status" class="ide-field__control ide-select"><option value="ALL">Todos</option><option value="ACTIVE">Ativos</option><option value="INACTIVE">Inativos</option></select></label>
+      <label><span>Função</span><select id="filter-function" class="ide-field__control ide-select"><option value="ALL">Todas as funções</option></select></label>
+      <button id="clear-filters" class="ide-button ide-button--secondary" type="button">Limpar filtros</button>
+    </section>
+
+    <div class="users-summary"><strong id="users-count">0 usuários</strong><span>Usuários com histórico são inativados, nunca excluídos fisicamente.</span></div>
+    <div id="users-loading" class="users-loading" role="status">Carregando usuários...</div>
+
+    <section id="users-table-wrap" class="ide-table-wrap" hidden>
+      <table class="ide-table">
+        <thead><tr><th>Usuário</th><th>Funções</th><th>Status</th><th>Último acesso</th><th>Ações</th></tr></thead>
+        <tbody id="users-body"></tbody>
+      </table>
+    </section>
+    <div id="users-empty" class="users-empty" hidden><i class="fa-solid fa-users" aria-hidden="true"></i><p>Nenhum usuário encontrado para os filtros informados.</p></div>
+
+    <nav class="users-pagination" aria-label="Paginação de usuários">
+      <button id="page-prev" class="ide-button ide-button--secondary ide-button--sm" type="button">Anterior</button>
+      <span id="page-label">Página 1 de 1</span>
+      <button id="page-next" class="ide-button ide-button--secondary ide-button--sm" type="button">Próxima</button>
+    </nav>
+  </main>
+
+  <dialog id="user-dialog" class="users-dialog">
+    <form id="user-form" class="users-form">
+      <h2 id="user-form-title">Novo usuário</h2>
+      <div class="users-form-grid">
+        <label><span class="ide-field__label">Nome</span><input id="user-name" class="ide-field__control ide-field__input" required maxlength="120"></label>
+        <label><span class="ide-field__label">E-mail</span><input id="user-email" class="ide-field__control ide-field__input" type="email" required autocomplete="off"></label>
+        <label class="full"><span class="ide-field__label">Avatar (URL opcional)</span><input id="user-photo" class="ide-field__control ide-field__input" type="url" placeholder="https://..."></label>
+        <label id="user-uid-row" class="full"><span class="ide-field__label">UID do Firebase (opcional)</span><input id="user-uid" class="ide-field__control ide-field__input" autocomplete="off"><small class="users-muted">Se ficar vazio, uma conta Firebase será provisionada com senha aleatória não exibida nem armazenada, seguida do e-mail para definição da senha.</small></label>
+        <fieldset class="full"><legend class="ide-field__label">Funções ministeriais</legend><div id="user-functions" class="users-function-list"></div></fieldset>
+      </div>
+      <div class="users-dialog-actions"><button id="user-cancel" class="ide-button ide-button--secondary" type="button">Cancelar</button><button id="user-submit" class="ide-button ide-button--primary" type="submit">Salvar usuário</button></div>
+    </form>
+  </dialog>
+
+  <div id="users-toast" class="users-toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
