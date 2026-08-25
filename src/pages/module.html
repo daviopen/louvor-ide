@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IDE Music — Área do sistema</title>
+  <script>
+    if (new URLSearchParams(window.location.search).get('section') === 'users') {
+      window.location.replace('users.html');
+    }
+  </script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -29,7 +34,6 @@
   <script>
     (function renderModuleContext() {
       const sections = {
-        users: ['Usuários', 'Cadastro, consulta e gestão de usuários serão implementados no item 12 do roadmap.'],
         permissions: ['Permissões', 'A matriz de permissões por usuário será implementada no item 13 do roadmap.'],
         unavailability: ['Indisponibilidade', 'O fluxo completo de indisponibilidades será implementado no item 15 do roadmap.'],
         events: ['Eventos', 'O CRUD e ciclo de vida dos eventos serão implementados no item 16 do roadmap.'],
