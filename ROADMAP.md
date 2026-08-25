@@ -82,13 +82,13 @@
 - [x] `PermissionGuard` / `FormField`.
 - [x] Criar padrão de tela CRUD e de formulário.
 - [x] Documentar os componentes.
-- [x] Migrar telas existentes para os componentes padronizados.
+- [ ] Migrar telas existentes para os componentes padronizados.
 
 ### 6. Paleta e tokens
 - [x] Definir paleta oficial do IDE Music.
 - [x] Tokens: `primary`, `primary-hover`, `primary-active`, `secondary`, `background`, `surface`, `surface-secondary`, `text-primary`, `text-secondary`, `border`, `success`, `warning`, `error`, `info`.
 - [x] Definir spacing, radius, sombras, tipografia, breakpoints e z-index.
-- [x] Eliminar hexadecimais espalhados pelo código.
+- [ ] Eliminar hexadecimais espalhados pelo código.
 - [x] Garantir contraste WCAG.
 
 ### 7. Tema claro/escuro
@@ -99,7 +99,7 @@
 - [x] Seletor no menu do usuário.
 - [x] Persistir preferência.
 - [x] Evitar flash na troca/carregamento do tema.
-- [x] Validar todos os componentes, Setlist, cifra e letra nos dois temas.
+- [ ] Validar todos os componentes, Setlist, cifra e letra nos dois temas.
 
 ### 8. Modelo de dados
 - [ ] `users`.
@@ -317,268 +317,130 @@
 - [ ] Mostrar somente usuários com função Ministro.
 - [ ] Permitir vários ministros.
 - [ ] Definir `preferredKey` por ministro.
-- [ ] Impedir ministro duplicado na mesma música.
+- [ ] Validar campos obrigatórios.
+- [ ] Preview de cifra.
+- [ ] Preview de letra.
+- [ ] Confirmar saída com alterações não salvas.
+- [ ] Registrar criação/edição em Audit Log.
 
-### 24. Padrão oficial da cifra IDE Music
-- [ ] Manter formato simples e natural usado pela equipe.
-- [ ] Não exigir `[VERSO]`, tags ou HTML.
-- [ ] Permitir `Intro:`, `Estrofe:`, `Pré-Refrão:`, `Refrão:`, `Ponte:`, `Final:` e títulos livres.
-- [ ] Permitir letra e acordes na mesma linha.
-- [ ] Permitir sequências somente de acordes.
-- [ ] Permitir observações como `(Apenas Guitar)` e `(2x)`.
-- [ ] Preservar quebras e espaçamento.
+## P5 — Auditoria e observabilidade
 
-Exemplo oficial:
+### 24. Audit Log
+- [ ] Registrar usuário, data/hora, ação, entidade, ID, valores anteriores e novos quando aplicável.
+- [ ] Auditar login/logout relevante.
+- [ ] Auditar usuários.
+- [ ] Auditar permissões.
+- [ ] Auditar funções.
+- [ ] Auditar indisponibilidades.
+- [ ] Auditar eventos.
+- [ ] Auditar escalas.
+- [ ] Auditar Setlists.
+- [ ] Auditar músicas.
+- [ ] Auditar consentimentos LGPD.
+- [ ] Tela de auditoria somente leitura.
+- [ ] Filtros por usuário, período, ação e entidade.
+- [ ] Detalhamento de alterações.
 
-```text
-Intro:
-E  A
-E  A  B  G
-E  A
-E  A  B  G
+### 25. Erros e logs
+- [ ] Logging estruturado.
+- [ ] Correlation ID quando aplicável.
+- [ ] Não registrar secrets ou dados sensíveis desnecessários.
+- [ ] Separar mensagem para usuário de detalhe técnico.
+- [ ] Monitorar falhas críticas.
 
-Estrofe:
-A alegria - E  D  A/C#  (Apenas Guitar)
-A verdadeira - E  B
-O sentimento - E  D  A/C#  G
-É o amor - E  B  E
+## P6 — Qualidade
 
-Ponte:
-Posso pisar - E  A  A  D  (2x)
-Cristo é - E  D  A/C#  Am/C
-Posso pisar - F#  F#  A
+### 26. Testes
+- [ ] Testes unitários de regras de negócio.
+- [ ] Testes de Services.
+- [ ] Testes de Repositories.
+- [ ] Testes de componentes críticos.
+- [ ] Testes de autenticação e autorização.
+- [ ] Testes de Firestore Rules.
+- [ ] Testes E2E dos fluxos críticos.
+- [ ] Testes de responsividade.
+- [ ] Testes de acessibilidade.
+- [ ] Testes de tema claro/escuro.
+- [ ] Testes de transposição.
+- [ ] Testes de conflito de indisponibilidade.
+- [ ] Testes de geração idempotente de escala/Setlist.
 
-Refrão:
-Aleluia - E  A  D
-Aleluia - E  F#  B
-O sentimento - E  D  A/C#
-É o amor - F#  A
-```
+### 27. CI/CD
+- [ ] Lint.
+- [ ] Testes automáticos.
+- [ ] Build automático.
+- [ ] Deploy controlado.
+- [ ] Validação de Firestore Rules.
+- [ ] Bloquear merge/deploy em falhas críticas.
+- [ ] Ambientes separados quando necessário.
 
-- [ ] Editor com fonte monoespaçada.
-- [ ] Botão “Ver exemplo”.
-- [ ] Preview em tempo real.
-- [ ] Destacar automaticamente títulos, acordes e observações.
-- [ ] Não exigir negrito manual.
+## P7 — UX e produto
 
-### 25. Parser de cifra
-- [ ] Reconhecer maiores, menores, sustenidos, bemóis, sétimas, nona, extensões e inversões.
-- [ ] Suportar exemplos como `E`, `F#`, `Bb`, `Am`, `C#m`, `A/C#`, `Am/C`, `G7`, `D/F#`, `C9`, `Bm7`.
-- [ ] Não interpretar palavras comuns como acordes.
-- [ ] Não modificar letra, títulos ou observações.
-- [ ] Preservar pontuação e espaçamento.
-- [ ] Reconhecer acordes no início, meio e fim da linha.
+### 28. Dashboard
+- [ ] Próximos eventos.
+- [ ] Próximas escalas.
+- [ ] Setlists pendentes.
+- [ ] Indisponibilidades próximas.
+- [ ] Ações rápidas.
+- [ ] Indicadores para administradores.
 
-### 26. Transposição
-- [ ] Transpor somente acordes.
-- [ ] Transpor nota principal e baixo de inversão.
-- [ ] Exemplo: `A/C#` +2 semitons → `B/D#`.
-- [ ] Não alterar texto, `(2x)` ou observações.
-- [ ] Testes em todos os 12 tons.
-- [ ] Testar sustenidos, bemóis, maiores, menores, inversões e extensões.
+### 29. Mobile
+- [ ] Navegação mobile dedicada.
+- [ ] Formulários responsivos.
+- [ ] Tabelas adaptadas.
+- [ ] Setlist otimizado para celular.
+- [ ] Cifra/letra em modo palco.
+- [ ] Botões com área de toque adequada.
+- [ ] Testes em larguras pequenas.
 
-### 27. Renderização e armazenamento
-- [ ] Títulos em destaque.
-- [ ] Acordes em destaque.
-- [ ] Letra em peso normal.
-- [ ] Observações com aparência secundária.
-- [ ] Preservar quebra de linha/espaçamento.
-- [ ] Controle de tamanho da fonte.
-- [ ] Funcionar em mobile, palco e dark mode.
-- [ ] Salvar cifra como texto puro.
-- [ ] Não armazenar HTML (`<strong>`, `<span>`, etc.).
-- [ ] Reutilizar a mesma cifra em edição, preview, transposição, Setlist, modo palco e impressão futura.
-
-### 28. Letra
-- [ ] Campo específico independente da cifra.
-- [ ] Exibir no Setlist.
-- [ ] Visualização limpa.
-- [ ] Controle de tamanho de fonte.
-- [ ] Modo palco.
-- [ ] Garantir contraste.
-- [ ] Avaliar direitos autorais/licenciamento.
-
-## P5 — Refinamento
-
-### 29. Dashboard
-- [ ] Próxima escala.
-- [ ] Evento, data, horário e função.
-- [ ] Integrantes.
-- [ ] Dress Code.
-- [ ] Link para Setlist.
-- [ ] Próximas indisponibilidades.
-- [ ] Para admins: próximos eventos, escalas incompletas, Setlists pendentes e atalhos administrativos.
-
-### 30. UX geral
-- [ ] Breadcrumbs e rota atual.
-- [ ] Validação inline.
-- [ ] Preservar formulário em caso de erro.
-- [ ] Evitar duplo envio.
-- [ ] Feedbacks claros de sucesso/erro.
-- [ ] Foco no primeiro campo inválido.
-- [ ] Estados de Loading, Skeleton, Empty State, Erro, Sem permissão, Offline e Sem resultados.
-
-### 31. Responsividade
-- [ ] Testar desktop, notebook, tablet, Android e iPhone.
-- [ ] Validar Sidebar, modais, formulários, tabelas, Setlist e cifras.
-- [ ] Converter tabelas para cards no mobile quando necessário.
-- [ ] Garantir áreas de toque adequadas.
-- [ ] Evitar scroll horizontal desnecessário.
-
-### 32. Acessibilidade
+### 30. Acessibilidade
 - [ ] Navegação por teclado.
-- [ ] `focus-visible`.
-- [ ] Labels associados.
-- [ ] ARIA quando necessário.
-- [ ] Contraste adequado.
-- [ ] Não representar estados apenas por cor.
-- [ ] Suporte aos principais fluxos em leitores de tela.
+- [ ] Focus visível.
+- [ ] Labels corretos.
+- [ ] ARIA onde necessário.
+- [ ] Contraste WCAG.
+- [ ] Componentes não dependerem somente de cor.
+- [ ] Mensagens de erro acessíveis.
 
-### 33. Performance
-- [ ] Revisar queries e índices Firestore.
-- [ ] Paginação.
-- [ ] Evitar carregar todos os usuários/músicas sem necessidade.
-- [ ] Lazy loading.
-- [ ] Reduzir listeners.
-- [ ] Otimizar imagens/fontes/bundle.
-- [ ] Medir Core Web Vitals.
-- [ ] Testar conexão móvel.
+## P8 — Migração e legado
 
-### 34. Offline
-- [ ] Auditar `localStorage`.
-- [ ] Não usar dados locais como fonte de verdade de permissões.
-- [ ] Evitar dados sensíveis em cache.
-- [ ] Avaliar persistência offline do Firestore.
-- [ ] Indicador offline e pendências de sincronização.
-- [ ] Estratégia para conflitos de sincronização.
+### 31. Migração de dados
+- [ ] Inventariar dados atuais.
+- [ ] Mapear planilha atual para novo modelo.
+- [ ] Migrar usuários e funções.
+- [ ] Migrar indisponibilidades.
+- [ ] Migrar eventos e escalas.
+- [ ] Migrar músicas.
+- [ ] Migrar Setlists.
+- [ ] Manter IDs/referências quando necessário.
+- [ ] Criar script reexecutável/idempotente.
+- [ ] Validar contagens antes/depois.
+- [ ] Plano de rollback.
 
-### 35. Auditoria
-- [ ] Criar `auditLogs`.
-- [ ] Registrar ator, ação, entidade, ID, timestamp e alterações relevantes.
-- [ ] Proibir edição dos logs por usuários comuns.
-- [ ] Tela administrativa com filtros por usuário, ação, período e entidade.
-- [ ] Auditar usuários, permissões, funções, indisponibilidades administrativas, eventos, escalas e exclusões.
+### 32. Limpeza final
+- [ ] Remover código legado não utilizado.
+- [ ] Remover collections antigas não utilizadas.
+- [ ] Remover estilos duplicados.
+- [ ] Remover rotas antigas.
+- [ ] Atualizar toda documentação.
+- [ ] Garantir que o AGENTS.md reflita o estado final.
 
-### 36. Testes unitários
-- [ ] Validators e DTOs.
-- [ ] Services e Repositories.
-- [ ] Parser de cifra e transposição.
-- [ ] Disponibilidade e seleção por função.
-- [ ] Geração de escala e Setlist.
-- [ ] Permission Guards.
-- [ ] Regras de negócio de usuários.
+## P9 — Encerramento
 
-### 37. Testes de integração
-- [ ] Authentication + Users.
-- [ ] Users + Functions.
-- [ ] Users + Permissions.
-- [ ] Events + Schedules.
-- [ ] Schedules + Unavailability.
-- [ ] Schedules + Setlists.
-- [ ] Setlists + Songs.
-- [ ] Songs + Ministers.
-- [ ] Firestore + Security Rules.
-- [ ] LGPD + primeiro acesso.
-
-### 38. Testes E2E
-- [ ] Login Google e e-mail/senha.
-- [ ] Recuperação de senha e logout.
-- [ ] CRUD/inativação de usuário.
-- [ ] Funções e permissões.
-- [ ] Aceite LGPD.
-- [ ] Indisponibilidade.
-- [ ] Evento → escala automática.
-- [ ] Montagem da escala com disponibilidade/função.
-- [ ] Setlist, músicas, ordem, ministro e tom.
-- [ ] Dress Code.
-- [ ] Cifra, transposição e letra.
-- [ ] Histórico.
-- [ ] Light/dark.
-- [ ] Acesso negado.
-
-### 39. Testes de segurança
-- [ ] Usuário não autenticado não acessa dados privados.
-- [ ] Leitura não permite escrita.
-- [ ] Usuário sem módulo não acessa o módulo.
-- [ ] Usuário comum não altera permissões.
-- [ ] Admin comum não eleva indevidamente privilégios.
-- [ ] Usuário não altera Audit Logs.
-- [ ] Usuário não altera outro usuário diretamente via Firestore sem autorização.
-- [ ] Testar acesso direto por URL e manipulação de requests.
-
-### 40. CI/CD
-- [ ] Lint e formatter.
-- [ ] Testes e build automáticos.
-- [ ] Bloquear merge com falhas.
-- [ ] GitHub Actions.
-- [ ] Ambientes dev, homologação e produção.
-- [ ] Configurações Firebase separadas por ambiente.
-- [ ] `.env.example` sem secrets.
-- [ ] Preview deployment quando possível.
-- [ ] Deploy em produção somente após homologação.
-
-### 41. Monitoramento
-- [ ] Monitorar erros JavaScript/Firebase.
-- [ ] Monitorar autenticação e performance.
-- [ ] Logs técnicos sem dados pessoais desnecessários.
-- [ ] Alertas para erros críticos.
-- [ ] Monitorar falhas de deploy.
-
-## Fluxo completo esperado
-- [ ] Admin cadastra usuário.
-- [ ] Admin vincula múltiplas funções.
-- [ ] Admin define permissões.
-- [ ] Usuário aceita LGPD.
-- [ ] Usuário registra indisponibilidade.
-- [ ] Admin cria evento.
-- [ ] Sistema cria escala automaticamente.
-- [ ] Admin escolhe funções necessárias.
-- [ ] Sistema mostra somente usuários elegíveis e disponíveis.
-- [ ] Admin conclui a escala.
-- [ ] Sistema disponibiliza Setlist.
-- [ ] Usuários autorizados adicionam músicas.
-- [ ] Sistema mostra ministros escalados e sugere seus tons.
-- [ ] Dress Code é definido.
-- [ ] Integrantes consultam Setlist, cifra e letra.
-- [ ] Evento concluído vai para histórico sem perder escala/Setlist.
-
-## Definition of Done
-
-Uma funcionalidade somente é concluída quando:
-
-- [ ] Segue o `AGENTS.md`.
-- [ ] Regras estão documentadas.
-- [ ] Usa componentes padronizados.
-- [ ] Não possui duplicação evitável.
-- [ ] Possui validações e estados de loading/erro/empty quando aplicável.
-- [ ] Funciona em desktop e mobile.
-- [ ] Funciona em tema claro e escuro.
-- [ ] Possui controle real de permissão.
-- [ ] Firestore Rules foram avaliadas/testadas.
-- [ ] LGPD foi avaliada.
-- [ ] Testes relevantes passam.
-- [ ] Build e lint passam.
-- [ ] Nenhum secret foi exposto.
-- [ ] Foi validada em homologação.
-
-## Marcos
-
-### Marco 1 — Fundação
-- [ ] Arquitetura, AGENTS.md, Design System, paleta, temas, modelo de dados e testes base.
-
-### Marco 2 — Administração
-- [ ] Usuários, funções, permissões, LGPD, segurança e auditoria.
-
-### Marco 3 — Escalas
-- [ ] Indisponibilidade, eventos, escala automática e seleção inteligente.
-
-### Marco 4 — Setlist
-- [ ] Setlist, Dress Code, histórico, ministro/tom, cifra e letra.
-
-### Marco 5 — Biblioteca de músicas
-- [ ] Consulta, cadastro, filtros, parser, transposição e letras.
-
-### Marco 6 — IDE Music v3
-- [ ] Segurança, LGPD, mobile, desktop, dark mode, acessibilidade, performance e testes validados.
-- [ ] Homologação aprovada.
-- [ ] Deploy em produção.
+### 33. Definition of Done final
+- [ ] Build limpo.
+- [ ] Todos os testes passando.
+- [ ] Firestore Rules testadas.
+- [ ] Desktop validado.
+- [ ] Mobile validado.
+- [ ] Tema claro validado.
+- [ ] Tema escuro validado.
+- [ ] Acessibilidade validada.
+- [ ] Segurança validada.
+- [ ] LGPD validada.
+- [ ] Migração validada.
+- [ ] Documentação atualizada.
+- [ ] Sem secrets versionados.
+- [ ] Sem senhas armazenadas.
+- [ ] Audit Log funcionando.
+- [ ] Fluxos críticos testados ponta a ponta.
