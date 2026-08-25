@@ -152,11 +152,12 @@ build:
 	@echo "$(BLUE)🏗️ Preparando build para produção...$(NC)"
 	@echo "$(YELLOW)🧹 Limpando arquivos antigos...$(NC)"
 	@rm -f *.html 2>/dev/null || true
-	@rm -rf js/ css/ scripts/ config/ 2>/dev/null || true
+	@rm -rf js/ css/ styles/ scripts/ config/ 2>/dev/null || true
 	@echo "$(YELLOW)📁 Copiando arquivos do src para a raiz...$(NC)"
 	@cp -r src/pages/* ./ 2>/dev/null || true
 	@cp -r src/js ./ 2>/dev/null || true
 	@cp -r src/css ./ 2>/dev/null || true
+	@cp -r src/styles ./ 2>/dev/null || true
 	@cp -r src/scripts ./ 2>/dev/null || true
 	@cp -r src/config ./ 2>/dev/null || true
 	@echo "$(YELLOW)🔧 Processando variáveis de ambiente...$(NC)"
@@ -204,6 +205,7 @@ build:
 	@ls -la *.html *.js *.css 2>/dev/null || echo "$(YELLOW)⚠️  Alguns arquivos podem não existir$(NC)"
 	@if [ -d "js/" ]; then echo "$(GREEN)✅ Diretório js/$(NC)"; fi
 	@if [ -d "css/" ]; then echo "$(GREEN)✅ Diretório css/$(NC)"; fi
+	@if [ -d "styles/" ]; then echo "$(GREEN)✅ Diretório styles/$(NC)"; fi
 	@if [ -d "scripts/" ]; then echo "$(GREEN)✅ Diretório scripts/$(NC)"; fi
 
 ## 🚀 Deploy manual
@@ -232,6 +234,10 @@ test:
 	@test -f src/pages/index.html || { echo "$(RED)❌ src/pages/index.html não encontrado$(NC)"; exit 1; }
 	@test -f firebase.json || { echo "$(RED)❌ firebase.json não encontrado$(NC)"; exit 1; }
 	@test -f .firebaserc || { echo "$(RED)❌ .firebaserc não encontrado$(NC)"; exit 1; }
+	@if [ -f index.html ]; then \
+		test -f styles/tokens.css || { echo "$(RED)❌ styles/tokens.css ausente no build$(NC)"; exit 1; }; \
+		test -f styles/design-system.css || { echo "$(RED)❌ styles/design-system.css ausente no build$(NC)"; exit 1; }; \
+	fi
 	@echo "$(GREEN)✅ Estrutura de arquivos OK$(NC)"
 	@echo "$(YELLOW)🎼 Testando transposição de acordes...$(NC)"
 	@node --test tests/*.test.js
@@ -245,35 +251,19 @@ clean:
 	@rm -f firebase-debug.*.log
 	@echo "$(YELLOW)🗑️ Limpando arquivos copiados do build...$(NC)"
 	@rm -f *.html 2>/dev/null || true
-	@rm -rf js/ css/ scripts/ config/ 2>/dev/null || true
+	@rm -rf js/ css/ styles/ scripts/ config/ 2>/dev/null || true
 	@rm -f env-config.js 2>/dev/null || true
 	@echo "$(GREEN)✅ Limpeza concluída$(NC)"
 
 ## 🏗️ Build limpo (limpa antes de construir)
 clean-build: clean build
 
-## 📊 Informações do projeto
+## 📊 Informações do Projeto
 info:
-	@echo "$(BLUE)📊 Informações do Projeto$(NC)"
 	@echo ""
+	@echo "$(BLUE)📊 Informações do Projeto$(NC)"
 	@echo "$(YELLOW)Projeto:$(NC) $(PROJECT_NAME)"
-	@echo "$(YELLOW)Node.js:$(NC) $(NODE_VERSION)"
 	@echo "$(YELLOW)Firebase:$(NC) $(FIREBASE_PROJECT)"
+	@echo "$(YELLOW)Node.js:$(NC) $(NODE_VERSION)"
 	@echo "$(YELLOW)Porta Local:$(NC) $(LOCAL_PORT)"
 	@echo ""
-	@echo "$(BLUE)🌐 URLs:$(NC)"
-	@echo "  Local:      http://localhost:$(LOCAL_PORT)"
-	@echo "  Produção:   https://$(FIREBASE_PROJECT).web.app"
-	@echo "  Alternativa: https://$(FIREBASE_PROJECT).firebaseapp.com"
-	@echo ""
-
-## 🔧 Diagnóstico completo
-diagnose: check-deps info
-	@echo "$(BLUE)🔧 Diagnóstico completo...$(NC)"
-	@$(MAKE) test
-	@if firebase projects:list &> /dev/null; then \
-		echo "$(GREEN)✅ Firebase CLI funcionando$(NC)"; \
-		firebase hosting:sites:list; \
-	else \
-		echo "$(YELLOW)⚠️  Firebase CLI não autenticado$(NC)"; \
-	fi
