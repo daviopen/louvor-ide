@@ -7,7 +7,7 @@ const {
   bootstrap,
   buildCurrentReturnUrl,
   friendlyAuthError,
-  isGoogleUser,
+  isAllowedUser,
   isLoginPage,
   sanitizeReturnUrl
 } = require('../src/js/modules/auth-service');
@@ -38,10 +38,11 @@ test('identifica a página de login', () => {
   assert.equal(isLoginPage('/index.html'), false);
 });
 
-test('aceita apenas usuários autenticados pelo provedor Google', () => {
-  assert.equal(isGoogleUser({ providerData: [{ providerId: 'google.com' }] }), true);
-  assert.equal(isGoogleUser({ providerData: [{ providerId: 'password' }] }), false);
-  assert.equal(isGoogleUser(null), false);
+test('aceita usuários Google ou e-mail/senha', () => {
+  assert.equal(isAllowedUser({ providerData: [{ providerId: 'google.com' }] }), true);
+  assert.equal(isAllowedUser({ providerData: [{ providerId: 'password' }] }), true);
+  assert.equal(isAllowedUser({ providerData: [{ providerId: 'anonymous' }] }), false);
+  assert.equal(isAllowedUser(null), false);
 });
 
 test('traduz erros importantes do Firebase Authentication', () => {
@@ -152,6 +153,89 @@ test('abre o Google em popup para funcionar com armazenamento restrito', async (
   assert.equal(popupCalls, 1);
 });
 
+test('entra com e-mail e senha usando persistência local', async () => {
+  let receivedCredentials = null;
+  let persistence = null;
+
+  const auth = {
+    useDeviceLanguage() {},
+    getRedirectResult: async () => null,
+    onAuthStateChanged(callback) { callback(null); },
+    signOut: async () => null,
+    setPersistence: async value => { persistence = value; },
+    signInWithEmailAndPassword: async (email, password) => {
+      receivedCredentials = { email, password };
+      return { user: { providerData: [{ providerId: 'password' }] } };
+    }
+  };
+
+  function authFactory() { return auth; }
+  authFactory.Auth = { Persistence: { LOCAL: 'local' } };
+  authFactory.GoogleAuthProvider = class GoogleAuthProvider { addScope() {} };
+
+  const scope = {
+    MusicIdeAuth: {},
+    firebase: { auth: authFactory },
+    location: { pathname: '/login.html', search: '', hash: '', replace() {} },
+    sessionStorage: { getItem() { return null; }, removeItem() {}, setItem() {} },
+    document: {
+      body: {},
+      documentElement: { classList: { add() {}, remove() {} } },
+      getElementById() { return null; }
+    },
+    CustomEvent: class CustomEvent {},
+    dispatchEvent() {}
+  };
+
+  bootstrap(scope);
+  await scope.MusicIdeAuth.signInWithEmail(' equipe@music.ide ', 'senha-segura');
+
+  assert.equal(persistence, 'local');
+  assert.deepEqual(receivedCredentials, {
+    email: 'equipe@music.ide',
+    password: 'senha-segura'
+  });
+});
+
+test('envia recuperação de senha sem revelar se a conta existe', async () => {
+  let resetEmail = null;
+  let message = null;
+  const messageElement = { dataset: {}, hidden: true, textContent: '' };
+
+  const auth = {
+    useDeviceLanguage() {},
+    getRedirectResult: async () => null,
+    onAuthStateChanged(callback) { callback(null); },
+    signOut: async () => null,
+    sendPasswordResetEmail: async email => { resetEmail = email; }
+  };
+
+  function authFactory() { return auth; }
+  authFactory.Auth = { Persistence: { LOCAL: 'local' } };
+  authFactory.GoogleAuthProvider = class GoogleAuthProvider { addScope() {} };
+
+  const scope = {
+    MusicIdeAuth: {},
+    firebase: { auth: authFactory },
+    location: { pathname: '/login.html', search: '', hash: '', replace() {} },
+    sessionStorage: { getItem() { return null; }, removeItem() {}, setItem() {} },
+    document: {
+      body: {},
+      documentElement: { classList: { add() {}, remove() {} } },
+      getElementById(id) { return id === 'auth-message' ? messageElement : null; }
+    },
+    CustomEvent: class CustomEvent {},
+    dispatchEvent() {}
+  };
+
+  bootstrap(scope);
+  await scope.MusicIdeAuth.sendPasswordReset(' pessoa@music.ide ');
+  message = messageElement.textContent;
+
+  assert.equal(resetEmail, 'pessoa@music.ide');
+  assert.match(message, /se houver uma conta/i);
+});
+
 test('todas as páginas principais carregam autenticação e o tema MUSIC.IDE', () => {
   const pages = [
     'index.html',
@@ -171,15 +255,19 @@ test('todas as páginas principais carregam autenticação e o tema MUSIC.IDE', 
   });
 });
 
-test('a tela de login oferece o fluxo do Google', () => {
+test('a tela de login oferece Google, e-mail/senha e recuperação', () => {
   const html = fs.readFileSync(path.join(projectRoot, 'src/pages/login.html'), 'utf8');
   assert.match(html, /Continuar com Google/);
   assert.match(html, /MusicIdeAuth\.signInWithGoogle/);
+  assert.match(html, /Entrar com e-mail/);
+  assert.match(html, /MusicIdeAuth\.signInWithEmail/);
+  assert.match(html, /MusicIdeAuth\.sendPasswordReset/);
   assert.match(html, /firebase-auth\.js/);
 });
 
-test('as regras do Firestore exigem autenticação Google', () => {
+test('as regras do Firestore aceitam somente Google ou e-mail\/senha', () => {
   const rules = fs.readFileSync(path.join(projectRoot, 'firestore.rules'), 'utf8');
   assert.match(rules, /request\.auth != null/);
-  assert.match(rules, /sign_in_provider == 'google\.com'/);
+  assert.match(rules, /'google\.com'/);
+  assert.match(rules, /'password'/);
 });

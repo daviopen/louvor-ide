@@ -58,19 +58,27 @@
     );
   }
 
-  function isGoogleUser(user) {
+  function isAllowedUser(user) {
     if (!user || !Array.isArray(user.providerData)) return false;
-    return user.providerData.some(provider => provider && provider.providerId === 'google.com');
+    return user.providerData.some(provider => provider && (
+      provider.providerId === 'google.com' || provider.providerId === 'password'
+    ));
   }
 
   function friendlyAuthError(error) {
     const messages = {
       'auth/account-exists-with-different-credential': 'Este e-mail já está vinculado a outra forma de acesso.',
-      'auth/network-request-failed': 'Não foi possível conectar ao Google. Verifique sua internet.',
-      'auth/operation-not-allowed': 'O login com Google ainda não foi habilitado no Firebase.',
+      'auth/invalid-credential': 'E-mail ou senha inválidos.',
+      'auth/invalid-email': 'Informe um endereço de e-mail válido.',
+      'auth/network-request-failed': 'Não foi possível conectar. Verifique sua internet.',
+      'auth/operation-not-allowed': 'Este método de acesso ainda não foi habilitado no Firebase.',
       'auth/popup-blocked': 'O navegador bloqueou a janela de login.',
       'auth/popup-closed-by-user': 'O login foi cancelado.',
-      'auth/unauthorized-domain': 'Este endereço ainda não foi autorizado no Firebase Authentication.'
+      'auth/too-many-requests': 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.',
+      'auth/unauthorized-domain': 'Este endereço ainda não foi autorizado no Firebase Authentication.',
+      'auth/user-disabled': 'Esta conta está desativada. Procure a liderança do ministério.',
+      'auth/user-not-found': 'E-mail ou senha inválidos.',
+      'auth/wrong-password': 'E-mail ou senha inválidos.'
     };
 
     return messages[error && error.code]
@@ -186,10 +194,47 @@
         // do armazenamento de terceiros usado pelo fluxo de redirect. Isso
         // evita o retorno em loop para login em janelas anônimas e navegadores
         // com proteção reforçada contra rastreamento.
-        await auth.signInWithPopup(provider);
+        return await auth.signInWithPopup(provider);
       } catch (error) {
         setLoginMessage(scope, friendlyAuthError(error));
-        throw error;
+        return null;
+      }
+    };
+
+    scope.MusicIdeAuth.signInWithEmail = async function signInWithEmail(email, password) {
+      const normalizedEmail = typeof email === 'string' ? email.trim() : '';
+
+      if (!normalizedEmail || typeof password !== 'string' || !password) {
+        setLoginMessage(scope, 'Informe seu e-mail e sua senha.');
+        return null;
+      }
+
+      setLoginMessage(scope, 'Entrando...', 'info');
+
+      try {
+        await auth.setPersistence(scope.firebase.auth.Auth.Persistence.LOCAL);
+        return await auth.signInWithEmailAndPassword(normalizedEmail, password);
+      } catch (error) {
+        setLoginMessage(scope, friendlyAuthError(error));
+        return null;
+      }
+    };
+
+    scope.MusicIdeAuth.sendPasswordReset = async function sendPasswordReset(email) {
+      const normalizedEmail = typeof email === 'string' ? email.trim() : '';
+
+      if (!normalizedEmail) {
+        setLoginMessage(scope, 'Informe seu e-mail para recuperar a senha.');
+        return false;
+      }
+
+      try {
+        await auth.sendPasswordResetEmail(normalizedEmail);
+        setLoginMessage(scope, 'Se houver uma conta cadastrada, enviaremos as instruções para esse e-mail.', 'info');
+        return true;
+      } catch (error) {
+        setLoginMessage(scope, friendlyAuthError(error));
+        return false;
       }
     };
 
@@ -205,9 +250,9 @@
     auth.onAuthStateChanged(async user => {
       const onLoginPage = isLoginPage(scope.location.pathname);
 
-      if (user && !isGoogleUser(user)) {
+      if (user && !isAllowedUser(user)) {
         await auth.signOut();
-        failInitialization('Use uma conta Google para acessar o MUSIC.IDE.');
+        failInitialization('Use uma conta Google ou uma conta cadastrada pela liderança.');
         return;
       }
 
@@ -244,7 +289,7 @@
     buildCurrentReturnUrl,
     bootstrap,
     friendlyAuthError,
-    isGoogleUser,
+    isAllowedUser,
     isLoginPage,
     sanitizeReturnUrl
   };

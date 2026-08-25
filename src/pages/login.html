@@ -9,7 +9,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="../config/firebase-config.js"></script>
-  <script src="../js/modules/auth-service.js?v=20260825-popup"></script>
+  <script src="../js/modules/auth-service.js?v=20260825-email"></script>
   <link rel="stylesheet" href="../css/music-ide-theme.css">
   <style>
     * {
@@ -143,6 +143,77 @@
       box-shadow: 0 14px 34px rgba(17, 20, 21, 0.13);
     }
 
+    .login-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 22px 0;
+      color: #7a817f;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .login-divider::before,
+    .login-divider::after {
+      content: "";
+      height: 1px;
+      flex: 1;
+      background: rgba(17, 20, 21, 0.14);
+    }
+
+    .email-form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .email-form label {
+      display: grid;
+      gap: 7px;
+      color: #343a38;
+      font-size: 0.8rem;
+      font-weight: 750;
+    }
+
+    .email-form input {
+      width: 100%;
+      padding: 13px 14px;
+      color: #111415;
+      border: 1px solid rgba(17, 20, 21, 0.18);
+      border-radius: 12px;
+      background: #fff;
+      font: inherit;
+    }
+
+    .email-form input:focus {
+      border-color: #789100;
+      box-shadow: 0 0 0 4px rgba(216, 255, 69, 0.28);
+      outline: none;
+    }
+
+    .email-button {
+      width: 100%;
+      padding: 14px 18px;
+      color: #090b0c;
+      border: 1px solid #d8ff45;
+      background: #d8ff45;
+      cursor: pointer;
+      font-size: 0.94rem;
+    }
+
+    .forgot-button {
+      justify-self: end;
+      padding: 2px 0;
+      color: #536300;
+      border: 0;
+      border-radius: 0 !important;
+      background: transparent !important;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
     .google-icon {
       display: grid;
       width: 25px;
@@ -209,15 +280,30 @@
     <section class="access-panel">
       <div class="eyebrow">Área da equipe</div>
       <h2>Bem-vindo</h2>
-      <p>Entre com sua conta Google para acessar o repertório e as setlists.</p>
+      <p>Entre com Google ou com uma conta cadastrada pela liderança.</p>
 
       <button class="google-button" type="button" onclick="MusicIdeAuth.signInWithGoogle()">
         <span class="google-icon" aria-hidden="true">G</span>
         Continuar com Google
       </button>
 
+      <div class="login-divider">ou</div>
+
+      <form class="email-form" onsubmit="event.preventDefault(); MusicIdeAuth.signInWithEmail(this.elements.email.value, this.elements.password.value)">
+        <label>
+          E-mail
+          <input id="login-email" name="email" type="email" autocomplete="username" required>
+        </label>
+        <label>
+          Senha
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="email-button" type="submit">Entrar com e-mail</button>
+        <button class="forgot-button" type="button" onclick="MusicIdeAuth.sendPasswordReset(document.getElementById('login-email').value)">Esqueci minha senha</button>
+      </form>
+
       <div id="auth-message" role="status" aria-live="polite" hidden></div>
-      <p class="privacy-note">Seu acesso é mantido pelo Firebase Authentication. O MUSIC.IDE não recebe sua senha do Google.</p>
+      <p class="privacy-note">O acesso é mantido pelo Firebase Authentication. Novas contas são liberadas somente pela liderança.</p>
     </section>
   </main>
 </body>
