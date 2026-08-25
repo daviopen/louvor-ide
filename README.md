@@ -2,6 +2,10 @@
 
 Sistema completo para gerenciamento de cifras musicais com suporte híbrido Firebase + localStorage.
 
+> A evolução para cadastro de equipe, indisponibilidades, eventos e geração de escalas está detalhada em [`docs/ROADMAP-ESCALAS.md`](docs/ROADMAP-ESCALAS.md).
+
+> A ativação do acesso Google está documentada em [`docs/GOOGLE-AUTH-SETUP.md`](docs/GOOGLE-AUTH-SETUP.md).
+
 ## ✅ Melhorias Implementadas (v2.0)
 
 ### 🔧 Sistema de Dados Robusto

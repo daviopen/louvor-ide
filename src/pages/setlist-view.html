@@ -3,11 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visualizar Setlist - Louvor IDE</title>
+  <title>Visualizar Setlist — MUSIC.IDE</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="../config/firebase-config.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chord-transposer@3.0.9/dist/index.js"></script>
+  <script src="../js/modules/auth-service.js"></script>
+  <script src="../js/modules/chord-transposer.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../css/styles.css">
   <style>
@@ -412,6 +414,7 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="../css/music-ide-theme.css">
 </head>
 <body>
   <div class="container">
@@ -625,8 +628,7 @@
 
     // Função para destacar acordes
     function highlightChords(text) {
-      const chordRegex = /\b([A-G](?:#|b)?(?:m|maj|dim|aug|sus|add|\d)*(?:\/[A-G](?:#|b)?)?)\b/g;
-      return text.replace(chordRegex, '<span class="chord">$1</span>');
+      return window.LouvorChordTransposer.highlightChords(text);
     }
 
     // Função manual de transposição como fallback - VERSÃO CORRIGIDA
@@ -772,6 +774,10 @@
     async function transposeCifra(cifra, fromKey, toKey) {
       console.log(`🔄 transposeCifra chamada: "${fromKey}" → "${toKey}"`);
       console.log(`   Cifra original: "${cifra.substring(0, 50)}..."`);
+
+      if (window.LouvorChordTransposer) {
+        return window.LouvorChordTransposer.transposeText(cifra, fromKey, toKey);
+      }
       
       if (!fromKey || !toKey || fromKey === toKey) {
         console.log(`   ⏹️ Transposição desnecessária (${fromKey} === ${toKey})`);
@@ -1019,16 +1025,12 @@ Tente recarregar a página ou volte e tente novamente.`);
             const songData = songDoc.data();
             songsData[song.id] = songData;
             
-            // Calcular tom final baseado nos dados da setlist
+            // A cifra atual usa o tom atual do cadastro da música.
             const originalKey = songData.tom || 'C';
-            let finalKey = song.tomFinal || originalKey;
+            // O tom salvo na setlist é um retrato da escolha feita ao montá-la e
+            // deve prevalecer sobre alterações posteriores no cadastro do ministro.
+            const finalKey = window.LouvorChordTransposer.resolveSetlistFinalKey(song, songData);
             const ministerName = song.ministro;
-            
-            // Se o ministro tem tom específico, usar esse tom
-            if (ministerName && songData.tomMinistro && songData.tomMinistro[ministerName]) {
-              finalKey = songData.tomMinistro[ministerName];
-              console.log(`🎵 Tom específico do ministro ${ministerName} encontrado: ${finalKey}`);
-            }
             
             console.log(`🎵 Música: ${song.titulo}`);
             console.log(`   Tom original: ${originalKey}`);
@@ -1156,20 +1158,12 @@ Volte para a lista de setlists e clique em "Visualizar" novamente.`);
         return;
       }
       
-      // Verificar ChordTransposer
-      if (typeof ChordTransposer !== 'undefined') {
-        console.log('✅ ChordTransposer disponível');
-        
-        // Teste simples de transposição
-        try {
-          const testChord = "C F G Am";
-          const transposed = ChordTransposer.transpose(testChord).up(2).toString();
-          console.log(`🧪 Teste de transposição: "${testChord}" → "${transposed}"`);
-        } catch (error) {
-          console.error('❌ Erro no teste de transposição:', error);
-        }
+      // Verificar o transpositor local, sem dependência de CDN.
+      if (window.LouvorChordTransposer) {
+        console.log('✅ Transpositor de acordes disponível');
       } else {
-        console.warn('⚠️ ChordTransposer não disponível');
+        showError('Erro ao carregar o transpositor de acordes. Recarregue a página.');
+        return;
       }
       
       const firebaseReady = await initFirebase();
@@ -1197,7 +1191,7 @@ Tente recarregar a página em alguns segundos.`);
 
     // Atualizar título da página
     if (setlistId) {
-      document.title = 'Visualizar Setlist - Louvor IDE';
+      document.title = 'Visualizar Setlist — MUSIC.IDE';
     }
   </script>
 </body>

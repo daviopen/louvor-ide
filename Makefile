@@ -152,10 +152,11 @@ build:
 	@echo "$(BLUE)🏗️ Preparando build para produção...$(NC)"
 	@echo "$(YELLOW)🧹 Limpando arquivos antigos...$(NC)"
 	@rm -f *.html 2>/dev/null || true
-	@rm -rf js/ scripts/ config/ 2>/dev/null || true
+	@rm -rf js/ css/ scripts/ config/ 2>/dev/null || true
 	@echo "$(YELLOW)📁 Copiando arquivos do src para a raiz...$(NC)"
 	@cp -r src/pages/* ./ 2>/dev/null || true
 	@cp -r src/js ./ 2>/dev/null || true
+	@cp -r src/css ./ 2>/dev/null || true
 	@cp -r src/scripts ./ 2>/dev/null || true
 	@cp -r src/config ./ 2>/dev/null || true
 	@echo "$(YELLOW)🔧 Processando variáveis de ambiente...$(NC)"
@@ -202,6 +203,7 @@ build:
 	@echo "$(BLUE)📋 Arquivos para deploy:$(NC)"
 	@ls -la *.html *.js *.css 2>/dev/null || echo "$(YELLOW)⚠️  Alguns arquivos podem não existir$(NC)"
 	@if [ -d "js/" ]; then echo "$(GREEN)✅ Diretório js/$(NC)"; fi
+	@if [ -d "css/" ]; then echo "$(GREEN)✅ Diretório css/$(NC)"; fi
 	@if [ -d "scripts/" ]; then echo "$(GREEN)✅ Diretório scripts/$(NC)"; fi
 
 ## 🚀 Deploy manual
@@ -227,17 +229,13 @@ status:
 test:
 	@echo "$(BLUE)🧪 Executando testes...$(NC)"
 	@echo "$(YELLOW)📋 Verificando estrutura de arquivos...$(NC)"
-	@test -f index.html || { echo "$(RED)❌ index.html não encontrado$(NC)"; exit 1; }
+	@test -f src/pages/index.html || { echo "$(RED)❌ src/pages/index.html não encontrado$(NC)"; exit 1; }
 	@test -f firebase.json || { echo "$(RED)❌ firebase.json não encontrado$(NC)"; exit 1; }
 	@test -f .firebaserc || { echo "$(RED)❌ .firebaserc não encontrado$(NC)"; exit 1; }
 	@echo "$(GREEN)✅ Estrutura de arquivos OK$(NC)"
-	@echo "$(YELLOW)🌐 Testando conectividade local...$(NC)"
-	@if command -v curl &> /dev/null; then \
-		echo "$(GREEN)✅ curl disponível$(NC)"; \
-	else \
-		echo "$(YELLOW)⚠️  curl não disponível$(NC)"; \
-	fi
-	@echo "$(GREEN)✅ Testes básicos concluídos$(NC)"
+	@echo "$(YELLOW)🎼 Testando transposição de acordes...$(NC)"
+	@node --test tests/*.test.js
+	@echo "$(GREEN)✅ Testes concluídos$(NC)"
 
 ## 🧹 Limpeza
 clean:
@@ -247,7 +245,7 @@ clean:
 	@rm -f firebase-debug.*.log
 	@echo "$(YELLOW)🗑️ Limpando arquivos copiados do build...$(NC)"
 	@rm -f *.html 2>/dev/null || true
-	@rm -rf js/ scripts/ config/ 2>/dev/null || true
+	@rm -rf js/ css/ scripts/ config/ 2>/dev/null || true
 	@rm -f env-config.js 2>/dev/null || true
 	@echo "$(GREEN)✅ Limpeza concluída$(NC)"
 

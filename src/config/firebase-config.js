@@ -77,7 +77,9 @@ function initializeFirebase() {
   }
   
   try {
-    firebaseApp = firebase.initializeApp(firebaseConfig);
+    firebaseApp = firebase.apps.length
+      ? firebase.app()
+      : firebase.initializeApp(firebaseConfig);
     firestoreDB = firebase.firestore();
     console.log("🔥 Firebase inicializado com sucesso");
     return true;
@@ -413,12 +415,9 @@ function initializeSystem() {
   console.log("📡 Evento 'dbReady' disparado");
 }
 
-// Inicializar quando script carregar
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeSystem);
-} else {
-  initializeSystem();
-}
+// Inicializar imediatamente. Isso permite que o Firebase Authentication
+// confirme a sessão antes que as páginas comecem a consultar o Firestore.
+initializeSystem();
 
 // Também inicializar no window.onload como backup
 window.addEventListener('load', function() {
