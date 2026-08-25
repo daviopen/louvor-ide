@@ -20,53 +20,77 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
-  <link rel="stylesheet" href="../styles/users.css">
+  <link rel="stylesheet" href="../styles/button.css">
+  <link rel="stylesheet" href="../styles/input.css">
   <link rel="stylesheet" href="../css/music-ide-theme.css">
+  <link rel="stylesheet" href="../styles/users.css?v=20260825-users-ui">
+  <link rel="stylesheet" href="../styles/users-theme.css?v=20260825-users-ui">
 </head>
-<body>
+<body class="users-screen">
   <main class="users-page" id="users-content">
-    <header class="users-header"><div><div class="ide-module-kicker">Administração · Pessoas</div><h1>Usuários</h1><p>Gerencie perfis, funções ministeriais, permissões, acesso ativo e credenciais sem armazenar senhas.</p></div><div class="users-header-actions"><button id="manage-functions" class="ide-button ide-button--secondary" type="button"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Funções ministeriais</button><button id="new-user" class="ide-button ide-button--primary" type="button"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Novo usuário</button></div></header>
+    <header class="users-header">
+      <div class="users-heading">
+        <div class="ide-module-kicker">Administração · Pessoas</div>
+        <h1>Usuários</h1>
+        <p>Gerencie perfis, funções ministeriais, permissões, acesso e credenciais com segurança.</p>
+      </div>
+      <div class="users-header-actions">
+        <button id="manage-functions" class="ide-button ide-button--secondary" type="button"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>Funções ministeriais</span></button>
+        <button id="new-user" class="ide-button ide-button--primary" type="button"><i class="fa-solid fa-user-plus" aria-hidden="true"></i><span>Novo usuário</span></button>
+      </div>
+    </header>
+
     <p id="users-readonly" class="users-readonly" hidden>Você possui acesso somente para consulta neste módulo.</p>
-    <section class="ide-section-card users-toolbar" aria-label="Filtros de usuários"><label class="users-search"><span>Buscar</span><input id="filter-search" class="ide-field__control ide-field__input" type="search" placeholder="Nome ou e-mail" autocomplete="off"></label><label><span>Status</span><select id="filter-status" class="ide-field__control ide-select"><option value="ALL">Todos</option><option value="ACTIVE">Ativos</option><option value="INACTIVE">Inativos</option></select></label><label><span>Função</span><select id="filter-function" class="ide-field__control ide-select"><option value="ALL">Todas as funções</option></select></label><button id="clear-filters" class="ide-button ide-button--secondary" type="button">Limpar filtros</button></section>
-    <div class="users-summary"><strong id="users-count">0 usuários</strong><span>Usuários com histórico são inativados, nunca excluídos fisicamente.</span></div>
-    <div id="users-loading" class="users-loading" role="status">Carregando usuários...</div>
-    <section id="users-table-wrap" class="ide-table-wrap" hidden><table class="ide-table"><thead><tr><th>Usuário</th><th>Funções</th><th>Status</th><th>Último acesso</th><th>Ações</th></tr></thead><tbody id="users-body"></tbody></table></section>
-    <div id="users-empty" class="users-empty" hidden><i class="fa-solid fa-users" aria-hidden="true"></i><p>Nenhum usuário encontrado para os filtros informados.</p></div>
-    <nav class="users-pagination" aria-label="Paginação de usuários"><button id="page-prev" class="ide-button ide-button--secondary ide-button--sm" type="button">Anterior</button><span id="page-label">Página 1 de 1</span><button id="page-next" class="ide-button ide-button--secondary ide-button--sm" type="button">Próxima</button></nav>
+
+    <section class="users-toolbar" aria-label="Filtros de usuários">
+      <label class="ide-field users-search"><span class="ide-field__label">Buscar</span><input id="filter-search" class="ide-field__control ide-field__input" type="search" placeholder="Nome ou e-mail" autocomplete="off"></label>
+      <label class="ide-field"><span class="ide-field__label">Status</span><select id="filter-status" class="ide-field__control ide-select"><option value="ALL">Todos</option><option value="ACTIVE">Ativos</option><option value="INACTIVE">Inativos</option></select></label>
+      <label class="ide-field"><span class="ide-field__label">Função</span><select id="filter-function" class="ide-field__control ide-select"><option value="ALL">Todas as funções</option></select></label>
+      <button id="clear-filters" class="ide-button ide-button--ghost users-clear-filters" type="button"><i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i><span>Limpar filtros</span></button>
+    </section>
+
+    <section class="users-list-section" aria-labelledby="users-count">
+      <div class="users-summary"><strong id="users-count">0 usuários</strong><span><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Usuários com histórico são inativados, nunca excluídos fisicamente.</span></div>
+      <div id="users-loading" class="users-loading" role="status">Carregando usuários...</div>
+      <section id="users-table-wrap" class="ide-table-wrap users-table-wrap" hidden><table class="ide-table users-table"><thead><tr><th>Usuário</th><th>Funções</th><th>Status</th><th>Último acesso</th><th>Ações</th></tr></thead><tbody id="users-body"></tbody></table></section>
+      <div id="users-empty" class="users-empty" hidden><i class="fa-solid fa-users" aria-hidden="true"></i><p>Nenhum usuário encontrado para os filtros informados.</p></div>
+      <nav class="users-pagination" aria-label="Paginação de usuários"><button id="page-prev" class="ide-button ide-button--ghost ide-button--sm" type="button"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i>Anterior</button><span id="page-label">Página 1 de 1</span><button id="page-next" class="ide-button ide-button--ghost ide-button--sm" type="button">Próxima<i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></nav>
+    </section>
   </main>
 
   <dialog id="user-dialog" class="users-dialog">
     <form id="user-form" class="users-form">
-      <h2 id="user-form-title">Novo usuário</h2>
+      <header class="users-dialog-header"><div class="ide-module-kicker">Administração · Pessoas</div><h2 id="user-form-title">Novo usuário</h2><p>Preencha os dados da pessoa e defina como ela participa do IDE Music.</p></header>
       <div class="users-form-grid">
-        <label><span class="ide-field__label">Nome</span><input id="user-name" class="ide-field__control ide-field__input" required maxlength="120"></label>
-        <label><span class="ide-field__label">E-mail</span><input id="user-email" class="ide-field__control ide-field__input" type="email" required autocomplete="off"></label>
-        <label id="user-password-row" class="full"><span class="ide-field__label">Senha inicial</span><input id="user-password" class="ide-field__control ide-field__input" type="password" minlength="8" maxlength="128" autocomplete="new-password"><small class="users-muted">Definida pelo administrador apenas no Firebase Authentication. A aplicação não armazena a senha.</small></label>
-        <label class="full"><span class="ide-field__label">Avatar (URL opcional)</span><input id="user-photo" class="ide-field__control ide-field__input" type="url" placeholder="https://..."></label>
-        <p class="users-muted full">O Firebase Authentication criará a conta e gerará o UID automaticamente.</p>
-        <fieldset class="full"><legend class="ide-field__label">Funções ministeriais</legend><div id="user-functions" class="users-function-list"></div></fieldset>
-        <fieldset id="user-permissions-row" class="full"><legend class="ide-field__label">Permissões iniciais</legend><p class="users-muted">Defina o acesso da pessoa aos módulos. Ao editar um usuário, as permissões atuais aparecem aqui para SUPER_ADMIN.</p><div id="user-permissions" class="users-permission-list"></div></fieldset>
+        <label class="ide-field"><span class="ide-field__label">Nome</span><input id="user-name" class="ide-field__control ide-field__input" required maxlength="120" autocomplete="name"></label>
+        <label class="ide-field"><span class="ide-field__label">E-mail</span><input id="user-email" class="ide-field__control ide-field__input" type="email" required autocomplete="off"></label>
+        <label id="user-password-row" class="ide-field full"><span class="ide-field__label">Senha inicial</span><input id="user-password" class="ide-field__control ide-field__input" type="password" minlength="8" maxlength="128" autocomplete="new-password"><small class="users-muted">A senha é enviada diretamente ao Firebase Authentication e nunca é armazenada no Firestore.</small></label>
+        <label class="ide-field full"><span class="ide-field__label">Foto de perfil <span class="users-optional">(URL opcional)</span></span><input id="user-photo" class="ide-field__control ide-field__input" type="url" placeholder="https://..."></label>
+        <div class="users-account-note full"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>Identidade e credenciais são gerenciadas pelo Firebase Authentication. O UID é administrado automaticamente pela plataforma.</span></div>
+        <fieldset class="users-fieldset full"><legend>Funções ministeriais</legend><p class="users-fieldset-help">Selecione uma ou mais funções em que esta pessoa serve.</p><div id="user-functions" class="users-function-list"></div></fieldset>
+        <fieldset id="user-permissions-row" class="users-fieldset full"><legend>Permissões iniciais</legend><p class="users-fieldset-help">Defina o acesso aos módulos. Função ministerial não concede permissão administrativa.</p><div id="user-permissions" class="users-permission-list"></div></fieldset>
       </div>
-      <div class="users-dialog-actions"><button id="user-cancel" class="ide-button ide-button--secondary" type="button">Cancelar</button><button id="user-submit" class="ide-button ide-button--primary" type="submit">Salvar usuário</button></div>
+      <footer class="users-dialog-actions"><button id="user-cancel" class="ide-button ide-button--ghost" type="button">Cancelar</button><button id="user-submit" class="ide-button ide-button--primary" type="submit"><i class="fa-solid fa-check" aria-hidden="true"></i>Salvar usuário</button></footer>
     </form>
   </dialog>
 
-  <dialog id="password-dialog" class="users-dialog">
+  <dialog id="password-dialog" class="users-dialog users-dialog--compact">
     <form id="password-form" class="users-form">
-      <h2>Definir nova senha</h2>
-      <p id="password-user-label" class="users-muted"></p>
+      <header class="users-dialog-header"><div class="ide-module-kicker">Segurança</div><h2>Definir nova senha</h2><p id="password-user-label"></p></header>
       <input id="password-user-id" type="hidden">
-      <label><span class="ide-field__label">Nova senha</span><input id="password-new" class="ide-field__control ide-field__input" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label>
-      <label><span class="ide-field__label">Confirmar nova senha</span><input id="password-confirm" class="ide-field__control ide-field__input" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label>
-      <p class="users-muted">A alteração é aplicada diretamente no Firebase Authentication e registrada na auditoria sem registrar o conteúdo da senha.</p>
-      <div class="users-dialog-actions"><button id="password-cancel" class="ide-button ide-button--secondary" type="button">Cancelar</button><button id="password-submit" class="ide-button ide-button--primary" type="submit">Alterar senha</button></div>
+      <div class="users-form-stack">
+        <label class="ide-field"><span class="ide-field__label">Nova senha</span><input id="password-new" class="ide-field__control ide-field__input" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label>
+        <label class="ide-field"><span class="ide-field__label">Confirmar nova senha</span><input id="password-confirm" class="ide-field__control ide-field__input" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label>
+        <div class="users-account-note"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>A alteração ocorre diretamente no Firebase Authentication. O conteúdo da senha não é registrado na auditoria.</span></div>
+      </div>
+      <footer class="users-dialog-actions"><button id="password-cancel" class="ide-button ide-button--ghost" type="button">Cancelar</button><button id="password-submit" class="ide-button ide-button--primary" type="submit">Alterar senha</button></footer>
     </form>
   </dialog>
 
   <dialog id="functions-dialog" class="users-dialog functions-dialog">
     <section class="users-form" aria-labelledby="functions-title">
-      <div class="functions-heading"><div><div class="ide-module-kicker">Pessoas · Catálogo</div><h2 id="functions-title">Funções ministeriais</h2><p class="users-muted">Funções descrevem onde a pessoa serve no ministério. Elas não concedem acesso administrativo ao sistema.</p></div><button id="functions-close" class="ide-button ide-button--secondary ide-button--sm" type="button" aria-label="Fechar funções ministeriais">Fechar</button></div>
-      <form id="function-form" class="functions-form"><input id="function-id" type="hidden"><label><span class="ide-field__label">Nome da função</span><input id="function-name" class="ide-field__control ide-field__input" required maxlength="80" placeholder="Ex.: Percussão"></label><label><span class="ide-field__label">Identificador</span><input id="function-slug" class="ide-field__control ide-field__input" maxlength="80" placeholder="Gerado a partir do nome"></label><div class="functions-form-actions"><button id="function-cancel" class="ide-button ide-button--secondary" type="button" hidden>Cancelar edição</button><button id="function-submit" class="ide-button ide-button--primary" type="submit">Adicionar função</button></div></form>
+      <div class="functions-heading"><div><div class="ide-module-kicker">Pessoas · Catálogo</div><h2 id="functions-title">Funções ministeriais</h2><p class="users-muted">Funções descrevem onde a pessoa serve no ministério. Elas não concedem acesso administrativo ao sistema.</p></div><button id="functions-close" class="ide-button ide-button--ghost ide-button--sm" type="button" aria-label="Fechar funções ministeriais">Fechar</button></div>
+      <form id="function-form" class="functions-form"><input id="function-id" type="hidden"><label class="ide-field"><span class="ide-field__label">Nome da função</span><input id="function-name" class="ide-field__control ide-field__input" required maxlength="80" placeholder="Ex.: Percussão"></label><label class="ide-field"><span class="ide-field__label">Identificador</span><input id="function-slug" class="ide-field__control ide-field__input" maxlength="80" placeholder="Gerado a partir do nome"></label><div class="functions-form-actions"><button id="function-cancel" class="ide-button ide-button--ghost" type="button" hidden>Cancelar edição</button><button id="function-submit" class="ide-button ide-button--primary" type="submit">Adicionar função</button></div></form>
       <div class="functions-legend"><span><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Use as setas para definir a ordem exibida nas escalas e seletores.</span></div><div id="functions-loading" class="users-loading" role="status" hidden>Carregando funções...</div><div id="functions-empty" class="users-empty" hidden><p>Nenhuma função ministerial cadastrada.</p></div><div id="functions-list" class="functions-list" aria-live="polite"></div>
     </section>
   </dialog>
