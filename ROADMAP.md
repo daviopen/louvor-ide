@@ -138,15 +138,15 @@
 - [x] Criar testes automatizados das Rules.
 
 ### 10. LGPD
-- [ ] Termos de Uso.
-- [ ] Política de Privacidade.
-- [ ] Consentimento LGPD no primeiro acesso.
-- [ ] Consentimento explícito, sem checkbox pré-marcado.
-- [ ] Registrar versão do termo, usuário, data e hora.
-- [ ] Solicitar novo aceite quando houver alteração relevante.
-- [ ] Aplicar minimização de dados.
-- [ ] Definir retenção, inativação e exclusão.
-- [ ] Definir dados que precisam permanecer em histórico/auditoria.
+- [x] Termos de Uso.
+- [x] Política de Privacidade.
+- [x] Consentimento LGPD no primeiro acesso.
+- [x] Consentimento explícito, sem checkbox pré-marcado.
+- [x] Registrar versão do termo, usuário, data e hora.
+- [x] Solicitar novo aceite quando houver alteração relevante.
+- [x] Aplicar minimização de dados.
+- [x] Definir retenção, inativação e exclusão.
+- [x] Definir dados que precisam permanecer em histórico/auditoria.
 
 ## P1 — Identidade e administração
 
