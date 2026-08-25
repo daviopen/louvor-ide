@@ -10,6 +10,19 @@
     return /(^|\s)ministro($|\s)/.test(value) || value.includes('ministro');
   }
   function normalizeOrder(items) { return (items || []).map((item, index) => ({ ...item, order: index + 1 })); }
+  function normalizeHexColor(value) {
+    const raw = normalize(value).toUpperCase();
+    if (!raw) return '';
+    const hex = raw.startsWith('#') ? raw : `#${raw}`;
+    if (!/^#[0-9A-F]{6}$/.test(hex)) throw new Error(`Cor inválida: “${value}”. Use o formato #RRGGBB.`);
+    return hex;
+  }
+  function normalizeDressCodeColors(colors) {
+    const compact = (colors || []).map(normalizeHexColor).filter(Boolean);
+    if (compact.length > 3) throw new Error('O Dress Code permite no máximo 3 cores.');
+    if (new Set(compact).size !== compact.length) throw new Error('O Dress Code não deve repetir a mesma cor.');
+    return compact;
+  }
   function eligibleMinisters(members, functions, users) {
     const ministerFunctionIds = new Set((functions || []).filter(functionIsMinister).map(item => item.id));
     const userMap = new Map((users || []).map(user => [user.id || user.uid, user]));
@@ -75,7 +88,7 @@
           executionKey: item.tomFinal || item.tomOriginal || item.tom || 'C', ministerUserId: item.ministerUserId || '', note: item.observacao || '', transition: item.transicao || '', order: item.ordem || index + 1
         }));
       }
-      return { access, setlist, schedule, event, members: detailedMembers, ministers, library, keys, songs: normalizeOrder(songs) };
+      return { access, setlist: { ...setlist, dressCodeColors: normalizeDressCodeColors(setlist.dressCodeColors || []) }, schedule, event, members: detailedMembers, ministers, library, keys, songs: normalizeOrder(songs) };
     }
     async ensureForSchedule(scheduleId, user, profile = null) {
       const access = await this.resolveAccess(user, profile);
@@ -95,14 +108,16 @@
       if (['COMPLETED', 'CANCELLED'].includes(String(current.setlist.status || '').toUpperCase())) throw new Error('Este Setlist está em modo somente leitura.');
       const songs = normalizeOrder(input.songs || []);
       validateSongs(songs, current.ministers);
+      const dressCodeColors = normalizeDressCodeColors(input.dressCodeColors || []);
       const ministerMap = new Map(current.ministers.map(item => [item.id, item]));
       const payloadSongs = songs.map(song => ({ ...song, ministerName: ministerMap.get(song.ministerUserId)?.name || '', note: normalize(song.note), transition: normalize(song.transition) }));
       return this.repository.save(setlistId, {
-        name: normalize(input.name) || current.event?.name || 'Setlist', description: normalize(input.description), status: songs.length ? 'READY' : 'DRAFT',
-        eventId: current.setlist.eventId, scheduleId: current.setlist.scheduleId, eventDate: current.event?.date || current.setlist.eventDate || null, eventTime: current.event?.time || current.setlist.eventTime || null
+        name: normalize(input.name) || current.event?.name || 'Setlist', description: normalize(input.description), dressCodeColors,
+        status: songs.length ? 'READY' : 'DRAFT', eventId: current.setlist.eventId, scheduleId: current.setlist.scheduleId,
+        eventDate: current.event?.date || current.setlist.eventDate || null, eventTime: current.event?.time || current.setlist.eventTime || null
       }, payloadSongs, this.actorId(user));
     }
   }
 
-  return Object.freeze({ SetlistService, functionIsMinister, eligibleMinisters, preferredKey, normalizeOrder, validateSongs });
+  return Object.freeze({ SetlistService, functionIsMinister, eligibleMinisters, preferredKey, normalizeOrder, validateSongs, normalizeHexColor, normalizeDressCodeColors });
 });
