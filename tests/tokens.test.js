@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const tokensPath = path.join(root, 'src/styles/tokens.css');
 const tokens = fs.readFileSync(tokensPath, 'utf8');
 const shell = fs.readFileSync(path.join(root, 'src/js/modules/app-shell.js'), 'utf8');
+const makefile = fs.readFileSync(path.join(root, 'Makefile'), 'utf8');
 
 const semanticTokens = ['--ide-primary','--ide-primary-hover','--ide-primary-active','--ide-secondary','--ide-background','--ide-surface','--ide-surface-secondary','--ide-text-primary','--ide-text-secondary','--ide-border','--ide-success','--ide-warning','--ide-error','--ide-info'];
 const foundationTokens = ['--ide-space-1','--ide-space-4','--ide-space-8','--ide-radius-sm','--ide-radius-md','--ide-radius-lg','--ide-shadow-sm','--ide-shadow-md','--ide-shadow-lg','--ide-font-family-sans','--ide-font-family-mono','--ide-font-size-sm','--ide-font-size-md','--ide-breakpoint-mobile','--ide-breakpoint-tablet','--ide-breakpoint-desktop','--ide-z-dropdown','--ide-z-sidebar','--ide-z-modal'];
@@ -28,6 +29,12 @@ test('authenticated shell loads tokens before the Design System', () => {
   assert.ok(tokenPosition < designSystemPosition);
 });
 
+test('production build publishes the style assets required by the authenticated shell', () => {
+  assert.match(makefile, /cp -r src\/styles \.\//, 'build must copy src/styles to /styles');
+  assert.match(makefile, /test -f styles\/tokens\.css/, 'CI must verify tokens.css in build output');
+  assert.match(makefile, /test -f styles\/design-system\.css/, 'CI must verify design-system.css in build output');
+});
+
 function cssFiles(dir) {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
@@ -37,7 +44,7 @@ function cssFiles(dir) {
   });
 }
 
-test('hex colors are centralized exclusively in tokens.css', () => {
+test('hex colors are centralized exclusively in tokens.css for stylesheet sources', () => {
   const files = [...cssFiles(path.join(root, 'src/styles')), ...cssFiles(path.join(root, 'src/css'))];
   const hex = /#[0-9a-f]{3,8}\b/ig;
   files.filter(file => file !== tokensPath).forEach(file => {
