@@ -54,10 +54,10 @@
     });
   }
   function statusClass(status) {
-    if (status === 'CONFIRMED') return 'ide-status-badge ide-status-badge--success';
-    if (status === 'CANCELLED') return 'ide-status-badge ide-status-badge--error';
-    if (status === 'COMPLETED') return 'ide-status-badge ide-status-badge--info';
-    return 'ide-status-badge ide-status-badge--warning';
+    if (status === 'CONFIRMED') return 'ide-badge ide-badge--success';
+    if (status === 'CANCELLED') return 'ide-badge ide-badge--error';
+    if (status === 'COMPLETED') return 'ide-badge ide-badge--info';
+    return 'ide-badge ide-badge--warning';
   }
   function isFinal(item) { return scope.MusicIdeEventService.FINAL_STATUSES.includes(item.status); }
 
