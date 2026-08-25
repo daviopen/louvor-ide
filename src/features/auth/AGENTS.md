@@ -21,6 +21,10 @@ Centralizar entrada, recuperação e encerramento de sessão usando Firebase Aut
 - Rotas públicas: login e recuperação de senha.
 - Rotas protegidas exigem sessão válida e usuário ativo.
 - Auth não concede privilégio administrativo por e-mail ou função ministerial.
+- `MEMBER`, `ADMIN` e `SUPER_ADMIN` são papéis de autorização do sistema, independentes de funções ministeriais.
+- O bootstrap do primeiro `SUPER_ADMIN` pode existir exclusivamente nas Firestore Rules; o frontend não deve conter nem comparar o e-mail de bootstrap.
+- Custom Claims (`admin`, `superAdmin` ou `role`) podem complementar o perfil quando uma operação exigir backend/Admin SDK.
+- Alterar papel, estado ativo ou permissões deve ser autorizado pelas Rules; nunca confiar em `localStorage`, DOM ou parâmetros da rota.
 
 ## Services / Repositories / Components
 - Services: login, logout, recuperação e observação da sessão.
@@ -35,10 +39,16 @@ Auth não deve criar collection para credenciais. Perfil complementar pertence a
 - Não usar `localStorage` como fonte de identidade/autorização.
 - Minimizar dados de perfil copiados do provedor.
 - Logout deve encerrar a sessão Firebase e limpar apenas estado local não sensível.
+- `users/{uid}.active=false` deve bloquear acesso nas Firestore Rules mesmo quando a sessão Firebase ainda existir.
+- `auditLogs` é append-only para o cliente; atualização/exclusão deve permanecer negada.
+- Collections sem regra explícita devem permanecer negadas por padrão.
 
 ## Testes
 - login Google/e-mail delegam ao adapter correto;
 - logout limpa estado da aplicação;
 - sessão expirada/desativada gera estado seguro;
 - rota protegida não libera conteúdo antes da resolução da sessão;
-- nenhuma senha/token é persistida.
+- nenhuma senha/token é persistida;
+- Rules negam collections desconhecidas e elevação indevida;
+- Rules validam usuário ativo, papéis administrativos e permissões `READ`/`EDIT`;
+- o e-mail inicial do Super Admin não aparece no JavaScript do frontend.
