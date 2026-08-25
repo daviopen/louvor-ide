@@ -67,6 +67,7 @@
         <label class="full"><span class="ide-field__label">Avatar (URL opcional)</span><input id="user-photo" class="ide-field__control ide-field__input" type="url" placeholder="https://..."></label>
         <label id="user-uid-row" class="full"><span class="ide-field__label">UID do Firebase (opcional)</span><input id="user-uid" class="ide-field__control ide-field__input" autocomplete="off"><small class="users-muted">Se ficar vazio, uma conta Firebase será provisionada com senha aleatória não exibida nem armazenada, seguida do e-mail para definição da senha.</small></label>
         <fieldset class="full"><legend class="ide-field__label">Funções ministeriais</legend><div id="user-functions" class="users-function-list"></div></fieldset>
+        <fieldset id="user-permissions-row" class="full"><legend class="ide-field__label">Permissões iniciais</legend><p class="users-muted">O perfil é sempre criado como MEMBER. Defina somente o acesso inicial aos módulos; a matriz completa será administrada no módulo de Permissões.</p><div id="user-permissions" class="users-permission-list"></div></fieldset>
       </div>
       <div class="users-dialog-actions"><button id="user-cancel" class="ide-button ide-button--secondary" type="button">Cancelar</button><button id="user-submit" class="ide-button ide-button--primary" type="submit">Salvar usuário</button></div>
     </form>
