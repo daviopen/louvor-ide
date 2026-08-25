@@ -111,10 +111,51 @@ test('repository registry exposes one repository per canonical collection', () =
   }
 });
 
-test('service seeds defaults and supports multiple functions per user without granting permissions', async () => {
+test('ministry function repository reorders all documents in a single batch', async () => {
+  const updates = [];
+  let commits = 0;
+  const fakeCollection = {
+    doc(id) {
+      return { id };
+    }
+  };
+  const fakeDb = {
+    collection(name) {
+      assert.equal(name, 'ministryFunctions');
+      return fakeCollection;
+    },
+    batch() {
+      return {
+        update(ref, patch) {
+          updates.push({ ref, patch });
+        },
+        async commit() {
+          commits += 1;
+        }
+      };
+    }
+  };
+  const fixedDate = new Date('2026-08-25T18:00:00Z');
+  const repository = new repositories.MinistryFunctionsRepository(fakeDb, { clock: () => fixedDate });
+
+  const result = await repository.reorder([
+    { functionId: 'f2', order: 10 },
+    { functionId: 'f1', order: 20 }
+  ]);
+
+  assert.equal(commits, 1);
+  assert.deepEqual(updates, [
+    { ref: { id: 'f2' }, patch: { order: 10, updatedAt: fixedDate } },
+    { ref: { id: 'f1' }, patch: { order: 20, updatedAt: fixedDate } }
+  ]);
+  assert.equal(result.length, 2);
+});
+
+test('service seeds defaults, supports N:N, activation and ordering without granting permissions', async () => {
   const functions = new Map();
   let id = 0;
   const assignments = new Map();
+  let reorderCalls = 0;
 
   const functionsRepository = {
     async findBySlug(slug) {
@@ -135,6 +176,13 @@ test('service seeds defaults and supports multiple functions per user without gr
       const next = { ...functions.get(functionId), ...patch };
       functions.set(functionId, next);
       return next;
+    },
+    async reorder(items) {
+      reorderCalls += 1;
+      for (const item of items) {
+        functions.set(item.functionId, { ...functions.get(item.functionId), order: item.order });
+      }
+      return items;
     }
   };
 
@@ -172,6 +220,18 @@ test('service seeds defaults and supports multiple functions per user without gr
   assert.equal('level' in assignments.values().next().value, false, 'função ministerial não carrega permissão');
   await service.setFunctionActive(activeFunctions[0].id, false);
   assert.equal(functions.get(activeFunctions[0].id).active, false);
+
+  await service.reorder([
+    { functionId: activeFunctions[2].id },
+    { functionId: activeFunctions[1].id }
+  ]);
+  assert.equal(reorderCalls, 1);
+  assert.equal(functions.get(activeFunctions[2].id).order, 10);
+  assert.equal(functions.get(activeFunctions[1].id).order, 20);
+  await assert.rejects(
+    service.reorder([{ functionId: 'f2' }, { functionId: 'f2' }]),
+    /Função duplicada/
+  );
 });
 
 test('canonical collection constants remain aligned with model contract', () => {
