@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const styles = fs.readFileSync(path.join(__dirname, '..', 'src', 'css', 'styles.css'), 'utf8');
 const page = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'setlist.html'), 'utf8');
+const controller = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'pages', 'setlist-schedule.js'), 'utf8');
 
 test('aliases usados pelo Setlist apontam para tokens semânticos do tema', () => {
   const expected = [
@@ -31,4 +32,11 @@ test('Setlist usa aliases de superfície e texto em seus elementos críticos', (
   assert.match(page, /\.field input,[\s\S]*color:var\(--text-primary/);
   assert.match(page, /\.muted\{color:var\(--text-secondary/);
   assert.match(page, /\.status\{[\s\S]*background:var\(--surface-secondary/);
+});
+
+test('controller usa helpers de Dress Code expostos pelo módulo e não pela instância do service', () => {
+  assert.match(controller, /MusicIdeSetlistService\.normalizeHexColor\(/);
+  assert.match(controller, /MusicIdeSetlistService\.normalizeDressCodeColors\(/);
+  assert.doesNotMatch(controller, /state\.service\.normalizeHexColor\(/);
+  assert.doesNotMatch(controller, /state\.service\.normalizeDressCodeColors\(/);
 });
