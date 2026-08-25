@@ -29,40 +29,40 @@
 - [x] Caso permaneça em JavaScript, utilizar JSDoc e contratos padronizados.
 
 ### 2. AGENTS.md raiz
-- [ ] Criar `/AGENTS.md`.
-- [ ] Documentar propósito, stack e arquitetura.
-- [ ] Documentar estrutura de diretórios.
-- [ ] Documentar padrões de Components, Services, Repositories, DTOs, Models e Routes.
-- [ ] Documentar collections e nomenclaturas.
-- [ ] Documentar autenticação, autorização e Firestore Rules.
-- [ ] Documentar segurança e LGPD.
-- [ ] Documentar UX e acessibilidade.
-- [ ] Documentar estratégia de testes, logs e auditoria.
-- [ ] Documentar Definition of Ready e Definition of Done.
-- [ ] Definir convenções para arquivos, branches, commits e Pull Requests.
+- [x] Criar `/AGENTS.md`.
+- [x] Documentar propósito, stack e arquitetura.
+- [x] Documentar estrutura de diretórios.
+- [x] Documentar padrões de Components, Services, Repositories, DTOs, Models e Routes.
+- [x] Documentar collections e nomenclaturas.
+- [x] Documentar autenticação, autorização e Firestore Rules.
+- [x] Documentar segurança e LGPD.
+- [x] Documentar UX e acessibilidade.
+- [x] Documentar estratégia de testes, logs e auditoria.
+- [x] Documentar Definition of Ready e Definition of Done.
+- [x] Definir convenções para arquivos, branches, commits e Pull Requests.
 
 ### 3. AGENTS.md por funcionalidade
-- [ ] `auth/AGENTS.md`.
-- [ ] `users/AGENTS.md`.
-- [ ] `permissions/AGENTS.md`.
-- [ ] `roles/AGENTS.md`.
-- [ ] `unavailability/AGENTS.md`.
-- [ ] `events/AGENTS.md`.
-- [ ] `schedules/AGENTS.md`.
-- [ ] `setlists/AGENTS.md`.
-- [ ] `songs/AGENTS.md`.
-- [ ] `audit/AGENTS.md`.
-- [ ] Cada arquivo deve definir objetivo, entidades, DTOs, regras, validações, permissões, routes, services, components, collections, segurança e testes.
+- [x] `auth/AGENTS.md`.
+- [x] `users/AGENTS.md`.
+- [x] `permissions/AGENTS.md`.
+- [x] `roles/AGENTS.md`.
+- [x] `unavailability/AGENTS.md`.
+- [x] `events/AGENTS.md`.
+- [x] `schedules/AGENTS.md`.
+- [x] `setlists/AGENTS.md`.
+- [x] `songs/AGENTS.md`.
+- [x] `audit/AGENTS.md`.
+- [x] Cada arquivo deve definir objetivo, entidades, DTOs, regras, validações, permissões, routes, services, components, collections, segurança e testes.
 
 ### 4. Auditoria do código atual
-- [ ] Revisar todo o projeto conforme o AGENTS.md.
-- [ ] Mapear duplicações de JS/CSS/componentes.
-- [ ] Mapear regras de negócio no frontend.
-- [ ] Mapear acessos diretos ao Firebase.
-- [ ] Mapear nomenclaturas inconsistentes.
-- [ ] Mapear problemas de responsividade, acessibilidade e contraste.
-- [ ] Mapear riscos de segurança e uso inadequado de `localStorage`.
-- [ ] Refatorar código legado necessário.
+- [x] Revisar todo o projeto conforme o AGENTS.md.
+- [x] Mapear duplicações de JS/CSS/componentes.
+- [x] Mapear regras de negócio no frontend.
+- [x] Mapear acessos diretos ao Firebase.
+- [x] Mapear nomenclaturas inconsistentes.
+- [x] Mapear problemas de responsividade, acessibilidade e contraste.
+- [x] Mapear riscos de segurança e uso inadequado de `localStorage`.
+- [x] Refatorar código legado necessário.
 
 ### 5. Design System
 - [ ] `Button` / `IconButton`.
