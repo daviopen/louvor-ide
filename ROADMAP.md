@@ -204,18 +204,18 @@
 ## P2 — Operação das escalas
 
 ### 15. Indisponibilidades
-- [ ] Usuário registra sua própria indisponibilidade.
-- [ ] Data obrigatória.
-- [ ] Período opcional.
-- [ ] Evento específico opcional.
-- [ ] Observação opcional.
-- [ ] Editar/excluir indisponibilidade futura.
-- [ ] Visualização em calendário.
-- [ ] Admin pode registrar/editar para outra pessoa.
-- [ ] Registrar ator da alteração e Audit Log.
-- [ ] Indisponível não aparece na seleção normal da escala.
-- [ ] Considerar data, horário e evento.
-- [ ] Exceção administrativa somente com confirmação/auditoria.
+- [x] Usuário registra sua própria indisponibilidade.
+- [x] Data obrigatória.
+- [x] Período opcional.
+- [x] Evento específico opcional.
+- [x] Observação opcional.
+- [x] Editar/excluir indisponibilidade futura.
+- [x] Visualização em calendário.
+- [x] Admin pode registrar/editar para outra pessoa.
+- [x] Registrar ator da alteração e Audit Log.
+- [x] Indisponível não aparece na seleção normal da escala.
+- [x] Considerar data, horário e evento.
+- [x] Exceção administrativa somente com confirmação/auditoria.
 
 ### 16. Eventos
 - [ ] CRUD de eventos.
