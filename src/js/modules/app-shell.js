@@ -35,13 +35,18 @@
     return node;
   }
 
-  function ensureDesignSystemStyles() {
-    if (scope.document.querySelector('link[data-ide-design-system]')) return;
+  function ensureStylesheet(href, marker) {
+    if (scope.document.querySelector(`link[${marker}]`)) return;
     const link = scope.document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '../styles/design-system.css';
-    link.dataset.ideDesignSystem = 'true';
+    link.href = href;
+    link.setAttribute(marker, 'true');
     scope.document.head.appendChild(link);
+  }
+
+  function ensureDesignSystemStyles() {
+    ensureStylesheet('../styles/tokens.css', 'data-ide-tokens');
+    ensureStylesheet('../styles/design-system.css', 'data-ide-design-system');
   }
 
   function migrateLegacyControls() {
