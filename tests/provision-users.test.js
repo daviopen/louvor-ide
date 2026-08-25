@@ -35,3 +35,21 @@ test('provisionamento operacional não armazena credenciais e mantém usuário d
   assert.match(script, /updateUser/);
   assert.match(script, /collection\('users'\)/);
 });
+
+test('deploy reconcilia catálogo de funções e migra vínculos legados de forma idempotente', () => {
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /defaultMinistryFunctions/);
+  assert.match(script, /Ministro/);
+  assert.match(script, /Back Vocal/);
+  assert.match(script, /Violão/);
+  assert.match(script, /'direcao-musical': 'dm'/);
+  assert.match(script, /collection\('ministryFunctions'\)/);
+  assert.match(script, /collection\('userFunctions'\)/);
+  assert.match(script, /relationDocumentId/);
+  assert.match(script, /extractLegacyFunctionLabels/);
+  assert.match(script, /reconcileMinistryFunctions\(db\)/);
+
+  assert.doesNotMatch(script, /canonicalFunctionSlug\(profile\.role\)/);
+  assert.doesNotMatch(script, /legacyFunctionAliases\[[^\]]*role/);
+});

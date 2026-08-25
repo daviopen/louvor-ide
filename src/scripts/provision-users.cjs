@@ -8,6 +8,86 @@ const projectId = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT
 const configPath = path.resolve(process.cwd(), 'ops', 'provisioned-users.json');
 const allowedRoles = new Set(['MEMBER', 'ADMIN', 'SUPER_ADMIN']);
 
+const defaultMinistryFunctions = Object.freeze([
+  { name: 'Ministro', slug: 'ministro', order: 10 },
+  { name: 'Back Vocal', slug: 'back-vocal', order: 20 },
+  { name: 'Bateria', slug: 'bateria', order: 30 },
+  { name: 'Baixo', slug: 'baixo', order: 40 },
+  { name: 'Guitarra', slug: 'guitarra', order: 50 },
+  { name: 'Violão', slug: 'violao', order: 60 },
+  { name: 'Teclado', slug: 'teclado', order: 70 },
+  { name: 'Sax', slug: 'sax', order: 80 },
+  { name: 'DM', slug: 'dm', order: 90 }
+]);
+
+const legacyFunctionAliases = Object.freeze({
+  ministro: 'ministro',
+  ministra: 'ministro',
+  vocal: 'ministro',
+  'back-vocal': 'back-vocal',
+  back: 'back-vocal',
+  backing: 'back-vocal',
+  bateria: 'bateria',
+  baterista: 'bateria',
+  baixo: 'baixo',
+  baixista: 'baixo',
+  guitarra: 'guitarra',
+  guitarrista: 'guitarra',
+  violao: 'violao',
+  violonista: 'violao',
+  teclado: 'teclado',
+  tecladista: 'teclado',
+  sax: 'sax',
+  saxofone: 'sax',
+  saxofonista: 'sax',
+  dm: 'dm',
+  'diretor-musical': 'dm',
+  'direcao-musical': 'dm'
+});
+
+function normalizeFunctionLabel(value) {
+  return String(value || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function canonicalFunctionSlug(value) {
+  const normalized = normalizeFunctionLabel(value);
+  return legacyFunctionAliases[normalized] || normalized;
+}
+
+function extractLegacyFunctionLabels(profile) {
+  const labels = [];
+  const append = value => {
+    if (!value) return;
+    if (Array.isArray(value)) return value.forEach(append);
+    if (typeof value === 'object') {
+      append(value.name || value.label || value.function || value.funcao || value.instrument || value.instrumento);
+      return;
+    }
+    String(value).split(/[;,|]/).map(item => item.trim()).filter(Boolean).forEach(item => labels.push(item));
+  };
+
+  [
+    profile.functions,
+    profile.ministryFunctions,
+    profile.funcoes,
+    profile.funcao,
+    profile.instrumentos,
+    profile.instrumento
+  ].forEach(append);
+
+  return [...new Set(labels)];
+}
+
+function relationDocumentId(userId, functionId) {
+  return `${encodeURIComponent(userId)}__${encodeURIComponent(functionId)}`;
+}
+
 function readProvisioningConfig() {
   const items = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   if (!Array.isArray(items) || items.length === 0) throw new Error('ops/provisioned-users.json deve conter ao menos um usuário.');
@@ -18,6 +98,69 @@ function readProvisioningConfig() {
     if ('password' in item || 'token' in item || 'credential' in item) throw new Error(`Credenciais não podem existir no arquivo de provisionamento (${item.email}).`);
     return { email: item.email.trim().toLowerCase(), role: item.role, active: item.active };
   });
+}
+
+async function reconcileMinistryFunctions(db) {
+  const functionsRef = db.collection('ministryFunctions');
+  const snapshot = await functionsRef.get();
+  const bySlug = new Map();
+
+  for (const doc of snapshot.docs) {
+    const data = doc.data() || {};
+    const slug = canonicalFunctionSlug(data.slug || data.name || '');
+    if (slug) bySlug.set(slug, { id: doc.id, ...data });
+  }
+
+  let created = 0;
+  for (const seed of defaultMinistryFunctions) {
+    const current = bySlug.get(seed.slug);
+    if (current) {
+      const patch = {};
+      if (!current.slug) patch.slug = seed.slug;
+      if (!current.name) patch.name = seed.name;
+      if (typeof current.active !== 'boolean') patch.active = true;
+      if (!Number.isInteger(current.order)) patch.order = seed.order;
+      if (Object.keys(patch).length) {
+        patch.updatedAt = FieldValue.serverTimestamp();
+        await functionsRef.doc(current.id).set(patch, { merge: true });
+      }
+      continue;
+    }
+
+    const ref = functionsRef.doc(seed.slug);
+    await ref.set({
+      ...seed,
+      active: true,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    bySlug.set(seed.slug, { id: ref.id, ...seed, active: true });
+    created += 1;
+  }
+
+  const profiles = await db.collection('users').get();
+  let migratedRelations = 0;
+  for (const profileDoc of profiles.docs) {
+    const labels = extractLegacyFunctionLabels(profileDoc.data() || {});
+    for (const label of labels) {
+      const target = bySlug.get(canonicalFunctionSlug(label));
+      if (!target) continue;
+      const relationId = relationDocumentId(profileDoc.id, target.id);
+      const relationRef = db.collection('userFunctions').doc(relationId);
+      const existing = await relationRef.get();
+      if (!existing.exists || existing.data().active !== true) migratedRelations += 1;
+      await relationRef.set({
+        userId: profileDoc.id,
+        functionId: target.id,
+        active: true,
+        unassignedAt: null,
+        createdAt: existing.exists && existing.data().createdAt ? existing.data().createdAt : FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+  }
+
+  console.log(`✅ Funções ministeriais reconciliadas: ${defaultMinistryFunctions.length} padrão, ${created} criada(s), ${migratedRelations} vínculo(s) legado(s) migrado(s).`);
 }
 
 async function reconcileApplicationUsers(auth, db) {
@@ -116,6 +259,7 @@ async function main() {
     console.log(`✅ ${config.email}: Auth ${verifiedAuth.disabled ? 'disabled' : 'enabled'}, perfil ${profile.role}/${profile.active ? 'ativo' : 'inativo'}`);
   }
 
+  await reconcileMinistryFunctions(db);
   await reconcileApplicationUsers(auth, db);
 }
 

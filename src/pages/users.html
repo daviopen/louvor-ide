@@ -9,11 +9,13 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="../config/firebase-config.js"></script>
   <script src="../models/data-model.js"></script>
+  <script src="../repositories/domain-repositories.js"></script>
   <script src="../repositories/user-repository.js"></script>
+  <script src="../services/ministry-functions-service.js?v=20260825-roles"></script>
   <script src="../services/user-service.js?v=20260825-auth-sync"></script>
   <script src="../js/modules/auth-service.js?v=20260825-auth-sync"></script>
   <script src="../js/modules/app-shell.js?v=20260825-auth-sync" defer></script>
-  <script src="../js/modules/users-page.js?v=20260825-auth-sync" defer></script>
+  <script src="../js/modules/users-page.js?v=20260825-roles" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
@@ -28,7 +30,10 @@
         <h1>Usuários</h1>
         <p>Gerencie perfis, funções ministeriais, acesso ativo e recuperação de senha sem armazenar credenciais.</p>
       </div>
-      <button id="new-user" class="ide-button ide-button--primary" type="button"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Novo usuário</button>
+      <div class="users-header-actions">
+        <button id="manage-functions" class="ide-button ide-button--secondary" type="button"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Funções ministeriais</button>
+        <button id="new-user" class="ide-button ide-button--primary" type="button"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Novo usuário</button>
+      </div>
     </header>
 
     <p id="users-readonly" class="users-readonly" hidden>Você possui acesso somente para consulta neste módulo.</p>
@@ -71,6 +76,34 @@
       </div>
       <div class="users-dialog-actions"><button id="user-cancel" class="ide-button ide-button--secondary" type="button">Cancelar</button><button id="user-submit" class="ide-button ide-button--primary" type="submit">Salvar usuário</button></div>
     </form>
+  </dialog>
+
+  <dialog id="functions-dialog" class="users-dialog functions-dialog">
+    <section class="users-form" aria-labelledby="functions-title">
+      <div class="functions-heading">
+        <div>
+          <div class="ide-module-kicker">Pessoas · Catálogo</div>
+          <h2 id="functions-title">Funções ministeriais</h2>
+          <p class="users-muted">Funções descrevem onde a pessoa serve no ministério. Elas não concedem acesso administrativo ao sistema.</p>
+        </div>
+        <button id="functions-close" class="ide-button ide-button--secondary ide-button--sm" type="button" aria-label="Fechar funções ministeriais">Fechar</button>
+      </div>
+
+      <form id="function-form" class="functions-form">
+        <input id="function-id" type="hidden">
+        <label><span class="ide-field__label">Nome da função</span><input id="function-name" class="ide-field__control ide-field__input" required maxlength="80" placeholder="Ex.: Percussão"></label>
+        <label><span class="ide-field__label">Identificador</span><input id="function-slug" class="ide-field__control ide-field__input" maxlength="80" placeholder="Gerado a partir do nome"></label>
+        <div class="functions-form-actions">
+          <button id="function-cancel" class="ide-button ide-button--secondary" type="button" hidden>Cancelar edição</button>
+          <button id="function-submit" class="ide-button ide-button--primary" type="submit">Adicionar função</button>
+        </div>
+      </form>
+
+      <div class="functions-legend"><span><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Use as setas para definir a ordem exibida nas escalas e seletores.</span></div>
+      <div id="functions-loading" class="users-loading" role="status" hidden>Carregando funções...</div>
+      <div id="functions-empty" class="users-empty" hidden><p>Nenhuma função ministerial cadastrada.</p></div>
+      <div id="functions-list" class="functions-list" aria-live="polite"></div>
+    </section>
   </dialog>
 
   <div id="users-toast" class="users-toast" role="status" aria-live="polite" hidden></div>

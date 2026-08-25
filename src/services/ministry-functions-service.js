@@ -19,13 +19,69 @@
     normalizeSlug
   } = dataModel;
 
+  const LEGACY_FUNCTION_ALIASES = Object.freeze({
+    ministro: 'ministro',
+    ministra: 'ministro',
+    vocal: 'ministro',
+    'back-vocal': 'back-vocal',
+    back: 'back-vocal',
+    backing: 'back-vocal',
+    bateria: 'bateria',
+    baterista: 'bateria',
+    baixo: 'baixo',
+    baixista: 'baixo',
+    guitarra: 'guitarra',
+    guitarrista: 'guitarra',
+    violao: 'violao',
+    violonista: 'violao',
+    teclado: 'teclado',
+    tecladista: 'teclado',
+    sax: 'sax',
+    saxofone: 'sax',
+    saxofonista: 'sax',
+    dm: 'dm',
+    'diretor-musical': 'dm',
+    'direcao-musical': 'dm'
+  });
+
+  function canManageMinistryFunctions(profile) {
+    if (!profile) return false;
+    const role = String(profile.role || '').toUpperCase();
+    if (role === 'SUPER_ADMIN' || profile.isSuperAdmin === true) return true;
+    const permission = profile.permissions && profile.permissions.users;
+    const level = typeof permission === 'object' ? permission.level || permission.access : permission;
+    return String(level || '').toLowerCase() === 'edit';
+  }
+
+  function normalizeLegacyFunctionLabel(label) {
+    const slug = normalizeSlug(label);
+    return LEGACY_FUNCTION_ALIASES[slug] || slug;
+  }
+
   class MinistryFunctionsService {
-    constructor({ ministryFunctionsRepository, userFunctionsRepository }) {
+    constructor({ ministryFunctionsRepository, userFunctionsRepository, auditRepository = null, actorProvider = () => null }) {
       if (!ministryFunctionsRepository || !userFunctionsRepository) {
         throw new Error('Repositories de funções e vínculos são obrigatórios.');
       }
       this.functions = ministryFunctionsRepository;
       this.userFunctions = userFunctionsRepository;
+      this.auditRepository = auditRepository;
+      this.actorProvider = actorProvider;
+    }
+
+    async audit(action, entityId, details = {}) {
+      if (!this.auditRepository || typeof this.auditRepository.create !== 'function') return null;
+      const actor = this.actorProvider();
+      const actorUserId = actor && (actor.uid || actor.id);
+      if (!actorUserId) throw new Error('Ator administrativo não identificado.');
+      return this.auditRepository.create({
+        actorUserId,
+        action,
+        entityType: 'ministryFunction',
+        entityId,
+        details,
+        createdAt: new Date()
+      });
     }
 
     async ensureDefaultFunctions() {
@@ -38,6 +94,10 @@
       return created;
     }
 
+    async listFunctions() {
+      return this.functions.listOrdered({ activeOnly: false });
+    }
+
     async listActiveFunctions() {
       return this.functions.listOrdered({ activeOnly: true });
     }
@@ -46,7 +106,14 @@
       const candidate = createMinistryFunctionDocument(input);
       const existing = await this.functions.findBySlug(candidate.slug);
       if (existing) throw new Error(`Já existe uma função com o slug ${candidate.slug}.`);
-      return this.functions.create(candidate);
+      const created = await this.functions.create(candidate);
+      await this.audit('MINISTRY_FUNCTION_CREATED', created.id, {
+        name: created.name,
+        slug: created.slug,
+        order: created.order,
+        active: created.active
+      });
+      return created;
     }
 
     async updateFunction(functionId, patch) {
@@ -66,12 +133,25 @@
         }
       }
 
-      return this.functions.update(functionId, next);
+      const updated = await this.functions.update(functionId, next);
+      await this.audit('MINISTRY_FUNCTION_UPDATED', functionId, {
+        before: { name: current.name, slug: current.slug, order: current.order, active: current.active },
+        after: { name: updated.name, slug: updated.slug, order: updated.order, active: updated.active }
+      });
+      return updated;
     }
 
     async setFunctionActive(functionId, active) {
       if (typeof active !== 'boolean') throw new TypeError('active deve ser booleano.');
-      return this.updateFunction(functionId, { active });
+      const current = await this.functions.getById(functionId);
+      if (!current) throw new Error(`Função não encontrada: ${functionId}.`);
+      if (current.active === active) return current;
+      const updated = await this.functions.update(functionId, createMinistryFunctionDocument({ ...current, active }));
+      await this.audit(active ? 'MINISTRY_FUNCTION_REACTIVATED' : 'MINISTRY_FUNCTION_DEACTIVATED', functionId, {
+        name: current.name,
+        active
+      });
+      return updated;
     }
 
     async reorder(functionOrders) {
@@ -92,7 +172,11 @@
       if (typeof this.functions.reorder !== 'function') {
         throw new Error('Repository de funções não oferece reordenação atômica.');
       }
-      return this.functions.reorder(normalized);
+      const result = await this.functions.reorder(normalized);
+      await this.audit('MINISTRY_FUNCTIONS_REORDERED', 'catalog', {
+        order: normalized.map(item => item.functionId)
+      });
+      return result;
     }
 
     async assignFunction(userId, functionId) {
@@ -112,8 +196,9 @@
 
     async replaceUserFunctions(userId, functionIds) {
       if (!Array.isArray(functionIds)) throw new TypeError('functionIds deve ser um array.');
-      const uniqueIds = [...new Set(functionIds.filter(Boolean))];
-      if (uniqueIds.length !== functionIds.filter(Boolean).length) {
+      const filtered = functionIds.filter(Boolean);
+      const uniqueIds = [...new Set(filtered)];
+      if (uniqueIds.length !== filtered.length) {
         throw new Error('A mesma função não pode ser atribuída duas vezes ao usuário.');
       }
 
@@ -130,7 +215,22 @@
 
       return this.listUserFunctions(userId);
     }
+
+    async resolveLegacyFunctionIds(labels) {
+      if (!Array.isArray(labels)) throw new TypeError('labels deve ser um array.');
+      const functions = await this.listFunctions();
+      const bySlug = new Map(functions.map(item => [item.slug, item]));
+      return [...new Set(labels.filter(Boolean).map(normalizeLegacyFunctionLabel))]
+        .map(slug => bySlug.get(slug))
+        .filter(Boolean)
+        .map(item => item.id);
+    }
   }
 
-  return Object.freeze({ MinistryFunctionsService });
+  return Object.freeze({
+    MinistryFunctionsService,
+    LEGACY_FUNCTION_ALIASES,
+    normalizeLegacyFunctionLabel,
+    canManageMinistryFunctions
+  });
 });
