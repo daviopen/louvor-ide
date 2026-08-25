@@ -100,11 +100,17 @@ jobs:
           grep -q "function canRead(moduleName)" firestore.rules
           grep -q "function canEdit(moduleName)" firestore.rules
           grep -q "allow read, write: if false;" firestore.rules
+          test -f ops/provisioned-users.json
+          test -f scripts/provision-users.cjs
           if grep -R "davitads@gmail.com" src --include='*.js'; then
             echo "❌ E-mail de bootstrap não pode existir no frontend"
             exit 1
           fi
-          echo "✅ Autorização server-side e deny-by-default presentes"
+          if grep -Ei '"(password|token|credential)"' ops/provisioned-users.json; then
+            echo "❌ Provisionamento operacional não pode armazenar credenciais"
+            exit 1
+          fi
+          echo "✅ Autorização server-side, provisionamento sem credenciais e deny-by-default presentes"
 
   deploy:
     needs: build_and_test
@@ -141,6 +147,12 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
+
+      - name: 👤 Provisionar usuários autorizados
+        run: |
+          set -euo pipefail
+          npm install --no-save firebase-admin@13.4.0
+          node scripts/provision-users.cjs
 
       - name: 🔐 Publicar Firestore Rules via Rules API
         run: |
@@ -236,6 +248,7 @@ jobs:
           fi
           auth_service=$(curl -sS https://louvor-ide.web.app/js/modules/auth-service.js)
           echo "$auth_service" | grep -q 'signInWithGoogle' || { echo "❌ Login Google ausente em produção"; exit 1; }
+          echo "$auth_service" | grep -q "prompt: 'select_account'" || { echo "❌ Seleção explícita da conta Google ausente em produção"; exit 1; }
           echo "$auth_service" | grep -q 'signInWithEmail' || { echo "❌ Login e-mail/senha ausente em produção"; exit 1; }
           echo "$auth_service" | grep -q 'sendPasswordReset' || { echo "❌ Recuperação de senha ausente em produção"; exit 1; }
           echo "$auth_service" | grep -q 'auth.signOut' || { echo "❌ Logout Firebase ausente em produção"; exit 1; }
