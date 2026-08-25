@@ -1,0 +1,136 @@
+/* Compatibility layer for legacy screens. All visual values come from design tokens. */
+.ide-ds-migrated {
+  color: var(--ide-text-primary);
+  background: var(--ide-background);
+}
+
+.ide-ds-migrated :where(.left-panel,.right-panel,.form-container,.filters,.setlists-container,.setlist-info,.music-info-display,.search-section,.transpose-controls,.ministers-summary,.info-section,.controls) {
+  color: var(--ide-text-primary) !important;
+  background: var(--ide-surface) !important;
+  border: 1px solid var(--ide-border) !important;
+  border-radius: var(--ide-radius-lg) !important;
+  box-shadow: var(--ide-shadow-sm) !important;
+}
+
+.ide-ds-migrated :where(.music-card,.stat-card,.song-card,.setlist-card,.music-item,.song-item,.meta-item,.info-item) {
+  color: var(--ide-text-primary) !important;
+  background: var(--ide-surface) !important;
+  border-color: var(--ide-border) !important;
+}
+
+.ide-ds-migrated :where(.music-card,.stat-card,.song-card,.setlist-card,.music-item) {
+  border-radius: var(--ide-radius-lg) !important;
+  box-shadow: var(--ide-shadow-sm) !important;
+}
+
+.ide-ds-migrated :where(.music-card,.stat-card,.song-card,.setlist-card,.music-item):hover {
+  border-color: var(--ide-primary-active) !important;
+  box-shadow: var(--ide-shadow-md) !important;
+}
+
+.ide-ds-migrated :where(button,.btn,.action-btn,.add-button,.nav-btn,.nav-button,.back-btn,.clear-filters,.transpose-btn,.music-action-btn,.song-link-btn,.create-setlist-btn) {
+  min-height: 44px;
+  border-radius: var(--ide-radius-md) !important;
+  font: inherit;
+  font-weight: var(--ide-font-weight-bold) !important;
+}
+
+.ide-ds-migrated :where(.btn-primary,.add-button,.nav-btn.primary,.nav-button.active,.btn-up,.save-btn,.create-setlist-btn) {
+  color: var(--ide-primary-ink) !important;
+  background: var(--ide-primary) !important;
+  border-color: var(--ide-primary) !important;
+}
+
+.ide-ds-migrated :where(.btn-secondary,.nav-btn.secondary,.nav-button.secondary,.back-btn,.btn-back) {
+  color: var(--ide-text-on-dark) !important;
+  background: var(--ide-surface-dark) !important;
+  border-color: var(--ide-border-on-dark) !important;
+}
+
+.ide-ds-migrated :where(.btn-delete,.delete-btn,.btn-down,.action-btn.delete) {
+  color: var(--ide-text-on-dark) !important;
+  background: var(--ide-error) !important;
+}
+
+.ide-ds-migrated :where(.btn-reset,.clear-filters,.action-btn.cifras,.song-link-btn) {
+  color: var(--ide-primary-ink) !important;
+  background: var(--ide-warning) !important;
+}
+
+.ide-ds-migrated :where(.btn-edit,.edit-btn,.action-btn.edit,.current-key,.minister-badge) {
+  color: var(--ide-text-on-dark) !important;
+  background: var(--ide-info) !important;
+}
+
+.ide-ds-migrated :where(input,textarea,select,.search-box,.form-input,.form-textarea,.filter-input) {
+  min-height: 44px;
+  color: var(--ide-text-primary) !important;
+  background: var(--ide-surface) !important;
+  border: 1px solid var(--ide-border-strong) !important;
+  border-radius: var(--ide-radius-md) !important;
+}
+
+.ide-ds-migrated :where(input,textarea,select,.search-box,.form-input,.form-textarea,.filter-input):focus-visible {
+  outline: 3px solid var(--ide-focus-ring) !important;
+  outline-offset: 1px;
+  border-color: var(--ide-primary-active) !important;
+  box-shadow: none !important;
+}
+
+.ide-ds-migrated :where(.music-title,.music-title-display,.song-title,.setlist-title,.form-title,.search-title,.controls-title,.ministers-title,h1,h2,h3) {
+  color: var(--ide-text-primary) !important;
+}
+
+.ide-ds-migrated :where(.music-meta,.music-subtitle,.song-artist,.key-original,.info-label,.filter-label,.form-group label,.empty-state,.loading) {
+  color: var(--ide-text-secondary) !important;
+}
+
+.ide-ds-migrated :where(.cifra-display,.cifra-container,.chord-content,.lyrics-content,.music-content,pre,code) {
+  color: var(--ide-text-primary) !important;
+  background: var(--ide-surface-secondary) !important;
+  border-color: var(--ide-border) !important;
+}
+
+.ide-ds-migrated :where(.chord,.chord-highlight,.key-badge) {
+  color: var(--ide-primary-active) !important;
+}
+
+.ide-ds-migrated :where(table) {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--ide-text-primary);
+  background: var(--ide-surface);
+}
+
+.ide-ds-migrated :where(th,td) {
+  border-color: var(--ide-border) !important;
+}
+
+.ide-ds-migrated :where(th) {
+  color: var(--ide-text-secondary) !important;
+}
+
+:root[data-theme="dark"] .ide-ds-migrated :where(.left-panel,.right-panel,.form-container,.filters,.setlists-container,.setlist-info,.music-info-display,.search-section,.transpose-controls,.ministers-summary,.info-section,.controls,.music-card,.stat-card,.song-card,.setlist-card,.music-item,.song-item,.meta-item,.info-item) {
+  color: var(--ide-text-primary) !important;
+  background: var(--ide-surface) !important;
+  border-color: var(--ide-border) !important;
+}
+
+:root[data-theme="dark"] .ide-ds-migrated :where(.cifra-display,.cifra-container,.chord-content,.lyrics-content,.music-content,pre,code) {
+  color: var(--ide-text-primary) !important;
+  background: var(--ide-surface-secondary) !important;
+}
+
+:root[data-theme="dark"] .ide-ds-migrated :where(.chord,.chord-highlight,.key-badge,.current-key) {
+  color: var(--ide-primary) !important;
+}
+
+@media (max-width: 768px) {
+  .ide-ds-migrated :where(.music-actions,.transpose-buttons,.controls,.nav-buttons) {
+    gap: var(--ide-space-2) !important;
+  }
+  .ide-ds-migrated :where(.music-action-btn,.transpose-btn,.controls .btn) {
+    width: 100%;
+    justify-content: center;
+  }
+}
