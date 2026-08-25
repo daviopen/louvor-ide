@@ -57,14 +57,18 @@ jobs:
           test -f styles/tokens.css
           test -f styles/design-system.css
           test -f styles/legacy-migration.css
-          echo "✅ Tokens, Design System e migração legada presentes no build"
+          test -f models/data-model.js
+          test -f repositories/domain-repositories.js
+          test -f services/ministry-functions-service.js
+          test -f constants/collections.js
+          echo "✅ Tokens, Design System e modelo de dados presentes no build"
           if grep -nEi '#[0-9a-f]{3,8}\b' ./*.html; then
             echo "❌ HTML publicado ainda contém cores hexadecimais fora dos tokens"
             exit 1
           fi
           echo "✅ HTML publicado sem cores hexadecimais espalhadas"
           echo "📁 Estrutura de diretórios:"
-          find . -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) | head -40
+          find . -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) | head -60
 
   deploy:
     needs: build_and_test
@@ -132,16 +136,43 @@ jobs:
           test_url https://louvor-ide.web.app/styles/tokens.css
           test_url https://louvor-ide.web.app/styles/design-system.css
           test_url https://louvor-ide.web.app/styles/legacy-migration.css
+          test_url https://louvor-ide.web.app/models/data-model.js
+          test_url https://louvor-ide.web.app/repositories/domain-repositories.js
+          test_url https://louvor-ide.web.app/services/ministry-functions-service.js
+          test_url https://louvor-ide.web.app/constants/collections.js
+
           css=$(curl -sS https://louvor-ide.web.app/styles/tokens.css)
           echo "$css" | grep -q -- '--ide-primary' || { echo "❌ tokens.css publicado não contém --ide-primary"; exit 1; }
           migration=$(curl -sS https://louvor-ide.web.app/styles/legacy-migration.css)
           echo "$migration" | grep -q -- 'data-theme="dark"' || { echo "❌ migração publicada sem cobertura de tema escuro"; exit 1; }
+
+          data_model=$(curl -sS https://louvor-ide.web.app/models/data-model.js)
+          echo "$data_model" | grep -q -- 'DATA_MODEL_VERSION' || { echo "❌ data-model.js publicado sem versão do contrato"; exit 1; }
+          echo "$data_model" | grep -q -- 'DEFAULT_MINISTRY_FUNCTIONS' || { echo "❌ data-model.js publicado sem funções ministeriais padrão"; exit 1; }
+          echo "$data_model" | grep -q -- "USER_FUNCTIONS: 'userFunctions'" || { echo "❌ data-model.js publicado sem relação userFunctions"; exit 1; }
+          echo "$data_model" | grep -q -- 'userFunctionDocumentId' || { echo "❌ data-model.js publicado sem ID determinístico Pessoa ↔ Função"; exit 1; }
+
+          repositories=$(curl -sS https://louvor-ide.web.app/repositories/domain-repositories.js)
+          echo "$repositories" | grep -q -- 'createRepositoryRegistry' || { echo "❌ domain-repositories.js publicado sem registry"; exit 1; }
+          echo "$repositories" | grep -q -- 'batch.commit' || { echo "❌ domain-repositories.js publicado sem ordenação atômica"; exit 1; }
+
+          ministry_service=$(curl -sS https://louvor-ide.web.app/services/ministry-functions-service.js)
+          echo "$ministry_service" | grep -q -- 'MinistryFunctionsService' || { echo "❌ service de funções ministeriais não foi publicado"; exit 1; }
+          echo "$ministry_service" | grep -q -- 'ensureDefaultFunctions' || { echo "❌ service publicado sem seed idempotente"; exit 1; }
+          echo "$ministry_service" | grep -q -- 'setFunctionActive' || { echo "❌ service publicado sem ativação/inativação"; exit 1; }
+          echo "$ministry_service" | grep -q -- 'async reorder' || { echo "❌ service publicado sem reordenação"; exit 1; }
+
+          collections=$(curl -sS https://louvor-ide.web.app/constants/collections.js)
+          for name in users ministryFunctions userFunctions permissions events unavailability schedules scheduleMembers setlists setlistSongs songs songMinisterKeys auditLogs lgpdConsents; do
+            echo "$collections" | grep -q -- "'$name'" || { echo "❌ Collection $name não encontrada no artefato publicado"; exit 1; }
+          done
+
           home=$(curl -sS https://louvor-ide.web.app/)
           if echo "$home" | grep -qiE '#[0-9a-f]{3,8}\b'; then
             echo "❌ Home publicada contém cor hexadecimal fora dos tokens"
             exit 1
           fi
-          echo "✅ Design System, tokens e cobertura claro/escuro publicados e válidos"
+          echo "✅ Aplicação publicada contém Design System e modelo de dados canônico validado"
 
   notify:
     needs: [build_and_test, deploy]
