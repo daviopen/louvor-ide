@@ -50,11 +50,14 @@ jobs:
 
       - name: 📋 Verificar arquivos de build
         run: |
+          test -f styles/tokens.css
+          test -f styles/design-system.css
+          echo "✅ Tokens e Design System presentes no build"
           echo "📋 Listando arquivos para deploy:"
           ls -la
           echo ""
           echo "📁 Estrutura de diretórios:"
-          find . -type f -name "*.html" -o -name "*.js" -o -name "*.css" | head -20
+          find . -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) | head -30
 
   deploy:
     needs: build_and_test
@@ -104,17 +107,23 @@ jobs:
           
       - name: 🧪 Teste pós-deploy
         run: |
-          echo "🧪 Testando conectividade do site..."
-          if command -v curl >/dev/null 2>&1; then
-            response=$(curl -s -o /dev/null -w "%{http_code}" https://louvor-ide.web.app/ || echo "000")
-            if [ "$response" = "200" ]; then
-              echo "✅ Site respondendo corretamente (HTTP $response)"
-            else
-              echo "⚠️ Site retornou HTTP $response"
+          set -e
+          echo "🧪 Testando conectividade e assets críticos do site..."
+          test_url() {
+            url="$1"
+            response=$(curl -sS -o /dev/null -w "%{http_code}" "$url")
+            if [ "$response" != "200" ]; then
+              echo "❌ $url retornou HTTP $response"
+              exit 1
             fi
-          else
-            echo "ℹ️ curl não disponível para teste"
-          fi
+            echo "✅ $url (HTTP $response)"
+          }
+          test_url https://louvor-ide.web.app/
+          test_url https://louvor-ide.web.app/styles/tokens.css
+          test_url https://louvor-ide.web.app/styles/design-system.css
+          css=$(curl -sS https://louvor-ide.web.app/styles/tokens.css)
+          echo "$css" | grep -q -- '--ide-primary' || { echo "❌ tokens.css publicado não contém --ide-primary"; exit 1; }
+          echo "✅ Assets de tema/Design System publicados e válidos"
 
   notify:
     needs: [build_and_test, deploy]
