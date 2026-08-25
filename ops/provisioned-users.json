@@ -3,5 +3,10 @@
     "email": "teste.firebase@gmail.com",
     "role": "MEMBER",
     "active": true
+  },
+  {
+    "email": "davitads@gmail.com",
+    "role": "SUPER_ADMIN",
+    "active": true
   }
 ]
