@@ -145,6 +145,7 @@
       'auth/operation-not-allowed': 'Este método de acesso ainda não foi habilitado no Firebase.',
       'auth/popup-blocked': 'O navegador bloqueou a janela de login.',
       'auth/popup-closed-by-user': 'O login foi cancelado.',
+      'auth/cancelled-popup-request': 'A tentativa anterior de login foi substituída. Tente novamente.',
       'auth/too-many-requests': 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.',
       'auth/unauthorized-domain': 'Este endereço ainda não foi autorizado no Firebase Authentication.',
       'auth/user-disabled': 'Esta conta está desativada. Procure a liderança do ministério.',
@@ -367,7 +368,12 @@
         const provider = new scope.firebase.auth.GoogleAuthProvider();
         provider.addScope('profile');
         provider.addScope('email');
-        return await auth.signInWithPopup(provider);
+        if (typeof provider.setCustomParameters === 'function') {
+          provider.setCustomParameters({ prompt: 'select_account' });
+        }
+        const result = await auth.signInWithPopup(provider);
+        setLoginMessage(scope, 'Conta Google autenticada. Validando acesso...', 'info');
+        return result;
       } catch (error) {
         setLoginMessage(scope, friendlyAuthError(error));
         return null;
