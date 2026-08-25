@@ -56,10 +56,40 @@ service cloud.firestore {
         && request.resource.data.level in ['READ', 'EDIT']
         && permissionId == request.resource.data.userId + '__' + request.resource.data.module;
     }
+    function validUnavailabilityDocument() {
+      return request.resource.data.userId is string
+        && request.resource.data.date is timestamp
+        && request.resource.data.endAt is timestamp
+        && request.resource.data.endAt >= request.resource.data.date
+        && request.resource.data.createdBy is string
+        && request.resource.data.updatedBy is string
+        && (!('period' in request.resource.data) || request.resource.data.period == null || request.resource.data.period in ['MORNING', 'AFTERNOON', 'EVENING'])
+        && (!('eventId' in request.resource.data) || request.resource.data.eventId == null || request.resource.data.eventId is string)
+        && (!('note' in request.resource.data) || request.resource.data.note == null || (request.resource.data.note is string && request.resource.data.note.size() <= 240));
+    }
+    function ownUnavailabilityCreate() {
+      return activeUser()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.updatedBy == request.auth.uid;
+    }
+    function administrativeUnavailabilityWrite() {
+      return canEdit('unavailability')
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.updatedBy == request.auth.uid;
+    }
+    function validUnavailabilityUpdate() {
+      return validUnavailabilityDocument()
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.updatedBy == request.auth.uid
+        && resource.data.endAt >= request.time
+        && request.resource.data.endAt >= request.time;
+    }
 
     match /users/{userId} {
-      allow get: if (supportedProvider() && request.auth.uid == userId) || canRead('users') || canRead('permissions');
-      allow list: if canRead('users') || canRead('permissions');
+      allow get: if (supportedProvider() && request.auth.uid == userId) || canRead('users') || canRead('permissions') || canEdit('unavailability');
+      allow list: if canRead('users') || canRead('permissions') || canEdit('unavailability');
       allow create: if validCreatedUser(userId) && (isSuperAdmin() || (isAdmin() && canEdit('users') && request.resource.data.role == 'MEMBER'));
       allow update: if isSuperAdmin()
         || (canEdit('users') && resource.data.role != 'SUPER_ADMIN' && request.resource.data.role == resource.data.role && adminKeepsPrivilegeFields())
@@ -85,8 +115,13 @@ service cloud.firestore {
     match /events/{documentId} { allow read: if canRead('events'); allow write: if canEdit('events'); }
     match /unavailability/{documentId} {
       allow read: if canRead('unavailability') || (activeUser() && resource.data.userId == request.auth.uid);
-      allow create: if canEdit('unavailability') || (activeUser() && request.resource.data.userId == request.auth.uid);
-      allow update, delete: if canEdit('unavailability') || (activeUser() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
+      allow create: if validUnavailabilityDocument() && (ownUnavailabilityCreate() || administrativeUnavailabilityWrite());
+      allow update: if validUnavailabilityUpdate() && (
+        canEdit('unavailability') || (activeUser() && resource.data.userId == request.auth.uid)
+      );
+      allow delete: if resource.data.endAt >= request.time && (
+        canEdit('unavailability') || (activeUser() && resource.data.userId == request.auth.uid)
+      );
     }
     match /schedules/{documentId} { allow read: if canRead('schedules'); allow write: if canEdit('schedules'); }
     match /scheduleMembers/{documentId} { allow read: if canRead('schedules'); allow write: if canEdit('schedules'); }
