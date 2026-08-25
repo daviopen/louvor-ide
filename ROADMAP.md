@@ -87,9 +87,9 @@
 ### 6. Paleta e tokens
 - [x] Definir paleta oficial do IDE Music.
 - [x] Tokens: `primary`, `primary-hover`, `primary-active`, `secondary`, `background`, `surface`, `surface-secondary`, `text-primary`, `text-secondary`, `border`, `success`, `warning`, `error`, `info`.
-- [ ] Definir spacing, radius, sombras, tipografia, breakpoints e z-index.
-- [ ] Eliminar hexadecimais espalhados pelo código.
-- [ ] Garantir contraste WCAG.
+- [x] Definir spacing, radius, sombras, tipografia, breakpoints e z-index.
+- [x] Eliminar hexadecimais espalhados pelo código.
+- [x] Garantir contraste WCAG.
 
 ### 7. Tema claro/escuro
 - [ ] Tema claro.
