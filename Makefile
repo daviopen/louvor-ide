@@ -152,7 +152,7 @@ build:
 	@echo "$(BLUE)🏗️ Preparando build para produção...$(NC)"
 	@echo "$(YELLOW)🧹 Limpando arquivos antigos...$(NC)"
 	@rm -f *.html 2>/dev/null || true
-	@rm -rf js/ css/ styles/ scripts/ config/ 2>/dev/null || true
+	@rm -rf js/ css/ styles/ scripts/ config/ models/ repositories/ services/ constants/ 2>/dev/null || true
 	@echo "$(YELLOW)📁 Copiando arquivos do src para a raiz...$(NC)"
 	@cp -r src/pages/* ./ 2>/dev/null || true
 	@cp -r src/js ./ 2>/dev/null || true
@@ -160,6 +160,10 @@ build:
 	@cp -r src/styles ./ 2>/dev/null || true
 	@cp -r src/scripts ./ 2>/dev/null || true
 	@cp -r src/config ./ 2>/dev/null || true
+	@cp -r src/models ./ 2>/dev/null || true
+	@cp -r src/repositories ./ 2>/dev/null || true
+	@cp -r src/services ./ 2>/dev/null || true
+	@cp -r src/constants ./ 2>/dev/null || true
 	@echo "$(YELLOW)🔧 Processando variáveis de ambiente...$(NC)"
 	@if [ "$$GITHUB_ACTIONS" = "true" ]; then \
 		echo "$(BLUE)🤖 Executando no GitHub Actions - usando variables/secrets$(NC)"; \
@@ -207,6 +211,10 @@ build:
 	@if [ -d "css/" ]; then echo "$(GREEN)✅ Diretório css/$(NC)"; fi
 	@if [ -d "styles/" ]; then echo "$(GREEN)✅ Diretório styles/$(NC)"; fi
 	@if [ -d "scripts/" ]; then echo "$(GREEN)✅ Diretório scripts/$(NC)"; fi
+	@if [ -d "models/" ]; then echo "$(GREEN)✅ Diretório models/$(NC)"; fi
+	@if [ -d "repositories/" ]; then echo "$(GREEN)✅ Diretório repositories/$(NC)"; fi
+	@if [ -d "services/" ]; then echo "$(GREEN)✅ Diretório services/$(NC)"; fi
+	@if [ -d "constants/" ]; then echo "$(GREEN)✅ Diretório constants/$(NC)"; fi
 
 ## 🚀 Deploy manual
 deploy: build
@@ -237,6 +245,10 @@ test:
 	@if [ -f index.html ]; then \
 		test -f styles/tokens.css || { echo "$(RED)❌ styles/tokens.css ausente no build$(NC)"; exit 1; }; \
 		test -f styles/design-system.css || { echo "$(RED)❌ styles/design-system.css ausente no build$(NC)"; exit 1; }; \
+		test -f models/data-model.js || { echo "$(RED)❌ models/data-model.js ausente no build$(NC)"; exit 1; }; \
+		test -f repositories/domain-repositories.js || { echo "$(RED)❌ repositories/domain-repositories.js ausente no build$(NC)"; exit 1; }; \
+		test -f services/ministry-functions-service.js || { echo "$(RED)❌ services/ministry-functions-service.js ausente no build$(NC)"; exit 1; }; \
+		test -f constants/collections.js || { echo "$(RED)❌ constants/collections.js ausente no build$(NC)"; exit 1; }; \
 	fi
 	@echo "$(GREEN)✅ Estrutura de arquivos OK$(NC)"
 	@echo "$(YELLOW)🎼 Testando transposição de acordes...$(NC)"
@@ -251,7 +263,7 @@ clean:
 	@rm -f firebase-debug.*.log
 	@echo "$(YELLOW)🗑️ Limpando arquivos copiados do build...$(NC)"
 	@rm -f *.html 2>/dev/null || true
-	@rm -rf js/ css/ styles/ scripts/ config/ 2>/dev/null || true
+	@rm -rf js/ css/ styles/ scripts/ config/ models/ repositories/ services/ constants/ 2>/dev/null || true
 	@rm -f env-config.js 2>/dev/null || true
 	@echo "$(GREEN)✅ Limpeza concluída$(NC)"
 
