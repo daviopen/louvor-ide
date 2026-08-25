@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="auth-pending">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IDE Music — Área do sistema</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="../config/firebase-config.js"></script>
+  <script src="../js/modules/auth-service.js?v=20260825-email"></script>
+  <script src="../js/modules/app-shell.js?v=20260825-menu-main" defer></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="../styles/tokens.css">
+  <link rel="stylesheet" href="../styles/design-system.css">
+  <link rel="stylesheet" href="../css/music-ide-theme.css">
+</head>
+<body>
+  <main class="ide-module-page">
+    <div class="ide-module-page__inner">
+      <section class="ide-module-card" aria-labelledby="module-title">
+        <div class="ide-module-kicker">IDE Music · Estrutura administrativa</div>
+        <h1 id="module-title">Área do sistema</h1>
+        <p id="module-description">Esta área já está integrada à navegação principal e será evoluída no respectivo item funcional do roadmap.</p>
+        <span class="ide-module-card__status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Navegação preparada</span>
+      </section>
+    </div>
+  </main>
+  <script>
+    (function renderModuleContext() {
+      const sections = {
+        users: ['Usuários', 'Cadastro, consulta e gestão de usuários serão implementados no item 12 do roadmap.'],
+        permissions: ['Permissões', 'A matriz de permissões por usuário será implementada no item 13 do roadmap.'],
+        unavailability: ['Indisponibilidade', 'O fluxo completo de indisponibilidades será implementado no item 15 do roadmap.'],
+        events: ['Eventos', 'O CRUD e ciclo de vida dos eventos serão implementados no item 16 do roadmap.'],
+        schedules: ['Escalas', 'A operação completa das escalas será implementada no item 17 do roadmap.'],
+        audit: ['Auditoria', 'A tela administrativa de auditoria será implementada na etapa correspondente do roadmap.'],
+        settings: ['Configurações', 'As configurações administrativas serão disponibilizadas conforme os módulos forem evoluídos.']
+      };
+      const section = new URLSearchParams(window.location.search).get('section');
+      const current = sections[section] || ['Área do sistema', 'Selecione uma opção válida no menu principal.'];
+      document.title = `IDE Music — ${current[0]}`;
+      document.getElementById('module-title').textContent = current[0];
+      document.getElementById('module-description').textContent = current[1];
+    })();
+  </script>
+</body>
+</html>

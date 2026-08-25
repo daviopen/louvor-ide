@@ -1,33 +1,110 @@
 /**
- * Navegação global responsiva do IDE Music.
- * Injeta a barra lateral, aplica o Design System e inicializa o gate LGPD nas
- * páginas autenticadas sem depender da marcação específica de cada tela legada.
+ * App shell global do IDE Music.
+ * Responsável por navegação desktop/mobile, estado recolhido, rota ativa e
+ * visibilidade de itens baseada no perfil/permissões já carregado pelo Auth.
  */
 (function initializeIdeMusicShell(scope) {
   if (!scope || !scope.document) return;
 
-  const items = [
-    { id: 'home', label: 'Visão geral', href: 'index.html', icon: '⌂' },
-    { id: 'songs', label: 'Músicas', href: 'consultar.html', icon: '♪' },
-    { id: 'new-song', label: 'Nova música', href: 'nova-musica.html', icon: '+' },
-    { id: 'setlists', label: 'Setlists', href: 'setlists.html', icon: '≡' },
-    { id: 'new-setlist', label: 'Criar setlist', href: 'setlist.html', icon: '✦' }
+  const COLLAPSED_KEY = 'musicIdeSidebarCollapsed';
+  const shellExcludedPages = new Set(['login.html', 'consentimento.html', 'termos.html', 'privacidade.html']);
+
+  const navigationGroups = [
+    {
+      id: 'dashboard',
+      label: '',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', href: 'index.html', icon: 'fa-house', permission: 'dashboard' }
+      ]
+    },
+    {
+      id: 'users',
+      label: 'Usuários',
+      items: [
+        { id: 'users', label: 'Usuários', href: 'module.html?section=users', icon: 'fa-users', permission: 'users' },
+        { id: 'permissions', label: 'Permissões', href: 'module.html?section=permissions', icon: 'fa-shield-halved', permission: 'permissions' }
+      ]
+    },
+    {
+      id: 'schedules',
+      label: 'Escalas',
+      items: [
+        { id: 'unavailability', label: 'Indisponibilidade', href: 'module.html?section=unavailability', icon: 'fa-calendar-xmark', permission: 'unavailability' },
+        { id: 'events', label: 'Eventos', href: 'module.html?section=events', icon: 'fa-calendar-days', permission: 'events' },
+        { id: 'schedules', label: 'Escalas', href: 'module.html?section=schedules', icon: 'fa-people-group', permission: 'schedules' }
+      ]
+    },
+    {
+      id: 'setlists',
+      label: 'Setlist',
+      items: [
+        { id: 'setlists-upcoming', label: 'Próximos', href: 'setlists.html?view=upcoming', icon: 'fa-list-check', permission: 'setlists' },
+        { id: 'setlists-history', label: 'Histórico', href: 'setlists.html?view=history', icon: 'fa-clock-rotate-left', permission: 'setlists' }
+      ]
+    },
+    {
+      id: 'songs',
+      label: 'Músicas',
+      items: [
+        { id: 'songs', label: 'Consultar', href: 'consultar.html', icon: 'fa-music', permission: 'songs' },
+        { id: 'new-song', label: 'Nova Música', href: 'nova-musica.html', icon: 'fa-circle-plus', permission: 'songs', minLevel: 'edit' }
+      ]
+    },
+    {
+      id: 'administration',
+      label: 'Administração',
+      items: [
+        { id: 'audit', label: 'Auditoria', href: 'module.html?section=audit', icon: 'fa-clipboard-list', permission: 'audit' },
+        { id: 'settings', label: 'Configurações', href: 'module.html?section=settings', icon: 'fa-gear', permission: 'settings' }
+      ]
+    }
   ];
 
-  const pageMap = {
-    'index.html': 'home',
-    'consultar.html': 'songs',
-    'ver.html': 'songs',
-    'nova-musica.html': 'new-song',
-    'setlists.html': 'setlists',
-    'setlist-view.html': 'setlists',
-    'setlist.html': 'new-setlist'
-  };
-
-  const shellExcludedPages = new Set(['login.html', 'consentimento.html', 'termos.html', 'privacidade.html']);
+  const moduleSections = new Set(['users', 'permissions', 'unavailability', 'events', 'schedules', 'audit', 'settings']);
 
   function currentPage(pathname) {
     return String(pathname || '').split('/').filter(Boolean).pop() || 'index.html';
+  }
+
+  function currentNavigationId() {
+    const page = currentPage(scope.location && scope.location.pathname);
+    const params = new URLSearchParams(scope.location && scope.location.search || '');
+    if (page === 'module.html') {
+      const section = params.get('section');
+      return moduleSections.has(section) ? section : 'dashboard';
+    }
+    if (page === 'setlists.html') return params.get('view') === 'history' ? 'setlists-history' : 'setlists-upcoming';
+    if (page === 'setlist-view.html' || page === 'setlist.html') return 'setlists-upcoming';
+    if (page === 'consultar.html' || page === 'ver.html') return 'songs';
+    if (page === 'nova-musica.html') return 'new-song';
+    return 'dashboard';
+  }
+
+  function normalizeLevel(value) {
+    const normalized = String(value || '').toLowerCase();
+    if (['edit', 'write', 'edicao', 'edição'].includes(normalized)) return 'edit';
+    if (['read', 'view', 'leitura'].includes(normalized)) return 'read';
+    return 'none';
+  }
+
+  function resolveAccessLevel(profile, permission) {
+    if (!profile) return 'none';
+    if (profile.role === 'SUPER_ADMIN' || profile.isSuperAdmin === true) return 'edit';
+    const permissions = profile.permissions && typeof profile.permissions === 'object' ? profile.permissions : {};
+    const explicit = permissions[permission];
+    if (explicit && typeof explicit === 'object') return normalizeLevel(explicit.level || explicit.access);
+    if (explicit != null) return normalizeLevel(explicit);
+
+    // Compatibilidade enquanto a matriz do item 13 ainda não foi migrada:
+    // usuários ativos mantêm leitura das áreas operacionais já existentes.
+    if (['dashboard', 'songs', 'setlists'].includes(permission)) return 'read';
+    return 'none';
+  }
+
+  function canViewItem(item, profile) {
+    const level = resolveAccessLevel(profile, item.permission);
+    if (item.minLevel === 'edit') return level === 'edit';
+    return level === 'read' || level === 'edit';
   }
 
   function element(tag, className, text) {
@@ -54,16 +131,9 @@
 
   function initializeLgpdGate() {
     const start = () => {
-      if (scope.MusicIdeLgpd && typeof scope.MusicIdeLgpd.bootstrapGate === 'function') {
-        scope.MusicIdeLgpd.bootstrapGate(scope);
-      }
+      if (scope.MusicIdeLgpd && typeof scope.MusicIdeLgpd.bootstrapGate === 'function') scope.MusicIdeLgpd.bootstrapGate(scope);
     };
-
-    if (scope.MusicIdeLgpd) {
-      start();
-      return;
-    }
-
+    if (scope.MusicIdeLgpd) return start();
     if (scope.document.querySelector('script[data-ide-lgpd]')) return;
     const script = scope.document.createElement('script');
     script.src = '../js/modules/lgpd-service.js?v=20260825-lgpd';
@@ -81,18 +151,12 @@
     const body = scope.document.body;
     if (!body) return;
     body.classList.add('ide-ds-migrated');
-
     scope.document.querySelectorAll('button, .btn, .action-btn, .add-button, .clear-filters, .back-btn, .nav-btn, .nav-button, .transpose-btn, .music-action-btn, .song-link-btn, .create-setlist-btn').forEach(node => {
       node.classList.add('ide-button', 'ide-button--md');
-      if (node.classList.contains('btn-delete') || node.classList.contains('delete-btn') || node.classList.contains('btn-down') || node.classList.contains('delete')) {
-        node.classList.add('ide-button--danger');
-      } else if (node.classList.contains('btn-secondary') || node.classList.contains('secondary') || node.classList.contains('back-btn') || node.classList.contains('btn-back')) {
-        node.classList.add('ide-button--secondary');
-      } else {
-        node.classList.add('ide-button--primary');
-      }
+      if (node.classList.contains('btn-delete') || node.classList.contains('delete-btn') || node.classList.contains('btn-down') || node.classList.contains('delete')) node.classList.add('ide-button--danger');
+      else if (node.classList.contains('btn-secondary') || node.classList.contains('secondary') || node.classList.contains('back-btn') || node.classList.contains('btn-back')) node.classList.add('ide-button--secondary');
+      else node.classList.add('ide-button--primary');
     });
-
     addClasses('input:not([type="checkbox"]):not([type="radio"]), .form-input, .filter-input, .search-box', 'ide-field__control', 'ide-field__input');
     addClasses('textarea, .form-textarea', 'ide-field__control', 'ide-field__textarea');
     addClasses('select', 'ide-field__control', 'ide-select');
@@ -101,17 +165,14 @@
     addClasses('.music-card, .stat-card, .song-card, .setlist-card, .music-item, .song-item, .meta-item, .info-item', 'ide-card');
     addClasses('.empty-state', 'ide-empty-state');
     addClasses('table', 'ide-table');
-
     scope.document.querySelectorAll('.loading').forEach(node => {
       node.classList.add('ide-loading');
       if (!node.getAttribute('role')) node.setAttribute('role', 'status');
       if (!node.getAttribute('aria-live')) node.setAttribute('aria-live', 'polite');
     });
-
     scope.document.querySelectorAll('label').forEach(label => {
       if (!label.classList.contains('ide-field__label')) label.classList.add('ide-field__label');
     });
-
     scope.document.querySelectorAll('table').forEach(table => {
       const parent = table.parentElement;
       if (parent && !parent.classList.contains('ide-table-wrap')) {
@@ -123,63 +184,110 @@
     });
   }
 
+  function readCollapsedPreference() {
+    try { return scope.localStorage && scope.localStorage.getItem(COLLAPSED_KEY) === 'true'; }
+    catch (error) { return false; }
+  }
+
+  function setCollapsed(collapsed) {
+    scope.document.body.classList.toggle('ide-sidebar-collapsed', collapsed);
+    const button = scope.document.getElementById('ide-sidebar-collapse');
+    if (button) {
+      button.setAttribute('aria-pressed', String(collapsed));
+      button.setAttribute('aria-label', collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral');
+      button.title = collapsed ? 'Expandir menu' : 'Recolher menu';
+    }
+    try { if (scope.localStorage) scope.localStorage.setItem(COLLAPSED_KEY, String(collapsed)); } catch (error) {}
+  }
+
   function setMenuOpen(isOpen) {
     scope.document.body.classList.toggle('ide-sidebar-open', isOpen);
     const toggle = scope.document.getElementById('ide-sidebar-toggle');
     if (toggle) toggle.setAttribute('aria-expanded', String(isOpen));
   }
 
+  function createNavLink(item, activeId, compact = false) {
+    const link = element('a', compact ? 'ide-mobile-nav-item' : 'ide-sidebar-link');
+    link.href = item.href;
+    link.dataset.navId = item.id;
+    const icon = element('i', `fa-solid ${item.icon}`);
+    icon.setAttribute('aria-hidden', 'true');
+    link.append(icon, element('span', compact ? 'ide-mobile-nav-label' : 'ide-sidebar-label', item.label));
+    if (item.id === activeId) {
+      link.classList.add('active');
+      link.setAttribute('aria-current', 'page');
+    }
+    link.addEventListener('click', () => setMenuOpen(false));
+    return link;
+  }
+
+  function renderNavigation(profile) {
+    const nav = scope.document.getElementById('ide-sidebar-nav');
+    if (!nav) return;
+    const activeId = currentNavigationId();
+    nav.textContent = '';
+    navigationGroups.forEach(group => {
+      const visibleItems = group.items.filter(item => canViewItem(item, profile));
+      if (!visibleItems.length) return;
+      const section = element('section', 'ide-sidebar-section');
+      if (group.label) section.appendChild(element('div', 'ide-sidebar-section-title', group.label));
+      visibleItems.forEach(item => section.appendChild(createNavLink(item, activeId)));
+      nav.appendChild(section);
+    });
+
+    const mobile = scope.document.getElementById('ide-mobile-navigation');
+    if (!mobile) return;
+    mobile.textContent = '';
+    const mobileCandidates = [
+      navigationGroups[0].items[0],
+      navigationGroups[2].items[2],
+      navigationGroups[3].items[0],
+      navigationGroups[4].items[0]
+    ].filter(item => canViewItem(item, profile));
+    mobileCandidates.slice(0, 4).forEach(item => mobile.appendChild(createNavLink(item, activeId, true)));
+    const more = element('button', 'ide-mobile-nav-item ide-mobile-nav-more');
+    more.type = 'button';
+    more.innerHTML = '<i class="fa-solid fa-bars" aria-hidden="true"></i><span class="ide-mobile-nav-label">Mais</span>';
+    more.addEventListener('click', () => setMenuOpen(true));
+    mobile.appendChild(more);
+  }
+
   function buildShell() {
     if (!scope.document.body || scope.document.getElementById('ide-sidebar')) return;
-
     const page = currentPage(scope.location && scope.location.pathname);
     if (shellExcludedPages.has(page)) return;
 
     initializeLgpdGate();
     ensureDesignSystemStyles();
     migrateLegacyControls();
-
-    const activeId = pageMap[page] || 'home';
     scope.document.body.classList.add('ide-shell-enabled');
 
     const sidebar = element('aside', 'ide-sidebar');
     sidebar.id = 'ide-sidebar';
     sidebar.setAttribute('aria-label', 'Navegação principal');
 
+    const header = element('div', 'ide-sidebar-header');
     const brand = element('a', 'ide-sidebar-brand');
     brand.href = 'index.html';
-    brand.setAttribute('aria-label', 'IDE Music — início');
+    brand.setAttribute('aria-label', 'IDE Music — Dashboard');
     brand.append(element('span', 'ide-sidebar-brand-main', 'IDE'), element('span', 'ide-sidebar-brand-detail', 'Music'));
+    const collapse = element('button', 'ide-sidebar-collapse');
+    collapse.id = 'ide-sidebar-collapse';
+    collapse.type = 'button';
+    collapse.innerHTML = '<i class="fa-solid fa-angles-left" aria-hidden="true"></i>';
+    collapse.addEventListener('click', () => setCollapsed(!scope.document.body.classList.contains('ide-sidebar-collapsed')));
+    header.append(brand, collapse);
 
     const context = element('div', 'ide-sidebar-context');
     context.append(element('span', 'ide-sidebar-context-label', 'Ministério de louvor'), element('strong', '', 'Comunidade IDE'));
 
     const nav = element('nav', 'ide-sidebar-nav');
+    nav.id = 'ide-sidebar-nav';
     nav.setAttribute('aria-label', 'Seções do sistema');
 
-    items.forEach(item => {
-      const link = element('a', 'ide-sidebar-link');
-      link.href = item.href;
-      link.dataset.navId = item.id;
-      link.append(element('span', 'ide-sidebar-icon', item.icon), element('span', 'ide-sidebar-label', item.label));
-      if (item.id === activeId) {
-        link.classList.add('active');
-        link.setAttribute('aria-current', 'page');
-      }
-      link.addEventListener('click', () => setMenuOpen(false));
-      nav.appendChild(link);
-    });
-
-    const privacyLink = element('a', 'ide-sidebar-legal-link', 'Privacidade');
-    privacyLink.href = 'privacidade.html';
-    const termsLink = element('a', 'ide-sidebar-legal-link', 'Termos');
-    termsLink.href = 'termos.html';
     const footer = element('div', 'ide-sidebar-footer');
-    const footerLabel = element('div', '', 'Repertório · Setlists · Escalas');
-    const legalLinks = element('div', 'ide-sidebar-legal');
-    legalLinks.append(termsLink, privacyLink);
-    footer.append(footerLabel, legalLinks);
-    sidebar.append(brand, context, nav, footer);
+    footer.innerHTML = '<div>IDE Music</div><div class="ide-sidebar-legal"><a href="termos.html">Termos</a><a href="privacidade.html">Privacidade</a></div>';
+    sidebar.append(header, context, nav, footer);
 
     const toggle = element('button', 'ide-sidebar-toggle');
     toggle.id = 'ide-sidebar-toggle';
@@ -187,7 +295,7 @@
     toggle.setAttribute('aria-controls', 'ide-sidebar');
     toggle.setAttribute('aria-expanded', 'false');
     toggle.setAttribute('aria-label', 'Abrir menu');
-    toggle.append(element('span', 'ide-sidebar-toggle-line'), element('span', 'ide-sidebar-toggle-line'), element('span', 'ide-sidebar-toggle-line'));
+    toggle.innerHTML = '<i class="fa-solid fa-bars" aria-hidden="true"></i>';
     toggle.addEventListener('click', () => setMenuOpen(!scope.document.body.classList.contains('ide-sidebar-open')));
 
     const overlay = element('button', 'ide-sidebar-overlay');
@@ -196,11 +304,25 @@
     overlay.setAttribute('aria-label', 'Fechar menu');
     overlay.addEventListener('click', () => setMenuOpen(false));
 
+    const mobile = element('nav', 'ide-mobile-navigation');
+    mobile.id = 'ide-mobile-navigation';
+    mobile.setAttribute('aria-label', 'Navegação móvel');
+
     scope.document.body.prepend(sidebar, toggle, overlay);
-    scope.document.addEventListener('keydown', event => {
-      if (event.key === 'Escape') setMenuOpen(false);
-    });
+    scope.document.body.appendChild(mobile);
+    setCollapsed(readCollapsedPreference());
+    renderNavigation(scope.currentMusicIdeProfile || null);
+
+    scope.addEventListener('musicIdeAuthReady', event => renderNavigation(event && event.detail && event.detail.profile || null));
+    scope.document.addEventListener('keydown', event => { if (event.key === 'Escape') setMenuOpen(false); });
   }
+
+  scope.MusicIdeNavigation = {
+    navigationGroups,
+    resolveAccessLevel,
+    canViewItem,
+    currentNavigationId
+  };
 
   if (scope.document.readyState === 'loading') scope.document.addEventListener('DOMContentLoaded', buildShell, { once: true });
   else buildShell();

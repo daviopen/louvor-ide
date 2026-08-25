@@ -1,3 +1,4 @@
+@import url('./main-menu.css');
 /* Compatibility layer for legacy screens. All visual values come from design tokens. */
 .ide-ds-migrated {
   color: var(--ide-text-primary);
