@@ -1,6 +1,6 @@
 # Ativação do acesso no Firebase
 
-O MUSIC.IDE oferece login com Google ou e-mail/senha, persistência da sessão, recuperação de senha, retorno à página solicitada e proteção das páginas principais. Não existe cadastro público: contas de e-mail/senha são criadas pela liderança no Firebase.
+O IDE Music oferece login com Google ou e-mail/senha, persistência da sessão, recuperação de senha, retorno à página solicitada e proteção das páginas principais. Não existe cadastro público: contas de e-mail/senha são criadas pela liderança no Firebase.
 
 ## 1. Habilitar o provedor Google
 

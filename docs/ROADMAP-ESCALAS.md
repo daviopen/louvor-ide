@@ -1,8 +1,8 @@
-# Evolução do Louvor IDE: eventos, indisponibilidades e escalas
+# Evolução do IDE Music: eventos, indisponibilidades e escalas
 
 ## Objetivo
 
-Transformar o Louvor IDE em um fluxo único para:
+Transformar o IDE Music em um fluxo único para:
 
 1. manter o cadastro da equipe e das funções que cada pessoa exerce;
 2. permitir que cada integrante informe suas indisponibilidades;

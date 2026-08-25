@@ -1,5 +1,5 @@
 /**
- * Autenticação Google do MUSIC.IDE.
+ * Autenticação do IDE Music.
  *
  * O módulo expõe funções puras para testes e inicializa automaticamente o
  * Firebase Auth quando executado no navegador.
