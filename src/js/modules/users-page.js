@@ -1,6 +1,17 @@
 (function initUsersPage(scope) {
   if (!scope || !scope.document) return;
 
+  const PERMISSION_LABELS = Object.freeze({
+    dashboard: 'Dashboard',
+    users: 'Usuários',
+    permissions: 'Permissões',
+    unavailability: 'Indisponibilidade',
+    events: 'Eventos',
+    schedules: 'Escalas',
+    setlists: 'Setlists',
+    songs: 'Músicas',
+    audit: 'Auditoria'
+  });
   const state = { page: 1, pageSize: 10, filters: { search: '', status: 'ALL', functionId: 'ALL' }, editingId: null, functions: [] };
   let service;
 
@@ -82,6 +93,18 @@
     el('page-next').disabled = result.page >= result.pages;
   }
 
+  function renderInitialPermissions() {
+    el('user-permissions').innerHTML = Object.entries(PERMISSION_LABELS).map(([moduleName, label]) => `
+      <label class="users-permission-option">
+        <span>${escapeHtml(label)}</span>
+        <select class="ide-field__control ide-select" data-permission-module="${escapeHtml(moduleName)}" aria-label="Permissão inicial para ${escapeHtml(label)}">
+          <option value="NONE">Sem acesso</option>
+          <option value="READ">Leitura</option>
+          <option value="EDIT">Edição</option>
+        </select>
+      </label>`).join('');
+  }
+
   function openForm(user = null) {
     state.editingId = user && user.id || null;
     el('user-form-title').textContent = user ? 'Editar usuário' : 'Novo usuário';
@@ -90,7 +113,9 @@
     el('user-photo').value = user?.photoURL || '';
     el('user-uid').value = user?.uid || user?.id || '';
     el('user-uid-row').hidden = Boolean(user);
+    el('user-permissions-row').hidden = Boolean(user);
     el('user-functions').innerHTML = state.functions.filter(item => item.active !== false).map(fn => `<label class="users-function-option"><input type="checkbox" value="${escapeHtml(fn.id)}" ${user?.functionIds?.includes(fn.id) ? 'checked' : ''}><span>${escapeHtml(fn.name)}</span></label>`).join('');
+    if (!user) renderInitialPermissions();
     el('user-dialog').showModal();
     el('user-name').focus();
   }
@@ -98,6 +123,14 @@
   async function findUser(id) {
     const result = await service.list({}, 1, 1000);
     return result.items.find(item => item.id === id) || null;
+  }
+
+  function readInitialPermissions() {
+    const permissions = {};
+    el('user-permissions').querySelectorAll('[data-permission-module]').forEach(select => {
+      permissions[select.dataset.permissionModule] = select.value;
+    });
+    return permissions;
   }
 
   async function submitForm(event) {
@@ -108,7 +141,8 @@
       name: el('user-name').value.trim(),
       email: el('user-email').value.trim(),
       photoURL: el('user-photo').value.trim() || null,
-      functionIds
+      functionIds,
+      permissions: state.editingId ? undefined : readInitialPermissions()
     };
     el('user-submit').disabled = true;
     try {
@@ -153,6 +187,19 @@
     }
   }
 
+  function alignUsersNavigation() {
+    const link = scope.document.querySelector('[data-nav-id="users"]');
+    if (!link) return false;
+    scope.document.querySelectorAll('.ide-sidebar-link.active').forEach(item => {
+      item.classList.remove('active');
+      item.removeAttribute('aria-current');
+    });
+    link.href = 'users.html';
+    link.classList.add('active');
+    link.setAttribute('aria-current', 'page');
+    return true;
+  }
+
   async function bootstrap() {
     const authUser = await scope.musicIdeAuthReady;
     if (!authUser) return;
@@ -178,6 +225,8 @@
     el('clear-filters').addEventListener('click', () => { state.filters = { search: '', status: 'ALL', functionId: 'ALL' }; el('filter-search').value = ''; el('filter-status').value = 'ALL'; el('filter-function').value = 'ALL'; state.page = 1; load(); });
     el('page-prev').addEventListener('click', () => { state.page -= 1; load(); });
     el('page-next').addEventListener('click', () => { state.page += 1; load(); });
+    alignUsersNavigation();
+    setTimeout(alignUsersNavigation, 100);
     await load();
   }
 
