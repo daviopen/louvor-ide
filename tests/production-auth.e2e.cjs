@@ -39,16 +39,22 @@ if (!email || !password) {
     await page.getByLabel('Senha').fill(password);
     await page.getByRole('button', { name: 'Entrar com e-mail' }).click();
 
-    const authMessage = page.locator('#auth-message');
-    await authMessage.waitFor({ state: 'visible', timeout: 20000 });
-    const message = (await authMessage.textContent()) || '';
+    await page.waitForFunction(
+      () => /ainda não foi liberada pela liderança/i.test(
+        document.querySelector('#auth-message')?.textContent || ''
+      ),
+      { timeout: 20000 }
+    );
+
+    const message = (await page.locator('#auth-message').textContent()) || '';
     assert.match(message, /ainda não foi liberada pela liderança/i);
     await page.waitForURL(/login\.html(?:$|[?#])/, { timeout: 10000 });
 
-    const currentUser = await page.evaluate(async () => {
-      if (window.musicIdeAuthReady) await window.musicIdeAuthReady;
-      return window.firebase.auth().currentUser;
-    });
+    await page.waitForFunction(
+      () => window.firebase && window.firebase.auth().currentUser === null,
+      { timeout: 10000 }
+    );
+    const currentUser = await page.evaluate(() => window.firebase.auth().currentUser);
     assert.equal(currentUser, null);
     console.log('✅ Conta autenticada sem perfil ativo foi bloqueada e teve a sessão encerrada');
   } finally {
