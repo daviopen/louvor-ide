@@ -78,7 +78,7 @@
         <td><div class="users-chips">${functions}</div></td>
         <td><span class="ide-badge ${user.active === false ? 'ide-badge--neutral' : 'ide-badge--success'}">${user.active === false ? 'Inativo' : 'Ativo'}</span></td>
         <td>${dateText(user.lastAccessAt)}</td>
-        <td class="users-actions">${editable ? `<button class="ide-button ide-button--secondary ide-button--sm" data-action="edit" data-id="${escapeHtml(user.id)}">Editar</button><button class="ide-button ide-button--secondary ide-button--sm" data-action="password" data-email="${escapeHtml(user.email)}">Redefinir senha</button><button class="ide-button ${user.active === false ? 'ide-button--primary' : 'ide-button--danger'} ide-button--sm" data-action="status" data-id="${escapeHtml(user.id)}" data-active="${user.active === false ? 'true' : 'false'}">${user.active === false ? 'Reativar' : 'Inativar'}</button>` : '<span class="users-muted">Somente leitura</span>'}</td>
+        <td class="users-actions">${editable ? `<button class="ide-button ide-button--secondary ide-button--sm" data-action="edit" data-id="${escapeHtml(user.id)}">Editar</button><button class="ide-button ide-button--secondary ide-button--sm" data-action="password" data-id="${escapeHtml(user.id)}" data-email="${escapeHtml(user.email)}">Redefinir senha</button><button class="ide-button ${user.active === false ? 'ide-button--primary' : 'ide-button--danger'} ide-button--sm" data-action="status" data-id="${escapeHtml(user.id)}" data-active="${user.active === false ? 'true' : 'false'}">${user.active === false ? 'Reativar' : 'Inativar'}</button>` : '<span class="users-muted">Somente leitura</span>'}</td>
       </tr>`;
     }).join('');
   }
@@ -107,8 +107,6 @@
     el('user-name').value = user?.name || '';
     el('user-email').value = user?.email || '';
     el('user-photo').value = user?.photoURL || '';
-    el('user-uid').value = user?.uid || user?.id || '';
-    el('user-uid-row').hidden = Boolean(user);
     el('user-permissions-row').hidden = Boolean(user);
     el('user-functions').innerHTML = state.functions.filter(item => item.active !== false).map(fn => `<label class="users-function-option"><input type="checkbox" value="${escapeHtml(fn.id)}" ${user?.functionIds?.includes(fn.id) ? 'checked' : ''}><span>${escapeHtml(fn.name)}</span></label>`).join('');
     if (!user) renderInitialPermissions();
@@ -133,7 +131,6 @@
     event.preventDefault();
     const functionIds = Array.from(el('user-functions').querySelectorAll('input:checked')).map(input => input.value);
     const payload = {
-      uid: el('user-uid').value.trim(),
       name: el('user-name').value.trim(),
       email: el('user-email').value.trim(),
       photoURL: el('user-photo').value.trim() || null,
@@ -147,7 +144,7 @@
         toast('Usuário atualizado com sucesso.');
       } else {
         await service.create(payload);
-        toast('Usuário criado. O Firebase enviou o fluxo de definição de senha quando a conta foi provisionada automaticamente.');
+        toast('Usuário criado no Firebase Authentication. E-mail para definição de senha enviado.');
       }
       el('user-dialog').close();
       state.page = 1;
@@ -169,7 +166,7 @@
         if (user) openForm(user);
       } else if (button.dataset.action === 'password') {
         if (!scope.confirm(`Enviar um e-mail de redefinição de senha para ${button.dataset.email}?`)) return;
-        await service.sendPasswordReset(button.dataset.email);
+        await service.sendPasswordReset(button.dataset.email, button.dataset.id);
         toast('E-mail de redefinição de senha enviado pelo Firebase.');
       } else if (button.dataset.action === 'status') {
         const active = button.dataset.active === 'true';
