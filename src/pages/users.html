@@ -10,10 +10,10 @@
   <script src="../config/firebase-config.js"></script>
   <script src="../models/data-model.js"></script>
   <script src="../repositories/user-repository.js"></script>
-  <script src="../services/user-service.js"></script>
-  <script src="../js/modules/auth-service.js?v=20260825-users"></script>
-  <script src="../js/modules/app-shell.js?v=20260825-users" defer></script>
-  <script src="../js/modules/users-page.js?v=20260825-users" defer></script>
+  <script src="../services/user-service.js?v=20260825-auth-sync"></script>
+  <script src="../js/modules/auth-service.js?v=20260825-auth-sync"></script>
+  <script src="../js/modules/app-shell.js?v=20260825-auth-sync" defer></script>
+  <script src="../js/modules/users-page.js?v=20260825-auth-sync" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
@@ -65,7 +65,7 @@
         <label><span class="ide-field__label">Nome</span><input id="user-name" class="ide-field__control ide-field__input" required maxlength="120"></label>
         <label><span class="ide-field__label">E-mail</span><input id="user-email" class="ide-field__control ide-field__input" type="email" required autocomplete="off"></label>
         <label class="full"><span class="ide-field__label">Avatar (URL opcional)</span><input id="user-photo" class="ide-field__control ide-field__input" type="url" placeholder="https://..."></label>
-        <label id="user-uid-row" class="full"><span class="ide-field__label">UID do Firebase (opcional)</span><input id="user-uid" class="ide-field__control ide-field__input" autocomplete="off"><small class="users-muted">Se ficar vazio, uma conta Firebase será provisionada com senha aleatória não exibida nem armazenada, seguida do e-mail para definição da senha.</small></label>
+        <p class="users-muted full">O Firebase Authentication criará a conta e gerará o UID automaticamente. A senha não é exibida nem armazenada pela aplicação.</p>
         <fieldset class="full"><legend class="ide-field__label">Funções ministeriais</legend><div id="user-functions" class="users-function-list"></div></fieldset>
         <fieldset id="user-permissions-row" class="full"><legend class="ide-field__label">Permissões iniciais</legend><p class="users-muted">O perfil é sempre criado como MEMBER. Defina somente o acesso inicial aos módulos; a matriz completa será administrada no módulo de Permissões.</p><div id="user-permissions" class="users-permission-list"></div></fieldset>
       </div>
