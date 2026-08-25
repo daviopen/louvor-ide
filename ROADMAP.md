@@ -65,28 +65,28 @@
 - [x] Refatorar código legado necessário.
 
 ### 5. Design System
-- [ ] `Button` / `IconButton`.
-- [ ] `Input` / `Textarea`.
-- [ ] `Select` / `MultiSelect` / `SearchSelect`.
-- [ ] `Checkbox` / `RadioGroup` / `Switch`.
-- [ ] `DatePicker` / `TimePicker` / `ColorPicker`.
-- [ ] `Modal` / `Drawer` / `ConfirmDialog`.
-- [ ] `Toast` / `Badge` / `StatusBadge`.
-- [ ] `Avatar` / `UserChip` / `RoleChip`.
-- [ ] `Card` / `SectionCard`.
-- [ ] `Table` / `Pagination`.
-- [ ] `EmptyState` / `Skeleton` / `Loading`.
-- [ ] `SearchBox` / `FilterBar`.
-- [ ] `PageHeader` / `Breadcrumb`.
-- [ ] `Sidebar` / `MobileNavigation`.
-- [ ] `PermissionGuard` / `FormField`.
-- [ ] Criar padrão de tela CRUD e de formulário.
-- [ ] Documentar os componentes.
-- [ ] Migrar telas existentes para os componentes padronizados.
+- [x] `Button` / `IconButton`.
+- [x] `Input` / `Textarea`.
+- [x] `Select` / `MultiSelect` / `SearchSelect`.
+- [x] `Checkbox` / `RadioGroup` / `Switch`.
+- [x] `DatePicker` / `TimePicker` / `ColorPicker`.
+- [x] `Modal` / `Drawer` / `ConfirmDialog`.
+- [x] `Toast` / `Badge` / `StatusBadge`.
+- [x] `Avatar` / `UserChip` / `RoleChip`.
+- [x] `Card` / `SectionCard`.
+- [x] `Table` / `Pagination`.
+- [x] `EmptyState` / `Skeleton` / `Loading`.
+- [x] `SearchBox` / `FilterBar`.
+- [x] `PageHeader` / `Breadcrumb`.
+- [x] `Sidebar` / `MobileNavigation`.
+- [x] `PermissionGuard` / `FormField`.
+- [x] Criar padrão de tela CRUD e de formulário.
+- [x] Documentar os componentes.
+- [x] Migrar telas existentes para os componentes padronizados.
 
 ### 6. Paleta e tokens
-- [ ] Definir paleta oficial do IDE Music.
-- [ ] Tokens: `primary`, `primary-hover`, `primary-active`, `secondary`, `background`, `surface`, `surface-secondary`, `text-primary`, `text-secondary`, `border`, `success`, `warning`, `error`, `info`.
+- [x] Definir paleta oficial do IDE Music.
+- [x] Tokens: `primary`, `primary-hover`, `primary-active`, `secondary`, `background`, `surface`, `surface-secondary`, `text-primary`, `text-secondary`, `border`, `success`, `warning`, `error`, `info`.
 - [ ] Definir spacing, radius, sombras, tipografia, breakpoints e z-index.
 - [ ] Eliminar hexadecimais espalhados pelo código.
 - [ ] Garantir contraste WCAG.
