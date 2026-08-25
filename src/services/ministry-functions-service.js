@@ -89,7 +89,10 @@
         return { functionId: item.functionId, order: index * 10 + 10 };
       });
 
-      return Promise.all(normalized.map(item => this.functions.update(item.functionId, { order: item.order })));
+      if (typeof this.functions.reorder !== 'function') {
+        throw new Error('Repository de funções não oferece reordenação atômica.');
+      }
+      return this.functions.reorder(normalized);
     }
 
     async assignFunction(userId, functionId) {
