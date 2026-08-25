@@ -12,6 +12,15 @@
     return String(value || '').trim().toLocaleLowerCase('pt-BR');
   }
 
+  function canManageUsers(profile) {
+    if (!profile) return false;
+    const role = String(profile.role || '').toUpperCase();
+    if (role === 'SUPER_ADMIN' || role === 'ADMIN' || profile.isSuperAdmin === true) return true;
+    const permission = profile.permissions && profile.permissions.users;
+    const level = typeof permission === 'object' ? permission.level || permission.access : permission;
+    return String(level || '').toLowerCase() === 'edit';
+  }
+
   function filterUsers(users, filters = {}) {
     const search = normalize(filters.search);
     const status = filters.status || 'ALL';
@@ -137,5 +146,5 @@
     return `${Date.now()}${Math.random().toString(36).slice(2)}`;
   }
 
-  return Object.freeze({ UserService, filterUsers, paginate, PAGE_SIZE });
+  return Object.freeze({ UserService, filterUsers, paginate, canManageUsers, PAGE_SIZE });
 });
