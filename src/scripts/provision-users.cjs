@@ -5,7 +5,7 @@ const { getAuth } = require('firebase-admin/auth');
 const { FieldValue, getFirestore } = require('firebase-admin/firestore');
 
 const projectId = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'louvor-ide';
-const configPath = path.resolve(__dirname, '..', '..', 'ops', 'provisioned-users.json');
+const configPath = path.resolve(process.cwd(), 'ops', 'provisioned-users.json');
 const allowedRoles = new Set(['MEMBER', 'ADMIN', 'SUPER_ADMIN']);
 
 function readProvisioningConfig() {
