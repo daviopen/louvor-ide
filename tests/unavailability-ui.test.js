@@ -13,9 +13,18 @@ test('módulo de indisponibilidade expõe formulário, calendário e campos opci
   assert.match(html, /id="unavailability-content"[^>]*hidden/);
   assert.match(html, /id="unavailability-calendar"/);
   assert.match(html, /id="unavailability-date"[^>]*required/);
+  assert.match(page, /id="unavailability-end-date"/);
+  assert.match(page, /Se ficar em branco, a indisponibilidade vale somente para a data de início/);
   assert.match(html, /id="unavailability-period"/);
   assert.match(html, /id="unavailability-event"/);
   assert.match(html, /id="unavailability-note"[^>]*maxlength="240"/);
+});
+
+test('UI envia data de fim opcional e marca todos os dias do intervalo no calendário', () => {
+  assert.match(page, /endDate: el\('unavailability-end-date'\)\.value/);
+  assert.match(page, /dateInRange\(record, date\)/);
+  assert.match(page, /formatDateRange/);
+  assert.match(page, /endInput\.min = event\.target\.value/);
 });
 
 test('UI confirma atuação administrativa e registra sem acesso direto ao Firestore', () => {
