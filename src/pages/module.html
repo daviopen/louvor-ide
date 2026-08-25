@@ -13,19 +13,23 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="../config/firebase-config.js"></script>
-  <script src="../js/modules/auth-service.js?v=20260825-email"></script>
+  <script src="../repositories/unavailability-repository.js?v=20260825-unavailability"></script>
+  <script src="../services/unavailability-service.js?v=20260825-unavailability"></script>
+  <script src="../js/modules/auth-service.js?v=20260825-unavailability"></script>
   <script src="../js/modules/app-shell.js?v=20260825-menu-main" defer></script>
   <script src="../js/modules/permissions-page.js?v=20260825-permissions" defer></script>
+  <script src="../js/modules/unavailability-page.js?v=20260825-unavailability" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
+  <link rel="stylesheet" href="../styles/unavailability.css?v=20260825-unavailability">
   <link rel="stylesheet" href="../css/music-ide-theme.css">
   <style>
     .ide-module-card--wide{width:min(1500px,100%);max-width:none}.ide-permissions-root{display:grid;gap:1rem}.ide-permissions-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap}.ide-permissions-toolbar h2{margin:0 0 .35rem}.ide-permissions-toolbar p{margin:0;color:var(--text-secondary)}.ide-permissions-note,.ide-permissions-status{padding:.75rem 1rem;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface-secondary)}.ide-permissions-table th:first-child{position:sticky;left:0;background:var(--surface);z-index:1;min-width:220px}.ide-permissions-table td{min-width:132px}.ide-permissions-table select{width:100%;min-width:120px}.ide-permissions-table th small{display:block;margin-top:.2rem;font-weight:400;color:var(--text-secondary)}.ide-permission-inactive{display:inline-block;margin-top:.35rem;padding:.1rem .4rem;border-radius:999px;background:var(--surface-secondary);font-size:.75rem}.ide-permissions-dialog{width:min(700px,calc(100vw - 2rem));border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);color:var(--text-primary);padding:1.25rem}.ide-permissions-dialog::backdrop{background:rgba(0,0,0,.45)}.ide-permissions-diff{max-height:50vh;overflow:auto;padding-left:1.25rem}.ide-permissions-dialog-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:1rem}@media(max-width:700px){.ide-permissions-toolbar .ide-button{width:100%}.ide-permissions-table th:first-child{min-width:170px}}
   </style>
 </head>
 <body>
-  <main class="ide-module-page">
+  <main id="module-placeholder" class="ide-module-page">
     <div class="ide-module-page__inner">
       <section class="ide-module-card" aria-labelledby="module-title">
         <div class="ide-module-kicker">IDE Music · Estrutura administrativa</div>
@@ -35,12 +39,98 @@
       </section>
     </div>
   </main>
+
+  <main class="unavailability-page" id="unavailability-content" hidden>
+    <header class="unavailability-header">
+      <div>
+        <div class="ide-module-kicker">Escalas · Disponibilidade</div>
+        <h1>Indisponibilidade</h1>
+        <p>Registre quando você não poderá servir. A escala usará estes dados para evitar conflitos automaticamente.</p>
+      </div>
+      <button id="new-unavailability" class="ide-button ide-button--primary" type="button">
+        <i class="fa-solid fa-calendar-plus" aria-hidden="true"></i> Nova indisponibilidade
+      </button>
+    </header>
+
+    <section id="unavailability-admin-note" class="unavailability-admin-note" hidden>
+      <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+      <span>Modo administrativo: você pode registrar e ajustar indisponibilidades de outras pessoas. Todas as alterações ficam auditadas.</span>
+    </section>
+
+    <section class="unavailability-layout">
+      <article class="ide-section-card unavailability-calendar-card" aria-labelledby="calendar-title">
+        <div class="unavailability-section-heading">
+          <div><span class="ide-module-kicker">Visão mensal</span><h2 id="calendar-title">Calendário</h2></div>
+          <div class="unavailability-calendar-nav">
+            <button id="calendar-prev" class="ide-button ide-button--secondary ide-button--sm" type="button" aria-label="Mês anterior"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+            <strong id="calendar-label"></strong>
+            <button id="calendar-next" class="ide-button ide-button--secondary ide-button--sm" type="button" aria-label="Próximo mês"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+          </div>
+        </div>
+        <div class="unavailability-weekdays" aria-hidden="true"><span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span></div>
+        <div id="unavailability-calendar" class="unavailability-calendar" role="grid" aria-label="Calendário de indisponibilidades"></div>
+        <p class="unavailability-calendar-help"><span class="unavailability-dot" aria-hidden="true"></span> Dias marcados possuem uma ou mais indisponibilidades.</p>
+      </article>
+
+      <article class="ide-section-card unavailability-list-card" aria-labelledby="future-title">
+        <div class="unavailability-section-heading">
+          <div><span class="ide-module-kicker">Próximos registros</span><h2 id="future-title">Indisponibilidades futuras</h2></div>
+          <label id="admin-user-filter-wrap" class="unavailability-filter" hidden>
+            <span>Pessoa</span>
+            <select id="admin-user-filter" class="ide-field__control ide-select"><option value="ALL">Todas</option></select>
+          </label>
+        </div>
+        <div id="unavailability-loading" class="unavailability-loading" role="status">Carregando indisponibilidades...</div>
+        <div id="unavailability-empty" class="ide-empty-state" hidden>
+          <i class="fa-solid fa-calendar-check" aria-hidden="true"></i><strong>Nenhuma indisponibilidade futura</strong><span>Quando houver necessidade, registre uma nova data.</span>
+        </div>
+        <div id="unavailability-list" class="unavailability-list" aria-live="polite"></div>
+      </article>
+    </section>
+  </main>
+
+  <dialog id="unavailability-dialog" class="unavailability-dialog">
+    <form id="unavailability-form" class="unavailability-form">
+      <div class="unavailability-dialog-heading">
+        <div><div class="ide-module-kicker">Escalas · Registro</div><h2 id="unavailability-form-title">Nova indisponibilidade</h2></div>
+        <button id="unavailability-close" class="ide-button ide-button--secondary ide-button--sm" type="button" aria-label="Fechar">Fechar</button>
+      </div>
+      <input id="unavailability-id" type="hidden">
+      <div class="unavailability-form-grid">
+        <label id="unavailability-user-wrap" class="full" hidden>
+          <span class="ide-field__label">Pessoa</span><select id="unavailability-user" class="ide-field__control ide-select"></select>
+        </label>
+        <label><span class="ide-field__label">Data <strong aria-hidden="true">*</strong></span><input id="unavailability-date" class="ide-field__control ide-field__input" type="date" required></label>
+        <label>
+          <span class="ide-field__label">Período</span>
+          <select id="unavailability-period" class="ide-field__control ide-select"><option value="">Dia inteiro</option><option value="MORNING">Manhã</option><option value="AFTERNOON">Tarde</option><option value="EVENING">Noite</option></select>
+        </label>
+        <label class="full">
+          <span class="ide-field__label">Evento específico</span>
+          <select id="unavailability-event" class="ide-field__control ide-select"><option value="">Qualquer evento nesta data</option></select>
+          <small id="unavailability-event-help">Opcional. Sem evento selecionado, a indisponibilidade vale para qualquer escala compatível na data.</small>
+        </label>
+        <label class="full">
+          <span class="ide-field__label">Observação</span>
+          <textarea id="unavailability-note" class="ide-field__control ide-field__textarea" maxlength="240" rows="3" placeholder="Opcional. Evite incluir informações pessoais ou sensíveis desnecessárias."></textarea>
+          <small><span id="unavailability-note-count">0</span>/240 caracteres</small>
+        </label>
+      </div>
+      <div class="unavailability-dialog-actions">
+        <button id="unavailability-cancel" class="ide-button ide-button--secondary" type="button">Cancelar</button>
+        <button id="unavailability-submit" class="ide-button ide-button--primary" type="submit">Salvar indisponibilidade</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="unavailability-toast" class="unavailability-toast" role="status" aria-live="polite" hidden></div>
+
   <script>
     (function renderModuleContext() {
       const sections = {
         users: ['Usuários', 'Cadastro e gestão de usuários estão disponíveis na área dedicada de usuários.'],
         permissions: ['Permissões', 'Gerencie os níveis Sem acesso, Leitura e Edição por usuário e módulo.'],
-        unavailability: ['Indisponibilidade', 'O fluxo completo de indisponibilidades será implementado no item 15 do roadmap.'],
+        unavailability: ['Indisponibilidade', 'Registre e consulte conflitos de disponibilidade para as escalas.'],
         events: ['Eventos', 'O CRUD e ciclo de vida dos eventos serão implementados no item 16 do roadmap.'],
         schedules: ['Escalas', 'A operação completa das escalas será implementada no item 17 do roadmap.'],
         audit: ['Auditoria', 'A tela administrativa de auditoria será implementada na etapa correspondente do roadmap.'],
@@ -51,6 +141,10 @@
       document.title = `IDE Music — ${current[0]}`;
       document.getElementById('module-title').textContent = current[0];
       document.getElementById('module-description').textContent = current[1];
+      if (section === 'unavailability') {
+        document.getElementById('module-placeholder').hidden = true;
+        document.getElementById('unavailability-content').hidden = false;
+      }
     })();
   </script>
 </body>
