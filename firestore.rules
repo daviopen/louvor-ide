@@ -2,15 +2,208 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAllowedUser() {
-      return request.auth != null
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function supportedProvider() {
+      return signedIn()
         && request.auth.token.firebase.sign_in_provider in ['google.com', 'password'];
     }
 
-    // Somente contas Google ou e-mail/senha cadastradas no Firebase acessam os dados.
-    // Os perfis admin/member serão aplicados junto ao módulo de escalas.
+    function profilePath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function hasProfile() {
+      return supportedProvider() && exists(profilePath(request.auth.uid));
+    }
+
+    function profile() {
+      return get(profilePath(request.auth.uid));
+    }
+
+    function activeUser() {
+      // Compatibilidade segura durante a migração: contas ainda sem documento em
+      // users continuam operacionais, mas um perfil existente com active=false
+      // bloqueia imediatamente o acesso aos dados.
+      return supportedProvider() && (!hasProfile() || profile().data.active == true);
+    }
+
+    function hasRole(role) {
+      return hasProfile() && profile().data.role == role;
+    }
+
+    function hasClaim(claimName) {
+      return signedIn() && request.auth.token[claimName] == true;
+    }
+
+    function initialSuperAdmin() {
+      // Bootstrap exclusivamente server-side. O frontend não conhece nem usa
+      // este e-mail como fonte de autorização.
+      return activeUser() && request.auth.token.email == 'davitads@gmail.com';
+    }
+
+    function isSuperAdmin() {
+      return activeUser() && (
+        hasClaim('superAdmin')
+        || request.auth.token.role == 'SUPER_ADMIN'
+        || hasRole('SUPER_ADMIN')
+        || initialSuperAdmin()
+      );
+    }
+
+    function isAdmin() {
+      return isSuperAdmin() || (activeUser() && (
+        hasClaim('admin')
+        || request.auth.token.role == 'ADMIN'
+        || hasRole('ADMIN')
+      ));
+    }
+
+    function permissionPath(moduleName) {
+      return /databases/$(database)/documents/permissions/$(request.auth.uid + '__' + moduleName);
+    }
+
+    function explicitPermission(moduleName, acceptedLevels) {
+      return activeUser()
+        && exists(permissionPath(moduleName))
+        && get(permissionPath(moduleName)).data.userId == request.auth.uid
+        && get(permissionPath(moduleName)).data.module == moduleName
+        && get(permissionPath(moduleName)).data.level in acceptedLevels;
+    }
+
+    function legacyReadModule(moduleName) {
+      return moduleName in ['songs', 'setlists'];
+    }
+
+    function legacyEditModule(moduleName) {
+      return moduleName in ['songs', 'setlists'];
+    }
+
+    function canRead(moduleName) {
+      return isAdmin()
+        || explicitPermission(moduleName, ['READ', 'EDIT'])
+        || (activeUser() && legacyReadModule(moduleName));
+    }
+
+    function canEdit(moduleName) {
+      return isAdmin()
+        || explicitPermission(moduleName, ['EDIT'])
+        || (activeUser() && legacyEditModule(moduleName));
+    }
+
+    function ownsUserDocument(userId) {
+      return activeUser() && request.auth.uid == userId;
+    }
+
+    function unchangedAuthorizationFields() {
+      return request.resource.data.role == resource.data.role
+        && request.resource.data.active == resource.data.active
+        && request.resource.data.uid == resource.data.uid;
+    }
+
+    match /users/{userId} {
+      allow get: if ownsUserDocument(userId) || isAdmin();
+      allow list: if canRead('users');
+
+      allow create: if request.auth.uid == userId && activeUser() && (
+        (request.resource.data.uid == request.auth.uid
+          && request.resource.data.active == true
+          && request.resource.data.role == 'MEMBER')
+        || (initialSuperAdmin()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.active == true
+          && request.resource.data.role == 'SUPER_ADMIN')
+      );
+
+      allow update: if isSuperAdmin()
+        || (isAdmin()
+          && resource.data.role != 'SUPER_ADMIN'
+          && request.resource.data.role == resource.data.role)
+        || (ownsUserDocument(userId) && unchangedAuthorizationFields());
+
+      allow delete: if false;
+    }
+
+    match /permissions/{permissionId} {
+      allow get: if isAdmin() || (activeUser() && resource.data.userId == request.auth.uid);
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /ministryFunctions/{documentId} {
+      allow read: if activeUser();
+      allow write: if isAdmin();
+    }
+
+    match /userFunctions/{documentId} {
+      allow read: if canRead('users');
+      allow write: if canEdit('users');
+    }
+
+    match /events/{documentId} {
+      allow read: if canRead('events');
+      allow write: if canEdit('events');
+    }
+
+    match /unavailability/{documentId} {
+      allow read: if canRead('unavailability')
+        || (activeUser() && resource.data.userId == request.auth.uid);
+      allow create: if canEdit('unavailability')
+        || (activeUser() && request.resource.data.userId == request.auth.uid);
+      allow update, delete: if canEdit('unavailability')
+        || (activeUser() && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid);
+    }
+
+    match /schedules/{documentId} {
+      allow read: if canRead('schedules');
+      allow write: if canEdit('schedules');
+    }
+
+    match /scheduleMembers/{documentId} {
+      allow read: if canRead('schedules');
+      allow write: if canEdit('schedules');
+    }
+
+    match /setlists/{documentId} {
+      allow read: if canRead('setlists');
+      allow write: if canEdit('setlists');
+    }
+
+    match /setlistSongs/{documentId} {
+      allow read: if canRead('setlists');
+      allow write: if canEdit('setlists');
+    }
+
+    match /songs/{documentId} {
+      allow read: if canRead('songs');
+      allow write: if canEdit('songs');
+    }
+
+    match /songMinisterKeys/{documentId} {
+      allow read: if canRead('songs');
+      allow write: if canEdit('songs');
+    }
+
+    match /auditLogs/{documentId} {
+      allow read: if canRead('audit');
+      allow create: if activeUser()
+        && request.resource.data.actorUserId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /lgpdConsents/{documentId} {
+      allow read: if isAdmin()
+        || (activeUser() && resource.data.userId == request.auth.uid);
+      allow create: if activeUser()
+        && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     match /{document=**} {
-      allow read, write: if isAllowedUser();
+      allow read, write: if false;
     }
   }
 }
