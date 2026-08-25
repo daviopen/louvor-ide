@@ -15,14 +15,18 @@
   <script src="../config/firebase-config.js"></script>
   <script src="../repositories/unavailability-repository.js?v=20260825-unavailability"></script>
   <script src="../services/unavailability-service.js?v=20260825-unavailability"></script>
-  <script src="../js/modules/auth-service.js?v=20260825-unavailability"></script>
+  <script src="../repositories/event-repository.js?v=20260825-events"></script>
+  <script src="../services/event-service.js?v=20260825-events"></script>
+  <script src="../js/modules/auth-service.js?v=20260825-events"></script>
   <script src="../js/modules/app-shell.js?v=20260825-menu-main" defer></script>
   <script src="../js/modules/permissions-page.js?v=20260825-permissions" defer></script>
   <script src="../js/modules/unavailability-page.js?v=20260825-unavailability" defer></script>
+  <script src="../js/modules/events-page.js?v=20260825-events" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
   <link rel="stylesheet" href="../styles/unavailability.css?v=20260825-unavailability">
+  <link rel="stylesheet" href="../styles/events.css?v=20260825-events">
   <link rel="stylesheet" href="../css/music-ide-theme.css">
   <style>
     .ide-module-card--wide{width:min(1500px,100%);max-width:none}.ide-permissions-root{display:grid;gap:1rem}.ide-permissions-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap}.ide-permissions-toolbar h2{margin:0 0 .35rem}.ide-permissions-toolbar p{margin:0;color:var(--text-secondary)}.ide-permissions-note,.ide-permissions-status{padding:.75rem 1rem;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface-secondary)}.ide-permissions-table th:first-child{position:sticky;left:0;background:var(--surface);z-index:1;min-width:220px}.ide-permissions-table td{min-width:132px}.ide-permissions-table select{width:100%;min-width:120px}.ide-permissions-table th small{display:block;margin-top:.2rem;font-weight:400;color:var(--text-secondary)}.ide-permission-inactive{display:inline-block;margin-top:.35rem;padding:.1rem .4rem;border-radius:999px;background:var(--surface-secondary);font-size:.75rem}.ide-permissions-dialog{width:min(700px,calc(100vw - 2rem));border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);color:var(--text-primary);padding:1.25rem}.ide-permissions-dialog::backdrop{background:rgba(0,0,0,.45)}.ide-permissions-diff{max-height:50vh;overflow:auto;padding-left:1.25rem}.ide-permissions-dialog-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:1rem}@media(max-width:700px){.ide-permissions-toolbar .ide-button{width:100%}.ide-permissions-table th:first-child{min-width:170px}}
@@ -39,6 +43,66 @@
       </section>
     </div>
   </main>
+
+  <main class="events-page" id="events-content" hidden>
+    <header class="events-header">
+      <div>
+        <div class="ide-module-kicker">Escalas · Planejamento</div>
+        <h1>Eventos</h1>
+        <p>Planeje os encontros do ministério. Cada evento mantém uma única escala e um único Setlist vinculados automaticamente.</p>
+      </div>
+      <button id="new-event" class="ide-button ide-button--primary" type="button">
+        <i class="fa-solid fa-calendar-plus" aria-hidden="true"></i> Novo evento
+      </button>
+    </header>
+
+    <div id="events-linked-note" class="events-linked-note" hidden></div>
+
+    <section class="events-stats" aria-label="Resumo de eventos">
+      <article class="events-stat"><span>Planejados</span><strong id="events-stat-planned">0</strong></article>
+      <article class="events-stat"><span>Confirmados</span><strong id="events-stat-confirmed">0</strong></article>
+      <article class="events-stat"><span>Concluídos</span><strong id="events-stat-completed">0</strong></article>
+      <article class="events-stat"><span>Cancelados</span><strong id="events-stat-cancelled">0</strong></article>
+    </section>
+
+    <section class="ide-section-card">
+      <div class="events-toolbar">
+        <label><span>Buscar evento</span><input id="events-search" class="ide-field__control ide-field__input" type="search" placeholder="Nome, local, tema ou descrição"></label>
+        <label><span>Status</span><select id="events-status-filter" class="ide-field__control ide-select"><option value="ALL">Todos</option><option value="PLANNED">Planejado</option><option value="CONFIRMED">Confirmado</option><option value="COMPLETED">Concluído</option><option value="CANCELLED">Cancelado</option></select></label>
+      </div>
+    </section>
+
+    <section aria-labelledby="events-list-title">
+      <h2 id="events-list-title" class="sr-only">Lista de eventos</h2>
+      <div id="events-loading" class="events-loading" role="status">Carregando eventos...</div>
+      <div id="events-empty" class="ide-empty-state" hidden><i class="fa-solid fa-calendar-check" aria-hidden="true"></i><strong>Nenhum evento encontrado</strong><span>Ajuste os filtros ou crie um novo evento.</span></div>
+      <div id="events-list" class="events-list" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <dialog id="event-dialog" class="event-dialog">
+    <form id="event-form" class="event-form">
+      <div class="event-dialog-heading">
+        <div><div class="ide-module-kicker">Escalas · Evento</div><h2 id="event-form-title">Novo evento</h2></div>
+        <button id="event-close" class="ide-button ide-button--secondary ide-button--sm" type="button" aria-label="Fechar">Fechar</button>
+      </div>
+      <input id="event-id" type="hidden">
+      <div class="event-form-grid">
+        <label class="full"><span class="ide-field__label">Nome <strong aria-hidden="true">*</strong></span><input id="event-name" class="ide-field__control ide-field__input" type="text" maxlength="120" required></label>
+        <label><span class="ide-field__label">Data <strong aria-hidden="true">*</strong></span><input id="event-date" class="ide-field__control ide-field__input" type="date" required></label>
+        <label><span class="ide-field__label">Horário</span><input id="event-time" class="ide-field__control ide-field__input" type="time"></label>
+        <label><span class="ide-field__label">Status</span><select id="event-status" class="ide-field__control ide-select"><option value="PLANNED">Planejado</option><option value="CONFIRMED">Confirmado</option></select></label>
+        <label><span class="ide-field__label">Local</span><input id="event-location" class="ide-field__control ide-field__input" type="text" maxlength="160"></label>
+        <label class="full"><span class="ide-field__label">Tema</span><input id="event-theme" class="ide-field__control ide-field__input" type="text" maxlength="160"></label>
+        <label class="full"><span class="ide-field__label">Descrição</span><textarea id="event-description" class="ide-field__control ide-field__textarea" maxlength="1000" rows="4"></textarea><small><span id="event-description-count">0</span>/1000 caracteres</small></label>
+        <p id="event-linked-permission-note" class="event-linked-permission-note" hidden>Data, horário e status estão bloqueados porque essas alterações também modificam Escala e Setlist e exigem permissão de edição nesses módulos.</p>
+      </div>
+      <div class="event-dialog-actions">
+        <button id="event-cancel" class="ide-button ide-button--secondary" type="button">Cancelar</button>
+        <button id="event-submit" class="ide-button ide-button--primary" type="submit">Salvar evento</button>
+      </div>
+    </form>
+  </dialog>
 
   <main class="unavailability-page" id="unavailability-content" hidden>
     <header class="unavailability-header">
@@ -123,6 +187,7 @@
     </form>
   </dialog>
 
+  <div id="events-toast" class="events-toast" role="status" aria-live="polite" hidden></div>
   <div id="unavailability-toast" class="unavailability-toast" role="status" aria-live="polite" hidden></div>
 
   <script>
@@ -131,7 +196,7 @@
         users: ['Usuários', 'Cadastro e gestão de usuários estão disponíveis na área dedicada de usuários.'],
         permissions: ['Permissões', 'Gerencie os níveis Sem acesso, Leitura e Edição por usuário e módulo.'],
         unavailability: ['Indisponibilidade', 'Registre e consulte conflitos de disponibilidade para as escalas.'],
-        events: ['Eventos', 'O CRUD e ciclo de vida dos eventos serão implementados no item 16 do roadmap.'],
+        events: ['Eventos', 'Crie e administre eventos com escala e Setlist vinculados automaticamente.'],
         schedules: ['Escalas', 'A operação completa das escalas será implementada no item 17 do roadmap.'],
         audit: ['Auditoria', 'A tela administrativa de auditoria será implementada na etapa correspondente do roadmap.'],
         settings: ['Configurações', 'As configurações administrativas serão disponibilizadas conforme os módulos forem evoluídos.']
@@ -144,6 +209,10 @@
       if (section === 'unavailability') {
         document.getElementById('module-placeholder').hidden = true;
         document.getElementById('unavailability-content').hidden = false;
+      }
+      if (section === 'events') {
+        document.getElementById('module-placeholder').hidden = true;
+        document.getElementById('events-content').hidden = false;
       }
     })();
   </script>

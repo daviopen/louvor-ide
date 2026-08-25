@@ -56,6 +56,58 @@ service cloud.firestore {
         && request.resource.data.level in ['READ', 'EDIT']
         && permissionId == request.resource.data.userId + '__' + request.resource.data.module;
     }
+    function validEventDocument(eventId) {
+      return activeUser()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.date is timestamp
+        && request.resource.data.status in ['PLANNED', 'CONFIRMED', 'CANCELLED', 'COMPLETED']
+        && request.resource.data.scheduleId == 'schedule_' + eventId
+        && request.resource.data.setlistId == 'setlist_' + eventId
+        && request.resource.data.createdBy is string
+        && request.resource.data.updatedBy == request.auth.uid
+        && (!('time' in request.resource.data) || request.resource.data.time == null || (request.resource.data.time is string && request.resource.data.time.size() == 5))
+        && (!('description' in request.resource.data) || request.resource.data.description == null || (request.resource.data.description is string && request.resource.data.description.size() <= 1000))
+        && (!('location' in request.resource.data) || request.resource.data.location == null || (request.resource.data.location is string && request.resource.data.location.size() <= 160))
+        && (!('theme' in request.resource.data) || request.resource.data.theme == null || (request.resource.data.theme is string && request.resource.data.theme.size() <= 160));
+    }
+    function validEventCreate(eventId) {
+      return validEventDocument(eventId)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.status in ['PLANNED', 'CONFIRMED'];
+    }
+    function linkedEventBundleConsistent(eventId) {
+      let schedulePath = /databases/$(database)/documents/schedules/$(request.resource.data.scheduleId);
+      let setlistPath = /databases/$(database)/documents/setlists/$(request.resource.data.setlistId);
+      return existsAfter(schedulePath)
+        && existsAfter(setlistPath)
+        && getAfter(schedulePath).data.eventId == eventId
+        && getAfter(schedulePath).data.eventDate == request.resource.data.date
+        && getAfter(schedulePath).data.eventTime == request.resource.data.time
+        && getAfter(setlistPath).data.eventId == eventId
+        && getAfter(setlistPath).data.scheduleId == request.resource.data.scheduleId
+        && getAfter(setlistPath).data.eventDate == request.resource.data.date
+        && getAfter(setlistPath).data.eventTime == request.resource.data.time
+        && (
+          (request.resource.data.status == 'CANCELLED' && getAfter(schedulePath).data.status == 'CANCELLED' && getAfter(setlistPath).data.status == 'CANCELLED')
+          || (request.resource.data.status == 'COMPLETED' && getAfter(schedulePath).data.status == 'COMPLETED' && getAfter(setlistPath).data.status == 'COMPLETED')
+          || (request.resource.data.status in ['PLANNED', 'CONFIRMED'] && getAfter(schedulePath).data.status in ['DRAFT', 'COMPLETE'] && getAfter(setlistPath).data.status in ['DRAFT', 'READY'])
+        );
+    }
+    function validEventUpdate(eventId) {
+      return validEventDocument(eventId)
+        && resource.data.status in ['PLANNED', 'CONFIRMED']
+        && request.resource.data.createdBy == resource.data.createdBy
+        && linkedEventBundleConsistent(eventId);
+    }
+    function validEventDelete() {
+      let schedulePath = /databases/$(database)/documents/schedules/$(resource.data.scheduleId);
+      let setlistPath = /databases/$(database)/documents/setlists/$(resource.data.setlistId);
+      return resource.data.status == 'PLANNED'
+        && !existsAfter(schedulePath)
+        && !existsAfter(setlistPath);
+    }
     function validUnavailabilityDocument() {
       return request.resource.data.userId is string
         && request.resource.data.date is timestamp
@@ -112,7 +164,12 @@ service cloud.firestore {
       allow read: if canRead('users');
       allow write: if canEdit('users');
     }
-    match /events/{documentId} { allow read: if canRead('events'); allow write: if canEdit('events'); }
+    match /events/{documentId} {
+      allow read: if canRead('events');
+      allow create: if canEdit('events') && canEdit('schedules') && canEdit('setlists') && validEventCreate(documentId) && linkedEventBundleConsistent(documentId);
+      allow update: if canEdit('events') && validEventUpdate(documentId);
+      allow delete: if canEdit('events') && canEdit('schedules') && canEdit('setlists') && validEventDelete();
+    }
     match /unavailability/{documentId} {
       allow read: if canRead('unavailability') || (activeUser() && resource.data.userId == request.auth.uid);
       allow create: if validUnavailabilityDocument() && (ownUnavailabilityCreate() || administrativeUnavailabilityWrite());
