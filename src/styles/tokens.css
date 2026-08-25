@@ -26,7 +26,8 @@
   --ide-color-info-700: #175cd3;
   --ide-color-info-100: #eaf2ff;
 
-  /* Semantic color tokens */
+  /* Semantic color tokens — light is the default and explicit light theme. */
+  color-scheme: light;
   --ide-primary: var(--ide-color-lime-500);
   --ide-primary-hover: var(--ide-color-lime-600);
   --ide-primary-active: var(--ide-color-lime-700);
@@ -127,4 +128,28 @@
   --music-line: var(--ide-border);
   --music-radius: var(--ide-radius-xl);
   --music-shadow: var(--ide-shadow-md);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ide-background: var(--ide-color-neutral-950);
+  --ide-surface: var(--ide-color-neutral-900);
+  --ide-surface-secondary: var(--ide-color-neutral-800);
+  --ide-surface-dark: var(--ide-color-neutral-950);
+  --ide-text-primary: var(--ide-color-neutral-50);
+  --ide-text-secondary: var(--ide-color-neutral-300);
+  --ide-text-on-dark: var(--ide-color-white);
+  --ide-border: rgba(255, 255, 255, 0.14);
+  --ide-border-strong: rgba(255, 255, 255, 0.28);
+  --ide-border-on-dark: rgba(255, 255, 255, 0.20);
+  --ide-focus-ring: rgba(132, 120, 255, 0.58);
+  --ide-primary-ring: rgba(216, 255, 69, 0.34);
+  --ide-shadow-xs: 0 1px 4px rgba(0, 0, 0, 0.32);
+  --ide-shadow-sm: 0 5px 20px rgba(0, 0, 0, 0.28);
+  --ide-shadow-md: 0 14px 40px rgba(0, 0, 0, 0.36);
+  --ide-shadow-lg: 0 22px 60px rgba(0, 0, 0, 0.44);
+  --music-accent-dark: var(--ide-primary);
+  --music-accent-text: var(--ide-primary);
+  --music-card: var(--ide-surface);
+  --music-paper: var(--ide-surface-secondary);
 }
