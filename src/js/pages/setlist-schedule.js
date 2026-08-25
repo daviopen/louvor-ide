@@ -1,0 +1,97 @@
+(function bootstrapSetlistPage(scope) {
+  'use strict';
+  const state = { db:null, repo:null, service:null, user:null, profile:null, context:null, songs:[], draggedIndex:null, readonly:false };
+  const $ = id => document.getElementById(id);
+  const text = value => String(value ?? '');
+  const escapeHtml = value => text(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+  const formatDate = value => { if (!value) return 'Não informada'; const date = value?.toDate ? value.toDate() : new Date(`${String(value).slice(0,10)}T12:00:00`); return Number.isNaN(date.getTime()) ? text(value) : date.toLocaleDateString('pt-BR'); };
+  function setStatus(message, error=false){ $('status').textContent=message; $('status').className=`status${error?' error':''}`; }
+  async function waitForUser(){
+    return new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>reject(new Error('Não foi possível confirmar sua sessão.')),10000);
+      firebase.auth().onAuthStateChanged(user=>{ clearTimeout(timer); user ? resolve(user) : reject(new Error('Faça login para acessar o Setlist.')); });
+    });
+  }
+  async function resolveSetlistId(params){
+    const direct=params.get('edit')||params.get('id')||params.get('setlist');
+    if(direct) return direct;
+    const scheduleId=params.get('schedule');
+    if(scheduleId){ const setlist=await state.service.ensureForSchedule(scheduleId,state.user,state.profile); return setlist.id; }
+    const eventId=params.get('event');
+    if(eventId){ const event=await state.repo.getEvent(eventId); if(!event) throw new Error('Evento não encontrado.'); if(event.setlistId) return event.setlistId; const scheduleIdFromEvent=event.scheduleId||`schedule_${event.id}`; const setlist=await state.service.ensureForSchedule(scheduleIdFromEvent,state.user,state.profile); return setlist.id; }
+    throw new Error('Abra o Setlist a partir de uma escala ou evento.');
+  }
+  function librarySong(id){ return state.context.library.find(item=>item.id===id)||{}; }
+  function ministerName(id){ return state.context.ministers.find(item=>item.id===id)?.name||''; }
+  function normalizeLegacyFields(song){ const source=librarySong(song.songId); return {...song,title:song.title||source.title||source.titulo||'Música',artist:song.artist||source.artist||source.artista||'',originalKey:song.originalKey||source.key||source.tom||'C',executionKey:song.executionKey||source.key||source.tom||'C'}; }
+  function renderMembers(){
+    const members=state.context.members;
+    $('members').innerHTML=members.length?members.map(member=>{
+      const name=member.user?.name||member.user?.displayName||member.user?.email||'Integrante';
+      const role=member.function?.name||member.function?.code||'Função';
+      const avatar=member.user?.avatar||member.user?.photoURL;
+      const initials=name.split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase();
+      const eligible=state.context.ministers.some(item=>item.id===member.userId);
+      return `<div class="member"><div class="avatar">${avatar?`<img src="${escapeHtml(avatar)}" alt="">`:escapeHtml(initials||'♪')}</div><div><strong>${escapeHtml(name)}</strong><div><span class="badge">${escapeHtml(role)}</span>${eligible?' <span class="badge">Ministro elegível</span>':''}</div></div></div>`;
+    }).join(''):'<div class="empty">Nenhum integrante escalado ainda.</div>';
+  }
+  function renderSongResults(query){
+    const q=text(query).trim().toLocaleLowerCase('pt-BR');
+    if(!q){ $('song-results').innerHTML=''; return; }
+    const selected=new Set(state.songs.map(item=>item.songId));
+    const matches=state.context.library.filter(song=>!selected.has(song.id)&&`${song.title||song.titulo||''} ${song.artist||song.artista||''}`.toLocaleLowerCase('pt-BR').includes(q)).slice(0,8);
+    $('song-results').innerHTML=matches.length?matches.map(song=>`<div class="song-search-result"><div><strong>${escapeHtml(song.title||song.titulo||'Música')}</strong><div class="muted">${escapeHtml(song.artist||song.artista||'')} · Tom ${escapeHtml(song.key||song.tom||'C')}</div></div><button class="btn btn-secondary" type="button" data-add-song="${escapeHtml(song.id)}">Adicionar</button></div>`).join(''):'<div class="muted">Nenhuma música encontrada.</div>';
+    $('song-results').querySelectorAll('[data-add-song]').forEach(button=>button.addEventListener('click',()=>addSong(button.dataset.addSong)));
+  }
+  function addSong(songId){
+    const source=librarySong(songId); if(!source) return;
+    const defaultMinister=state.context.ministers[0]||null;
+    const executionKey=defaultMinister?state.service.suggestExecutionKey(source,defaultMinister.id,state.context.ministers,state.context.keys):(source.key||source.tom||'C');
+    state.songs.push({songId,title:source.title||source.titulo||'Música',artist:source.artist||source.artista||'',originalKey:source.key||source.tom||'C',executionKey,ministerUserId:defaultMinister?.id||'',note:'',transition:'',order:state.songs.length+1});
+    $('song-search').value=''; renderSongResults(''); renderSongs();
+  }
+  function updateSong(index,field,value){
+    const song=state.songs[index]; if(!song) return; song[field]=value;
+    if(field==='ministerUserId'&&value){ const source=librarySong(song.songId); song.executionKey=state.service.suggestExecutionKey(source,value,state.context.ministers,state.context.keys); renderSongs(); }
+  }
+  function removeSong(index){ state.songs.splice(index,1); state.songs=state.songs.map((song,i)=>({...song,order:i+1})); renderSongs(); }
+  function renderSongs(){
+    const container=$('songs');
+    if(!state.songs.length){ container.innerHTML='<div class="empty"><strong>Nenhuma música adicionada.</strong><br>Busque uma música acima para montar o repertório.</div>'; return; }
+    container.innerHTML=state.songs.map((raw,index)=>{ const song=normalizeLegacyFields(raw); const ministers=state.context.ministers.map(min=>`<option value="${escapeHtml(min.id)}" ${song.ministerUserId===min.id?'selected':''}>${escapeHtml(min.name)}</option>`).join(''); return `<article class="song-card" draggable="${!state.readonly}" data-index="${index}"><div class="song-top"><span class="drag" title="Arraste para reordenar">☰</span><div><div class="song-title">${index+1}. ${escapeHtml(song.title)}</div><div class="song-artist">${escapeHtml(song.artist)} · Tom original ${escapeHtml(song.originalKey)}</div></div><div class="song-actions"><button type="button" class="btn btn-danger" data-remove="${index}" ${state.readonly?'disabled':''}>Remover</button></div></div><div class="song-fields"><div class="field"><label>Ministro</label><select data-field="ministerUserId" data-index="${index}" ${state.readonly?'disabled':''}><option value="">Selecione…</option>${ministers}</select></div><div class="field"><label>Tom da execução</label><input data-field="executionKey" data-index="${index}" value="${escapeHtml(song.executionKey)}" ${state.readonly?'disabled':''}></div><div class="field wide"><label>Observação / momento especial</label><textarea data-field="note" data-index="${index}" ${state.readonly?'disabled':''}>${escapeHtml(song.note||'')}</textarea></div><div class="field wide"><label>Transição</label><textarea data-field="transition" data-index="${index}" ${state.readonly?'disabled':''}>${escapeHtml(song.transition||'')}</textarea></div></div></article>`; }).join('');
+    container.querySelectorAll('[data-remove]').forEach(btn=>btn.addEventListener('click',()=>removeSong(Number(btn.dataset.remove))));
+    container.querySelectorAll('[data-field]').forEach(control=>control.addEventListener('change',()=>updateSong(Number(control.dataset.index),control.dataset.field,control.value)));
+    container.querySelectorAll('textarea[data-field],input[data-field]').forEach(control=>control.addEventListener('input',()=>updateSong(Number(control.dataset.index),control.dataset.field,control.value)));
+    container.querySelectorAll('.song-card').forEach(card=>{
+      card.addEventListener('dragstart',()=>{ state.draggedIndex=Number(card.dataset.index); card.classList.add('dragging'); });
+      card.addEventListener('dragend',()=>{ state.draggedIndex=null; card.classList.remove('dragging'); });
+      card.addEventListener('dragover',event=>event.preventDefault());
+      card.addEventListener('drop',event=>{ event.preventDefault(); if(state.readonly||state.draggedIndex===null) return; const target=Number(card.dataset.index); if(target===state.draggedIndex)return; const [moved]=state.songs.splice(state.draggedIndex,1); state.songs.splice(target,0,moved); state.songs=state.songs.map((song,i)=>({...song,order:i+1})); renderSongs(); });
+    });
+  }
+  function renderContext(){
+    const {setlist,schedule,event,access}=state.context;
+    state.readonly=!access.canEdit||['COMPLETED','CANCELLED'].includes(String(setlist.status||event?.status||'').toUpperCase());
+    $('page-title').textContent=event?.name||setlist.name||'Setlist';
+    $('event-name').textContent=event?.name||'Evento'; $('event-date').textContent=formatDate(event?.date||setlist.eventDate); $('schedule-status').textContent=schedule?.status||'DRAFT';
+    $('setlist-name').value=setlist.name||event?.name||''; $('setlist-description').value=setlist.description||'';
+    $('readonly').classList.toggle('hidden',!state.readonly); $('save').disabled=state.readonly; $('song-search').disabled=state.readonly; $('setlist-name').disabled=state.readonly; $('setlist-description').disabled=state.readonly;
+    renderMembers(); renderSongs(); $('app').classList.remove('hidden'); setStatus(`${state.context.ministers.length} ministro(s) elegível(is) · ${state.songs.length} música(s) no Setlist.`);
+  }
+  async function save(){
+    try{ $('save').disabled=true; setStatus('Salvando Setlist…'); await state.service.save(state.context.setlist.id,{name:$('setlist-name').value,description:$('setlist-description').value,songs:state.songs.map(normalizeLegacyFields)},state.user,state.profile); state.context=await state.service.load(state.context.setlist.id,state.user,state.profile); state.songs=state.context.songs.map(normalizeLegacyFields); renderContext(); setStatus('Setlist salvo com sucesso. Ordem, ministros, tons e observações foram persistidos.'); }
+    catch(error){ setStatus(error.message||'Não foi possível salvar o Setlist.',true); }
+    finally{ $('save').disabled=state.readonly; }
+  }
+  async function init(){
+    try{
+      if(typeof firebase==='undefined') throw new Error('Firebase não foi carregado.');
+      if(!firebase.apps.length){ if(typeof firebaseConfig==='undefined') throw new Error('Configuração do Firebase não encontrada.'); firebase.initializeApp(firebaseConfig); }
+      state.db=firebase.firestore(); state.user=await waitForUser(); const profileDoc=await state.db.collection('users').doc(state.user.uid).get(); state.profile=profileDoc.exists?profileDoc.data():{};
+      state.repo=new MusicIdeSetlistRepository.SetlistRepository(state.db); state.service=new MusicIdeSetlistService.SetlistService(state.repo);
+      const setlistId=await resolveSetlistId(new URLSearchParams(location.search)); state.context=await state.service.load(setlistId,state.user,state.profile); state.songs=state.context.songs.map(normalizeLegacyFields); renderContext();
+      $('song-search').addEventListener('input',event=>renderSongResults(event.target.value)); $('save').addEventListener('click',save);
+    }catch(error){ setStatus(error.message||'Não foi possível carregar o Setlist.',true); }
+  }
+  document.addEventListener('DOMContentLoaded',init);
+})(window);
