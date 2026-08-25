@@ -11,7 +11,13 @@
   if (globalScope) globalScope.MusicIdeUserRepository = api;
 })(typeof window !== 'undefined' ? window : null, function createModule(dataModel) {
   if (!dataModel) throw new Error('MusicIdeDataModel é obrigatório.');
-  const { normalizeEmail, userFunctionDocumentId } = dataModel;
+  const {
+    normalizeEmail,
+    userFunctionDocumentId,
+    permissionDocumentId,
+    PERMISSION_MODULES,
+    PERMISSION_LEVELS
+  } = dataModel;
 
   function entity(snapshot) {
     return snapshot && snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null;
@@ -27,6 +33,7 @@
     users() { return this.db.collection('users'); }
     functions() { return this.db.collection('ministryFunctions'); }
     userFunctions() { return this.db.collection('userFunctions'); }
+    permissions() { return this.db.collection('permissions'); }
     audits() { return this.db.collection('auditLogs'); }
 
     async listUsers() {
@@ -54,6 +61,7 @@
         email: normalizeEmail(input.email),
         photoURL: input.photoURL || null,
         active: input.active !== false,
+        role: 'MEMBER',
         createdAt: now,
         updatedAt: now,
         lastAccessAt: input.lastAccessAt || null
@@ -114,6 +122,27 @@
       }
       await Promise.all(writes);
       return [...desired];
+    }
+
+    async replaceInitialPermissions(userId, permissionMap = {}) {
+      const now = this.clock();
+      const normalized = {};
+      const writes = [];
+      for (const moduleName of PERMISSION_MODULES) {
+        const requested = String(permissionMap[moduleName] || 'NONE').toUpperCase();
+        const level = PERMISSION_LEVELS.includes(requested) ? requested : 'NONE';
+        normalized[moduleName] = level;
+        const id = permissionDocumentId(userId, moduleName);
+        writes.push(this.permissions().doc(id).set({
+          userId,
+          module: moduleName,
+          level,
+          createdAt: now,
+          updatedAt: now
+        }, { merge: true }));
+      }
+      await Promise.all(writes);
+      return normalized;
     }
 
     async addAuditLog(actorUserId, action, entityId, details = {}) {
