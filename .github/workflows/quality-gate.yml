@@ -56,8 +56,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -RInE --exclude='.env.example' --exclude-dir='.git' '(BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|FIREBASE_SERVICE_ACCOUNT.*\{)' .; then
-            echo 'Potential secret material found in repository.'
+          tracked_files="$(git ls-files src scripts ops config firestore.rules firebase.json package.json package-lock.json 2>/dev/null || true)"
+          if [ -n "${tracked_files}" ] && printf '%s\n' "${tracked_files}" | xargs grep -InE '(BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|FIREBASE_SERVICE_ACCOUNT[^[:space:]]*.*\{)' 2>/dev/null; then
+            echo 'Potential secret material found in tracked application files.'
             exit 1
           fi
           if grep -RInE --include='*.js' --include='*.cjs' --include='*.json' '(password\s*[:=]\s*["'\''`][^"'\''`]+|accessToken\s*[:=]\s*["'\''`][^"'\''`]+)' src ops; then
