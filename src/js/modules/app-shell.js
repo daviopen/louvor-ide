@@ -33,6 +33,18 @@
   ];
   const moduleSections = new Set(['permissions', 'unavailability', 'events', 'schedules', 'audit', 'settings']);
 
+  function initializeObservability() {
+    if (scope.MusicIdeObservability) return;
+    if (scope.document.querySelector('script[data-ide-observability]')) return;
+    const script = scope.document.createElement('script');
+    script.src = '../js/modules/observability.js?v=20260825-observability';
+    script.defer = true;
+    script.setAttribute('data-ide-observability', 'true');
+    scope.document.head.appendChild(script);
+  }
+
+  initializeObservability();
+
   function currentPage(pathname) {
     return String(pathname || '').split('/').filter(Boolean).pop() || 'index.html';
   }
