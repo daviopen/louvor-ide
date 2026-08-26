@@ -69,6 +69,63 @@
     const root = el('events-content');
     if (root) root.setAttribute('aria-busy', String(busy));
   }
+  function ensureFormFeedback() {
+    let node = el('event-form-feedback');
+    if (node) return node;
+    const actions = scope.document.querySelector('.event-dialog-actions');
+    if (!actions) return null;
+    node = scope.document.createElement('div');
+    node.id = 'event-form-feedback';
+    node.className = 'event-linked-permission-note';
+    node.setAttribute('role', 'alert');
+    node.setAttribute('aria-live', 'assertive');
+    node.hidden = true;
+    actions.insertAdjacentElement('beforebegin', node);
+    return node;
+  }
+  function clearFormFeedback() {
+    const node = ensureFormFeedback();
+    if (!node) return;
+    node.textContent = '';
+    node.hidden = true;
+    delete node.dataset.type;
+  }
+  function showFormFeedback(message, type = 'error') {
+    const node = ensureFormFeedback();
+    if (!node) return;
+    node.textContent = message;
+    node.dataset.type = type;
+    node.hidden = false;
+    if (typeof node.scrollIntoView === 'function') {
+      scope.requestAnimationFrame(() => node.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+    }
+  }
+  function saveErrorMessage(error) {
+    const code = String(error?.code || '').toLowerCase();
+    if (code.includes('permission-denied')) {
+      return 'Não foi possível salvar o evento porque sua conta não possui todas as permissões exigidas. Para criar eventos é necessário ter Edição em Eventos, Escalas e Setlists.';
+    }
+    if (code.includes('unavailable') || code.includes('network-request-failed')) {
+      return 'Não foi possível salvar o evento por uma falha de conexão. Verifique a internet e tente novamente.';
+    }
+    return error?.message || 'Não foi possível salvar o evento.';
+  }
+  function setSubmitBusy(busy) {
+    const submit = el('event-submit');
+    const form = el('event-form');
+    if (!submit) return;
+    if (busy) {
+      submit.dataset.idleLabel = submit.textContent;
+      submit.textContent = 'Salvando...';
+      submit.disabled = true;
+      if (form) form.setAttribute('aria-busy', 'true');
+      return;
+    }
+    submit.disabled = false;
+    submit.textContent = submit.dataset.idleLabel || 'Salvar evento';
+    delete submit.dataset.idleLabel;
+    if (form) form.removeAttribute('aria-busy');
+  }
 
   function ensureDateFilters() {
     const toolbar = scope.document.querySelector('.events-toolbar');
@@ -157,6 +214,7 @@
 
   function openForm(record = null) {
     if (!state.access.canEdit) return;
+    clearFormFeedback();
     state.editingId = record?.id || null;
     state.requestId = record ? null : createRequestId();
     el('event-id').value = state.editingId || '';
@@ -179,13 +237,24 @@
   }
 
   async function submitForm(event) {
-    event.preventDefault(); const submit = el('event-submit'); submit.disabled = true;
+    event.preventDefault();
+    const form = el('event-form');
+    if (form && !form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+    clearFormFeedback();
+    setSubmitBusy(true);
     try {
       if (state.editingId) { await service.update(state.editingId, formPayload(), scope.currentMusicIdeUser, scope.currentMusicIdeProfile, { access: state.access }); toast('Evento atualizado e vínculos sincronizados quando necessário.'); }
       else { if (!state.access.canManageLinked) throw new Error('Criar evento exige edição também em Escalas e Setlists.'); await service.create(formPayload(), scope.currentMusicIdeUser, scope.currentMusicIdeProfile, { access: state.access, requestId: state.requestId }); toast('Evento, escala e Setlist criados com sucesso.'); }
       el('event-dialog').close(); await loadEvents();
-    } catch (error) { console.error(error); toast(error.message || 'Não foi possível salvar o evento.', 'error'); }
-    finally { submit.disabled = false; }
+    } catch (error) {
+      console.error(error);
+      const message = saveErrorMessage(error);
+      showFormFeedback(message, 'error');
+      toast(message, 'error');
+    } finally { setSubmitBusy(false); }
   }
 
   async function changeStatus(record, targetStatus) {
@@ -217,6 +286,7 @@
 
   function wireEvents() {
     ensureDateFilters();
+    ensureFormFeedback();
     el('new-event').addEventListener('click', () => openForm()); el('event-form').addEventListener('submit', submitForm); el('event-close').addEventListener('click', () => el('event-dialog').close()); el('event-cancel').addEventListener('click', () => el('event-dialog').close()); el('events-list').addEventListener('click', handleListClick);
     el('events-search').addEventListener('input', event => { state.search = event.target.value; renderList(); });
     el('events-status-filter').addEventListener('change', event => { state.status = event.target.value; renderList(); });
