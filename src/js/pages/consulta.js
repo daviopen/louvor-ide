@@ -2,7 +2,7 @@
  * Catálogo de músicas — orquestração de UI.
  * Regras de busca, filtros e paginação pertencem ao MusicService.
  */
-import musicService from '../modules/music-service.js';
+import musicService from '../modules/music-service.js?v=20260826-catalog-fix2';
 
 const PAGE_SIZE = 10;
 const LOAD_TIMEOUT_MS = 12000;
@@ -72,11 +72,23 @@ class MusicCatalogPage {
       return;
     }
 
-    window.addEventListener('musicIdeAuthReady', event => {
+    const handleAuthReady = event => {
       const { user, profile: readyProfile } = event.detail || {};
       if (!user || readyProfile?.active !== true) return;
+      window.removeEventListener('musicIdeAuthReady', handleAuthReady);
       this.subscribe();
-    }, { once: true });
+    };
+    window.addEventListener('musicIdeAuthReady', handleAuthReady);
+
+    // O auth-service também expõe uma Promise global. Ela cobre o caso em que
+    // o evento ocorreu antes deste módulo terminar de carregar.
+    Promise.resolve(window.musicIdeAuthReady).then(() => {
+      const readyProfile = window.currentMusicIdeProfile;
+      if (window.currentMusicIdeUser && readyProfile?.active === true) {
+        window.removeEventListener('musicIdeAuthReady', handleAuthReady);
+        this.subscribe();
+      }
+    }).catch(error => this.showLoadError(error));
   }
 
   async subscribe() {
@@ -86,7 +98,20 @@ class MusicCatalogPage {
     try {
       this.setLoading(true);
       this.armLoadTimeout();
-      this.unsubscribe = await musicService.loadAllMusics(snapshot => this.consumeSnapshot(snapshot));
+
+      // A primeira renderização usa leitura direta. Assim a UI nunca depende
+      // do primeiro evento de um listener realtime para sair do loading.
+      const initialSongs = await musicService.getAllMusicsArray();
+      this.consumeSongs(initialSongs);
+
+      // Depois da carga inicial, acompanha alterações em tempo real.
+      this.unsubscribe = await musicService.loadAllMusics(
+        snapshot => this.consumeSnapshot(snapshot),
+        error => {
+          console.error('Falha na atualização em tempo real do catálogo:', error);
+          if (this.allSongs.length === 0) this.showLoadError(error);
+        }
+      );
     } catch (error) {
       this.showLoadError(error);
     }
@@ -95,7 +120,7 @@ class MusicCatalogPage {
   armLoadTimeout() {
     this.clearLoadTimeout();
     this.loadTimeout = window.setTimeout(() => {
-      if (this.allSongs.length === 0 && !this.loading?.hidden) {
+      if (!this.loading?.hidden) {
         this.showLoadError(new Error('Tempo limite excedido ao carregar o repertório.'));
       }
     }, LOAD_TIMEOUT_MS);
@@ -126,9 +151,14 @@ class MusicCatalogPage {
         if (doc?.id && data) songs.push({ id: doc.id, ...data });
       });
     }
+    this.consumeSongs(songs);
+  }
 
+  consumeSongs(songs) {
     this.clearLoadTimeout();
-    this.allSongs = [...songs].sort((a, b) => this.songTitle(a).localeCompare(this.songTitle(b), 'pt-BR', { sensitivity: 'base' }));
+    this.allSongs = (Array.isArray(songs) ? songs : [])
+      .filter(song => song && song.id)
+      .sort((a, b) => this.songTitle(a).localeCompare(this.songTitle(b), 'pt-BR', { sensitivity: 'base' }));
     this.setLoading(false);
     this.populateFilterOptions();
     this.render();
