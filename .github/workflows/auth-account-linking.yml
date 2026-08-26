@@ -1,0 +1,65 @@
+name: 🔗 Reconcile Firebase auth identities
+
+on:
+  workflow_run:
+    workflows:
+      - 🚀 Deploy to Firebase Hosting
+    types:
+      - completed
+
+jobs:
+  reconcile_auth:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📂 Checkout código publicado
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 🔑 Autenticar service account Firebase
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
+
+      - name: 📦 Instalar Firebase Admin
+        run: npm install --no-save firebase-admin@13.4.0
+
+      - name: 🧹 Reconciliar identidades duplicadas já existentes
+        run: node src/scripts/reconcile-auth-identities.cjs
+
+      - name: 🔗 Impedir novas contas com o mesmo e-mail
+        run: |
+          set -euo pipefail
+          ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"
+          CONFIG_URL="https://identitytoolkit.googleapis.com/admin/v2/projects/louvor-ide/config"
+
+          curl --fail-with-body -sS \
+            -X PATCH \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -H "X-Goog-User-Project: louvor-ide" \
+            -d '{"signIn":{"allowDuplicateEmails":false}}' \
+            "${CONFIG_URL}?updateMask=signIn.allowDuplicateEmails" \
+            >/tmp/auth-config.json
+
+          test "$(jq -r '.signIn.allowDuplicateEmails' /tmp/auth-config.json)" = "false"
+          echo "✅ Firebase Authentication configurado para uma única conta por e-mail."
+
+      - name: 🔍 Validar configuração efetiva
+        run: |
+          set -euo pipefail
+          ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"
+          CONFIG_URL="https://identitytoolkit.googleapis.com/admin/v2/projects/louvor-ide/config"
+          curl --fail-with-body -sS \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "X-Goog-User-Project: louvor-ide" \
+            "${CONFIG_URL}" >/tmp/auth-config-verified.json
+          test "$(jq -r '.signIn.allowDuplicateEmails' /tmp/auth-config-verified.json)" = "false"
+          echo "✅ Configuração validada: contas duplicadas por e-mail estão bloqueadas."
