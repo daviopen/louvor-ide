@@ -71,6 +71,11 @@ body.ide-shell-enabled.ide-sidebar-collapsed { padding-left: var(--ide-sidebar-c
   .ide-mobile-nav-label { overflow:hidden; width:100%; text-align:center; text-overflow:ellipsis; white-space:nowrap; font-size:.64rem; font-weight:var(--ide-font-weight-semibold); }
   .ide-mobile-nav-item.active { color:var(--ide-primary); background:rgba(216,255,69,.09); }
   .ide-module-page { padding:78px 16px 112px; }
+
+  /* Reserva horizontal para o botão sanduíche fixo. Aplica-se aos padrões de cabeçalho usados nas telas atuais sem deslocar o conteúdo abaixo deles. */
+  body.ide-shell-enabled :where(.page-head,.ide-page-header,.header,.page-header,.module-header,.section-header) {
+    padding-left:max(56px,calc(env(safe-area-inset-left) + 56px));
+  }
 }
 @media (min-width:901px) {
   .ide-sidebar-toggle,.ide-sidebar-overlay { display:none!important; }
