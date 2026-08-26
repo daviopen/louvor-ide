@@ -323,6 +323,213 @@
 - [x] Confirmar saída com alterações não salvas.
 - [x] Registrar criação/edição em Audit Log.
 
+### 23A. Cadastro e enriquecimento de músicas assistido por IA
+
+#### 23A.1. Objetivo e princípios de produto
+- [ ] Manter dois caminhos de cadastro igualmente suportados: `Cadastro manual` e `Assistido por IA`.
+- [ ] Não substituir, esconder ou degradar o fluxo manual existente.
+- [ ] Permitir alternar para o fluxo manual a qualquer momento caso a IA falhe ou o usuário prefira preencher os dados.
+- [ ] Fazer os dois caminhos convergirem para o mesmo formulário, validações, modelo de dados e processo de persistência.
+- [ ] Tratar a IA como mecanismo de assistência e pré-preenchimento, nunca como autoridade final sobre os dados da música.
+- [ ] Exigir revisão humana antes de persistir conteúdo sugerido automaticamente.
+- [ ] Nunca salvar automaticamente uma música apenas porque a análise da IA terminou.
+- [ ] Não bloquear o cadastro da música quando uma informação automática não puder ser encontrada.
+- [ ] Permitir edição de todos os valores sugeridos pela IA antes de salvar.
+- [ ] Não incluir Tap Tempo no escopo do cadastro de música.
+
+#### 23A.2. Arquitetura do MVP sem backend próprio
+- [ ] Utilizar a infraestrutura Firebase existente como base do MVP.
+- [ ] Utilizar Firebase Hosting para a aplicação web.
+- [ ] Utilizar Firebase Authentication para identidade e autorização do usuário.
+- [ ] Utilizar Firestore para persistência das músicas após confirmação do usuário.
+- [ ] Adotar Firebase AI Logic como integração preferencial entre o frontend e o modelo generativo.
+- [ ] Utilizar Gemini Developer API por meio do Firebase AI Logic como provider inicial de IA.
+- [ ] Priorizar modelos Gemini compatíveis com o free tier enquanto o volume do projeto permitir.
+- [ ] Não criar Cloud Functions como requisito obrigatório do MVP de IA.
+- [ ] Não exigir servidor dedicado, container, VM ou backend pago para o MVP.
+- [ ] Não armazenar chave privada do Gemini diretamente no JavaScript entregue ao navegador.
+- [ ] Utilizar Firebase App Check na integração com Firebase AI Logic.
+- [ ] Configurar App Check também para produção antes de liberar a funcionalidade para todos os usuários.
+- [ ] Implementar limites e tratamento de cota para que indisponibilidade da IA não afete o restante do sistema.
+- [ ] Encapsular a integração em uma abstração `MusicAIProvider`, evitando acoplamento direto da UI ao Gemini.
+- [ ] Permitir no futuro substituir o provider sem reescrever o formulário de músicas.
+
+#### 23A.3. Experiência de cadastro
+- [ ] Ao abrir `Nova Música`, apresentar escolha clara entre `Cadastrar manualmente` e `Importar com IA`.
+- [ ] Manter `Cadastrar manualmente` funcionando exatamente com os recursos previstos no item 23.
+- [ ] No modo assistido, oferecer inicialmente entrada de cifra/texto colado pelo usuário.
+- [ ] Permitir informar uma URL de cifra como tentativa de enriquecimento quando tecnicamente suportado.
+- [ ] Se a URL não puder ser acessada/analisada, orientar o usuário a colar a cifra/texto sem interromper o fluxo.
+- [ ] Permitir informar manualmente URL de YouTube de referência.
+- [ ] Permitir que a IA identifique um link de YouTube existente no conteúdo recebido quando disponível.
+- [ ] Permitir informar BPM manualmente quando não houver fonte automática confiável.
+- [ ] Mostrar estado de análise com feedback objetivo, sem loading infinito.
+- [ ] Mostrar resultado parcial mesmo quando apenas parte das informações puder ser identificada.
+- [ ] Após análise, abrir o mesmo formulário de música já preenchido com os dados sugeridos.
+- [ ] Diferenciar visualmente dados confirmados pelo usuário de dados ainda sugeridos pela IA quando necessário.
+- [ ] Manter experiência consistente em desktop, mobile, tema claro e tema escuro.
+
+#### 23A.4. Informações que a IA poderá identificar/estruturar
+- [ ] Nome da música.
+- [ ] Artista/intérprete.
+- [ ] Tom original quando identificável.
+- [ ] Cifra.
+- [ ] Letra.
+- [ ] Estrutura musical.
+- [ ] Intro.
+- [ ] Versos.
+- [ ] Pré-refrões.
+- [ ] Refrões.
+- [ ] Pontes.
+- [ ] Instrumentais/interlúdios.
+- [ ] Outro/final.
+- [ ] Compasso quando houver evidência suficiente.
+- [ ] BPM quando houver fonte ou evidência confiável.
+- [ ] URL de vídeo de referência quando encontrada no conteúdo ou fornecida pelo usuário.
+- [ ] Observações úteis somente quando derivadas do conteúdo recebido, sem inventar informação ausente.
+- [ ] Nunca inferir como fato um campo que não esteja suficientemente sustentado pelo conteúdo analisado.
+
+#### 23A.5. Modelo de dados e proveniência
+- [ ] Evoluir `songs` para suportar `originalKey` e manter separado o tom utilizado em cada execução/setlist.
+- [ ] Preservar `preferredKey` por ministro sem confundi-lo com o tom original da gravação.
+- [ ] Armazenar `sourceUrl` quando o usuário fornecer uma fonte externa.
+- [ ] Armazenar `sourceProvider` quando identificável.
+- [ ] Armazenar `sourceType`, por exemplo `manual`, `url`, `ai_assisted`.
+- [ ] Armazenar `importedAt` quando houver importação assistida.
+- [ ] Estruturar vídeo de referência com `provider`, `url`, `videoId` e metadados disponíveis.
+- [ ] Tratar BPM como metadado da versão/gravação de referência, não apenas do título da música.
+- [ ] Permitir registrar a origem do BPM.
+- [ ] Permitir registrar origem por campo relevante quando tecnicamente viável.
+- [ ] Definir estrutura de confiança/proveniência para campos gerados automaticamente.
+- [ ] Não obrigar score numérico de confiança quando o modelo/provider não fornecer informação confiável; permitir categorias como `alta`, `média`, `baixa` ou `não determinada`.
+- [ ] Garantir retrocompatibilidade com músicas já cadastradas.
+
+#### 23A.6. Structured Output e contrato da IA
+- [ ] Definir schema único para a resposta do modelo, evitando retorno textual livre para o fluxo de importação.
+- [ ] Utilizar Structured Output/JSON Schema quando suportado pelo provider selecionado.
+- [ ] Validar a resposta da IA antes de aplicar qualquer valor ao formulário.
+- [ ] Rejeitar resposta malformada sem apagar dados já preenchidos pelo usuário.
+- [ ] Normalizar nomes de seções musicais para enum interno (`intro`, `verse`, `pre_chorus`, `chorus`, `bridge`, `instrumental`, `outro`, `other`).
+- [ ] Validar tom musical contra valores aceitos pelo sistema.
+- [ ] Validar BPM como número em faixa plausível sem alterar silenciosamente o valor retornado.
+- [ ] Tratar campos ausentes como `null`/vazio em vez de inventar valores.
+- [ ] Criar versão do schema de importação para permitir evolução futura sem quebrar músicas existentes.
+
+#### 23A.7. YouTube e referências de gravação
+- [ ] Suportar URL de YouTube como referência de música.
+- [ ] Extrair `videoId` de URLs válidas quando possível.
+- [ ] Não exigir YouTube para concluir o cadastro.
+- [ ] Permitir trocar o vídeo sugerido antes de salvar.
+- [ ] Preparar o modelo para diferenciar versão oficial, ao vivo, acústica ou outra versão quando essa informação estiver disponível.
+- [ ] Exibir o vídeo/link de referência na consulta da música sem obrigar reprodução embutida.
+- [ ] Preparar futura evolução para utilizar timestamps/seções do vídeo sem incluir isso no MVP.
+
+#### 23A.8. BPM e fontes externas
+- [ ] Manter campo BPM opcional.
+- [ ] Buscar BPM automaticamente apenas por fonte/API cujo uso automatizado seja permitido.
+- [ ] Não implementar scraping automatizado do SongBPM enquanto os termos do serviço proibirem automação/scraping.
+- [ ] Permitir que o usuário consulte fontes externas manualmente e informe o BPM.
+- [ ] Manter abstração `TempoProvider` para futuras integrações permitidas.
+- [ ] Priorizar metadados confiáveis antes de inferência por IA.
+- [ ] Se nenhuma fonte confiável estiver disponível, manter BPM vazio para preenchimento manual.
+- [ ] Não implementar Tap Tempo neste fluxo.
+- [ ] Registrar a origem do BPM quando obtido automaticamente.
+
+#### 23A.9. URLs, CORS e limitações do MVP
+- [ ] Tratar leitura automática de URL como capacidade oportunística, não requisito para concluir o MVP.
+- [ ] Considerar limitações de CORS no navegador.
+- [ ] Testar URL Context/recursos equivalentes do provider com sites reais utilizados pelo ministério antes de assumir compatibilidade.
+- [ ] Implementar fallback imediato para `colar cifra/texto` quando a URL não puder ser processada.
+- [ ] Não criar crawler genérico no frontend.
+- [ ] Não contornar bloqueios técnicos ou termos de uso de sites de terceiros.
+- [ ] Manter lista/documentação de fontes testadas e comportamento conhecido.
+
+#### 23A.10. Segurança, privacidade e custos
+- [ ] Ativar e validar Firebase App Check para chamadas de IA.
+- [ ] Restringir uso da funcionalidade a usuários autenticados e com permissão adequada de músicas.
+- [ ] Não enviar ao modelo dados pessoais do usuário que não sejam necessários para estruturar a música.
+- [ ] Não registrar prompts completos contendo conteúdo sensível em logs de produção sem necessidade.
+- [ ] Tratar erros de quota/rate limit com mensagem clara e opção de continuar manualmente.
+- [ ] Implementar proteção contra múltiplos cliques/requisições duplicadas.
+- [ ] Monitorar consumo da API/modelo dentro das ferramentas disponíveis do Firebase/Google.
+- [ ] Definir limite operacional do recurso para evitar consumo acidental de cota.
+- [ ] Documentar que o free tier não é garantia permanente e pode mudar conforme políticas do provider.
+- [ ] Não transformar ativação de billing em requisito para o MVP enquanto houver uma alternativa gratuita funcional e compatível.
+
+#### 23A.11. Direitos autorais e conteúdo de terceiros
+- [ ] Tratar cifra/letra fornecida pelo usuário como conteúdo de origem externa e registrar sua fonte quando informada.
+- [ ] Não implementar scraping massivo de letras/cifras de terceiros.
+- [ ] Respeitar robots, termos de serviço, licenças e restrições de cada fonte integrada.
+- [ ] Não remover atribuição/origem quando ela for necessária.
+- [ ] Documentar no `songs/AGENTS.md` as regras de importação, armazenamento e exibição de conteúdo protegido.
+- [ ] Revisar a política de armazenamento de letras/cifras completas antes de integrar fontes externas de forma automatizada.
+
+#### 23A.12. Arquitetura extensível de providers
+- [ ] Criar contrato `MusicAIProvider`.
+- [ ] Implementar inicialmente `FirebaseAILogicMusicProvider`.
+- [ ] Não chamar SDK do Gemini diretamente a partir dos componentes de UI.
+- [ ] Criar contrato `TempoProvider` para BPM.
+- [ ] Criar contrato de referência de vídeo quando necessário.
+- [ ] Permitir futuramente providers via Cloud Functions, APIs externas ou modelos locais sem alterar o formulário.
+- [ ] Garantir que a ausência de qualquer provider preserve o cadastro manual.
+
+#### 23A.13. Observabilidade e auditoria
+- [ ] Registrar evento de início/fim da análise de IA sem persistir conteúdo desnecessário do prompt.
+- [ ] Registrar provider/modelo utilizado quando útil para diagnóstico.
+- [ ] Registrar sucesso, falha, timeout, quota excedida e resposta inválida.
+- [ ] Registrar no Audit Log se uma música foi criada manualmente ou a partir de fluxo assistido por IA.
+- [ ] Registrar apenas a versão final confirmada pelo usuário como estado persistido da música.
+- [ ] Não tratar sugestões descartadas pela pessoa como dados oficiais da música.
+
+#### 23A.14. Testes do MVP
+- [ ] Teste unitário do parser/validador do Structured Output.
+- [ ] Testes de normalização de seções musicais.
+- [ ] Testes de tons válidos e inválidos.
+- [ ] Testes de BPM válido, ausente e inválido.
+- [ ] Testes de parsing de URL do YouTube.
+- [ ] Testes do fallback de URL para cifra/texto colado.
+- [ ] Testes de resposta parcial da IA.
+- [ ] Testes de resposta malformada da IA.
+- [ ] Testes de erro de quota/rate limit.
+- [ ] Testes de indisponibilidade do provider.
+- [ ] Validar que falha da IA não impede cadastro manual.
+- [ ] Validar que nenhum dado é salvo antes da confirmação do usuário.
+- [ ] Testar fluxo manual e assistido em desktop.
+- [ ] Testar fluxo manual e assistido em mobile.
+- [ ] Testar tema claro e escuro.
+- [ ] Testar acessibilidade dos estados de análise, erro e revisão.
+- [ ] Incluir pelo menos um fluxo E2E de cadastro assistido com provider simulado/mocado para não depender de quota externa no CI.
+
+#### 23A.15. Critérios de aceite do MVP
+- [ ] Usuário consegue continuar cadastrando música 100% manualmente.
+- [ ] Usuário consegue escolher `Assistido por IA` sem sair do módulo de músicas.
+- [ ] Usuário consegue colar cifra/texto e solicitar análise.
+- [ ] IA retorna dados em contrato estruturado e validado.
+- [ ] Resultado preenche o formulário existente sem salvar automaticamente.
+- [ ] Usuário consegue corrigir qualquer campo antes de salvar.
+- [ ] Campos não identificados permanecem vazios/editáveis.
+- [ ] URL de YouTube pode ser informada e persistida.
+- [ ] BPM pode ser preenchido automaticamente quando houver fonte permitida ou manualmente quando não houver.
+- [ ] Não existe Tap Tempo no formulário.
+- [ ] App Check protege o acesso ao Firebase AI Logic em produção.
+- [ ] Nenhuma chave privada de IA fica exposta no bundle da aplicação.
+- [ ] Erro ou indisponibilidade da IA oferece continuidade imediata pelo cadastro manual.
+- [ ] Build, lint e testes passam.
+- [ ] GitHub Actions passam.
+- [ ] Fluxo validado na aplicação publicada antes de marcar o épico como concluído.
+
+#### 23A.16. Evoluções futuras — fora do MVP inicial
+- [ ] Avaliar Cloud Functions somente quando houver necessidade real de processamento server-side.
+- [ ] Avaliar backend serverless caso seja necessário acessar fontes incompatíveis com CORS de forma permitida.
+- [ ] Avaliar cache de metadados externos para reduzir chamadas e custo.
+- [ ] Avaliar busca automática de vídeo oficial por APIs autorizadas.
+- [ ] Avaliar providers alternativos de IA.
+- [ ] Avaliar detecção automática de BPM por análise de áudio somente se houver fonte de áudio e uso permitido.
+- [ ] Avaliar detecção automática de tonalidade por áudio.
+- [ ] Avaliar timestamps de seções da música no vídeo de referência.
+- [ ] Avaliar comparação entre versão original e versão utilizada pela igreja.
+- [ ] Avaliar métricas do estudo de caso: tempo médio de cadastro manual vs IA, percentual de campos preenchidos automaticamente, quantidade de correções humanas, taxa de sucesso e custo por cadastro.
+
 ## P5 — Auditoria e observabilidade
 
 ### 24. Audit Log
