@@ -41,7 +41,10 @@
 .unavailability-form{padding:var(--ide-space-6)}
 .unavailability-dialog-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--ide-space-4);margin-bottom:var(--ide-space-5)}
 .unavailability-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--ide-space-4)}
-.unavailability-form-grid label{display:grid;gap:var(--ide-space-2)}.unavailability-form-grid .full{grid-column:1/-1}.unavailability-form-grid small{color:var(--ide-text-secondary)}
+.unavailability-form-grid label{display:grid;gap:var(--ide-space-2);align-content:start}.unavailability-form-grid .full{grid-column:1/-1}.unavailability-form-grid small{color:var(--ide-text-secondary)}
+.unavailability-form-grid .ide-field__control{min-height:46px;padding:.7rem .9rem}
+.unavailability-form-grid #unavailability-date,.unavailability-form-grid #unavailability-end-date{height:46px;min-height:46px;padding:.65rem .9rem;line-height:1.35}
+.unavailability-form-grid .ide-field__textarea{min-height:112px;padding:.75rem .9rem}
 .unavailability-dialog-actions{display:flex;justify-content:flex-end;gap:var(--ide-space-3);margin-top:var(--ide-space-6)}
 .unavailability-toast{position:fixed;right:var(--ide-space-5);bottom:calc(var(--ide-space-8) + 64px);z-index:var(--ide-z-modal);max-width:min(420px,calc(100vw - 2rem));padding:var(--ide-space-4);border:1px solid var(--ide-border);border-radius:var(--ide-radius-md);background:var(--ide-surface);box-shadow:var(--ide-shadow-md)}
 .unavailability-toast[data-type="error"]{border-color:var(--ide-error)}
