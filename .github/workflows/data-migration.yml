@@ -1,8 +1,6 @@
 name: 🗃️ Data Migration
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       mode:
@@ -44,16 +42,6 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
 
-      - name: Resolve migration mode
-        id: mode
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "value=apply" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Run migration
         env:
           GOOGLE_CLOUD_PROJECT: louvor-ide
@@ -61,7 +49,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "${{ steps.mode.outputs.value }}" in
+          case "${{ inputs.mode }}" in
             apply) node src/scripts/migrate-legacy-data.cjs --apply ;;
             verify) node src/scripts/migrate-legacy-data.cjs --verify ;;
             dry-run) node src/scripts/migrate-legacy-data.cjs --dry-run ;;
@@ -69,7 +57,7 @@ jobs:
           esac
 
       - name: Verify migration after apply
-        if: steps.mode.outputs.value == 'apply'
+        if: inputs.mode == 'apply'
         env:
           GOOGLE_CLOUD_PROJECT: louvor-ide
           GCLOUD_PROJECT: louvor-ide
