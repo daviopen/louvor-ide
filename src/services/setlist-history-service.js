@@ -27,6 +27,14 @@
     return `${year}-${month}-${day}`;
   }
 
+  function normalizeDressCodeColors(value) {
+    if (!Array.isArray(value)) return [];
+    return [...new Set(value
+      .map(color => text(color).toUpperCase())
+      .filter(color => /^#[0-9A-F]{6}$/.test(color)))]
+      .slice(0, 3);
+  }
+
   function normalizeItem(setlist, context = {}) {
     const event = context.event || {};
     const songs = Array.isArray(context.songs) ? context.songs : [];
@@ -49,6 +57,7 @@
       dateKey: dateKey(date),
       name: setlist.name || setlist.nome || event.name || 'Setlist',
       theme: setlist.theme || event.theme || '',
+      dressCodeColors: normalizeDressCodeColors(setlist.dressCodeColors),
       songs: normalizedSongs,
       ministerNames: [...new Set(normalizedSongs.map(song => text(song.ministerName)).filter(Boolean))],
       songTitles: normalizedSongs.map(song => text(song.title)).filter(Boolean),
@@ -116,5 +125,5 @@
     };
   }
 
-  return Object.freeze({ toDate, dateKey, normalizeItem, isHistory, split, matches, filter, paginate });
+  return Object.freeze({ toDate, dateKey, normalizeDressCodeColors, normalizeItem, isHistory, split, matches, filter, paginate });
 });
