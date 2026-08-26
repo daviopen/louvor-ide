@@ -22,7 +22,7 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
       - name: Install audit dependencies
         run: |
-          npm install --no-save playwright@1.55.0 firebase-admin@13.4.0
+          npm install --no-save playwright@1.55.0 @axe-core/playwright@4.10.2 firebase-admin@13.4.0
           npx playwright install chromium
       - name: Capture desktop/mobile and audit UI
         env:
@@ -33,6 +33,7 @@ jobs:
           const path = require('path');
           const admin = require('firebase-admin');
           const { chromium } = require('playwright');
+          const { AxeBuilder } = require('@axe-core/playwright');
           const baseUrl = process.env.BASE_URL;
           const out = path.resolve('visual-audit');
           fs.mkdirSync(out, { recursive: true });
@@ -41,10 +42,9 @@ jobs:
           const auth = admin.auth();
           const email = `visual.audit.${Date.now()}@louvor-ide.app`;
           const password = `Va!${Date.now()}Aa9`;
+          const consentVersion = 'terms:2026-08-25|privacy:2026-08-25';
           let user, browser;
-          const parseRgb=v=>{const m=String(v||'').match(/rgba?\((\d+)[, ]+(\d+)[, ]+(\d+)/i);return m?[+m[1],+m[2],+m[3]]:null};
-          const lum=([r,g,b])=>{const f=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)};return .2126*f(r)+.7152*f(g)+.0722*f(b)};
-          const ratio=(a,b)=>(Math.max(lum(a),lum(b))+.05)/(Math.min(lum(a),lum(b))+.05);
+
           async function audit(page,label,vp,theme){
             await page.evaluate(t=>{localStorage.setItem('musicIdeTheme',t);document.documentElement.dataset.theme=t;document.documentElement.dataset.themePreference=t;document.documentElement.style.colorScheme=t},theme);
             await page.waitForTimeout(350);
@@ -52,24 +52,55 @@ jobs:
             await page.screenshot({path:path.join(out,`${safe}.png`),fullPage:true});
             const x=await page.evaluate(()=>{
               const vis=el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&+s.opacity!==0&&r.width>0&&r.height>0};
-              const touch=[],clipped=[],candidates=[];
+              const touch=[],clipped=[];
               document.querySelectorAll('button,a,input,select,textarea,[role="button"]').forEach(el=>{if(!vis(el))return;const r=el.getBoundingClientRect();if(r.width<44||r.height<44)touch.push({tag:el.tagName,id:el.id||'',cls:String(el.className||'').slice(0,100),text:(el.innerText||el.value||el.getAttribute('aria-label')||'').trim().slice(0,60),w:Math.round(r.width),h:Math.round(r.height)})});
-              document.querySelectorAll('button,a,th,td,label,h1,h2,h3,p,span').forEach(el=>{if(!vis(el))return;if(el.scrollWidth>el.clientWidth+3&&getComputedStyle(el).overflowX!=='visible')clipped.push({tag:el.tagName,id:el.id||'',cls:String(el.className||'').slice(0,90),text:(el.innerText||'').trim().slice(0,70),scrollWidth:el.scrollWidth,clientWidth:el.clientWidth})});
-              document.querySelectorAll('button,a,.ide-button,.badge,.status-badge,.music-ide-signout').forEach(el=>{if(!vis(el))return;const s=getComputedStyle(el);candidates.push({tag:el.tagName,id:el.id||'',cls:String(el.className||'').slice(0,90),text:(el.innerText||'').trim().slice(0,60),color:s.color,bg:s.backgroundColor,fontSize:parseFloat(s.fontSize)||16,fontWeight:s.fontWeight})});
-              return {viewportOverflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+3,touch,clipped,candidates};
+              document.querySelectorAll('button,a,th,td,label,h1,h2,h3,h4,p,span,small,strong,li').forEach(el=>{if(!vis(el))return;if(el.scrollWidth>el.clientWidth+3&&getComputedStyle(el).overflowX!=='visible')clipped.push({tag:el.tagName,id:el.id||'',cls:String(el.className||'').slice(0,90),text:(el.innerText||'').trim().slice(0,70),scrollWidth:el.scrollWidth,clientWidth:el.clientWidth})});
+              return {viewportOverflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+3,touch,clipped};
             });
-            const contrast=[];for(const c of x.candidates){const fg=parseRgb(c.color),bg=parseRgb(c.bg);if(!fg||!bg||/rgba\([^)]*,\s*0\)/.test(c.bg))continue;const cr=ratio(fg,bg),large=c.fontSize>=24||(c.fontSize>=18.66&&Number(c.fontWeight)>=700),min=large?3:4.5;if(cr<min)contrast.push({...c,ratio:+cr.toFixed(2),required:min})}delete x.candidates;return {...x,contrast};
+            const axe=await new AxeBuilder({page}).withRules(['color-contrast']).analyze();
+            const contrast=axe.violations.flatMap(v=>v.nodes.map(n=>({impact:v.impact,help:v.help,target:n.target,html:n.html.slice(0,240),summary:n.failureSummary||''})));
+            return {...x,contrast};
           }
+
           (async()=>{const report={generatedAt:new Date().toISOString(),baseUrl,items:[]};try{
-            user=await auth.createUser({email,password,displayName:'Visual Audit',emailVerified:true});await auth.setCustomUserClaims(user.uid,{superAdmin:true,role:'SUPER_ADMIN'});await db.collection('users').doc(user.uid).set({uid:user.uid,email,name:'Visual Audit',displayName:'Visual Audit',role:'SUPER_ADMIN',active:true,createdAt:admin.firestore.FieldValue.serverTimestamp(),updatedAt:admin.firestore.FieldValue.serverTimestamp()});
-            const setlists=await db.collection('setlists').orderBy('eventDate','desc').limit(1).get().catch(()=>db.collection('setlists').limit(1).get());const setlistId=setlists.empty?'':setlists.docs[0].id;
-            browser=await chromium.launch({headless:true});const context=await browser.newContext({viewport:{width:1440,height:1000}});const page=await context.newPage();
-            await page.goto(`${baseUrl}/login.html`,{waitUntil:'domcontentloaded',timeout:20000});await page.waitForTimeout(700);await page.screenshot({path:path.join(out,'login-desktop.png'),fullPage:true});await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(out,'login-mobile.png'),fullPage:true});await page.setViewportSize({width:1440,height:1000});
-            await page.fill('#login-email',email);await page.fill('#login-password',password);await page.click('.email-button');await page.waitForURL(u=>!u.pathname.endsWith('/login.html'),{timeout:20000});await page.waitForTimeout(700);
-            if(page.url().includes('consentimento.html')){await page.check('#lgpd-consent');await page.click('#accept-button');await page.waitForURL(u=>!u.pathname.endsWith('/consentimento.html'),{timeout:20000});await page.waitForTimeout(700);}
-            const routes=[['dashboard','/index.html'],['users','/users.html'],['permissions','/module.html?section=permissions'],['unavailability','/module.html?section=unavailability'],['events','/module.html?section=events'],['schedules','/module.html?section=schedules'],['setlists','/setlists.html'],['setlists_history','/setlists.html?view=history'],['songs','/consultar.html'],['new_song','/nova-musica.html']];if(setlistId)routes.push(['setlist',`/setlist.html?id=${encodeURIComponent(setlistId)}`],['performance',`/setlist-view.html?id=${encodeURIComponent(setlistId)}`]);
-            for(const vp of [{name:'desktop',width:1440,height:1000},{name:'mobile',width:390,height:844}]){await page.setViewportSize({width:vp.width,height:vp.height});for(const [label,url] of routes){await page.goto(baseUrl+url,{waitUntil:'domcontentloaded',timeout:20000}).catch(()=>{});await page.waitForTimeout(900);for(const theme of ['light','dark'])report.items.push({label,url,viewport:vp,theme,...await audit(page,label,vp,theme)})}}
-            fs.writeFileSync(path.join(out,'audit.json'),JSON.stringify(report,null,2));const summary=report.items.filter(i=>i.viewportOverflow||i.touch.length||i.clipped.length||i.contrast.length).map(i=>`${i.label} ${i.viewport.name} ${i.theme}: overflow=${i.viewportOverflow} touch=${i.touch.length} clipped=${i.clipped.length} contrast=${i.contrast.length}`);fs.writeFileSync(path.join(out,'summary.txt'),summary.join('\n')+'\n');console.log(summary.join('\n'));
+            user=await auth.createUser({email,password,displayName:'Visual Audit',emailVerified:true});
+            await auth.setCustomUserClaims(user.uid,{superAdmin:true,role:'SUPER_ADMIN'});
+            await db.collection('users').doc(user.uid).set({uid:user.uid,email,name:'Visual Audit',displayName:'Visual Audit',role:'SUPER_ADMIN',active:true,lgpdConsentVersion:consentVersion,lgpdTermsVersion:'2026-08-25',lgpdPrivacyVersion:'2026-08-25',createdAt:admin.firestore.FieldValue.serverTimestamp(),updatedAt:admin.firestore.FieldValue.serverTimestamp()});
+            const setlists=await db.collection('setlists').orderBy('eventDate','desc').limit(1).get().catch(()=>db.collection('setlists').limit(1).get());
+            const setlistId=setlists.empty?'':setlists.docs[0].id;
+            browser=await chromium.launch({headless:true});
+            const context=await browser.newContext({viewport:{width:1440,height:1000}});
+            const page=await context.newPage();
+
+            for(const vp of [{name:'desktop',width:1440,height:1000},{name:'mobile',width:390,height:844}]){
+              await page.setViewportSize({width:vp.width,height:vp.height});
+              await page.goto(`${baseUrl}/login.html`,{waitUntil:'domcontentloaded',timeout:20000});await page.waitForTimeout(700);
+              for(const theme of ['light','dark']) report.items.push({label:'login',url:'/login.html',viewport:vp,theme,...await audit(page,'login',vp,theme)});
+            }
+
+            await page.setViewportSize({width:1440,height:1000});
+            await page.goto(`${baseUrl}/login.html`,{waitUntil:'domcontentloaded',timeout:20000});await page.waitForTimeout(500);
+            await page.fill('#login-email',email);await page.fill('#login-password',password);await page.click('.email-button');
+            await page.waitForURL(u=>!u.pathname.endsWith('/login.html'),{timeout:20000});await page.waitForTimeout(900);
+
+            const routes=[
+              ['dashboard','/index.html'],['users','/users.html'],['permissions','/module.html?section=permissions'],
+              ['unavailability','/module.html?section=unavailability'],['events','/module.html?section=events'],['schedules','/module.html?section=schedules'],
+              ['setlists','/setlists.html?view=upcoming'],['setlists_history','/setlists.html?view=history'],['songs','/consultar.html'],['new_song','/nova-musica.html'],
+              ['audit','/module.html?section=audit'],['settings','/module.html?section=settings']
+            ];
+            if(setlistId) routes.push(['setlist',`/setlist.html?id=${encodeURIComponent(setlistId)}`],['performance',`/setlist-view.html?id=${encodeURIComponent(setlistId)}`]);
+
+            for(const vp of [{name:'desktop',width:1440,height:1000},{name:'mobile',width:390,height:844}]){
+              await page.setViewportSize({width:vp.width,height:vp.height});
+              for(const [label,url] of routes){
+                await page.goto(baseUrl+url,{waitUntil:'domcontentloaded',timeout:20000}).catch(()=>{});await page.waitForTimeout(900);
+                for(const theme of ['light','dark']) report.items.push({label,url,viewport:vp,theme,...await audit(page,label,vp,theme)});
+              }
+            }
+            fs.writeFileSync(path.join(out,'audit.json'),JSON.stringify(report,null,2));
+            const summary=report.items.filter(i=>i.viewportOverflow||i.touch.length||i.clipped.length||i.contrast.length).map(i=>`${i.label} ${i.viewport.name} ${i.theme}: overflow=${i.viewportOverflow} touch=${i.touch.length} clipped=${i.clipped.length} contrast=${i.contrast.length}`);
+            fs.writeFileSync(path.join(out,'summary.txt'),summary.join('\n')+'\n');console.log(summary.join('\n'));
           }finally{if(browser)await browser.close().catch(()=>{});if(user){await db.collection('users').doc(user.uid).delete().catch(()=>{});await auth.deleteUser(user.uid).catch(()=>{})}await admin.app().delete().catch(()=>{})}})().catch(e=>{console.error(e);process.exit(1)});
           NODE
           node visual-audit.cjs
