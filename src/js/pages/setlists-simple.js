@@ -23,7 +23,7 @@
 
   function card(item){
     const readonly=state.view==='history';
-    const href=`setlist.html?id=${encodeURIComponent(item.id)}${readonly?'&readonly=1':''}`;
+    const href=readonly?`setlist-view.html?id=${encodeURIComponent(item.id)}`:`setlist.html?id=${encodeURIComponent(item.id)}`;
     const ministerTags=item.ministerNames.slice(0,3).map(name=>`<span class="tag"><i class="fas fa-microphone"></i>&nbsp;${esc(name)}</span>`).join('');
     const songTags=item.songTitles.slice(0,3).map(title=>`<span class="tag"><i class="fas fa-music"></i>&nbsp;${esc(title)}</span>`).join('');
     return `<article class="setlist-card"><div class="setlist-card__head"><div><h2>${esc(item.name)}</h2><div class="meta"><span><i class="fas fa-calendar"></i> ${esc(formatDate(item.date))}</span><span><i class="fas fa-music"></i> ${item.totalSongs} música${item.totalSongs===1?'':'s'}</span>${item.theme?`<span><i class="fas fa-tag"></i> ${esc(item.theme)}</span>`:''}</div></div><span class="status">${esc(item.status||'DRAFT')}</span></div>${ministerTags||songTags?`<div class="tags">${ministerTags}${songTags}</div>`:''}<div class="setlist-card__actions"><a class="btn ${readonly?'btn-secondary':'btn-primary'}" href="${href}"><i class="fas ${readonly?'fa-eye':'fa-pen-to-square'}"></i> ${readonly?'Abrir somente leitura':'Abrir Setlist'}</a></div></article>`;
