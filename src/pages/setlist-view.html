@@ -12,11 +12,14 @@
   <script src="../js/modules/auth-service.js?v=20260825-email"></script>
   <script src="../js/modules/app-shell.js?v=20260825-sidebar" defer></script>
   <script src="../js/modules/chord-transposer.js"></script>
-  <script src="../js/modules/setlist-performance-view.js?v=20260826-single-song" defer></script>
+  <script src="../repositories/setlist-repository.js?v=20260826-viewer-fix"></script>
+  <script src="../js/modules/setlist-performance-view.js?v=20260826-viewer-fix" defer></script>
+  <script src="../js/modules/setlist-view-metadata.js?v=20260826-viewer-fix" defer></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="stylesheet" href="../css/music-ide-theme.css">
-  <link rel="stylesheet" href="../css/setlist-performance-view.css">
+  <link rel="stylesheet" href="../css/setlist-performance-view.css?v=20260826-viewer-fix">
+  <link rel="stylesheet" href="../css/setlist-performance-view-fixes.css?v=20260826-viewer-fix">
 </head>
 <body>
   <main class="performance-page" aria-labelledby="setlist-title">
@@ -91,6 +94,15 @@
           <div id="lyrics-content" class="music-text music-text--lyrics" tabindex="0" aria-label="Letra da música" hidden></div>
           <div id="content-empty" class="content-empty" hidden></div>
         </div>
+
+        <section id="dress-code-view" class="performance-dress-code" aria-labelledby="dress-code-title" hidden>
+          <div class="performance-dress-code__heading">
+            <p class="performance-dress-code__eyebrow">Visual do evento</p>
+            <h3 id="dress-code-title">Dress Code</h3>
+          </div>
+          <div id="dress-code-colors" class="performance-dress-code__colors" aria-label="Cores do Dress Code"></div>
+          <p id="dress-code-empty" class="performance-dress-code__empty" hidden>Dress Code ainda não definido.</p>
+        </section>
 
         <footer id="song-navigation" class="song-navigation">
           <button id="previous-song" class="navigation-button" type="button">
