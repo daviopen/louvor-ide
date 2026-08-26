@@ -66,6 +66,24 @@ async function waitForDialogSave(page, dialogSelector, toastSelector, timeout = 
   }
 }
 
+async function waitForSongSave(page, timeout = 30000) {
+  const status = page.locator('#status');
+  await page.waitForFunction(() => {
+    const status = document.querySelector('#status');
+    if (!status) return false;
+    const message = (status.textContent || '').trim();
+    return status.classList.contains('success') || status.classList.contains('error') || /consultar\.html/.test(location.pathname);
+  }, null, { timeout });
+
+  if (/consultar\.html/.test(new URL(page.url()).pathname)) return;
+
+  const message = ((await status.textContent().catch(() => '')) || '').trim();
+  const isError = await status.evaluate(node => node.classList.contains('error')).catch(() => false);
+  if (isError) throw new Error(`Falha reportada pela interface ao salvar música: ${message || 'mensagem não informada'}`);
+
+  assert.ok(await status.evaluate(node => node.classList.contains('success')).catch(() => false), `salvamento da música não confirmou sucesso: ${message || 'sem mensagem'}`);
+}
+
 async function cleanupByField(db, collection, field, value) {
   const snap = await db.collection(collection).where(field, '==', value).get().catch(() => null);
   if (snap) await Promise.allSettled(snap.docs.map(doc => doc.ref.delete()));
@@ -146,9 +164,11 @@ async function cleanupByField(db, collection, field, value) {
     await page.locator('#letra').fill('Conteúdo temporário de teste automatizado.');
     await page.locator('#observacoes').fill(`E2E ${runId}`);
     await page.locator('#save-btn').click();
-    await page.waitForTimeout(1200);
+    await waitForSongSave(page);
 
-    await page.goto(`${baseUrl}/consultar.html`, { waitUntil: 'domcontentloaded' });
+    if (!/consultar\.html/.test(new URL(page.url()).pathname)) {
+      await page.goto(`${baseUrl}/consultar.html`, { waitUntil: 'domcontentloaded' });
+    }
     await waitHydrated(page);
     await page.locator('#songs-loading').waitFor({ state: 'hidden', timeout: 20000 });
     await page.locator('#song-search').fill(songTitle);
