@@ -19,6 +19,15 @@ function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+async function getAuthUserOrNull(auth, uid) {
+  try {
+    return await auth.getUser(uid);
+  } catch (error) {
+    if (error && error.code === 'auth/user-not-found') return null;
+    throw error;
+  }
+}
+
 async function reconcileDuplicateIdentities(auth, db) {
   const profilesSnapshot = await db.collection('users').get();
   const profilesByUid = new Map(profilesSnapshot.docs.map(doc => [doc.id, doc.data() || {}]));
@@ -45,10 +54,10 @@ async function reconcileDuplicateIdentities(auth, db) {
 
   let removed = 0;
   let restored = 0;
+  let realigned = 0;
 
   for (const [email, expectedUid] of expectedUidByEmail) {
     const candidates = authByEmail.get(email) || [];
-    const expected = candidates.find(user => user.uid === expectedUid);
     const foreignWithProfile = candidates.filter(user => user.uid !== expectedUid && profilesByUid.has(user.uid));
 
     if (foreignWithProfile.length) {
@@ -61,21 +70,37 @@ async function reconcileDuplicateIdentities(auth, db) {
       console.log(`🧹 ${email}: identidade Auth duplicada sem perfil removida (${duplicate.uid}).`);
     }
 
-    if (!expected) {
-      const profile = profilesByUid.get(expectedUid) || {};
-      await auth.createUser({
-        uid: expectedUid,
-        email,
-        displayName: profile.name || undefined,
-        photoURL: profile.photoURL || undefined,
-        disabled: profile.active === false
-      });
-      restored += 1;
-      console.log(`🔄 ${email}: identidade Auth restaurada com o UID canônico do Firestore (${expectedUid}).`);
+    const profile = profilesByUid.get(expectedUid) || {};
+    const canonical = await getAuthUserOrNull(auth, expectedUid);
+
+    if (canonical) {
+      const canonicalEmail = normalizeEmail(canonical.email);
+      const patch = {};
+      if (canonicalEmail !== email) patch.email = email;
+      if ((canonical.displayName || '') !== (profile.name || '')) patch.displayName = profile.name || undefined;
+      if ((canonical.photoURL || null) !== (profile.photoURL || null)) patch.photoURL = profile.photoURL || undefined;
+      if (canonical.disabled !== (profile.active === false)) patch.disabled = profile.active === false;
+
+      if (Object.keys(patch).length) {
+        await auth.updateUser(expectedUid, patch);
+        realigned += 1;
+        console.log(`🔄 ${email}: identidade Auth canônica realinhada ao perfil (${expectedUid}).`);
+      }
+      continue;
     }
+
+    await auth.createUser({
+      uid: expectedUid,
+      email,
+      displayName: profile.name || undefined,
+      photoURL: profile.photoURL || undefined,
+      disabled: profile.active === false
+    });
+    restored += 1;
+    console.log(`🔄 ${email}: identidade Auth restaurada com o UID canônico do Firestore (${expectedUid}).`);
   }
 
-  console.log(`✅ Reconciliação de identidades concluída: ${removed} duplicada(s) removida(s), ${restored} identidade(s) restaurada(s).`);
+  console.log(`✅ Reconciliação de identidades concluída: ${removed} duplicada(s) removida(s), ${restored} identidade(s) restaurada(s), ${realigned} identidade(s) realinhada(s).`);
 }
 
 async function main() {
@@ -90,4 +115,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { listAllAuthUsers, normalizeEmail, reconcileDuplicateIdentities };
+module.exports = { getAuthUserOrNull, listAllAuthUsers, normalizeEmail, reconcileDuplicateIdentities };
