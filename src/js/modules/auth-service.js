@@ -279,8 +279,27 @@
       active: true,
       role: 'SUPER_ADMIN',
       createdAt: timestamp,
-      updatedAt: timestamp
+      updatedAt: timestamp,
+      lastAccessAt: timestamp
     };
+  }
+
+  async function recordLastAccess(scope, user) {
+    if (!user || !user.uid || !scope.firebase || typeof scope.firebase.firestore !== 'function') return;
+    const firestore = scope.firebase.firestore;
+    const fieldValue = firestore.FieldValue;
+    const timestamp = fieldValue && typeof fieldValue.serverTimestamp === 'function'
+      ? fieldValue.serverTimestamp()
+      : new Date();
+
+    try {
+      await firestore().collection('users').doc(user.uid).set({ lastAccessAt: timestamp }, { merge: true });
+    } catch (error) {
+      // O registro de atividade é auxiliar e nunca deve impedir um login válido.
+      if (scope.console && typeof scope.console.warn === 'function') {
+        scope.console.warn('Não foi possível registrar o último acesso do usuário.', error);
+      }
+    }
   }
 
   async function loadEffectivePermissions(scope, userId) {
@@ -511,6 +530,7 @@
         return;
       }
 
+      await recordLastAccess(scope, user);
       resolveAuthReady(user);
       exposeAuthState(scope, user, authorization.profile);
 
@@ -540,6 +560,7 @@
     loadEffectivePermissions,
     normalizeThemePreference,
     readThemePreference,
+    recordLastAccess,
     resolveAuthorizedProfile,
     resolveTheme,
     sanitizeReturnUrl,
