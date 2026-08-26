@@ -9,6 +9,7 @@ body { background: var(--ide-background); color: var(--ide-text-primary); }
 .ide-dashboard__status { border: 1px solid var(--ide-border); border-radius: var(--ide-radius-lg); padding: var(--ide-space-4); margin-bottom: var(--ide-space-6); background: var(--ide-surface); }
 .ide-dashboard__status[data-type="error"] { border-color: var(--ide-error); color: var(--ide-error); }
 .ide-dashboard-section { margin-bottom: var(--ide-space-8); }
+.ide-dashboard-grid + .ide-dashboard-section { margin-top: var(--ide-space-6); }
 .ide-dashboard-section__heading { display: flex; justify-content: space-between; align-items: center; gap: var(--ide-space-4); margin-bottom: var(--ide-space-4); }
 .ide-dashboard-section__heading h2 { margin: 0; font-size: var(--ide-font-size-xl); }
 .ide-dashboard-section__heading a { color: var(--ide-primary-active); font-weight: 700; text-decoration: none; }
