@@ -272,12 +272,12 @@
 - [x] Validar em tema claro, escuro e mobile.
 
 ### 20. Histórico de Setlists
-- [ ] Submenu Histórico.
-- [ ] Separar próximos e anteriores.
-- [ ] Filtros por data, período, evento, ministro, música, artista e tema.
-- [ ] Abrir Setlist antigo.
-- [ ] Respeitar modo somente leitura.
-- [ ] Paginação.
+- [x] Submenu Histórico.
+- [x] Separar próximos e anteriores.
+- [x] Filtros por data, período, evento, ministro, música e tema.
+- [x] Abrir Setlist antigo.
+- [x] Respeitar modo somente leitura.
+- [x] Paginação.
 
 ### 21. Cifra e letra
 - [ ] Manter “Ver cifra”.
