@@ -59,6 +59,34 @@ jobs:
 
           echo "✅ Listagem e editor individual de Escalas estão publicados no Firebase Hosting"
 
+      - name: 🎵 Validar catálogo de músicas publicado
+        env:
+          E2E_BASE_URL: https://louvor-ide.web.app
+        run: |
+          set -euo pipefail
+
+          curl --fail-with-body -sS "${E2E_BASE_URL}/consultar.html" -o /tmp/consultar.html
+          curl --fail-with-body -sS "${E2E_BASE_URL}/js/pages/consulta.js?v=20260825-catalog" -o /tmp/consulta.js
+          curl --fail-with-body -sS "${E2E_BASE_URL}/js/modules/music-service.js" -o /tmp/music-service.js
+
+          grep -q 'Consultar músicas' /tmp/consultar.html
+          grep -q 'href="nova-musica.html"' /tmp/consultar.html
+          grep -q 'id="song-search"' /tmp/consultar.html
+          grep -q 'id="song-artist-filter"' /tmp/consultar.html
+          grep -q 'id="song-minister-filter"' /tmp/consultar.html
+          grep -q 'id="song-key-filter"' /tmp/consultar.html
+          grep -q 'id="song-theme-filter"' /tmp/consultar.html
+          grep -q 'id="songs-clear-filters"' /tmp/consultar.html
+          grep -q 'id="songs-result-count"' /tmp/consultar.html
+          grep -q 'id="songs-pagination"' /tmp/consultar.html
+          grep -q '@media (max-width: 600px)' /tmp/consultar.html
+          grep -q 'musicService.filterCatalog' /tmp/consulta.js
+          grep -q 'musicService.paginateCatalog' /tmp/consulta.js
+          grep -q 'filterCatalog(musics, filters = {})' /tmp/music-service.js
+          grep -q 'paginateCatalog(musics, page = 1, pageSize = 10)' /tmp/music-service.js
+
+          echo "✅ Consulta de músicas, filtros combinados, paginação e layout mobile estão publicados no Firebase Hosting"
+
       - name: 🔐 Validar autenticação e autorização reais em produção
         env:
           FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
