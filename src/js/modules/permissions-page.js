@@ -204,7 +204,7 @@
     batch.update(userRef, { role: nextRole, permissions: snapshotPermissions, updatedAt: timestamp });
     batch.set(db.collection('auditLogs').doc(), {
       actorUserId: actor.uid,
-      action: 'ACCESS_PROFILE_UPDATED',
+      action: 'PERMISSIONS_UPDATED',
       entityType: 'permissions',
       entityId: userId,
       details: { changes: changes.map(change => ({ type: change.type, module: change.module || null, before: change.before, after: change.after })) },
