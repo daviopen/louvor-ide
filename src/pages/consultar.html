@@ -12,10 +12,12 @@
   <script src="../config/firebase-config.js"></script>
   <script src="../js/modules/auth-service.js?v=20260825-email"></script>
   <script src="../js/modules/app-shell.js?v=20260825-sidebar" defer></script>
+  <script src="../js/modules/filter-panel.js?v=20260826-filter-panel" defer></script>
 
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="../styles/tokens.css" />
   <link rel="stylesheet" href="../styles/design-system.css" />
+  <link rel="stylesheet" href="../styles/filter-panel.css?v=20260826-filter-panel" />
   <link rel="stylesheet" href="../css/music-ide-theme.css" />
 
   <style>
@@ -29,7 +31,8 @@
     .songs-layout { display: grid; grid-template-columns: minmax(360px, .92fr) minmax(0, 1.45fr); gap: var(--ide-space-5); align-items: start; }
     .songs-panel { min-width: 0; background: var(--ide-surface); border: 1px solid var(--ide-border); border-radius: var(--ide-radius-xl); box-shadow: var(--ide-shadow-sm); }
     .songs-catalog { padding: var(--ide-space-5); }
-    .songs-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ide-space-3); margin-bottom: var(--ide-space-4); }
+    .songs-filter-panel { margin-bottom: var(--ide-space-4); }
+    .songs-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ide-space-3); }
     .songs-filter--search { grid-column: 1 / -1; }
     .songs-filter label { display: block; margin-bottom: var(--ide-space-1); font-size: var(--ide-font-size-sm); font-weight: var(--ide-font-weight-bold); color: var(--ide-text-secondary); }
     .songs-filter input, .songs-filter select { width: 100%; min-height: 44px; border: 1px solid var(--ide-border); border-radius: var(--ide-radius-md); background: var(--ide-surface); color: var(--ide-text-primary); padding: 0 var(--ide-space-3); font: inherit; }
@@ -56,6 +59,7 @@
     .songs-pagination__label { min-width: 110px; text-align: center; font-size: var(--ide-font-size-sm); color: var(--ide-text-secondary); }
     .songs-viewer { min-height: 520px; padding: var(--ide-space-5); position: sticky; top: var(--ide-space-4); }
     .songs-empty { min-height: 300px; display: grid; place-items: center; text-align: center; color: var(--ide-text-secondary); padding: var(--ide-space-6); }
+    .songs-empty[hidden] { display: none !important; }
     .songs-viewer > .songs-empty { min-height: 470px; }
     .songs-empty i { display: block; font-size: 2.3rem; margin-bottom: var(--ide-space-3); color: var(--ide-secondary); }
     .songs-empty h2, .songs-empty h3 { margin: 0 0 var(--ide-space-2); color: var(--ide-text-primary); }
@@ -64,6 +68,7 @@
     .song-detail__header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--ide-space-4); padding-bottom: var(--ide-space-4); border-bottom: 1px solid var(--ide-border); }
     .song-detail__header h2 { margin: 0 0 var(--ide-space-1); font-size: var(--ide-font-size-2xl); }
     .song-detail__artist { color: var(--ide-text-secondary); }
+    .song-detail__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ide-space-2); }
     .song-detail__meta { display: flex; flex-wrap: wrap; gap: var(--ide-space-2); margin: var(--ide-space-4) 0; }
     .song-chip { border: 1px solid var(--ide-border); background: var(--ide-surface-secondary); border-radius: var(--ide-radius-pill); padding: var(--ide-space-2) var(--ide-space-3); font-size: var(--ide-font-size-sm); }
     .song-cifra { margin: 0; min-height: 320px; max-height: 58vh; overflow: auto; white-space: pre-wrap; font-family: var(--ide-font-family-mono); line-height: 1.75; background: var(--ide-surface-secondary); color: var(--ide-text-primary); border: 1px solid var(--ide-border); border-radius: var(--ide-radius-lg); padding: var(--ide-space-4); }
@@ -75,7 +80,7 @@
       .songs-page { padding: var(--ide-space-4); padding-bottom: calc(var(--ide-space-16) + env(safe-area-inset-bottom)); }
       .songs-layout { grid-template-columns: 1fr; }
       .songs-viewer { position: static; min-height: auto; }
-      .songs-viewer > .songs-empty { min-height: 300px; }
+      .songs-viewer > .songs-empty { min-height: 220px; }
     }
     @media (max-width: 600px) {
       .songs-header { align-items: stretch; flex-direction: column; }
@@ -83,9 +88,10 @@
       .songs-catalog, .songs-viewer { padding: var(--ide-space-4); }
       .songs-filters { grid-template-columns: 1fr; }
       .songs-filter--search { grid-column: auto; }
-      .songs-filter-actions { align-items: flex-start; flex-direction: column; }
-      .songs-clear { padding-left: 0; }
+      .songs-filter-actions { align-items: center; }
       .song-detail__header { flex-direction: column; }
+      .song-detail__actions { width: 100%; justify-content: stretch; }
+      .song-detail__actions .ide-button { flex: 1 1 auto; justify-content: center; }
       .song-row__meta { gap: 6px 10px; }
       .song-row__meta span + span::before { content: none; }
       .songs-pagination { justify-content: space-between; gap: var(--ide-space-2); }
@@ -109,28 +115,37 @@
     <div class="songs-layout">
       <section class="songs-panel songs-catalog" aria-labelledby="catalog-title">
         <h2 id="catalog-title" class="sr-only">Catálogo de músicas</h2>
-        <div class="songs-filters" aria-label="Filtros do catálogo">
-          <div class="songs-filter songs-filter--search">
-            <label for="song-search">Nome da música</label>
-            <input id="song-search" type="search" autocomplete="off" placeholder="Buscar por nome..." />
+
+        <details id="songs-filter-panel" class="ide-filter-panel songs-filter-panel" data-filter-panel="songs">
+          <summary class="ide-filter-panel__summary">
+            <span class="ide-filter-panel__summary-main"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filtros <span class="ide-filter-panel__badge">0</span></span>
+            <span class="ide-filter-panel__summary-meta"><span class="ide-filter-panel__state">Mostrar</span></span>
+          </summary>
+          <div class="ide-filter-panel__body">
+            <div class="songs-filters" aria-label="Filtros do catálogo">
+              <div class="songs-filter songs-filter--search">
+                <label for="song-search">Nome da música</label>
+                <input id="song-search" type="search" autocomplete="off" placeholder="Buscar por nome..." data-filter-neutral="" />
+              </div>
+              <div class="songs-filter">
+                <label for="song-artist-filter">Artista</label>
+                <select id="song-artist-filter" data-filter-neutral=""><option value="">Todos</option></select>
+              </div>
+              <div class="songs-filter">
+                <label for="song-minister-filter">Ministro</label>
+                <select id="song-minister-filter" data-filter-neutral=""><option value="">Todos</option></select>
+              </div>
+              <div class="songs-filter">
+                <label for="song-key-filter">Tom</label>
+                <select id="song-key-filter" data-filter-neutral=""><option value="">Todos</option></select>
+              </div>
+              <div class="songs-filter">
+                <label for="song-theme-filter">Tema</label>
+                <select id="song-theme-filter" data-filter-neutral=""><option value="">Todos</option></select>
+              </div>
+            </div>
           </div>
-          <div class="songs-filter">
-            <label for="song-artist-filter">Artista</label>
-            <select id="song-artist-filter"><option value="">Todos</option></select>
-          </div>
-          <div class="songs-filter">
-            <label for="song-minister-filter">Ministro</label>
-            <select id="song-minister-filter"><option value="">Todos</option></select>
-          </div>
-          <div class="songs-filter">
-            <label for="song-key-filter">Tom</label>
-            <select id="song-key-filter"><option value="">Todos</option></select>
-          </div>
-          <div class="songs-filter">
-            <label for="song-theme-filter">Tema</label>
-            <select id="song-theme-filter"><option value="">Todos</option></select>
-          </div>
-        </div>
+        </details>
 
         <div class="songs-filter-actions">
           <div id="songs-result-count" class="songs-result-count" aria-live="polite">Carregando repertório...</div>
@@ -146,7 +161,7 @@
         </nav>
       </section>
 
-      <section class="songs-panel songs-viewer" aria-live="polite">
+      <section class="songs-panel songs-viewer" aria-live="polite" aria-label="Detalhes da música selecionada">
         <div id="songs-empty-viewer" class="songs-empty">
           <div>
             <i class="fa-solid fa-music" aria-hidden="true"></i>
@@ -161,9 +176,17 @@
               <h2 id="song-detail-title"></h2>
               <div id="song-detail-artist" class="song-detail__artist"></div>
             </div>
-            <a id="song-detail-link" class="ide-button ide-button--secondary ide-button--sm" href="#" target="_blank" rel="noopener noreferrer" hidden>
-              <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Referência
-            </a>
+            <div class="song-detail__actions" aria-label="Ações da música">
+              <a id="song-detail-stage" class="ide-button ide-button--primary ide-button--sm" href="#">
+                <i class="fa-solid fa-expand" aria-hidden="true"></i> Modo palco
+              </a>
+              <a id="song-detail-edit" class="ide-button ide-button--secondary ide-button--sm" href="#" hidden>
+                <i class="fa-solid fa-pen" aria-hidden="true"></i> Editar
+              </a>
+              <a id="song-detail-link" class="ide-button ide-button--secondary ide-button--sm" href="#" target="_blank" rel="noopener noreferrer" hidden>
+                <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Referência
+              </a>
+            </div>
           </div>
           <div id="song-detail-meta" class="song-detail__meta"></div>
           <pre id="song-detail-cifra" class="song-cifra"></pre>
@@ -172,6 +195,6 @@
     </div>
   </main>
 
-  <script type="module" src="../js/pages/consulta.js?v=20260826-catalog-fix"></script>
+  <script type="module" src="../js/pages/consulta.js?v=20260826-details-stage"></script>
 </body>
 </html>
