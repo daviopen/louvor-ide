@@ -1,19 +1,361 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090b0c">
   <title>Nova Música — IDE Music</title>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script><script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script><script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="../config/firebase-config.js"></script><script src="../js/modules/auth-service.js?v=20260825-email"></script><script src="../js/modules/app-shell.js?v=20260825-sidebar" defer></script>
-  <link rel="stylesheet" href="../css/styles.css"><link rel="stylesheet" href="../css/music-ide-theme.css"><link rel="stylesheet" href="../styles/tokens.css"><link rel="stylesheet" href="../styles/design-system.css"><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="../config/firebase-config.js"></script>
+  <script src="../js/modules/auth-service.js?v=20260825-email"></script>
+  <script src="../js/modules/app-shell.js?v=20260825-sidebar" defer></script>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../styles/tokens.css">
+  <link rel="stylesheet" href="../styles/design-system.css">
+  <link rel="stylesheet" href="../css/music-ide-theme.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
-    body{background:var(--color-background,#f6f8f7);color:var(--color-text-primary,#17221c)}.song-page{max-width:1180px;margin:0 auto;padding:32px 20px 56px}.song-header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:24px}.song-header h1{margin:0;font-size:clamp(1.7rem,3vw,2.35rem)}.song-header p{margin:8px 0 0;color:var(--color-text-secondary,#607067)}.song-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr);gap:22px}.panel{background:var(--color-surface,#fff);border:1px solid var(--color-border,#dbe4df);border-radius:16px;padding:22px;box-shadow:var(--shadow-sm,0 4px 12px rgba(0,0,0,.05))}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.field{display:flex;flex-direction:column;gap:7px;margin-bottom:18px}.field.full{grid-column:1/-1}.field label{font-weight:650}.required::after{content:' *';color:var(--color-error,#b42318)}input,textarea{width:100%;border:1px solid var(--color-border,#cfd9d3);border-radius:10px;padding:12px 13px;background:var(--color-surface,#fff);color:var(--color-text-primary,#17221c);font:inherit}textarea{min-height:180px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.55}.help{font-size:.84rem;color:var(--color-text-secondary,#607067)}.minister-list{display:grid;gap:10px}.minister-row{display:grid;grid-template-columns:auto 1fr 120px;align-items:center;gap:10px;padding:11px;border:1px solid var(--color-border,#dbe4df);border-radius:10px}.minister-row input[type=checkbox]{width:auto}.preview-tabs{display:flex;gap:8px;margin-bottom:12px}.preview-tabs button{border:1px solid var(--color-border,#dbe4df);background:var(--color-surface-secondary,#f4f7f5);color:inherit;padding:9px 12px;border-radius:8px;cursor:pointer}.preview-tabs button.active{background:var(--color-primary,#176b45);color:#fff}.preview{white-space:pre-wrap;word-break:break-word;min-height:320px;max-height:640px;overflow:auto;padding:16px;border-radius:10px;background:var(--color-surface-secondary,#f4f7f5);border:1px solid var(--color-border,#dbe4df);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.65}.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}.btnx{border:0;border-radius:10px;padding:12px 18px;font-weight:650;cursor:pointer}.btnx.primary{background:var(--color-primary,#176b45);color:#fff}.btnx.secondary{background:var(--color-surface-secondary,#eef3f0);color:inherit;border:1px solid var(--color-border,#dbe4df)}.status{margin:0 0 18px;padding:12px 14px;border-radius:10px;display:none}.status.show{display:block}.status.error{background:#fee4e2;color:var(--color-error,#b42318)}.status.success{background:#dcfae6;color:var(--color-success,#16794b)}@media(max-width:860px){.song-grid{grid-template-columns:1fr}.song-header{flex-direction:column}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.minister-row{grid-template-columns:auto 1fr}.minister-key{grid-column:2}.actions{flex-direction:column-reverse}.btnx{width:100%}}
+    .song-page {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: var(--ide-space-8) 0 var(--ide-space-16);
+      color: var(--ide-text-primary);
+      font-family: var(--ide-font-family-sans);
+    }
+
+    .song-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: var(--ide-space-6);
+      margin-bottom: var(--ide-space-6);
+      padding: clamp(24px, 4vw, 38px);
+      color: var(--ide-text-on-dark) !important;
+      border: 1px solid var(--ide-border-on-dark);
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at 88% 10%, rgba(132, 120, 255, 0.22), transparent 18rem),
+        linear-gradient(140deg, rgba(216, 255, 69, 0.08), transparent 48%),
+        var(--ide-color-neutral-900) !important;
+      box-shadow: var(--ide-shadow-md);
+    }
+
+    .song-header-copy { max-width: 700px; }
+    .song-eyebrow {
+      margin-bottom: var(--ide-space-3);
+      color: var(--ide-primary);
+      font-size: var(--ide-font-size-xs);
+      font-weight: var(--ide-font-weight-extrabold);
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .song-header h1 {
+      margin: 0;
+      color: var(--ide-text-on-dark) !important;
+      font-size: clamp(2rem, 4vw, 3.25rem);
+      font-weight: var(--ide-font-weight-extrabold);
+      letter-spacing: -.05em;
+      line-height: 1;
+    }
+
+    .song-header p {
+      max-width: 62ch;
+      margin: var(--ide-space-3) 0 0;
+      color: var(--ide-color-neutral-300) !important;
+      font-size: var(--ide-font-size-sm);
+      line-height: var(--ide-line-height-relaxed);
+    }
+
+    .song-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+      gap: var(--ide-space-6);
+      align-items: start;
+    }
+
+    .panel {
+      padding: clamp(20px, 3vw, 28px);
+      color: var(--ide-text-primary) !important;
+      border: 1px solid var(--ide-border) !important;
+      border-radius: var(--ide-radius-xl) !important;
+      background: var(--ide-surface) !important;
+      box-shadow: var(--ide-shadow-sm) !important;
+    }
+
+    .panel-title {
+      margin: 0 0 var(--ide-space-5);
+      color: var(--ide-text-primary);
+      font-size: var(--ide-font-size-lg);
+      font-weight: var(--ide-font-weight-extrabold);
+      letter-spacing: -.025em;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 var(--ide-space-5);
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: var(--ide-space-2);
+      margin-bottom: var(--ide-space-5);
+      color: var(--ide-text-primary);
+    }
+
+    .field.full { grid-column: 1 / -1; }
+    .field label {
+      color: var(--ide-text-primary) !important;
+      font-size: var(--ide-font-size-sm);
+      font-weight: var(--ide-font-weight-bold);
+    }
+
+    .required::after { content: ' *'; color: var(--ide-error); }
+
+    .song-page input,
+    .song-page textarea {
+      width: 100%;
+      min-height: 46px;
+      padding: 12px 13px;
+      color: var(--ide-text-primary) !important;
+      border: 1px solid var(--ide-border-strong) !important;
+      border-radius: var(--ide-radius-md) !important;
+      background: var(--ide-surface) !important;
+      font: inherit;
+      caret-color: var(--ide-text-primary);
+      box-shadow: none !important;
+    }
+
+    .song-page input::placeholder,
+    .song-page textarea::placeholder {
+      color: var(--ide-text-secondary) !important;
+      opacity: .82;
+    }
+
+    .song-page input:focus,
+    .song-page textarea:focus {
+      border-color: var(--ide-primary-active) !important;
+      box-shadow: 0 0 0 4px var(--ide-primary-ring) !important;
+      outline: none !important;
+    }
+
+    .song-page textarea {
+      min-height: 180px;
+      resize: vertical;
+      font-family: var(--ide-font-family-mono);
+      line-height: 1.55;
+    }
+
+    .help {
+      color: var(--ide-text-secondary) !important;
+      font-size: var(--ide-font-size-xs);
+      line-height: var(--ide-line-height-relaxed);
+    }
+
+    .minister-list { display: grid; gap: var(--ide-space-3); }
+    .minister-row {
+      display: grid;
+      grid-template-columns: auto 1fr 120px;
+      align-items: center;
+      gap: var(--ide-space-3);
+      padding: 12px;
+      color: var(--ide-text-primary);
+      border: 1px solid var(--ide-border);
+      border-radius: var(--ide-radius-md);
+      background: var(--ide-surface-secondary);
+    }
+
+    .minister-row input[type="checkbox"] {
+      width: 18px;
+      min-height: 18px;
+      accent-color: var(--ide-primary);
+    }
+
+    .preview-tabs {
+      display: flex;
+      gap: var(--ide-space-2);
+      margin-bottom: var(--ide-space-4);
+    }
+
+    .preview-tabs button,
+    .btnx {
+      min-height: 44px;
+      border-radius: var(--ide-radius-pill) !important;
+      font-family: var(--ide-font-family-sans);
+      font-weight: var(--ide-font-weight-bold) !important;
+      cursor: pointer;
+      transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background 150ms ease;
+    }
+
+    .preview-tabs button {
+      padding: 9px 14px;
+      color: var(--ide-text-primary) !important;
+      border: 1px solid var(--ide-border) !important;
+      background: var(--ide-surface-secondary) !important;
+    }
+
+    .preview-tabs button.active {
+      color: var(--ide-primary-ink) !important;
+      border-color: var(--ide-primary) !important;
+      background: var(--ide-primary) !important;
+    }
+
+    .preview-tabs button:focus-visible,
+    .btnx:focus-visible {
+      outline: 3px solid var(--ide-focus-ring);
+      outline-offset: 2px;
+    }
+
+    .preview {
+      min-height: 320px;
+      max-height: 640px;
+      overflow: auto;
+      padding: var(--ide-space-4);
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--ide-text-primary) !important;
+      border: 1px solid var(--ide-border);
+      border-radius: var(--ide-radius-md);
+      background: var(--ide-surface-secondary) !important;
+      font-family: var(--ide-font-family-mono);
+      line-height: 1.65;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--ide-space-3);
+      margin-top: var(--ide-space-2);
+      padding-top: var(--ide-space-5);
+      border-top: 1px solid var(--ide-border);
+    }
+
+    .btnx {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--ide-space-2);
+      padding: 11px 18px;
+      text-decoration: none;
+    }
+
+    .btnx:hover { transform: translateY(-1px); box-shadow: var(--ide-shadow-sm); }
+    .btnx.primary {
+      color: var(--ide-primary-ink) !important;
+      border: 1px solid var(--ide-primary) !important;
+      background: var(--ide-primary) !important;
+    }
+
+    .btnx.primary:hover { background: var(--ide-primary-hover) !important; }
+    .btnx.secondary {
+      color: var(--ide-text-primary) !important;
+      border: 1px solid var(--ide-border-strong) !important;
+      background: var(--ide-surface) !important;
+    }
+
+    .song-header .btnx.secondary {
+      color: var(--ide-text-on-dark) !important;
+      border-color: var(--ide-border-on-dark) !important;
+      background: rgba(255,255,255,.06) !important;
+    }
+
+    .song-header .btnx.secondary:hover {
+      color: var(--ide-primary-ink) !important;
+      border-color: var(--ide-primary) !important;
+      background: var(--ide-primary) !important;
+    }
+
+    .status {
+      display: none;
+      margin: 0 0 var(--ide-space-5);
+      padding: 12px 14px;
+      border: 1px solid transparent;
+      border-radius: var(--ide-radius-md);
+      font-size: var(--ide-font-size-sm);
+      line-height: var(--ide-line-height-normal);
+    }
+
+    .status.show { display: block; }
+    .status.error {
+      color: var(--ide-color-error-800);
+      border-color: rgba(180,35,24,.22);
+      background: var(--ide-color-error-100);
+    }
+    .status.success {
+      color: var(--ide-color-success-700);
+      border-color: rgba(19,115,51,.2);
+      background: var(--ide-color-success-100);
+    }
+
+    :root[data-theme="dark"] .status.error,
+    :root[data-theme="dark"] .status.success {
+      color: var(--ide-text-primary);
+      background: var(--ide-surface-secondary);
+    }
+
+    @media (max-width: 860px) {
+      .song-page { width: min(100% - 28px, 1180px); padding-top: 74px; }
+      .song-grid { grid-template-columns: 1fr; }
+      .song-header { align-items: stretch; flex-direction: column; }
+      .song-header .btnx { width: 100%; }
+      .form-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+      .minister-row { grid-template-columns: auto 1fr; }
+      .minister-key { grid-column: 2; }
+      .actions { flex-direction: column-reverse; }
+      .btnx { width: 100%; }
+    }
+
+    @media (max-width: 480px) {
+      .song-page { width: min(100% - 20px, 1180px); }
+      .song-header, .panel { padding: 20px; }
+      .preview-tabs { display: grid; grid-template-columns: 1fr 1fr; }
+    }
   </style>
 </head>
 <body>
-<main class="song-page"><header class="song-header"><div><h1 id="page-title">Nova música</h1><p>Cadastre a música, conteúdo para palco e tons preferidos dos ministros.</p></div><a class="btnx secondary" href="consultar.html"><i class="fas fa-arrow-left"></i> Consultar músicas</a></header><div id="status" class="status" role="status" aria-live="polite"></div>
-<form id="song-form" novalidate><div class="song-grid"><section class="panel" aria-label="Dados da música"><div class="form-grid">
-<div class="field full"><label class="required" for="titulo">Nome</label><input id="titulo" maxlength="160" required></div><div class="field"><label class="required" for="artista">Artista</label><input id="artista" maxlength="160" required></div><div class="field"><label class="required" for="tom">Tom original</label><input id="tom" maxlength="12" placeholder="Ex.: E, F#, Bb, Am" required></div><div class="field"><label for="tema">Tema</label><input id="tema" maxlength="120" placeholder="Ex.: Adoração, Celebração"></div><div class="field"><label for="link">Link de referência</label><input id="link" type="url" placeholder="https://..."></div>
-<div class="field full"><label class="required" for="cifra">Cifra</label><textarea id="cifra" required placeholder="Intro:  E  A&#10;&#10;Estrofe:&#10;A alegria - E D A/C#"></textarea><span class="help">Preserve seções naturais como Intro, Estrofe, Ponte e Refrão.</span></div><div class="field full"><label class="required" for="letra">Letra</label><textarea id="letra" required placeholder="Digite a letra da música..."></textarea></div><div class="field full"><label for="observacoes">Observações</label><textarea id="observacoes" style="min-height:100px" placeholder="Arranjo, dinâmica, observações gerais..."></textarea></div><div class="field full"><label>Ministros e tons preferidos</label><div id="minister-list" class="minister-list"><span class="help">Carregando ministros...</span></div><span class="help">Somente usuários ativos com a função Ministro são exibidos. É possível selecionar vários ministros.</span></div></div>
-<div class="actions"><button class="btnx secondary" type="button" id="cancel-btn">Cancelar</button><button class="btnx primary" type="submit" id="save-btn"><i class="fas fa-save"></i> Salvar música</button></div></section><aside class="panel" aria-label="Pré-visualização"><div class="preview-tabs"><button type="button" class="active" data-preview="cifra">Cifra</button><button type="button" data-preview="letra">Letra</button></div><div id="preview" class="preview">A pré-visualização aparecerá aqui.</div></aside></div></form></main>
-<script type="module" src="../js/pages/song-form.js?v=20260825-roadmap23"></script></body></html>
+  <main class="song-page">
+    <header class="song-header">
+      <div class="song-header-copy">
+        <div class="song-eyebrow">Biblioteca musical</div>
+        <h1 id="page-title">Nova música</h1>
+        <p>Cadastre a música, conteúdo para palco e tons preferidos dos ministros.</p>
+      </div>
+      <a class="btnx secondary" href="consultar.html"><i class="fas fa-arrow-left"></i> Consultar músicas</a>
+    </header>
+
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+
+    <form id="song-form" novalidate>
+      <div class="song-grid">
+        <section class="panel" aria-label="Dados da música">
+          <h2 class="panel-title">Dados da música</h2>
+          <div class="form-grid">
+            <div class="field full"><label class="required" for="titulo">Nome</label><input id="titulo" maxlength="160" required></div>
+            <div class="field"><label class="required" for="artista">Artista</label><input id="artista" maxlength="160" required></div>
+            <div class="field"><label class="required" for="tom">Tom original</label><input id="tom" maxlength="12" placeholder="Ex.: E, F#, Bb, Am" required></div>
+            <div class="field"><label for="tema">Tema</label><input id="tema" maxlength="120" placeholder="Ex.: Adoração, Celebração"></div>
+            <div class="field"><label for="link">Link de referência</label><input id="link" type="url" placeholder="https://..."></div>
+            <div class="field full"><label class="required" for="cifra">Cifra</label><textarea id="cifra" required placeholder="Intro:  E  A&#10;&#10;Estrofe:&#10;A alegria - E D A/C#"></textarea><span class="help">Preserve seções naturais como Intro, Estrofe, Ponte e Refrão.</span></div>
+            <div class="field full"><label class="required" for="letra">Letra</label><textarea id="letra" required placeholder="Digite a letra da música..."></textarea></div>
+            <div class="field full"><label for="observacoes">Observações</label><textarea id="observacoes" style="min-height:100px" placeholder="Arranjo, dinâmica, observações gerais..."></textarea></div>
+            <div class="field full"><label>Ministros e tons preferidos</label><div id="minister-list" class="minister-list"><span class="help">Carregando ministros...</span></div><span class="help">Somente usuários ativos com a função Ministro são exibidos. É possível selecionar vários ministros.</span></div>
+          </div>
+          <div class="actions"><button class="btnx secondary" type="button" id="cancel-btn">Cancelar</button><button class="btnx primary" type="submit" id="save-btn"><i class="fas fa-save"></i> Salvar música</button></div>
+        </section>
+
+        <aside class="panel" aria-label="Pré-visualização">
+          <h2 class="panel-title">Pré-visualização</h2>
+          <div class="preview-tabs"><button type="button" class="active" data-preview="cifra">Cifra</button><button type="button" data-preview="letra">Letra</button></div>
+          <div id="preview" class="preview">A pré-visualização aparecerá aqui.</div>
+        </aside>
+      </div>
+    </form>
+  </main>
+  <script type="module" src="../js/pages/song-form.js?v=20260826-theme"></script>
+</body>
+</html>
