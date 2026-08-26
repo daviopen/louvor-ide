@@ -6,6 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'src/pages/nova-musica.html'), 'utf8');
 const controller = fs.readFileSync(path.join(root, 'src/js/pages/song-form.js'), 'utf8');
+const repository = fs.readFileSync(path.join(root, 'src/repositories/music-repository.js'), 'utf8');
 
 test('formulário de música cobre os campos do roadmap 23', () => {
   for (const id of ['titulo', 'artista', 'tom', 'tema', 'link', 'cifra', 'letra', 'observacoes', 'minister-list']) {
@@ -16,12 +17,14 @@ test('formulário de música cobre os campos do roadmap 23', () => {
 });
 
 test('ministros são filtrados pela função Ministro e aceitam vários tons preferidos', () => {
-  assert.match(controller, /collection\('ministryFunctions'\)/);
-  assert.match(controller, /collection\('userFunctions'\)/);
-  assert.match(controller, /===\s*'ministro'/);
+  assert.match(controller, /listEligibleMinisters/);
+  assert.match(repository, /MINISTRY_FUNCTIONS/);
+  assert.match(repository, /USER_FUNCTIONS/);
+  assert.match(repository, /===\s*'ministro'/);
   assert.match(controller, /ministerUserIds/);
-  assert.match(controller, /songMinisterKeys/);
-  assert.match(controller, /preferredKey/);
+  assert.match(repository, /SONG_MINISTER_KEYS/);
+  assert.match(repository, /preferredKey/);
+  assert.match(controller, /replaceMinisterKeys/);
 });
 
 test('criação e edição validam obrigatórios, auditam e protegem alterações não salvas', () => {
@@ -31,7 +34,14 @@ test('criação e edição validam obrigatórios, auditam e protegem alteraçõe
   assert.match(controller, /Informe a letra/);
   assert.match(controller, /SONG_CREATED/);
   assert.match(controller, /SONG_UPDATED/);
-  assert.match(controller, /collection\('auditLogs'\)/);
+  assert.match(controller, /addAuditLog/);
+  assert.match(repository, /AUDIT_LOGS/);
   assert.match(controller, /beforeunload/);
   assert.match(controller, /alterações não salvas/);
+});
+
+test('novas gravações usam songs e o catálogo mantém leitura legada de musicas', () => {
+  assert.match(repository, /super\(COLLECTIONS\.SONGS/);
+  assert.match(repository, /legacyCollectionName\s*=\s*COLLECTIONS\.MUSICS/);
+  assert.match(repository, /migratedFrom/);
 });
