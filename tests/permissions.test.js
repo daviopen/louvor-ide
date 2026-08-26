@@ -21,7 +21,7 @@ test('mudanças administrativas possuem preview, confirmação e auditoria', () 
   assert.match(page, /collectChanges/);
   assert.match(page, /renderDiff/);
   assert.match(page, /Confirmar alterações administrativas/);
-  assert.match(page, /PERMISSIONS_UPDATED/);
+  assert.match(page, /ACCESS_PROFILE_UPDATED/);
   assert.match(page, /auditLogs/);
 });
 
