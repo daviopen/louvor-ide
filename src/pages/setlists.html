@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Setlists — IDE Music</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -12,445 +12,52 @@
   <script src="../js/modules/app-shell.js?v=20260825-sidebar" defer></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../css/styles.css">
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      color: #333;
-    }
-
-    .header {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      padding: 20px 0;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .header-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: #4CAF50;
-      text-decoration: none;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .logo:hover {
-      transform: scale(1.05);
-      color: #45a049;
-    }
-
-    .nav-buttons {
-      display: flex;
-      gap: 15px;
-    }
-
-    .nav-button {
-      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-      color: white;
-      padding: 15px 25px;
-      border: none;
-      border-radius: 25px;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      transition: all 0.3s ease;
-      cursor: pointer;
-    }
-
-    .nav-button:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
-    }
-
-    .nav-button.active {
-      background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 30px 20px;
-    }
-
-    .page-title {
-      text-align: center;
-      color: white;
-      font-size: 2.5rem;
-      font-weight: 700;
-      margin-bottom: 10px;
-      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    }
-
-    .page-subtitle {
-      text-align: center;
-      color: rgba(255, 255, 255, 0.9);
-      font-size: 1.2rem;
-      margin-bottom: 40px;
-      text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
-    }
-
-    .setlists-container {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      padding: 30px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    }
-
-    .setlist-card {
-      background: white;
-      border: 1px solid #e0e0e0;
-      border-radius: 15px;
-      padding: 25px;
-      margin-bottom: 20px;
-      transition: all 0.3s ease;
-      cursor: pointer;
-    }
-
-    .setlist-card:hover {
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-      transform: translateY(-2px);
-    }
-
-    .setlist-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-      gap: 15px;
-    }
-
-    .setlist-info h3 {
-      font-size: 1.4rem;
-      color: #333;
-      margin-bottom: 5px;
-    }
-
-    .setlist-meta {
-      display: flex;
-      gap: 20px;
-      font-size: 0.9rem;
-      color: #666;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
-    }
-
-    .setlist-meta span {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .setlist-description {
-      color: #777;
-      font-style: italic;
-      margin-bottom: 15px;
-    }
-
-    .minister-info {
-      background: #f8f9fa;
-      border-radius: 10px;
-      padding: 12px 15px;
-      margin-bottom: 15px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .minister-key {
-      background: #4CAF50;
-      color: white;
-      padding: 4px 10px;
-      border-radius: 15px;
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-
-    .setlist-songs {
-      margin-top: 15px;
-    }
-
-    .songs-header {
-      font-weight: 600;
-      color: #333;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .songs-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 10px;
-    }
-
-    .song-item {
-      background: #f8f9fa;
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: 0.9rem;
-    }
-
-    .song-title {
-      font-weight: 600;
-      color: #333;
-      margin-bottom: 2px;
-    }
-
-    .song-details {
-      color: #666;
-      font-size: 0.8rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .song-key {
-      background: #2196F3;
-      color: white;
-      padding: 2px 6px;
-      border-radius: 10px;
-      font-size: 0.7rem;
-      font-weight: 600;
-    }
-
-    .transposed-indicator {
-      color: #ff9800;
-      font-size: 0.7rem;
-      margin-left: 5px;
-    }
-
-    .setlist-actions {
-      display: flex;
-      gap: 10px;
-    }
-
-    .action-btn {
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 20px;
-      padding: 8px 15px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .action-btn:hover {
-      transform: scale(1.05);
-    }
-
-    .action-btn.edit {
-      background: #2196F3;
-    }
-
-    .action-btn.delete {
-      background: #f44336;
-    }
-
-    .action-btn.view {
-      background: #ff9800;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      color: #666;
-    }
-
-    .empty-state i {
-      font-size: 4rem;
-      margin-bottom: 20px;
-      opacity: 0.5;
-    }
-
-    .empty-state h3 {
-      font-size: 1.5rem;
-      margin-bottom: 10px;
-    }
-
-    .empty-state p {
-      margin-bottom: 20px;
-    }
-
-    .create-setlist-btn {
-      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
-      color: white;
-      padding: 15px 30px;
-      border: none;
-      border-radius: 25px;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 16px;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      transition: all 0.3s ease;
-      cursor: pointer;
-    }
-
-    .create-setlist-btn:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 25px rgba(255, 152, 0, 0.4);
-    }
-
-    .loading {
-      text-align: center;
-      padding: 40px;
-      color: #666;
-    }
-
-    .loading i {
-      font-size: 2rem;
-      animation: spin 1s linear infinite;
-      margin-bottom: 10px;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    @media (max-width: 768px) {
-      .header-content {
-        flex-direction: column;
-        gap: 15px;
-      }
-
-      .nav-buttons {
-        flex-wrap: wrap;
-        justify-content: center;
-        width: 100%;
-      }
-
-      .nav-button {
-        flex: 1;
-        justify-content: center;
-      }
-
-      .container {
-        padding: 20px 15px;
-      }
-
-      .page-title {
-        font-size: 2rem;
-      }
-
-      .setlists-container {
-        padding: 20px;
-      }
-
-      .setlist-header {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .setlist-meta {
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .songs-list {
-        grid-template-columns: 1fr;
-      }
-
-      .setlist-actions {
-        flex-wrap: wrap;
-      }
-    }
-  </style>
   <link rel="stylesheet" href="../css/music-ide-theme.css">
+  <style>
+    body{background:var(--background,#f4f7f5);color:var(--text-primary,#1f2924)}
+    .setlists-page{max-width:1180px;margin:0 auto;padding:28px 20px 48px}.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:20px}.eyebrow{font-size:.78rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--primary,#2f6d54)}h1{margin:4px 0 6px;font-size:clamp(1.8rem,3vw,2.45rem)}.muted{color:var(--text-secondary,#63706a)}
+    .view-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.view-tab{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;text-decoration:none;border:1px solid var(--border,#d4ddd8);background:var(--surface,#fff);color:var(--text-primary,#1f2924);font-weight:750}.view-tab.active{background:var(--primary,#2f6d54);color:#fff;border-color:var(--primary,#2f6d54)}
+    .filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;background:var(--surface,#fff);border:1px solid var(--border,#d4ddd8);border-radius:16px;padding:16px;margin-bottom:18px}.field{display:grid;gap:6px}.field label{font-size:.82rem;font-weight:750}.field input{width:100%;padding:10px 11px;border:1px solid var(--border,#cad5cf);border-radius:10px;background:var(--surface,#fff);color:var(--text-primary,#1f2924);font:inherit}.filter-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px}.btn{border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px}.btn-primary{background:var(--primary,#2f6d54);color:#fff}.btn-secondary{background:var(--surface-secondary,#edf3ef);color:var(--text-primary,#1f2924);border:1px solid var(--border,#cad5cf)}
+    .summary{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:12px 2px}.list{display:grid;gap:12px}.setlist-card{background:var(--surface,#fff);border:1px solid var(--border,#d4ddd8);border-radius:16px;padding:18px;box-shadow:var(--shadow-sm,0 4px 18px rgba(0,0,0,.05))}.setlist-card__head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.setlist-card h2{font-size:1.12rem;margin:0 0 7px}.meta{display:flex;flex-wrap:wrap;gap:8px 14px;color:var(--text-secondary,#63706a);font-size:.88rem}.tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.tag{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;background:var(--surface-secondary,#edf3ef);border:1px solid var(--border,#d4ddd8);font-size:.78rem}.status{font-size:.75rem;font-weight:800;padding:5px 8px;border-radius:999px;background:var(--surface-secondary,#edf3ef);white-space:nowrap}.setlist-card__actions{margin-top:14px;display:flex;justify-content:flex-end}.empty,.loading{padding:40px 20px;text-align:center;border:1px dashed var(--border,#cad5cf);border-radius:16px;color:var(--text-secondary,#63706a);background:var(--surface,#fff)}
+    .pagination{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:20px}.pagination button:disabled{opacity:.45;cursor:not-allowed}.readonly-note{font-size:.82rem;color:var(--text-secondary,#63706a)}
+    @media(max-width:820px){.filters{grid-template-columns:1fr 1fr}.page-head{flex-direction:column}.setlist-card__head{flex-direction:column}.setlist-card__actions{justify-content:stretch}.setlist-card__actions .btn{width:100%;justify-content:center}}
+    @media(max-width:560px){.setlists-page{padding:20px 14px 90px}.filters{grid-template-columns:1fr}.summary{align-items:flex-start;flex-direction:column}.view-tabs{display:grid;grid-template-columns:1fr 1fr}.view-tab{justify-content:center}}
+  </style>
 </head>
 <body>
-  <header class="header">
-    <div class="header-content">
-      <a href="index.html" class="logo">
-        <i class="fas fa-guitar"></i>
-        <span>IDE Music</span>
-      </a>
-      
-      <div class="nav-buttons">
-        <a href="index.html" class="nav-button">
-          <i class="fas fa-home"></i>
-          Início
-        </a>
-        <a href="setlist.html" class="nav-button" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
-          <i class="fas fa-plus-circle"></i>
-          + Nova Setlist
-        </a>
-        <a href="consultar.html" class="nav-button" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
-          <i class="fas fa-compact-disc"></i>
-          Músicas
-        </a>
-      </div>
+  <main class="setlists-page">
+    <div class="page-head">
+      <div><div class="eyebrow">Setlists</div><h1 id="page-title">Próximos Setlists</h1><p id="page-subtitle" class="muted">Repertórios dos próximos eventos e escalas.</p></div>
     </div>
-  </header>
 
-  <div class="container">
-    <h1 class="page-title">
-      <i class="fas fa-clipboard-list"></i>
-      Minhas Setlists
-    </h1>
-    <p class="page-subtitle">
-      Gerencie suas listas de músicas e cultos
-    </p>
+    <nav class="view-tabs" aria-label="Visões de Setlist">
+      <a id="tab-upcoming" class="view-tab" href="setlists.html?view=upcoming"><i class="fas fa-calendar-check"></i> Próximos</a>
+      <a id="tab-history" class="view-tab" href="setlists.html?view=history"><i class="fas fa-clock-rotate-left"></i> Histórico</a>
+    </nav>
 
-    <div class="setlists-container">
-      <div id="loading" class="loading">
-        <i class="fas fa-spinner"></i>
-        <p>Carregando setlists...</p>
-      </div>
+    <section id="filters" class="filters" aria-label="Filtros do Histórico">
+      <div class="field"><label for="filter-from">Data inicial</label><input id="filter-from" type="date"></div>
+      <div class="field"><label for="filter-to">Data final</label><input id="filter-to" type="date"></div>
+      <div class="field"><label for="filter-event">Evento</label><input id="filter-event" type="search" placeholder="Nome do evento"></div>
+      <div class="field"><label for="filter-minister">Ministro</label><input id="filter-minister" type="search" placeholder="Nome do ministro"></div>
+      <div class="field"><label for="filter-song">Música</label><input id="filter-song" type="search" placeholder="Título da música"></div>
+      <div class="field"><label for="filter-artist">Artista</label><input id="filter-artist" type="search" placeholder="Nome do artista"></div>
+      <div class="field"><label for="filter-theme">Tema</label><input id="filter-theme" type="search" placeholder="Tema do evento"></div>
+      <div class="filter-actions"><button id="clear-filters" class="btn btn-secondary" type="button"><i class="fas fa-eraser"></i> Limpar filtros</button></div>
+    </section>
 
-      <div id="setlists-list" style="display: none;">
-        <!-- Setlists serão carregadas aqui via JavaScript -->
-      </div>
-
-      <div id="empty-state" class="empty-state" style="display: none;">
-        <i class="fas fa-clipboard-list"></i>
-        <h3>Nenhuma setlist encontrada</h3>
-        <p>Você ainda não criou nenhuma setlist.</p>
-        <p>Comece criando sua primeira lista de músicas!</p>
-        <a href="setlist.html" class="create-setlist-btn">
-          <i class="fas fa-plus"></i>
-          Criar Primeira Setlist
-        </a>
-      </div>
+    <div class="summary"><strong id="result-count">Carregando…</strong><span id="view-hint" class="readonly-note"></span></div>
+    <div id="loading" class="loading"><i class="fas fa-spinner fa-spin"></i><p>Carregando Setlists…</p></div>
+    <div id="setlists-list" class="list" hidden></div>
+    <div id="empty-state" class="empty" hidden><i class="fas fa-clipboard-list fa-2x"></i><h2>Nenhum Setlist encontrado</h2><p>Ajuste os filtros ou consulte a outra visão.</p></div>
+    <div id="pagination" class="pagination" hidden>
+      <button id="prev-page" class="btn btn-secondary" type="button"><i class="fas fa-chevron-left"></i> Anterior</button>
+      <span id="page-info"></span>
+      <button id="next-page" class="btn btn-secondary" type="button">Próxima <i class="fas fa-chevron-right"></i></button>
     </div>
-  </div>
+  </main>
 
-  <script src="../js/pages/setlists-simple.js"></script>
+  <script src="../services/setlist-history-service.js?v=20260825-roadmap20"></script>
+  <script src="../js/pages/setlists-simple.js?v=20260825-roadmap20"></script>
 </body>
 </html>
