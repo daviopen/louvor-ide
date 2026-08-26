@@ -15,7 +15,8 @@
     $('page-subtitle').textContent=history?'Consulte repertórios anteriores com filtros por evento, ministro, música e tema.':'Repertórios dos próximos eventos e escalas.';
     $('tab-upcoming').classList.toggle('active',!history); $('tab-history').classList.toggle('active',history);
     $('tab-upcoming').setAttribute('aria-current',history?'false':'page'); $('tab-history').setAttribute('aria-current',history?'page':'false');
-    $('filters').hidden=!history;
+    $('setlists-filter-panel').hidden=!history;
+    $('filters').hidden=false;
     $('view-hint').textContent=history?'Setlists históricos são abertos em modo somente leitura.':'Edite a montagem ou abra o repertório para usar cifras, letras e modo palco.';
   }
 
@@ -62,6 +63,7 @@
     $('loading').hidden=true; $('setlists-list').hidden=!page.items.length; $('empty-state').hidden=Boolean(page.items.length);
     $('setlists-list').innerHTML=page.items.map(card).join('');
     $('pagination').hidden=page.totalPages<=1; $('page-info').textContent=`Página ${page.page} de ${page.totalPages}`; $('prev-page').disabled=page.page<=1; $('next-page').disabled=page.page>=page.totalPages;
+    $('setlists-filter-panel')?.dispatchEvent(new CustomEvent('ideFiltersChanged'));
   }
 
   function bind(){

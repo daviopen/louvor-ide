@@ -12,7 +12,7 @@
   <script src="../js/modules/auth-service.js?v=20260825-email"></script>
   <script src="../js/modules/app-shell.js?v=20260825-sidebar" defer></script>
   <script src="../js/modules/chord-transposer.js"></script>
-  <script src="../js/modules/setlist-performance-view.js" defer></script>
+  <script src="../js/modules/setlist-performance-view.js?v=20260826-single-song" defer></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="stylesheet" href="../css/music-ide-theme.css">
@@ -22,13 +22,13 @@
   <main class="performance-page" aria-labelledby="setlist-title">
     <header class="performance-header">
       <div>
-        <p class="performance-eyebrow">SETLIST · CIFRA E LETRA</p>
+        <p id="performance-eyebrow" class="performance-eyebrow">SETLIST · CIFRA E LETRA</p>
         <h1 id="setlist-title">Carregando setlist…</h1>
         <p id="setlist-meta" class="performance-meta">Preparando repertório</p>
       </div>
       <div class="performance-header-actions" aria-label="Ações do setlist">
-        <a class="performance-button performance-button--secondary" href="setlists.html?view=upcoming">
-          <i class="fas fa-arrow-left" aria-hidden="true"></i><span>Setlists</span>
+        <a id="performance-back-link" class="performance-button performance-button--secondary" href="setlists.html?view=upcoming">
+          <i class="fas fa-arrow-left" aria-hidden="true"></i><span id="performance-back-label">Setlists</span>
         </a>
         <button id="stage-mode-button" class="performance-button performance-button--primary" type="button" aria-pressed="false">
           <i class="fas fa-expand" aria-hidden="true"></i><span>Modo palco</span>
@@ -44,7 +44,7 @@
     <section id="error" class="performance-state performance-state--error" role="alert" hidden></section>
 
     <section id="viewer" class="performance-viewer" hidden>
-      <nav class="song-strip" aria-label="Músicas do setlist">
+      <nav id="song-strip" class="song-strip" aria-label="Músicas do setlist">
         <div id="song-strip-list" class="song-strip-list"></div>
       </nav>
 
@@ -92,7 +92,7 @@
           <div id="content-empty" class="content-empty" hidden></div>
         </div>
 
-        <footer class="song-navigation">
+        <footer id="song-navigation" class="song-navigation">
           <button id="previous-song" class="navigation-button" type="button">
             <i class="fas fa-chevron-left" aria-hidden="true"></i>
             <span><small>Anterior</small><strong id="previous-song-label">Início</strong></span>
