@@ -1,6 +1,6 @@
 /**
  * Administração de permissões por usuário.
- * O administrador seleciona uma pessoa e edita somente a ficha dela.
+ * O SUPER_ADMIN seleciona uma pessoa e edita a ficha de acesso dela.
  */
 (function initPermissionsPage(scope) {
   if (!scope || !scope.document) return;
@@ -21,10 +21,18 @@
     ['READ', 'Leitura'],
     ['EDIT', 'Edição']
   ]);
+  const ROLES = Object.freeze([
+    ['MEMBER', 'Membro'],
+    ['ADMIN', 'Administrador']
+  ]);
 
   const normalizeLevel = value => {
     const level = String(value || '').toUpperCase();
     return LEVELS.some(([candidate]) => candidate === level) ? level : 'NONE';
+  };
+  const normalizeRole = value => {
+    const role = String(value || 'MEMBER').toUpperCase();
+    return ['MEMBER', 'ADMIN', 'SUPER_ADMIN'].includes(role) ? role : 'MEMBER';
   };
   const escapeHtml = value => String(value == null ? '' : value)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -36,7 +44,7 @@
     if (scope.document.querySelector('link[data-ide-permissions-styles]')) return;
     const link = scope.document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '../styles/permissions.css?v=20260825-permissions-editor';
+    link.href = '../styles/permissions.css?v=20260826-role-hierarchy';
     link.dataset.idePermissionsStyles = 'true';
     scope.document.head.appendChild(link);
   }
@@ -58,7 +66,9 @@
 
   function userOption(user) {
     const suffix = user.active === false ? ' · Inativo' : '';
-    return `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name || user.email || 'Sem nome')} · ${escapeHtml(user.email || '')}${suffix}</option>`;
+    const role = normalizeRole(user.role);
+    const roleLabel = role === 'SUPER_ADMIN' ? 'Super Admin' : role === 'ADMIN' ? 'Admin' : 'Membro';
+    return `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name || user.email || 'Sem nome')} · ${escapeHtml(user.email || '')} · ${roleLabel}${suffix}</option>`;
   }
 
   function renderShell(root, users, selectedId, editable) {
@@ -66,10 +76,10 @@
       <div class="ide-permissions-toolbar">
         <div>
           <h2>Permissões de acesso</h2>
-          <p>Escolha uma pessoa e defina o nível de acesso dela em cada módulo do IDE Music.</p>
+          <p>Defina o perfil administrativo e o nível de acesso da pessoa em cada módulo do IDE Music.</p>
         </div>
       </div>
-      ${editable ? '' : '<div class="ide-permissions-note"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>Você está em modo somente leitura. Apenas SUPER_ADMIN pode alterar permissões.</span></div>'}
+      ${editable ? '' : '<div class="ide-permissions-note"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>Você está em modo somente leitura. Apenas SUPER_ADMIN pode alterar perfis e permissões.</span></div>'}
       <section class="ide-permissions-user-picker">
         <label class="ide-field">
           <span class="ide-field__label">Usuário</span>
@@ -84,7 +94,7 @@
       <dialog id="permissions-review" class="ide-permissions-dialog">
         <form method="dialog">
           <h3>Confirmar alterações administrativas</h3>
-          <p>Revise as mudanças antes de salvar. Elas afetam menu, rotas e Firestore Rules.</p>
+          <p>Revise as mudanças antes de salvar. Perfil e permissões possuem responsabilidades diferentes.</p>
           <div id="permissions-diff"></div>
           <div class="ide-permissions-dialog-actions">
             <button value="cancel" class="ide-button ide-button--secondary">Cancelar</button>
@@ -99,10 +109,16 @@
   function renderEditor(root, user, permissions, editable) {
     const editor = root.querySelector('#permissions-editor');
     if (!user) {
-      editor.innerHTML = '<div class="ide-empty-state"><i class="fa-solid fa-user-shield" aria-hidden="true"></i><h3>Selecione um usuário</h3><p>As permissões da pessoa escolhida aparecerão aqui.</p></div>';
+      editor.innerHTML = '<div class="ide-empty-state"><i class="fa-solid fa-user-shield" aria-hidden="true"></i><h3>Selecione um usuário</h3><p>O perfil e as permissões da pessoa escolhida aparecerão aqui.</p></div>';
       return;
     }
     const initials = escapeHtml((user.name || user.email || '?').trim().slice(0, 2).toUpperCase());
+    const role = normalizeRole(user.role);
+    const lockedSuperAdmin = role === 'SUPER_ADMIN';
+    const roleControl = lockedSuperAdmin
+      ? '<select id="permission-role" data-original-role="SUPER_ADMIN" disabled><option value="SUPER_ADMIN" selected>Super Admin</option></select>'
+      : `<select id="permission-role" data-original-role="${role}" ${editable ? '' : 'disabled'}>${ROLES.map(([value, label]) => `<option value="${value}" ${role === value ? 'selected' : ''}>${label}</option>`).join('')}</select>`;
+
     editor.innerHTML = `
       <article class="ide-permissions-user" data-user-id="${escapeHtml(user.id)}" data-user-name="${escapeHtml(user.name || user.email || 'Usuário')}">
         <header class="ide-permissions-user__header">
@@ -112,7 +128,15 @@
           </div>
           ${user.active === false ? '<span class="ide-permission-inactive">Inativo</span>' : ''}
         </header>
-        <div class="ide-permissions-section-heading"><strong>Acessos aos módulos</strong><span>Edição já inclui permissão de leitura.</span></div>
+        <div class="ide-permissions-section-heading"><strong>Perfil administrativo</strong><span>O perfil define o alcance da ação; as permissões abaixo definem em quais módulos ela pode acontecer.</span></div>
+        <div class="ide-permissions-grid">
+          <div class="ide-permission-field">
+            <label for="permission-role">Perfil</label>
+            ${roleControl}
+            <small>${lockedSuperAdmin ? 'O perfil Super Admin é protegido.' : 'Administrador pode atuar sobre dados de outras pessoas somente nos módulos em que também possuir Edição.'}</small>
+          </div>
+        </div>
+        <div class="ide-permissions-section-heading"><strong>Acessos aos módulos</strong><span>Edição inclui leitura, mas não transforma um Membro em Administrador.</span></div>
         <div class="ide-permissions-grid">
           ${MODULES.map(([moduleName, label]) => {
             const current = normalizeLevel(permissions[moduleName]);
@@ -121,24 +145,35 @@
         </div>
         ${editable ? '<footer class="ide-permissions-user__footer"><span>As alterações só serão aplicadas depois da revisão.</span><button id="permissions-save" class="ide-button ide-button--primary" type="button"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Revisar alterações</button></footer>' : ''}
       </article>`;
-    editor.querySelectorAll('select[data-permission-module]').forEach(select => select.addEventListener('change', () => { select.dataset.level = select.value; }));
   }
 
   function collectChanges(root) {
     const card = root.querySelector('[data-user-id]');
     if (!card) return [];
-    return Array.from(card.querySelectorAll('select[data-permission-module]')).flatMap(select => {
+    const changes = [];
+    const roleSelect = card.querySelector('#permission-role');
+    if (roleSelect && !roleSelect.disabled) {
+      const before = normalizeRole(roleSelect.dataset.originalRole);
+      const after = normalizeRole(roleSelect.value);
+      if (before !== after) changes.push({ type: 'ROLE', userId: card.dataset.userId, userName: card.dataset.userName, before, after });
+    }
+    card.querySelectorAll('select[data-permission-module]').forEach(select => {
       const before = normalizeLevel(select.dataset.original);
       const after = normalizeLevel(select.value);
-      return before === after ? [] : [{ userId: card.dataset.userId, userName: card.dataset.userName, module: select.dataset.permissionModule, before, after }];
+      if (before !== after) changes.push({ type: 'PERMISSION', userId: card.dataset.userId, userName: card.dataset.userName, module: select.dataset.permissionModule, before, after });
     });
+    return changes;
   }
 
   function renderDiff(changes) {
     if (!changes.length) return '<p>Nenhuma alteração pendente.</p>';
     const labels = Object.fromEntries(MODULES);
     const levelLabels = Object.fromEntries(LEVELS);
-    return `<ul class="ide-permissions-diff">${changes.map(change => `<li><strong>${escapeHtml(labels[change.module])}</strong>: ${escapeHtml(levelLabels[change.before])} → <strong>${escapeHtml(levelLabels[change.after])}</strong></li>`).join('')}</ul>`;
+    const roleLabels = { MEMBER: 'Membro', ADMIN: 'Administrador', SUPER_ADMIN: 'Super Admin' };
+    return `<ul class="ide-permissions-diff">${changes.map(change => {
+      if (change.type === 'ROLE') return `<li><strong>Perfil</strong>: ${escapeHtml(roleLabels[change.before])} → <strong>${escapeHtml(roleLabels[change.after])}</strong></li>`;
+      return `<li><strong>${escapeHtml(labels[change.module])}</strong>: ${escapeHtml(levelLabels[change.before])} → <strong>${escapeHtml(levelLabels[change.after])}</strong></li>`;
+    }).join('')}</ul>`;
   }
 
   async function persistChanges(db, changes, actor) {
@@ -149,7 +184,13 @@
     const userSnapshot = await userRef.get();
     const profile = userSnapshot.data() || {};
     const snapshotPermissions = { ...(profile.permissions || {}) };
+    let nextRole = normalizeRole(profile.role);
+
     changes.forEach(change => {
+      if (change.type === 'ROLE') {
+        nextRole = change.after;
+        return;
+      }
       const ref = db.collection('permissions').doc(`${change.userId}__${change.module}`);
       if (change.after === 'NONE') {
         batch.delete(ref);
@@ -159,13 +200,14 @@
         snapshotPermissions[change.module] = change.after;
       }
     });
-    batch.update(userRef, { permissions: snapshotPermissions, updatedAt: timestamp });
+
+    batch.update(userRef, { role: nextRole, permissions: snapshotPermissions, updatedAt: timestamp });
     batch.set(db.collection('auditLogs').doc(), {
       actorUserId: actor.uid,
-      action: 'PERMISSIONS_UPDATED',
+      action: 'ACCESS_PROFILE_UPDATED',
       entityType: 'permissions',
       entityId: userId,
-      details: { changes: changes.map(({ module, before, after }) => ({ module, before, after })) },
+      details: { changes: changes.map(change => ({ type: change.type, module: change.module || null, before: change.before, after: change.after })) },
       createdAt: timestamp
     });
     await batch.commit();
@@ -223,11 +265,16 @@
         status.textContent = 'Salvando alterações…';
         try {
           await persistChanges(db, changes, actor);
+          const roleSelect = root.querySelector('#permission-role');
+          if (roleSelect && !roleSelect.disabled) roleSelect.dataset.originalRole = normalizeRole(roleSelect.value);
           root.querySelectorAll('select[data-permission-module]').forEach(select => { select.dataset.original = normalizeLevel(select.value); });
-          status.textContent = 'Permissões atualizadas com sucesso.';
+          const user = users.find(item => item.id === changes[0].userId);
+          const roleChange = changes.find(change => change.type === 'ROLE');
+          if (user && roleChange) user.role = roleChange.after;
+          status.textContent = 'Perfil e permissões atualizados com sucesso.';
         } catch (error) {
           console.error(error);
-          status.textContent = 'Não foi possível salvar as permissões.';
+          status.textContent = 'Não foi possível salvar o perfil e as permissões.';
         }
       });
 
