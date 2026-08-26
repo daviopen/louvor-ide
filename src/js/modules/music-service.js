@@ -4,7 +4,7 @@
  */
 
 import { Utils, MessageService } from './utils.js';
-import musicRepository from '../../repositories/music-repository.js';
+import musicRepository from '../../repositories/music-repository.js?v=20260826-catalog-fix2';
 import { AppError } from '../../core/app-error.js';
 
 export class MusicService {
@@ -31,10 +31,10 @@ export class MusicService {
     };
   }
 
-  async loadAllMusics(callback) {
+  async loadAllMusics(callback, onError = null) {
     try {
       console.log('🎵 MusicService: Carregando todas as músicas');
-      return await this.repository.subscribeAllOrderedByTitle(callback);
+      return await this.repository.subscribeAllOrderedByTitle(callback, onError);
     } catch (error) {
       console.error('❌ MusicService: Erro ao carregar músicas:', error);
       throw AppError.from(error, 'Não foi possível carregar as músicas.');
