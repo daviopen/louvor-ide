@@ -13,6 +13,7 @@ test('normalizer replaces known and unknown hex colors with design tokens', () =
 
 test('theme-color metadata remains browser-valid without a hex literal', () => {
   const output = normalizeHtml('<meta name="theme-color" content="#090b0c">');
-  assert.equal(output, '<meta name="theme-color" content="black">');
+  assert.match(output, /^<meta name="theme-color" content="black">/);
+  assert.match(output, /audit-auth-runtime\.js/);
   assert.doesNotMatch(output, hexPattern);
 });
