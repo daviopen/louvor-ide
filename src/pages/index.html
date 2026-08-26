@@ -10,9 +10,9 @@
   <script src="../config/firebase-config.js"></script>
   <script src="../js/modules/auth-service.js?v=20260825-email"></script>
   <script src="../js/modules/app-shell.js?v=20260825-sidebar" defer></script>
-  <script src="../repositories/dashboard-repository.js?v=20260825-dashboard" defer></script>
-  <script src="../services/dashboard-service.js?v=20260825-dashboard" defer></script>
-  <script src="../js/modules/dashboard-page.js?v=20260825-dashboard" defer></script>
+  <script src="../repositories/dashboard-repository.js?v=20260826-personal" defer></script>
+  <script src="../services/dashboard-service.js?v=20260826-personal" defer></script>
+  <script src="../js/modules/dashboard-page.js?v=20260826-personal" defer></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
@@ -23,36 +23,24 @@
   <main class="ide-dashboard" id="dashboard-main">
     <header class="ide-dashboard__header">
       <div>
-        <span class="ide-dashboard__eyebrow">Visão geral</span>
+        <span class="ide-dashboard__eyebrow">Meu painel</span>
         <h1 id="dashboard-greeting">Dashboard</h1>
-        <p class="ide-dashboard__subtitle">Acompanhe os próximos compromissos do ministério e acesse rapidamente o que precisa de atenção.</p>
+        <p class="ide-dashboard__subtitle">Veja somente suas indisponibilidades, escalas e setlists dos eventos em que você está envolvido.</p>
       </div>
-      <span class="ide-dashboard__date" aria-label="Painel operacional">IDE Music · Comunidade IDE</span>
+      <span class="ide-dashboard__date" aria-label="Painel pessoal">IDE Music · Comunidade IDE</span>
     </header>
 
     <div id="dashboard-status" class="ide-dashboard__status" role="status" aria-live="polite">Atualizando seu painel…</div>
 
-    <section class="ide-dashboard-section" aria-labelledby="quick-actions-title">
-      <div class="ide-dashboard-section__heading">
-        <h2 id="quick-actions-title">Ações rápidas</h2>
-      </div>
-      <nav id="dashboard-quick-actions" class="ide-dashboard-actions" aria-label="Ações rápidas do Dashboard"></nav>
-    </section>
-
-    <section class="ide-dashboard-grid" aria-label="Resumo operacional">
+    <section class="ide-dashboard-grid" aria-label="Meus próximos compromissos">
       <article class="ide-dashboard-card">
-        <header class="ide-dashboard-card__header"><i class="fa-solid fa-calendar-day" aria-hidden="true"></i><h2>Próximos eventos</h2></header>
-        <div id="dashboard-upcoming-events" class="ide-dashboard-list" aria-live="polite"></div>
-      </article>
-
-      <article class="ide-dashboard-card">
-        <header class="ide-dashboard-card__header"><i class="fa-solid fa-people-group" aria-hidden="true"></i><h2>Próximas escalas</h2></header>
+        <header class="ide-dashboard-card__header"><i class="fa-solid fa-people-group" aria-hidden="true"></i><h2>Minhas próximas escalas</h2></header>
         <div id="dashboard-upcoming-schedules" class="ide-dashboard-list" aria-live="polite"></div>
       </article>
 
       <article class="ide-dashboard-card">
-        <header class="ide-dashboard-card__header"><i class="fa-solid fa-list-check" aria-hidden="true"></i><h2>Setlists pendentes</h2></header>
-        <div id="dashboard-pending-setlists" class="ide-dashboard-list" aria-live="polite"></div>
+        <header class="ide-dashboard-card__header"><i class="fa-solid fa-list-check" aria-hidden="true"></i><h2>Meus setlists</h2></header>
+        <div id="dashboard-upcoming-setlists" class="ide-dashboard-list" aria-live="polite"></div>
       </article>
 
       <article class="ide-dashboard-card">
@@ -61,12 +49,11 @@
       </article>
     </section>
 
-    <section id="dashboard-admin-section" class="ide-dashboard-section" aria-labelledby="admin-indicators-title" hidden>
+    <section class="ide-dashboard-section" aria-labelledby="user-indicators-title">
       <div class="ide-dashboard-section__heading">
-        <h2 id="admin-indicators-title">Indicadores administrativos</h2>
-        <a href="module.html?section=schedules">Ver operação</a>
+        <h2 id="user-indicators-title">Meus indicadores</h2>
       </div>
-      <div id="dashboard-admin-indicators" class="ide-dashboard-indicators"></div>
+      <div id="dashboard-user-indicators" class="ide-dashboard-indicators"></div>
     </section>
   </main>
 </body>
