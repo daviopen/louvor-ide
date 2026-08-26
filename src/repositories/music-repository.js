@@ -17,32 +17,40 @@ export class MusicRepository extends BaseRepository {
     return this.db.collection(name);
   }
 
-  async subscribeAllOrderedByTitle(callback) {
+  async subscribeAllOrderedByTitle(callback, onError = null) {
     const canonical = await this.getCollection(COLLECTIONS.SONGS);
     const legacy = await this.getCollection(this.legacyCollectionName);
     let canonicalDocs = [];
     let legacyDocs = [];
 
+    const titleOf = doc => {
+      const data = typeof doc?.data === 'function' ? doc.data() : {};
+      return String(data?.titulo || data?.title || data?.nome || data?.name || '');
+    };
+
     const emit = () => {
       const byId = new Map();
       legacyDocs.forEach(doc => byId.set(doc.id, doc));
       canonicalDocs.forEach(doc => byId.set(doc.id, doc));
-      const docs = [...byId.values()].sort((a, b) => {
-        const titleA = String(a.data()?.titulo || a.data()?.name || '');
-        const titleB = String(b.data()?.titulo || b.data()?.name || '');
-        return titleA.localeCompare(titleB, 'pt-BR', { sensitivity: 'base' });
-      });
+      const docs = [...byId.values()].sort((a, b) => titleOf(a).localeCompare(titleOf(b), 'pt-BR', { sensitivity: 'base' }));
       callback({ forEach(handler) { docs.forEach(handler); } });
     };
 
-    const unsubscribeLegacy = legacy.orderBy('titulo').onSnapshot(snapshot => {
+    const handleError = error => {
+      console.error('Erro ao acompanhar catálogo de músicas:', error);
+      if (typeof onError === 'function') onError(error);
+    };
+
+    // Não usar orderBy aqui: parte do repertório legado pode não possuir
+    // `titulo`; a ordenação é feita no cliente para não excluir documentos.
+    const unsubscribeLegacy = legacy.onSnapshot(snapshot => {
       legacyDocs = snapshot.docs;
       emit();
-    });
-    const unsubscribeCanonical = canonical.orderBy('titulo').onSnapshot(snapshot => {
+    }, handleError);
+    const unsubscribeCanonical = canonical.onSnapshot(snapshot => {
       canonicalDocs = snapshot.docs;
       emit();
-    });
+    }, handleError);
 
     return () => {
       unsubscribeLegacy?.();
