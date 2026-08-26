@@ -8,8 +8,27 @@ import musicRepository from '../../repositories/music-repository.js';
 import { AppError } from '../../core/app-error.js';
 
 export class MusicService {
-  constructor(repository = musicRepository) {
+  constructor(repository = musicRepository, options = {}) {
     this.repository = repository;
+    this.actorProvider = options.actorProvider || (() => (typeof window !== 'undefined' ? window.currentMusicIdeUser : null));
+  }
+
+  async audit(action, entityId, details = {}) {
+    if (typeof this.repository.addAuditLog !== 'function') return null;
+    const actor = this.actorProvider();
+    const actorUserId = actor && (actor.uid || actor.id);
+    if (!actorUserId) throw new AppError('Usuário autenticado não identificado para auditoria.', { code: 'AUDIT_ACTOR_REQUIRED' });
+    return this.repository.addAuditLog(actorUserId, action, entityId, details);
+  }
+
+  auditSnapshot(song) {
+    if (!song) return null;
+    return {
+      titulo: song.titulo || song.title || null,
+      artista: song.artista || song.artist || null,
+      tom: song.tom || song.originalKey || song.key || null,
+      tema: song.tema || song.theme || null
+    };
   }
 
   async loadAllMusics(callback) {
@@ -46,6 +65,10 @@ export class MusicService {
 
       const processedData = this.processMusicData(musicData);
       const result = await this.repository.create(processedData);
+      await this.audit('MUSIC_CREATED', result.id, {
+        before: null,
+        after: this.auditSnapshot(processedData)
+      });
       console.log('✅ MusicService: Música salva com sucesso:', result.id);
       return result;
     } catch (error) {
@@ -63,9 +86,16 @@ export class MusicService {
         throw new AppError(validation.errors.join('\n'), { code: 'MUSIC_VALIDATION_ERROR' });
       }
 
+      const before = await this.repository.findById(id);
+      if (!before) throw new AppError('Música não encontrada', { code: 'MUSIC_NOT_FOUND' });
       const processedData = this.processMusicData(musicData);
       processedData.updatedAt = new Date();
-      return await this.repository.update(id, processedData);
+      const result = await this.repository.update(id, processedData);
+      await this.audit('MUSIC_UPDATED', id, {
+        before: this.auditSnapshot(before),
+        after: this.auditSnapshot(processedData)
+      });
+      return result;
     } catch (error) {
       console.error('❌ MusicService: Erro ao atualizar música:', error);
       throw AppError.from(error, 'Não foi possível atualizar a música.');
@@ -76,7 +106,14 @@ export class MusicService {
     if (!id) throw new AppError('ID da música é obrigatório.', { code: 'MUSIC_ID_REQUIRED' });
 
     try {
-      return await this.repository.delete(id);
+      const before = await this.repository.findById(id);
+      if (!before) throw new AppError('Música não encontrada', { code: 'MUSIC_NOT_FOUND' });
+      const result = await this.repository.delete(id);
+      await this.audit('MUSIC_DELETED', id, {
+        before: this.auditSnapshot(before),
+        after: null
+      });
+      return result;
     } catch (error) {
       console.error('❌ MusicService: Erro ao excluir música:', error);
       throw AppError.from(error, 'Não foi possível excluir a música.');
