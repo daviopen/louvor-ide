@@ -7,7 +7,7 @@
   if (globalScope) globalScope.MusicIdeUserService = api;
 })(typeof window !== 'undefined' ? window : null, function createModule() {
   const PAGE_SIZE = 10;
-  const DEFAULT_ADMIN_ENDPOINT = 'https://us-central1-louvor-ide.cloudfunctions.net/adminUserManagement';
+  const DEFAULT_PASSWORD_RESET_URL = 'https://louvor-ide.web.app/login.html';
 
   function normalize(value) { return String(value || '').trim().toLocaleLowerCase('pt-BR'); }
 
@@ -46,9 +46,9 @@
       if (!repository) throw new Error('UserRepository é obrigatório.');
       this.repository = repository;
       this.auth = options.auth || null;
+      this.firebase = options.firebase || null;
       this.actorProvider = options.actorProvider || (() => null);
-      this.adminEndpoint = options.adminEndpoint || DEFAULT_ADMIN_ENDPOINT;
-      this.fetchImpl = options.fetchImpl || (typeof fetch === 'function' ? fetch.bind(globalThis) : null);
+      this.passwordResetUrl = options.passwordResetUrl || DEFAULT_PASSWORD_RESET_URL;
     }
 
     async list(filters = {}, page = 1, pageSize = PAGE_SIZE) {
@@ -62,31 +62,52 @@
       return { ...paginate(filterUsers(enriched, filters), page, pageSize), functions };
     }
 
-    async adminRequest(action, data) {
-      if (!this.auth || !this.auth.currentUser || typeof this.auth.currentUser.getIdToken !== 'function') throw new Error('Firebase Auth administrativo indisponível.');
-      if (!this.fetchImpl) throw new Error('Cliente HTTP indisponível.');
-      const token = await this.auth.currentUser.getIdToken();
-      const response = await this.fetchImpl(this.adminEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action, data })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || 'A operação administrativa falhou.');
-      return payload.result;
-    }
-
     async create(input) {
       const email = String(input.email || '').trim().toLowerCase();
+      if (!email) throw new Error('E-mail é obrigatório.');
       if (await this.repository.findByEmail(email)) throw new Error('Já existe um usuário com este e-mail.');
-      return this.adminRequest('createUser', {
-        name: input.name,
-        email,
-        password: input.password,
-        photoURL: input.photoURL || null,
-        functionIds: input.functionIds || [],
-        permissions: input.permissions || {}
-      });
+      if (!this.firebase || typeof this.firebase.initializeApp !== 'function' || typeof this.firebase.app !== 'function') {
+        throw new Error('Firebase Authentication indisponível para provisionar a conta.');
+      }
+
+      const appName = `ide-user-provision-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const secondaryApp = this.firebase.initializeApp(this.firebase.app().options, appName);
+      let credential = null;
+      let profileCreated = false;
+
+      try {
+        const temporaryPassword = `${cryptoRandom()}aA1!`;
+        credential = await secondaryApp.auth().createUserWithEmailAndPassword(email, temporaryPassword);
+        const uid = credential.user.uid;
+        const user = await this.repository.createUser({ ...input, uid, email });
+        profileCreated = true;
+        const functionIds = input.functionIds || [];
+        const permissions = input.permissions || {};
+        await this.repository.replaceUserFunctions(user.id, functionIds);
+        if (typeof this.repository.replaceInitialPermissions === 'function') {
+          await this.repository.replaceInitialPermissions(user.id, permissions);
+        }
+        await this.audit('USER_CREATED', user.id, { functionIds, permissions, provisionedAuth: true });
+
+        let passwordEmailSent = false;
+        let passwordEmailError = null;
+        try {
+          await this.sendPasswordReset(email, user.id, { audit: false });
+          passwordEmailSent = true;
+        } catch (emailError) {
+          passwordEmailError = emailError && emailError.message ? emailError.message : 'Falha ao solicitar o e-mail de definição de senha.';
+          console.error('Conta criada, mas o Firebase não confirmou o envio do e-mail de senha:', emailError);
+        }
+        return { ...user, passwordEmailSent, passwordEmailError };
+      } catch (error) {
+        if (!profileCreated && credential && credential.user && typeof credential.user.delete === 'function') {
+          try { await credential.user.delete(); } catch (rollbackError) { console.error('Falha ao reverter conta Firebase:', rollbackError); }
+        }
+        throw error;
+      } finally {
+        try { await secondaryApp.auth().signOut(); } catch (_) { /* noop */ }
+        await secondaryApp.delete();
+      }
     }
 
     async update(id, input) {
@@ -102,8 +123,24 @@
       return user;
     }
 
-    async setPassword(uid, password) {
-      return this.adminRequest('setPassword', { uid, password });
+    async sendPasswordReset(email, userId = null, options = {}) {
+      if (!this.auth || typeof this.auth.sendPasswordResetEmail !== 'function') throw new Error('Firebase Auth indisponível.');
+      const normalizedEmail = String(email || '').trim().toLowerCase();
+      if (!normalizedEmail) throw new Error('E-mail é obrigatório.');
+
+      this.auth.languageCode = 'pt-BR';
+      const actionCodeSettings = {
+        url: this.passwordResetUrl,
+        handleCodeInApp: false
+      };
+      await this.auth.sendPasswordResetEmail(normalizedEmail, actionCodeSettings);
+      if (userId && options.audit !== false) {
+        await this.audit('USER_PASSWORD_RESET_REQUESTED', userId, {
+          email: normalizedEmail,
+          continueUrl: this.passwordResetUrl
+        });
+      }
+      return true;
     }
 
     async audit(action, entityId, details) {
@@ -114,5 +151,14 @@
     }
   }
 
-  return Object.freeze({ UserService, filterUsers, paginate, canManageUsers, PAGE_SIZE, DEFAULT_ADMIN_ENDPOINT });
+  function cryptoRandom() {
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const bytes = new Uint32Array(4);
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes, value => value.toString(36)).join('');
+    }
+    return `${Date.now()}${Math.random().toString(36).slice(2)}`;
+  }
+
+  return Object.freeze({ UserService, filterUsers, paginate, canManageUsers, PAGE_SIZE, DEFAULT_PASSWORD_RESET_URL });
 });
