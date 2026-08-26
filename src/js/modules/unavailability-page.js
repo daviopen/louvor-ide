@@ -137,13 +137,18 @@
   }
 
   function renderUserOptions() {
-    if (!state.access.canManageOthers) return;
     const own = { id: actorId(), name: scope.currentMusicIdeProfile?.name || scope.currentMusicIdeUser?.displayName || scope.currentMusicIdeUser?.email || 'Você' };
-    const users = [own, ...state.users.filter(item => (item.id || item.uid) !== actorId())];
+    const users = state.access.canManageOthers
+      ? [own, ...state.users.filter(item => (item.id || item.uid) !== actorId())]
+      : [own];
     const options = users.map(user => `<option value="${escapeHtml(user.id || user.uid)}">${escapeHtml(user.name || user.email || 'Usuário')}</option>`).join('');
     el('unavailability-user').innerHTML = options;
-    el('admin-user-filter').innerHTML = `<option value="ALL">Todas</option>${options}`;
-    el('admin-user-filter').value = state.filterUserId;
+    el('unavailability-user').value = actorId();
+    el('unavailability-user').disabled = !state.access.canManageOthers;
+    if (state.access.canManageOthers) {
+      el('admin-user-filter').innerHTML = `<option value="ALL">Todas</option>${options}`;
+      el('admin-user-filter').value = state.filterUserId;
+    }
   }
 
   function renderEventOptions() {
@@ -169,10 +174,8 @@
     el('unavailability-event').value = record?.eventId || '';
     el('unavailability-note').value = record?.note || '';
     el('unavailability-note-count').textContent = String((record?.note || '').length);
-    if (state.access.canManageOthers) {
-      el('unavailability-user').value = record?.userId || actorId();
-      el('unavailability-user').disabled = Boolean(record);
-    }
+    el('unavailability-user').value = state.access.canManageOthers ? (record?.userId || actorId()) : actorId();
+    el('unavailability-user').disabled = !state.access.canManageOthers || Boolean(record);
     el('unavailability-dialog').showModal();
     el('unavailability-date').focus();
   }
@@ -296,7 +299,7 @@
     state.access = await service.resolveAccess(scope.currentMusicIdeUser, scope.currentMusicIdeProfile);
 
     el('unavailability-admin-note').hidden = !state.access.canManageOthers;
-    el('unavailability-user-wrap').hidden = !state.access.canManageOthers;
+    el('unavailability-user-wrap').hidden = false;
     el('admin-user-filter-wrap').hidden = !state.access.canManageOthers;
     wireEvents();
     await loadReferences();
