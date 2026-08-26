@@ -31,6 +31,19 @@ test('login keeps typography, controls and surfaces on IDE Music design tokens',
   assert.match(loginHtml, /border-radius:\s*var\(--ide-radius-md\)/);
 });
 
+test('light access panel never inherits low-contrast dark-theme accent text', () => {
+  assert.match(loginHtml, /\.access-panel\s*\{[\s\S]*?color-scheme:\s*light/);
+  assert.match(loginHtml, /\.access-panel \.eyebrow\s*\{[\s\S]*?color:\s*var\(--ide-color-neutral-700\)/);
+  assert.match(loginHtml, /\.forgot-button\s*\{[\s\S]*?color:\s*var\(--ide-color-neutral-700\)\s*!important/);
+  assert.doesNotMatch(loginHtml, /\.access-panel \.eyebrow\s*\{[\s\S]*?color:\s*var\(--music-accent-text\)/);
+});
+
+test('email inputs keep readable text and background even with browser autofill', () => {
+  assert.match(loginHtml, /-webkit-text-fill-color:\s*var\(--ide-color-neutral-900\)\s*!important/);
+  assert.match(loginHtml, /input:-webkit-autofill/);
+  assert.match(loginHtml, /1000px var\(--ide-color-white\) inset/);
+});
+
 test('login has explicit responsive mobile layout and associated field labels', () => {
   assert.match(loginHtml, /@media \(max-width: 760px\)/);
   assert.match(loginHtml, /<label for="login-email">/);
