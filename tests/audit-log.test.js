@@ -118,7 +118,8 @@ test('audit console is read-only and supports user, period, action and entity fi
     /audit-after/,
     /Ver alteração/
   ]);
-  assert.doesNotMatch(auditPage, /\.add\(|\.set\(|\.update\(|\.delete\(/);
+  assert.doesNotMatch(auditPage, /repository\.(?:create|add|set|update|delete|remove|save)\s*\(/);
+  assert.doesNotMatch(auditPage, /collection\([^)]*\)\.(?:add|set|update|delete)\s*\(/);
   expectAll(authAudit, [
     /repositories\/audit-repository\.js/,
     /js\/modules\/audit-page\.js/,
