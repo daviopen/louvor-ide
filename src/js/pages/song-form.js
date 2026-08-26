@@ -14,15 +14,6 @@ let initialSnapshot = '';
 let ministers = [];
 let activePreview = 'cifra';
 
-function database() {
-  if (!window.db) throw new Error('Banco de dados indisponível.');
-  return window.db;
-}
-
-function normalize(value) {
-  return String(value || '').trim().toLocaleLowerCase('pt-BR');
-}
-
 function currentUser() {
   return window.firebase?.auth?.().currentUser || null;
 }
@@ -38,32 +29,7 @@ function clearStatus() {
 }
 
 async function loadMinisters() {
-  const db = database();
-  const [functionsSnap, usersSnap, linksSnap] = await Promise.all([
-    db.collection('ministryFunctions').get(),
-    db.collection('users').get(),
-    db.collection('userFunctions').get()
-  ]);
-
-  const ministerFunctionIds = new Set(functionsSnap.docs
-    .map(doc => ({ id: doc.id, ...doc.data() }))
-    .filter(fn => fn.active !== false && (
-      normalize(fn.slug) === 'ministro'
-      || normalize(fn.name) === 'ministro'
-      || normalize(fn.nome) === 'ministro'
-    ))
-    .map(fn => fn.id));
-
-  const eligibleUserIds = new Set(linksSnap.docs
-    .map(doc => doc.data())
-    .filter(link => link.active !== false && ministerFunctionIds.has(link.functionId))
-    .map(link => link.userId));
-
-  ministers = usersSnap.docs
-    .map(doc => ({ id: doc.id, ...doc.data() }))
-    .filter(user => user.active !== false && eligibleUserIds.has(user.id))
-    .sort((a, b) => String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'pt-BR'));
-
+  ministers = await musicRepository.listEligibleMinisters();
   renderMinisters();
 }
 
@@ -185,37 +151,6 @@ function updatePreview() {
   preview.textContent = value || `A pré-visualização da ${activePreview} aparecerá aqui.`;
 }
 
-async function writeMinisterKeys(songId, selection) {
-  const db = database();
-  const batch = db.batch();
-  const existing = await db.collection('songMinisterKeys').where('songId', '==', songId).get();
-  existing.docs.forEach(doc => batch.delete(doc.ref));
-  selection.forEach(item => {
-    const ref = db.collection('songMinisterKeys').doc(`${songId}_${item.userId}`);
-    batch.set(ref, {
-      songId,
-      userId: item.userId,
-      preferredKey: item.preferredKey || null,
-      updatedAt: new Date()
-    }, { merge: true });
-  });
-  await batch.commit();
-}
-
-async function audit(action, songId, before, after) {
-  const actor = currentUser();
-  await database().collection('auditLogs').add({
-    actorUserId: actor?.uid || null,
-    actorEmail: actor?.email || null,
-    action,
-    entity: 'song',
-    entityId: songId,
-    before: before || null,
-    after: after || null,
-    createdAt: new Date()
-  });
-}
-
 async function loadEdit() {
   if (!editId) return null;
 
@@ -237,11 +172,8 @@ async function loadEdit() {
 
   const keys = new Map();
   try {
-    const keySnap = await database().collection('songMinisterKeys').where('songId', '==', editId).get();
-    keySnap.docs.forEach(doc => {
-      const data = doc.data();
-      keys.set(data.userId, data.preferredKey || '');
-    });
+    const entries = await musicRepository.getMinisterKeys(editId);
+    entries.forEach(item => keys.set(item.userId, item.preferredKey || ''));
   } catch (error) {
     console.warn('Falha ao carregar tons por ministro.', error);
   }
@@ -266,6 +198,12 @@ async function save(event) {
     return;
   }
 
+  const actor = currentUser();
+  if (!actor?.uid) {
+    setStatus('Sua sessão expirou. Entre novamente para salvar a música.', 'error');
+    return;
+  }
+
   saving = true;
   saveBtn.disabled = true;
   saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
@@ -281,8 +219,11 @@ async function save(event) {
       songId = result.id;
     }
 
-    await writeMinisterKeys(songId, getMinisterSelection());
-    await audit(editId ? 'SONG_UPDATED' : 'SONG_CREATED', songId, before, data);
+    await musicRepository.replaceMinisterKeys(songId, getMinisterSelection());
+    await musicRepository.addAuditLog(actor.uid, editId ? 'SONG_UPDATED' : 'SONG_CREATED', songId, {
+      before,
+      after: data
+    });
 
     initialSnapshot = snapshot();
     dirty = false;
