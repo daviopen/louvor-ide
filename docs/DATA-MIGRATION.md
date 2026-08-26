@@ -65,6 +65,18 @@ node src/scripts/migrate-legacy-data.cjs --rollback=<runId>
 
 O workflow `.github/workflows/data-migration.yml` executa `--apply` em push para `main` e, em seguida, `--verify`. Também permite execução manual em `dry-run`, `apply` ou `verify`.
 
+## Resultado em produção — 26/08/2026
+
+A execução `migration_2026-08-26T19-33-25-743Z_9095d806` terminou com sucesso.
+
+- `musicas`: 119 documentos de origem;
+- `songs`: 119 documentos após a migração;
+- documentos criados: 119;
+- documentos faltantes: 0;
+- conflitos: 0;
+- `usuarios`, `funcoesMinisteriais`, `funcoesUsuarios`, `permissoes`, `indisponibilidades`, `eventos`, `escalas`, `membrosEscala` e `repertorios`: nenhuma origem legada restante a migrar;
+- a verificação independente `--verify` também retornou sucesso.
+
 ## Validação antes/depois
 
 Para cada mapeamento o relatório contém:
@@ -76,14 +88,23 @@ Para cada mapeamento o relatório contém:
 
 A execução falha quando restar documento ausente ou conflito após `--apply`/`--verify`.
 
+## Limpeza pós-migração
+
+Depois do cutover do runtime para `songs`, o script `src/scripts/cleanup-legacy-data.cjs` trata a remoção de `musicas`.
+
+A limpeza automática só é executada depois de o workflow de deploy em `main` terminar com sucesso. Antes de apagar qualquer documento, o script:
+
+1. confirma que todos os IDs de `musicas` existem em `songs`;
+2. arquiva cada documento em `_legacyArchives/musicas/documents`;
+3. valida o arquivo;
+4. remove a origem em batches;
+5. confirma que `musicas` ficou vazia e que `songs` preserva a cobertura.
+
+O modo `--restore-musicas` recompõe a collection legada a partir do arquivo, caso seja necessário rollback operacional.
+
 ## Rollback
 
-A migração não apaga a origem. Portanto há duas camadas de rollback:
-
-1. a collection legada permanece intacta;
-2. o manifesto `_migrationRuns/<runId>` permite remover somente os documentos criados naquele run.
-
-A remoção definitiva de aliases/collections legadas só deve ocorrer depois de a aplicação estar lendo exclusivamente as collections canônicas e de existir evidência de produção sem regressão.
+Antes da limpeza definitiva, o manifesto `_migrationRuns/<runId>` permite remover somente os documentos canônicos criados pelo run de migração. Depois da limpeza, `_legacyArchives/musicas/documents` mantém uma cópia restaurável dos documentos históricos.
 
 ## Critério de encerramento
 
@@ -92,4 +113,6 @@ O item de migração pode ser considerado concluído quando:
 - o workflow de migração em `main` terminar com sucesso;
 - `--verify` retornar zero documentos faltantes e zero conflitos;
 - os testes automatizados estiverem verdes;
-- o deploy e os E2E de produção estiverem verdes.
+- o deploy pós-cutover estiver verde;
+- o workflow de limpeza confirmar arquivo e remoção da collection legada;
+- os E2E de produção relevantes estiverem verdes.
