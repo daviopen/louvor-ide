@@ -60,7 +60,7 @@ jobs:
       - name: 🔐 Validar Firestore Rules
         run: |
           set -e
-          firebase emulators:exec --only firestore --project demo-louvor-ide "node --test tests/firestore-rules.test.js"
+          npx firebase emulators:exec --only firestore --project demo-louvor-ide "node --test tests/firestore-rules.test.js"
           echo "✅ Firestore Rules compiladas no emulator e contrato de segurança validado"
 
       - name: 📋 Verificar artefato do Design System
@@ -69,7 +69,8 @@ jobs:
           test -f styles/tokens.css
           test -f styles/design-system.css
           test -f styles/legacy-migration.css
-          echo "✅ Tokens, Design System e migração legada presentes no build"
+          test -f core/app-error.js
+          echo "✅ Tokens, Design System, core compartilhado e migração legada presentes no build"
           if grep -nEi '#[0-9a-f]{3,8}\b' ./*.html; then
             echo "❌ HTML publicado ainda contém cores hexadecimais fora dos tokens"
             exit 1
@@ -230,6 +231,7 @@ jobs:
           test_url https://louvor-ide.web.app/
           test_url https://louvor-ide.web.app/login.html
           test_url https://louvor-ide.web.app/js/modules/auth-service.js
+          test_url https://louvor-ide.web.app/core/app-error.js
           test_url https://louvor-ide.web.app/styles/tokens.css
           test_url https://louvor-ide.web.app/styles/design-system.css
           test_url https://louvor-ide.web.app/styles/legacy-migration.css
@@ -237,6 +239,8 @@ jobs:
           test_url https://louvor-ide.web.app/repositories/domain-repositories.js
           test_url https://louvor-ide.web.app/services/ministry-functions-service.js
           test_url https://louvor-ide.web.app/constants/collections.js
+          core_headers=$(curl -sSI https://louvor-ide.web.app/core/app-error.js)
+          echo "$core_headers" | grep -qi 'content-type:.*javascript' || { echo "❌ core/app-error.js publicado com MIME incorreto"; exit 1; }
           css=$(curl -sS https://louvor-ide.web.app/styles/tokens.css)
           echo "$css" | grep -q -- '--ide-primary' || { echo "❌ tokens.css publicado não contém --ide-primary"; exit 1; }
           migration=$(curl -sS https://louvor-ide.web.app/styles/legacy-migration.css)
@@ -264,7 +268,7 @@ jobs:
           echo "$data_model" | grep -q 'userFunctionDocumentId' || { echo "❌ Relação N:N Pessoa ↔ Função ausente em produção"; exit 1; }
           ministry_service=$(curl -sS https://louvor-ide.web.app/services/ministry-functions-service.js)
           echo "$ministry_service" | grep -q 'class MinistryFunctionsService' || { echo "❌ Serviço de funções ministeriais ausente em produção"; exit 1; }
-          echo "✅ Autenticação, segurança do frontend, Design System, modelo de dados e assets críticos publicados e válidos"
+          echo "✅ Autenticação, segurança do frontend, Design System, core compartilhado, modelo de dados e assets críticos publicados e válidos"
 
   notify:
     needs: [build_and_test, deploy]
