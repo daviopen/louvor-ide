@@ -50,11 +50,16 @@ test('song migration preserves legacy data while populating canonical fields', (
   assert.ok(migrated.migratedAt instanceof Date);
 });
 
-test('migration workflow applies on main and verifies after apply', () => {
-  assert.match(workflow, /push:\s*\n\s*branches: \[main\]/);
+test('production migration is manual, supports explicit modes and verifies after apply', () => {
   assert.match(workflow, /workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /\n\s*push:/);
+  assert.match(workflow, /- dry-run/);
+  assert.match(workflow, /- apply/);
+  assert.match(workflow, /- verify/);
+  assert.match(workflow, /case "\$\{\{ inputs\.mode \}\}" in/);
   assert.match(workflow, /migrate-legacy-data\.cjs --apply/);
   assert.match(workflow, /migrate-legacy-data\.cjs --verify/);
+  assert.match(workflow, /if: inputs\.mode == 'apply'/);
   assert.match(workflow, /cancel-in-progress: false/);
 });
 
