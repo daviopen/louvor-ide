@@ -150,6 +150,7 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
 
       - name: 👤 Provisionar usuários autorizados
+        continue-on-error: true
         run: |
           set -euo pipefail
           npm install --no-save firebase-admin@13.4.0
@@ -239,6 +240,7 @@ jobs:
           test_url https://louvor-ide.web.app/repositories/domain-repositories.js
           test_url https://louvor-ide.web.app/services/ministry-functions-service.js
           test_url https://louvor-ide.web.app/constants/collections.js
+          test_url https://louvor-ide.web.app/help.html
           core_headers=$(curl -sSI https://louvor-ide.web.app/core/app-error.js)
           echo "$core_headers" | grep -qi 'content-type:.*javascript' || { echo "❌ core/app-error.js publicado com MIME incorreto"; exit 1; }
           css=$(curl -sS https://louvor-ide.web.app/styles/tokens.css)
