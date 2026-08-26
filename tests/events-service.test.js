@@ -73,6 +73,17 @@ test('criação exige edição nos três módulos e é idempotente por requestId
   assert.equal(repo.events.length, 1);
 });
 
+test('eventos podem repetir o mesmo nome em datas ou horários diferentes', async () => {
+  const repo = repositoryFixture();
+  const service = new EventService(repo);
+  const first = await service.create({ name: 'Culto da Família', date: '2026-09-13', time: '19:00', status: 'CONFIRMED' }, actor, profile, { access: fullAccess, requestId: 'culto-13' });
+  const second = await service.create({ name: 'Culto da Família', date: '2026-09-20', time: '19:00', status: 'CONFIRMED' }, actor, profile, { access: fullAccess, requestId: 'culto-20' });
+  assert.equal(first.name, second.name);
+  assert.notEqual(first.id, second.id);
+  assert.equal(repo.events.length, 2);
+  assert.deepEqual(repo.events.map(item => dateKey(item.date)), ['2026-09-13', '2026-09-20']);
+});
+
 test('mudança de data/hora/status sincroniza vínculos; metadados isolados não exigem escrita vinculada', async () => {
   const repo = repositoryFixture({ events: [{ id: 'event-1', name: 'Culto', date: new Date(2026, 7, 30, 12), time: '19:00', description: null, location: null, theme: null, status: 'PLANNED', scheduleId: 'schedule_event-1', setlistId: 'setlist_event-1' }] });
   const service = new EventService(repo);
