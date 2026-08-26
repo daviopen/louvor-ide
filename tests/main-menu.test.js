@@ -35,6 +35,15 @@ test('navegação móvel e sidebar responsiva possuem contrato visual', () => {
   assert.match(css, /ide-sidebar-collapsed/);
 });
 
+test('controles de conta, tema e saída são montados dentro da sidebar', () => {
+  assert.match(shell, /ide-sidebar-account/);
+  assert.match(shell, /mountAccountControls/);
+  assert.match(shell, /mount\.appendChild\(controls\)/);
+  assert.match(css, /ide-sidebar-account \.music-ide-user/);
+  assert.match(css, /position:static!important/);
+  assert.match(css, /ide-sidebar-nav[^}]*overflow-y:auto/);
+});
+
 test('destinos ainda não implementados têm página segura e explícita de preparação', () => {
   for (const section of ['users', 'permissions', 'unavailability', 'events', 'schedules', 'audit', 'settings']) {
     assert.match(modulePage, new RegExp(`${section}:`));
