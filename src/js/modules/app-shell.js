@@ -29,6 +29,9 @@
     { id: 'administration', label: 'Administração', items: [
       { id: 'audit', label: 'Auditoria', href: 'module.html?section=audit', icon: 'fa-clipboard-list', permission: 'audit' },
       { id: 'settings', label: 'Configurações', href: 'module.html?section=settings', icon: 'fa-gear', permission: 'settings' }
+    ] },
+    { id: 'help', label: '', items: [
+      { id: 'help', label: 'Ajuda', href: 'help.html', icon: 'fa-circle-question', public: true }
     ] }
   ];
   const moduleSections = new Set(['permissions', 'unavailability', 'events', 'schedules', 'audit', 'settings']);
@@ -53,6 +56,7 @@
     const page = currentPage(scope.location && scope.location.pathname);
     const params = new URLSearchParams(scope.location && scope.location.search || '');
     if (page === 'users.html') return 'users';
+    if (page === 'help.html') return 'help';
     if (page === 'module.html') {
       const section = params.get('section');
       return moduleSections.has(section) ? section : 'dashboard';
@@ -82,6 +86,7 @@
   }
 
   function canViewItem(item, profile) {
+    if (item && item.public === true) return true;
     const level = resolveAccessLevel(profile, item.permission);
     return item.minLevel === 'edit' ? level === 'edit' : level === 'read' || level === 'edit';
   }
