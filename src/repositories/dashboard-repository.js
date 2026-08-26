@@ -1,5 +1,5 @@
 /**
- * Read model for the operational Dashboard.
+ * Read model for the personal Dashboard.
  * All Firestore access required by the Dashboard is centralized here.
  */
 (function initDashboardRepository(globalScope, factory) {
@@ -33,8 +33,9 @@
       return snapshotToEntities(await this.db.collection('schedules').get());
     }
 
-    async listScheduleMembers() {
-      return snapshotToEntities(await this.db.collection('scheduleMembers').get());
+    async listOwnScheduleMembers(userId) {
+      const snapshot = await this.db.collection('scheduleMembers').where('userId', '==', userId).get();
+      return snapshotToEntities(snapshot);
     }
 
     async listSetlists() {
