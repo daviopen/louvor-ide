@@ -1,4 +1,5 @@
 @import url("./button.css");
+/* Shared button primitives are imported here until the module shell loads button.css globally. */
 
 .unavailability-page{width:min(1500px,100%);margin:0 auto;padding:var(--ide-space-8);display:grid;gap:var(--ide-space-6);color:var(--ide-text-primary)}
 .unavailability-page[hidden]{display:none!important}
