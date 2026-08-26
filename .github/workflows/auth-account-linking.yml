@@ -57,7 +57,7 @@ jobs:
           fi
 
           cat /tmp/auth-config.json
-          test "$(jq -r '.signIn.allowDuplicateEmails' /tmp/auth-config.json)" = "false"
+          test "$(jq -r '.signIn.allowDuplicateEmails // false' /tmp/auth-config.json)" = "false"
           echo "✅ Firebase Authentication configurado para uma única conta por e-mail."
 
       - name: 🔍 Validar configuração efetiva
@@ -69,5 +69,5 @@ jobs:
             -H "Authorization: Bearer ${ACCESS_TOKEN}" \
             -H "X-Goog-User-Project: louvor-ide" \
             "${CONFIG_URL}" >/tmp/auth-config-verified.json
-          test "$(jq -r '.signIn.allowDuplicateEmails' /tmp/auth-config-verified.json)" = "false"
+          test "$(jq -r '.signIn.allowDuplicateEmails // false' /tmp/auth-config-verified.json)" = "false"
           echo "✅ Configuração validada: contas duplicadas por e-mail estão bloqueadas."
