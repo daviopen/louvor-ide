@@ -42,3 +42,10 @@ test('layout respeita rota oculta e possui tratamento responsivo para mobile', (
   assert.match(css, /unavailability-layout/);
   assert.match(css, /grid-template-columns:1fr/);
 });
+
+test('tema de indisponibilidade mantém contraste semântico e ações consistentes', () => {
+  assert.match(css, /@import url\("\.\/button\.css"\);/);
+  assert.match(css, /\.unavailability-item-meta \.ide-badge\{[^}]*background:var\(--ide-surface-secondary\)[^}]*color:var\(--ide-text-primary\)/);
+  assert.match(css, /\.unavailability-item-actions \.ide-button--secondary\{[^}]*--ide-button-bg:var\(--ide-primary\)[^}]*--ide-button-color:var\(--ide-primary-ink\)/);
+  assert.match(page, /ide-button ide-button--danger ide-button--sm/);
+});

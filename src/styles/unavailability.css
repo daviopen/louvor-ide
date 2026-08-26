@@ -1,3 +1,5 @@
+@import url("./button.css");
+
 .unavailability-page{width:min(1500px,100%);margin:0 auto;padding:var(--ide-space-8);display:grid;gap:var(--ide-space-6);color:var(--ide-text-primary)}
 .unavailability-page[hidden]{display:none!important}
 .unavailability-header{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--ide-space-5);flex-wrap:wrap}
@@ -28,7 +30,11 @@
 .unavailability-item-main{min-width:0;display:grid;gap:var(--ide-space-1)}
 .unavailability-item-main strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.unavailability-item-main small{color:var(--ide-text-secondary);line-height:var(--ide-line-height-normal)}
 .unavailability-item-meta{display:flex;gap:var(--ide-space-2);flex-wrap:wrap}
+.unavailability-item-meta .ide-badge{border:1px solid var(--ide-border);background:var(--ide-surface-secondary);color:var(--ide-text-primary)}
 .unavailability-item-actions{display:flex;gap:var(--ide-space-2);flex-wrap:wrap;justify-content:flex-end}
+.unavailability-item-actions .ide-button--secondary{--ide-button-bg:var(--ide-primary);--ide-button-color:var(--ide-primary-ink);--ide-button-border:var(--ide-primary)}
+.unavailability-item-actions .ide-button--secondary:hover:not(:disabled){--ide-button-bg:var(--ide-primary-hover);--ide-button-border:var(--ide-primary-hover)}
+.unavailability-item-actions .ide-button--secondary:active:not(:disabled){--ide-button-bg:var(--ide-primary-active);--ide-button-border:var(--ide-primary-active)}
 .unavailability-dialog{width:min(680px,calc(100vw - 2rem));max-height:calc(100vh - 2rem);overflow:auto;border:1px solid var(--ide-border);border-radius:var(--ide-radius-lg);background:var(--ide-surface);color:var(--ide-text-primary);padding:0;box-shadow:var(--ide-shadow-overlay)}
 .unavailability-dialog::backdrop{background:rgba(0,0,0,.48)}
 .unavailability-form{padding:var(--ide-space-6)}
