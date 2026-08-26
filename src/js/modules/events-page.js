@@ -32,7 +32,9 @@
     editingId: null,
     requestId: null,
     search: '',
-    status: 'ALL'
+    status: 'ALL',
+    dateFrom: '',
+    dateTo: ''
   };
   let repository;
   let service;
@@ -67,11 +69,24 @@
     const root = el('events-content');
     if (root) root.setAttribute('aria-busy', String(busy));
   }
+
+  function ensureDateFilters() {
+    const toolbar = scope.document.querySelector('.events-toolbar');
+    if (!toolbar || el('events-date-from') || el('events-date-to')) return;
+    const markup = `
+      <label data-events-filter="date"><span>Data inicial</span><input id="events-date-from" class="ide-field__control ide-field__input" type="date" aria-label="Filtrar eventos a partir da data"></label>
+      <label data-events-filter="date"><span>Data final</span><input id="events-date-to" class="ide-field__control ide-field__input" type="date" aria-label="Filtrar eventos até a data"></label>`;
+    toolbar.insertAdjacentHTML('beforeend', markup);
+  }
+
   function filteredEvents() {
     const term = state.search.trim().toLocaleLowerCase('pt-BR');
     return state.events.filter(item => {
       const statusMatch = state.status === 'ALL' || item.status === state.status;
       if (!statusMatch) return false;
+      const itemDate = dateKey(item.date);
+      if (state.dateFrom && (!itemDate || itemDate < state.dateFrom)) return false;
+      if (state.dateTo && (!itemDate || itemDate > state.dateTo)) return false;
       if (!term) return true;
       const haystack = [item.name, item.location, item.theme, item.description].filter(Boolean).join(' ').toLocaleLowerCase('pt-BR');
       return haystack.includes(term);
@@ -124,7 +139,6 @@
           <div class="events-item-title"><h3>${escapeHtml(item.name)}</h3><span class="${statusClass(item.status)}">${escapeHtml(eventLabel(item.status))}</span></div>
           <div class="events-item-meta">${location}${theme}</div>
           ${description}
-          <div class="events-item-links"><span>Escala: ${escapeHtml(item.scheduleId || 'vínculo pendente')}</span><span>Setlist: ${escapeHtml(item.setlistId || 'vínculo pendente')}</span></div>
         </div>
         ${actions.length ? `<div class="events-item-actions">${actions.join('')}</div>` : ''}
       </article>`;
@@ -200,8 +214,13 @@
   }
 
   function wireEvents() {
+    ensureDateFilters();
     el('new-event').addEventListener('click', () => openForm()); el('event-form').addEventListener('submit', submitForm); el('event-close').addEventListener('click', () => el('event-dialog').close()); el('event-cancel').addEventListener('click', () => el('event-dialog').close()); el('events-list').addEventListener('click', handleListClick);
-    el('events-search').addEventListener('input', event => { state.search = event.target.value; renderList(); }); el('events-status-filter').addEventListener('change', event => { state.status = event.target.value; renderList(); }); el('event-description').addEventListener('input', event => { el('event-description-count').textContent = String(event.target.value.length); });
+    el('events-search').addEventListener('input', event => { state.search = event.target.value; renderList(); });
+    el('events-status-filter').addEventListener('change', event => { state.status = event.target.value; renderList(); });
+    el('events-date-from').addEventListener('change', event => { state.dateFrom = event.target.value; renderList(); });
+    el('events-date-to').addEventListener('change', event => { state.dateTo = event.target.value; renderList(); });
+    el('event-description').addEventListener('input', event => { el('event-description-count').textContent = String(event.target.value.length); });
   }
 
   async function bootstrap() {
