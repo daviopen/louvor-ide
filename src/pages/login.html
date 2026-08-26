@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#090b0c">
   <title>Entrar — IDE Music</title>
+  <script src="../js/modules/observability.js?v=20260825-observability"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -81,158 +82,141 @@
     }
 
     .brand-mark::before {
-      content: "";
-      width: 9px;
-      height: 9px;
-      border-radius: var(--ide-radius-circle);
+      width: 10px;
+      height: 10px;
+      border-radius: var(--ide-radius-full);
       background: var(--ide-primary);
-      box-shadow: 0 0 0 5px rgba(216, 255, 69, 0.09);
+      box-shadow: 0 0 0 5px rgba(216, 255, 69, 0.12);
+      content: "";
     }
 
-    .brand-copy { position: relative; z-index: 1; max-width: 500px; }
-
+    .brand-copy { position: relative; z-index: 1; max-width: 540px; }
     .eyebrow {
-      margin-bottom: 16px;
+      margin-bottom: var(--ide-space-4);
       color: var(--ide-primary);
       font-size: var(--ide-font-size-xs);
       font-weight: var(--ide-font-weight-extrabold);
-      letter-spacing: 0.16em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
     }
 
     .brand-copy h1 {
-      margin-bottom: var(--ide-space-5);
-      color: var(--ide-text-on-dark);
-      font-family: var(--ide-font-family-sans);
-      font-size: clamp(3.15rem, 5.9vw, 5.25rem);
-      font-weight: 820;
-      line-height: 0.92;
-      letter-spacing: -0.07em;
+      margin: 0 0 var(--ide-space-5);
+      color: var(--ide-text-on-dark) !important;
+      font-size: clamp(3.4rem, 6.5vw, 6.25rem);
+      font-weight: var(--ide-font-weight-extrabold);
+      letter-spacing: -0.065em;
+      line-height: 0.88;
     }
 
     .brand-copy p {
-      max-width: 410px;
-      color: rgba(255, 255, 255, 0.72);
-      font-size: var(--ide-font-size-md);
+      max-width: 470px;
+      color: var(--ide-text-muted-on-dark) !important;
+      font-size: var(--ide-font-size-lg);
       line-height: var(--ide-line-height-relaxed);
     }
 
     .access-panel {
       display: flex;
-      min-width: 0;
       flex-direction: column;
       justify-content: center;
-      padding: clamp(38px, 5vw, 58px);
-      color: var(--ide-color-neutral-900);
-      background: var(--ide-color-neutral-100);
-      color-scheme: light;
+      padding: clamp(40px, 5vw, 64px);
+      color: var(--ide-color-neutral-900) !important;
+      background: var(--ide-color-white);
     }
 
-    .access-panel .eyebrow {
-      margin-bottom: var(--ide-space-2);
-      color: var(--ide-color-neutral-700);
-    }
-
+    .access-panel .eyebrow { color: var(--ide-color-neutral-700); }
     .access-panel h2 {
-      margin: 0 0 var(--ide-space-2);
-      color: var(--ide-color-neutral-900);
-      font-family: var(--ide-font-family-sans);
-      font-size: clamp(1.85rem, 3vw, 2.25rem);
+      margin: 0;
+      color: var(--ide-color-neutral-900) !important;
+      font-size: clamp(2.1rem, 4vw, 3rem);
       font-weight: var(--ide-font-weight-extrabold);
-      line-height: var(--ide-line-height-tight);
       letter-spacing: -0.045em;
+      line-height: 1;
     }
 
     .access-panel > p {
-      margin-bottom: var(--ide-space-8);
-      color: var(--ide-color-neutral-700);
+      margin: var(--ide-space-3) 0 var(--ide-space-7);
+      color: var(--ide-color-neutral-700) !important;
       font-size: var(--ide-font-size-sm);
       line-height: var(--ide-line-height-relaxed);
     }
 
-    .google-button,
-    .email-button {
+    .google-button, .email-button {
       display: inline-flex;
-      min-height: 48px;
       width: 100%;
+      min-height: 48px;
       align-items: center;
       justify-content: center;
-      border-radius: var(--ide-radius-md) !important;
+      gap: 12px;
+      border-radius: var(--ide-radius-md);
       font-family: var(--ide-font-family-sans);
       font-size: var(--ide-font-size-sm);
-      font-weight: var(--ide-font-weight-bold) !important;
+      font-weight: var(--ide-font-weight-bold);
+      transition: border-color var(--ide-duration-fast) var(--ide-ease-standard), background var(--ide-duration-fast) var(--ide-ease-standard), box-shadow var(--ide-duration-fast) var(--ide-ease-standard), transform var(--ide-duration-fast) var(--ide-ease-standard);
       cursor: pointer;
-      transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background 150ms ease;
     }
 
     .google-button {
-      gap: 12px;
-      padding: 0 18px;
-      color: var(--ide-color-neutral-900);
-      border: 1px solid rgba(17, 20, 21, 0.18);
-      background: var(--ide-color-white);
-      box-shadow: 0 1px 2px rgba(9, 11, 12, 0.04);
+      color: var(--ide-color-neutral-900) !important;
+      border: 1px solid rgba(17, 20, 21, 0.16) !important;
+      background: var(--ide-color-white) !important;
+      box-shadow: 0 1px 2px rgba(17, 20, 21, 0.08);
     }
 
     .google-button:hover {
-      border-color: rgba(17, 20, 21, 0.28);
-      background: var(--ide-color-neutral-50);
+      border-color: rgba(17, 20, 21, 0.32) !important;
+      background: var(--ide-color-neutral-50) !important;
       box-shadow: var(--ide-shadow-sm);
       transform: translateY(-1px);
     }
 
-    .google-button:focus-visible,
-    .email-button:focus-visible,
-    .forgot-button:focus-visible {
-      outline: 3px solid var(--ide-focus-ring);
-      outline-offset: 2px;
+    .google-button:focus-visible, .email-button:focus-visible, .forgot-button:focus-visible {
+      outline: 3px solid var(--ide-primary-ring);
+      outline-offset: 3px;
     }
 
-    .google-logo { display: block; width: 19px; height: 19px; flex: 0 0 19px; }
+    .google-logo { width: 18px; height: 18px; flex: 0 0 18px; }
 
     .login-divider {
       display: flex;
       align-items: center;
-      gap: 14px;
-      margin: var(--ide-space-6) 0;
-      color: var(--ide-color-neutral-700);
-      font-size: 0.7rem;
-      font-weight: var(--ide-font-weight-bold);
-      letter-spacing: 0.12em;
+      gap: var(--ide-space-3);
+      margin: var(--ide-space-5) 0;
+      color: var(--ide-color-neutral-500);
+      font-size: var(--ide-font-size-xs);
+      font-weight: var(--ide-font-weight-semibold);
       text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
 
-    .login-divider::before,
-    .login-divider::after {
-      content: "";
+    .login-divider::before, .login-divider::after {
       height: 1px;
       flex: 1;
-      background: rgba(17, 20, 21, 0.16);
+      background: var(--ide-color-neutral-200);
+      content: "";
     }
 
     .email-form { display: grid; gap: var(--ide-space-4); }
-
     .email-form label {
       display: grid;
-      gap: 7px;
-      color: var(--ide-color-neutral-700);
+      gap: var(--ide-space-2);
+      color: var(--ide-color-neutral-800) !important;
       font-size: var(--ide-font-size-xs);
       font-weight: var(--ide-font-weight-bold);
     }
 
     .email-form input {
       width: 100%;
-      min-height: 48px;
+      min-height: 46px;
       padding: 0 14px;
       color: var(--ide-color-neutral-900) !important;
-      -webkit-text-fill-color: var(--ide-color-neutral-900) !important;
-      caret-color: var(--ide-color-neutral-900);
-      border: 1px solid rgba(17, 20, 21, 0.26) !important;
-      border-radius: var(--ide-radius-md) !important;
+      border: 1px solid rgba(17, 20, 21, 0.2) !important;
+      border-radius: var(--ide-radius-md);
       background: var(--ide-color-white) !important;
-      font: 500 var(--ide-font-size-sm)/1.2 var(--ide-font-family-sans) !important;
+      font: inherit;
+      font-size: var(--ide-font-size-sm);
       box-shadow: none !important;
-      color-scheme: light;
     }
 
     .email-form input:-webkit-autofill,
