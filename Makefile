@@ -164,6 +164,9 @@ build:
 	@cp -r src/services ./ 2>/dev/null || true
 	@cp -r src/constants ./ 2>/dev/null || true
 	@cp -r src/core ./ 2>/dev/null || true
+	@test -f styles/tokens.css
+	@test -f styles/design-system.css
+	@test -f core/app-error.js
 	@echo "$(YELLOW)🔧 Processando variáveis de ambiente...$(NC)"
 	@if [ "$$GITHUB_ACTIONS" = "true" ]; then \
 		echo "$(BLUE)🤖 Executando no GitHub Actions - usando variables/secrets$(NC)"; \
