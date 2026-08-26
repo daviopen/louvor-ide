@@ -102,6 +102,45 @@
 
 @media (max-width: 900px) {
   .ide-sidebar-collapsed .ide-sidebar-link[data-tooltip]::after { display: none; }
+
+  /*
+   * Contrato único para o topo das páginas mobile: todo cabeçalho principal
+   * reserva a faixa ocupada pelo botão sanduíche. Isso evita depender do nome
+   * específico de cada tela (Dashboard, Indisponibilidade, Eventos, Setlists etc.).
+   */
+  body.ide-shell-enabled main > :is(
+    header,
+    .page-head,
+    .ide-page-header,
+    .ide-dashboard__header,
+    .unavailability-header,
+    .events-header,
+    .schedules-header,
+    .users-header,
+    .permissions-header,
+    .section-header,
+    .module-header
+  ) {
+    box-sizing: border-box;
+    padding-left: max(72px, calc(env(safe-area-inset-left) + 72px)) !important;
+  }
+
+  /* O conteúdo textual interno não pode voltar para baixo do botão por margens negativas/legacy CSS. */
+  body.ide-shell-enabled main > :is(
+    header,
+    .page-head,
+    .ide-page-header,
+    .ide-dashboard__header,
+    .unavailability-header,
+    .events-header,
+    .schedules-header,
+    .users-header,
+    .permissions-header,
+    .section-header,
+    .module-header
+  ) > :first-child {
+    min-width: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
