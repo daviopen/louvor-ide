@@ -31,6 +31,11 @@ jobs:
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
 
+      - name: ♿ Validar acessibilidade e responsividade em navegador real
+        env:
+          E2E_BASE_URL: https://louvor-ide.web.app
+        run: node tests/production-quality.e2e.cjs
+
       - name: 🎼 Validar módulo de Escalas publicado
         env:
           E2E_BASE_URL: https://louvor-ide.web.app
