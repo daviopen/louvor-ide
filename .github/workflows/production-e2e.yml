@@ -25,10 +25,15 @@ jobs:
         with:
           node-version: '20'
 
+      - name: 🔑 Autenticar service account Firebase para E2E funcional
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
+
       - name: 🌐 Instalar navegador E2E
         run: |
           set -e
-          npm install --no-save playwright@1.55.0
+          npm install --no-save playwright@1.55.0 firebase-admin@13.4.0
           npx playwright install --with-deps chromium
 
       - name: ♿ Validar acessibilidade e responsividade em navegador real
@@ -41,14 +46,12 @@ jobs:
           E2E_BASE_URL: https://louvor-ide.web.app
         run: |
           set -euo pipefail
-
           curl --fail-with-body -sS "${E2E_BASE_URL}/module.html?section=schedules" -o /tmp/module.html
           curl --fail-with-body -sS "${E2E_BASE_URL}/js/modules/events-page.js" -o /tmp/events-page.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/js/modules/schedules-page.js" -o /tmp/schedules-page.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/services/schedule-service.js" -o /tmp/schedule-service.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/repositories/schedule-repository.js" -o /tmp/schedule-repository.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/styles/schedules.css" -o /tmp/schedules.css
-
           grep -q 'loadSchedulesSection' /tmp/events-page.js
           grep -q "params.get('scheduleId')" /tmp/schedules-page.js
           grep -q 'Editar escala' /tmp/schedules-page.js
@@ -61,7 +64,6 @@ jobs:
           grep -q 'scheduleIdForEvent' /tmp/schedule-repository.js
           grep -q 'schedule-summary-card' /tmp/schedules.css
           grep -q '@media(max-width:640px)' /tmp/schedules.css
-
           echo "✅ Listagem e editor individual de Escalas estão publicados no Firebase Hosting"
 
       - name: 🎵 Validar catálogo e editor de músicas publicados
@@ -69,53 +71,32 @@ jobs:
           E2E_BASE_URL: https://louvor-ide.web.app
         run: |
           set -euo pipefail
-
           curl --fail-with-body -sS "${E2E_BASE_URL}/consultar.html" -o /tmp/consultar.html
           curl --fail-with-body -sS "${E2E_BASE_URL}/nova-musica.html" -o /tmp/nova-musica.html
           curl --fail-with-body -sS "${E2E_BASE_URL}/js/pages/consulta.js?v=20260826-catalog-fix" -o /tmp/consulta.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/js/pages/song-form.js?v=20260826-theme" -o /tmp/song-form.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/js/modules/music-service.js?v=20260826-catalog-fix2" -o /tmp/music-service.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/repositories/music-repository.js?v=20260826-catalog-fix2" -o /tmp/music-repository.js
-
           grep -q 'Consultar músicas' /tmp/consultar.html
           grep -q 'href="nova-musica.html"' /tmp/consultar.html
           grep -q 'id="song-search"' /tmp/consultar.html
-          grep -q 'id="song-artist-filter"' /tmp/consultar.html
-          grep -q 'id="song-minister-filter"' /tmp/consultar.html
-          grep -q 'id="song-key-filter"' /tmp/consultar.html
-          grep -q 'id="song-theme-filter"' /tmp/consultar.html
-          grep -q 'id="songs-clear-filters"' /tmp/consultar.html
           grep -q 'id="songs-result-count"' /tmp/consultar.html
-          grep -q 'id="songs-pagination"' /tmp/consultar.html
-          grep -q '@media (max-width: 600px)' /tmp/consultar.html
           grep -q 'musicService.getAllMusicsArray' /tmp/consulta.js
-          grep -q 'musicService.loadAllMusics' /tmp/consulta.js
-          grep -q 'musicService.filterCatalog' /tmp/consulta.js
-          grep -q 'musicService.paginateCatalog' /tmp/consulta.js
           grep -q 'Promise.resolve(window.musicIdeAuthReady)' /tmp/consulta.js
-          grep -q 'filterCatalog(musics, filters = {})' /tmp/music-service.js
-          grep -q 'paginateCatalog(musics, page = 1, pageSize = 10)' /tmp/music-service.js
           grep -q 'async findAll()' /tmp/music-repository.js
           grep -q 'COLLECTIONS.SONGS' /tmp/music-repository.js
           grep -q 'COLLECTIONS.MUSICS' /tmp/music-repository.js
-
           for field in titulo artista tom tema link cifra letra observacoes minister-list; do
             grep -q "id=\"${field}\"" /tmp/nova-musica.html || { echo "❌ Campo ${field} ausente do editor publicado"; exit 1; }
           done
-          grep -q 'data-preview="cifra"' /tmp/nova-musica.html
-          grep -q 'data-preview="letra"' /tmp/nova-musica.html
           grep -q 'song-form.js?v=20260826-theme' /tmp/nova-musica.html
-          grep -q 'listEligibleMinisters' /tmp/song-form.js
-          grep -q 'replaceMinisterKeys' /tmp/song-form.js
-          grep -q 'SONG_CREATED' /tmp/song-form.js
-          grep -q 'SONG_UPDATED' /tmp/song-form.js
-          grep -q 'beforeunload' /tmp/song-form.js
-          grep -q 'preferredKey' /tmp/music-repository.js
-          grep -q 'SONG_MINISTER_KEYS' /tmp/music-repository.js
-          grep -q 'AUDIT_LOGS' /tmp/music-repository.js
-          grep -q 'super(COLLECTIONS.SONGS' /tmp/music-repository.js
-
           echo "✅ Consulta e editor de músicas atuais estão publicados no Firebase Hosting"
+
+      - name: 🧭 Navegar no sistema e validar músicas reais em produção
+        env:
+          E2E_BASE_URL: https://louvor-ide.web.app
+          FIREBASE_PROJECT_ID: louvor-ide
+        run: node tests/production-songs-navigation.e2e.cjs
 
       - name: 🔐 Validar autenticação e autorização reais em produção
         env:
@@ -123,64 +104,28 @@ jobs:
           E2E_BASE_URL: https://louvor-ide.web.app
         run: |
           set -euo pipefail
-
           if [ -z "${FIREBASE_API_KEY:-}" ]; then
             echo "❌ VITE_FIREBASE_API_KEY não está disponível para o E2E"
             exit 1
           fi
-
           E2E_EMAIL="ide-music-e2e-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@example.com"
           E2E_PASSWORD="Aa1!$(openssl rand -hex 16)"
-
-          SIGNUP_RESPONSE="$(curl --fail-with-body -sS \
-            -X POST \
-            -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg email "${E2E_EMAIL}" --arg password "${E2E_PASSWORD}" '{email:$email,password:$password,returnSecureToken:true}')" \
-            "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}")"
-
+          SIGNUP_RESPONSE="$(curl --fail-with-body -sS -X POST -H 'Content-Type: application/json' -d "$(jq -n --arg email "${E2E_EMAIL}" --arg password "${E2E_PASSWORD}" '{email:$email,password:$password,returnSecureToken:true}')" "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}")"
           ID_TOKEN="$(printf '%s' "${SIGNUP_RESPONSE}" | jq -er '.idToken')"
           LOCAL_ID="$(printf '%s' "${SIGNUP_RESPONSE}" | jq -er '.localId')"
-
           cleanup() {
-            curl -sS \
-              -X POST \
-              -H 'Content-Type: application/json' \
-              -d "$(jq -n --arg idToken "${ID_TOKEN}" '{idToken:$idToken}')" \
-              "https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${FIREBASE_API_KEY}" >/dev/null || true
+            curl -sS -X POST -H 'Content-Type: application/json' -d "$(jq -n --arg idToken "${ID_TOKEN}" '{idToken:$idToken}')" "https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${FIREBASE_API_KEY}" >/dev/null || true
           }
           trap cleanup EXIT
-
-          PROFILE_PAYLOAD="$(jq -n \
-            --arg uid "${LOCAL_ID}" \
-            --arg email "${E2E_EMAIL}" \
-            '{fields:{uid:{stringValue:$uid},name:{stringValue:"E2E IDE Music"},email:{stringValue:$email},active:{booleanValue:true},role:{stringValue:"MEMBER"}}}')"
-
-          PROFILE_STATUS="$(curl -sS -o /tmp/e2e-profile.json -w '%{http_code}' \
-            -X PATCH \
-            -H "Authorization: Bearer ${ID_TOKEN}" \
-            -H 'Content-Type: application/json' \
-            -d "${PROFILE_PAYLOAD}" \
-            "https://firestore.googleapis.com/v1/projects/louvor-ide/databases/(default)/documents/users/${LOCAL_ID}")"
-
+          PROFILE_PAYLOAD="$(jq -n --arg uid "${LOCAL_ID}" --arg email "${E2E_EMAIL}" '{fields:{uid:{stringValue:$uid},name:{stringValue:"E2E IDE Music"},email:{stringValue:$email},active:{booleanValue:true},role:{stringValue:"MEMBER"}}}')"
+          PROFILE_STATUS="$(curl -sS -o /tmp/e2e-profile.json -w '%{http_code}' -X PATCH -H "Authorization: Bearer ${ID_TOKEN}" -H 'Content-Type: application/json' -d "${PROFILE_PAYLOAD}" "https://firestore.googleapis.com/v1/projects/louvor-ide/databases/(default)/documents/users/${LOCAL_ID}")"
           if [ "${PROFILE_STATUS}" != "403" ]; then
             echo "❌ Conta comum conseguiu criar/ativar o próprio perfil (HTTP ${PROFILE_STATUS})"
-            cat /tmp/e2e-profile.json
             exit 1
           fi
-          echo "✅ Elevação indevida via autoativação foi bloqueada em produção"
-
-          SONGS_STATUS="$(curl -sS -o /tmp/e2e-songs.json -w '%{http_code}' \
-            -H "Authorization: Bearer ${ID_TOKEN}" \
-            "https://firestore.googleapis.com/v1/projects/louvor-ide/databases/(default)/documents/songs?pageSize=1")"
-
+          SONGS_STATUS="$(curl -sS -o /tmp/e2e-songs.json -w '%{http_code}' -H "Authorization: Bearer ${ID_TOKEN}" "https://firestore.googleapis.com/v1/projects/louvor-ide/databases/(default)/documents/songs?pageSize=1")"
           if [ "${SONGS_STATUS}" != "403" ]; then
             echo "❌ Conta autenticada sem perfil ativo acessou songs (HTTP ${SONGS_STATUS})"
-            cat /tmp/e2e-songs.json
             exit 1
           fi
-          echo "✅ Conta autenticada sem perfil ativo foi bloqueada pelas Firestore Rules em produção"
-
-          E2E_EMAIL="${E2E_EMAIL}" \
-          E2E_PASSWORD="${E2E_PASSWORD}" \
-          E2E_BASE_URL="${E2E_BASE_URL}" \
-          node tests/production-auth.e2e.cjs
+          E2E_EMAIL="${E2E_EMAIL}" E2E_PASSWORD="${E2E_PASSWORD}" E2E_BASE_URL="${E2E_BASE_URL}" node tests/production-auth.e2e.cjs
