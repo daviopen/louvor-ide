@@ -1,11 +1,6 @@
 name: 🎭 Full-system Playwright E2E
 
 on:
-  workflow_run:
-    workflows:
-      - "🚀 Deploy to Firebase Hosting"
-    types:
-      - completed
   workflow_dispatch:
   schedule:
     - cron: '17 9 * * *'
@@ -16,18 +11,12 @@ concurrency:
 
 jobs:
   full_system_e2e:
-    if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-      (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'master'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
       - name: 📂 Checkout versão a validar
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
