@@ -69,6 +69,26 @@
     };
   }
 
+  function buildConsentAuditPayload(user, entityId, timestamp) {
+    return {
+      actorUserId: user.uid,
+      action: 'LGPD_CONSENT_ACCEPTED',
+      entityType: 'lgpdConsent',
+      entityId,
+      details: {
+        before: null,
+        after: {
+          consentVersion: CONSENT_VERSION,
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
+          status: 'ACCEPTED',
+          source: 'web'
+        }
+      },
+      createdAt: timestamp
+    };
+  }
+
   async function recordConsent(scope, user) {
     if (!scope || !scope.firebase || typeof scope.firebase.firestore !== 'function') {
       throw new Error('Firestore indisponível para registrar o consentimento.');
@@ -80,11 +100,14 @@
     const timestamp = fieldValue && typeof fieldValue.serverTimestamp === 'function'
       ? fieldValue.serverTimestamp()
       : new Date();
-    const consentRef = db.collection('lgpdConsents').doc(consentDocumentId(user.uid));
+    const consentId = consentDocumentId(user.uid);
+    const consentRef = db.collection('lgpdConsents').doc(consentId);
+    const auditRef = db.collection('auditLogs').doc();
     const userRef = db.collection('users').doc(user.uid);
     const batch = db.batch();
 
     batch.set(consentRef, buildConsentPayload(user, timestamp));
+    batch.set(auditRef, buildConsentAuditPayload(user, consentId, timestamp));
     batch.update(userRef, {
       lgpdConsentVersion: CONSENT_VERSION,
       lgpdTermsVersion: TERMS_VERSION,
@@ -151,6 +174,7 @@
     PUBLIC_LEGAL_PAGES,
     TERMS_VERSION,
     bootstrapGate,
+    buildConsentAuditPayload,
     buildConsentPayload,
     consentDocumentId,
     currentReturnUrl,
