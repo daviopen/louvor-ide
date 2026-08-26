@@ -13,7 +13,7 @@
   function dateText(value) { if (!value) return '—'; const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value); return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date); }
   function canEdit(profile) { return Boolean(scope.MusicIdeUserService && scope.MusicIdeUserService.canManageUsers(profile)); }
   function canEditFunctions(profile) { return Boolean(scope.MusicIdeMinistryFunctions && scope.MusicIdeMinistryFunctions.canManageMinistryFunctions(profile)); }
-  function toast(message, type = 'success') { const node = el('users-toast'); node.textContent = message; node.dataset.type = type; node.hidden = false; clearTimeout(toast.timer); toast.timer = setTimeout(() => { node.hidden = true; }, 4500); }
+  function toast(message, type = 'success') { const node = el('users-toast'); node.textContent = message; node.dataset.type = type; node.hidden = false; clearTimeout(toast.timer); toast.timer = setTimeout(() => { node.hidden = true; }, 6000); }
   function setBusy(busy) { el('users-loading').hidden = !busy; el('users-content').setAttribute('aria-busy', String(busy)); }
 
   async function load() {
@@ -40,7 +40,7 @@
       const initials = escapeHtml((user.name || user.email || '?').trim().slice(0, 1).toUpperCase());
       const functions = (user.functions || []).map(fn => `<span class="ide-badge">${escapeHtml(fn.name)}</span>`).join('') || '<span class="users-muted">Sem função</span>';
       const avatar = user.photoURL ? `<img src="${escapeHtml(user.photoURL)}" alt="" referrerpolicy="no-referrer">` : `<span>${initials}</span>`;
-      return `<tr><td><div class="users-person"><div class="users-avatar">${avatar}</div><div><strong>${escapeHtml(user.name)}</strong><small>${escapeHtml(user.email)}</small></div></div></td><td><div class="users-chips">${functions}</div></td><td><span class="ide-badge ${user.active === false ? 'ide-badge--neutral' : 'ide-badge--success'}">${user.active === false ? 'Inativo' : 'Ativo'}</span></td><td>${dateText(user.lastAccessAt)}</td><td class="users-actions">${editable ? `<button class="ide-button ide-button--secondary ide-button--sm" data-action="edit" data-id="${escapeHtml(user.id)}">Editar</button><button class="ide-button ide-button--secondary ide-button--sm" data-action="password" data-id="${escapeHtml(user.id)}" data-email="${escapeHtml(user.email)}">Alterar senha</button><button class="ide-button ${user.active === false ? 'ide-button--primary' : 'ide-button--danger'} ide-button--sm" data-action="status" data-id="${escapeHtml(user.id)}" data-active="${user.active === false ? 'true' : 'false'}">${user.active === false ? 'Reativar' : 'Inativar'}</button>` : '<span class="users-muted">Somente leitura</span>'}</td></tr>`;
+      return `<tr><td><div class="users-person"><div class="users-avatar">${avatar}</div><div><strong>${escapeHtml(user.name)}</strong><small>${escapeHtml(user.email)}</small></div></div></td><td><div class="users-chips">${functions}</div></td><td><span class="ide-badge ${user.active === false ? 'ide-badge--neutral' : 'ide-badge--success'}">${user.active === false ? 'Inativo' : 'Ativo'}</span></td><td>${dateText(user.lastAccessAt)}</td><td class="users-actions">${editable ? `<button class="ide-button ide-button--secondary ide-button--sm" data-action="edit" data-id="${escapeHtml(user.id)}">Editar</button><button class="ide-button ide-button--secondary ide-button--sm" data-action="password" data-id="${escapeHtml(user.id)}" data-email="${escapeHtml(user.email)}">Redefinir senha</button><button class="ide-button ${user.active === false ? 'ide-button--primary' : 'ide-button--danger'} ide-button--sm" data-action="status" data-id="${escapeHtml(user.id)}" data-active="${user.active === false ? 'true' : 'false'}">${user.active === false ? 'Reativar' : 'Inativar'}</button>` : '<span class="users-muted">Somente leitura</span>'}</td></tr>`;
     }).join('');
   }
 
@@ -51,7 +51,6 @@
     state.editingId = user && user.id || null;
     el('user-form-title').textContent = user ? 'Editar usuário' : 'Novo usuário';
     el('user-name').value = user?.name || ''; el('user-email').value = user?.email || ''; el('user-photo').value = user?.photoURL || '';
-    el('user-password').value = ''; el('user-password-row').hidden = Boolean(user); el('user-password').required = !user;
     el('user-permissions-row').hidden = Boolean(user);
     el('user-functions').innerHTML = state.functions.filter(item => item.active !== false).map(fn => `<label class="users-function-option"><input type="checkbox" value="${escapeHtml(fn.id)}" ${user?.functionIds?.includes(fn.id) ? 'checked' : ''}><span>${escapeHtml(fn.name)}</span></label>`).join('');
     if (!user) renderInitialPermissions();
@@ -64,37 +63,43 @@
   async function submitForm(event) {
     event.preventDefault();
     const functionIds = Array.from(el('user-functions').querySelectorAll('input:checked')).map(input => input.value);
-    const payload = { name: el('user-name').value.trim(), email: el('user-email').value.trim(), photoURL: el('user-photo').value.trim() || null, functionIds, permissions: state.editingId ? undefined : readInitialPermissions(), password: state.editingId ? undefined : el('user-password').value };
+    const payload = { name: el('user-name').value.trim(), email: el('user-email').value.trim(), photoURL: el('user-photo').value.trim() || null, functionIds, permissions: state.editingId ? undefined : readInitialPermissions() };
     el('user-submit').disabled = true;
     try {
-      if (state.editingId) { await service.update(state.editingId, payload); toast('Usuário atualizado com sucesso.'); }
-      else { await service.create(payload); toast('Usuário criado no Firebase Authentication com a senha definida pelo administrador.'); }
+      if (state.editingId) {
+        await service.update(state.editingId, payload);
+        toast('Usuário atualizado com sucesso.');
+      } else {
+        const created = await service.create(payload);
+        if (created.passwordEmailSent) toast('Usuário criado. O Firebase confirmou a solicitação do e-mail para definição de senha.');
+        else toast(`Usuário criado, mas o e-mail de definição de senha não foi confirmado: ${created.passwordEmailError || 'erro não informado'}. Use “Redefinir senha” para tentar novamente.`, 'error');
+      }
       el('user-dialog').close(); state.page = 1; await load();
     } catch (error) { console.error(error); toast(error.message || 'Não foi possível salvar o usuário.', 'error'); }
     finally { el('user-submit').disabled = false; }
   }
 
-  function openPasswordDialog(id, email) {
-    el('password-user-id').value = id; el('password-user-label').textContent = `Usuário: ${email}`; el('password-new').value = ''; el('password-confirm').value = '';
-    el('password-dialog').showModal(); el('password-new').focus();
-  }
-
-  async function submitPassword(event) {
-    event.preventDefault();
-    const password = el('password-new').value; const confirmation = el('password-confirm').value;
-    if (password !== confirmation) return toast('A confirmação da senha não confere.', 'error');
-    el('password-submit').disabled = true;
-    try { await service.setPassword(el('password-user-id').value, password); el('password-dialog').close(); toast('Senha alterada diretamente no Firebase Authentication.'); }
-    catch (error) { console.error(error); toast(error.message || 'Não foi possível alterar a senha.', 'error'); }
-    finally { el('password-submit').disabled = false; }
-  }
-
   async function handleTableClick(event) {
     const button = event.target.closest('button[data-action]'); if (!button) return;
     try {
-      if (button.dataset.action === 'edit') { const user = await findUser(button.dataset.id); if (user) openForm(user); }
-      else if (button.dataset.action === 'password') openPasswordDialog(button.dataset.id, button.dataset.email);
-      else if (button.dataset.action === 'status') { const active = button.dataset.active === 'true'; if (!scope.confirm(`${active ? 'Reativar' : 'Inativar'} este usuário? O histórico será preservado.`)) return; await service.setActive(button.dataset.id, active); toast(active ? 'Usuário reativado.' : 'Usuário inativado sem exclusão de histórico.'); await load(); }
+      if (button.dataset.action === 'edit') {
+        const user = await findUser(button.dataset.id); if (user) openForm(user);
+      } else if (button.dataset.action === 'password') {
+        if (!scope.confirm(`Solicitar ao Firebase um e-mail de redefinição de senha para ${button.dataset.email}?`)) return;
+        button.disabled = true;
+        try {
+          await service.sendPasswordReset(button.dataset.email, button.dataset.id);
+          toast(`Solicitação aceita pelo Firebase para ${button.dataset.email}. Confira também Spam, Lixo eletrônico e a aba Promoções.`);
+        } finally {
+          button.disabled = false;
+        }
+      } else if (button.dataset.action === 'status') {
+        const active = button.dataset.active === 'true';
+        if (!scope.confirm(`${active ? 'Reativar' : 'Inativar'} este usuário? O histórico será preservado.`)) return;
+        await service.setActive(button.dataset.id, active);
+        toast(active ? 'Usuário reativado.' : 'Usuário inativado sem exclusão de histórico.');
+        await load();
+      }
     } catch (error) { console.error(error); toast(error.message || 'A operação não pôde ser concluída.', 'error'); }
   }
 
@@ -116,12 +121,11 @@
     const authUser = await scope.musicIdeAuthReady; if (!authUser) return;
     if (!scope.firebase || typeof scope.firebase.firestore !== 'function') return toast('Firestore indisponível.', 'error');
     const database = scope.firebase.firestore(); const repository = new scope.MusicIdeUserRepository.UserRepository(database);
-    service = new scope.MusicIdeUserService.UserService(repository, { auth: scope.firebase.auth(), actorProvider: () => scope.currentMusicIdeUser });
+    service = new scope.MusicIdeUserService.UserService(repository, { auth: scope.firebase.auth(), firebase: scope.firebase, actorProvider: () => scope.currentMusicIdeUser });
     const registry = scope.MusicIdeDomainRepositories.createRepositoryRegistry(database);
     ministryService = new scope.MusicIdeMinistryFunctions.MinistryFunctionsService({ ministryFunctionsRepository: registry.ministryFunctions, userFunctionsRepository: registry.userFunctions, auditRepository: registry.auditLogs, actorProvider: () => scope.currentMusicIdeUser });
     const editable = canEdit(scope.currentMusicIdeProfile); el('new-user').hidden = !editable; el('users-readonly').hidden = editable;
     el('new-user').addEventListener('click', () => openForm()); el('manage-functions').addEventListener('click', openFunctionsDialog); el('user-form').addEventListener('submit', submitForm); el('user-cancel').addEventListener('click', () => el('user-dialog').close()); el('users-body').addEventListener('click', handleTableClick);
-    el('password-form').addEventListener('submit', submitPassword); el('password-cancel').addEventListener('click', () => el('password-dialog').close());
     el('functions-close').addEventListener('click', () => el('functions-dialog').close()); el('function-cancel').addEventListener('click', resetFunctionForm); el('function-form').addEventListener('submit', submitFunction); el('functions-list').addEventListener('click', handleFunctionListClick);
     el('filter-search').addEventListener('input', event => { state.filters.search = event.target.value; state.page = 1; load(); }); el('filter-status').addEventListener('change', event => { state.filters.status = event.target.value; state.page = 1; load(); }); el('filter-function').addEventListener('change', event => { state.filters.functionId = event.target.value; state.page = 1; load(); }); el('clear-filters').addEventListener('click', () => { state.filters = { search: '', status: 'ALL', functionId: 'ALL' }; el('filter-search').value = ''; el('filter-status').value = 'ALL'; el('filter-function').value = 'ALL'; state.page = 1; load(); }); el('page-prev').addEventListener('click', () => { state.page -= 1; load(); }); el('page-next').addEventListener('click', () => { state.page += 1; load(); });
     alignUsersNavigation(); setTimeout(alignUsersNavigation, 100); await load();
