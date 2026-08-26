@@ -40,15 +40,23 @@ jobs:
           ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"
           CONFIG_URL="https://identitytoolkit.googleapis.com/admin/v2/projects/louvor-ide/config"
 
-          curl --fail-with-body -sS \
+          HTTP_CODE="$(curl -sS \
+            -o /tmp/auth-config.json \
+            -w '%{http_code}' \
             -X PATCH \
             -H "Authorization: Bearer ${ACCESS_TOKEN}" \
             -H "Content-Type: application/json" \
             -H "X-Goog-User-Project: louvor-ide" \
             -d '{"signIn":{"allowDuplicateEmails":false}}' \
-            "${CONFIG_URL}?updateMask=signIn.allowDuplicateEmails" \
-            >/tmp/auth-config.json
+            "${CONFIG_URL}?updateMask=signIn.allowDuplicateEmails")"
 
+          if [ "${HTTP_CODE}" -lt 200 ] || [ "${HTTP_CODE}" -ge 300 ]; then
+            echo "❌ Identity Toolkit PATCH retornou HTTP ${HTTP_CODE}:"
+            cat /tmp/auth-config.json
+            exit 1
+          fi
+
+          cat /tmp/auth-config.json
           test "$(jq -r '.signIn.allowDuplicateEmails' /tmp/auth-config.json)" = "false"
           echo "✅ Firebase Authentication configurado para uma única conta por e-mail."
 
