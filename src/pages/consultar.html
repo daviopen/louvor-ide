@@ -2,1435 +2,162 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Músicas — IDE Music</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#10261f" />
+  <title>Consultar músicas — IDE Music</title>
+
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="../config/firebase-config.js"></script>
   <script src="../js/modules/auth-service.js?v=20260825-email"></script>
   <script src="../js/modules/app-shell.js?v=20260825-sidebar" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/chord-transposer@3.0.9/dist/index.js"></script>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="../styles/tokens.css" />
+  <link rel="stylesheet" href="../styles/design-system.css" />
+  <link rel="stylesheet" href="../css/music-ide-theme.css" />
+
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      color: #333;
-    }
-
-    .header {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      padding: 20px 0;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .header-content {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 0 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: #4CAF50;
-      text-decoration: none;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .logo:hover {
-      transform: scale(1.05);
-      color: #45a049;
-    }
-
-    .nav-buttons {
-      display: flex;
-      gap: 15px;
-    }
-
-    .nav-btn {
-      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-      color: white;
-      padding: 15px 25px;
-      border: none;
-      border-radius: 25px;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      transition: all 0.3s ease;
-      cursor: pointer;
-    }
-
-    .nav-btn.primary {
-      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-      color: white;
-    }
-
-    .nav-btn.secondary {
-      background: linear-gradient(135deg, #607d8b 0%, #455a64 100%);
-      color: white;
-    }
-
-    .nav-btn:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
-    }
-
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 30px 20px;
-      display: grid;
-      grid-template-columns: 1fr 2fr;
-      gap: 30px;
-      height: calc(100vh - 120px);
-    }
-
-    .left-panel {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      padding: 25px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-      overflow-y: auto;
-    }
-
-    .right-panel {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      padding: 25px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .search-section {
-      margin-bottom: 25px;
-    }
-
-    .search-title {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: #333;
-      margin-bottom: 15px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .search-box {
-      width: 100%;
-      padding: 15px 20px 15px 50px;
-      border: 2px solid #e0e0e0;
-      border-radius: 15px;
-      font-size: 16px;
-      transition: all 0.3s ease;
-      position: relative;
-    }
-
-    .search-container {
-      position: relative;
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 18px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #666;
-      font-size: 18px;
-    }
-
-    .search-box:focus {
-      outline: none;
-      border-color: #4CAF50;
-      box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
-    }
-
-    .music-list {
-      max-height: calc(100vh - 350px);
-      overflow-y: auto;
-    }
-
-    .music-item {
-      padding: 15px;
-      border-radius: 12px;
-      margin-bottom: 10px;
-      background: rgba(255, 255, 255, 0.8);
-      border: 2px solid transparent;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .music-item:hover {
-      background: rgba(76, 175, 80, 0.1);
-      border-color: #4CAF50;
-      transform: translateX(5px);
-    }
-
-    .music-item.selected {
-      background: linear-gradient(135deg, #4CAF50, #45a049);
-      color: white;
-      border-color: #4CAF50;
-    }
-
-    .music-item-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin-bottom: 5px;
-    }
-
-    .music-item-artist {
-      font-size: 0.9rem;
-      color: #666;
-      font-style: italic;
-      margin-bottom: 5px;
-    }
-
-    .music-item-info {
-      font-size: 0.9rem;
-      opacity: 0.8;
-      display: flex;
-      gap: 15px;
-    }
-
-    .viewer-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      padding-bottom: 15px;
-      border-bottom: 2px solid #e0e0e0;
-    }
-
-    .music-info-display {
-      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-      padding: 20px;
-      border-radius: 15px;
-      margin-bottom: 20px;
-    }
-
-    .music-title-display {
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: #333;
-      margin-bottom: 10px;
-    }
-
-    .music-meta {
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
-    }
-
-    .meta-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 15px;
-      background: white;
-      border-radius: 20px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    .transpose-controls {
-      background: #f8f9fa;
-      padding: 20px;
-      border-radius: 15px;
-      margin-bottom: 20px;
-    }
-
-    .controls-title {
-      font-size: 1.2rem;
-      font-weight: 600;
-      margin-bottom: 15px;
-      color: #333;
-    }
-
-    .transpose-buttons {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-    }
-
-    .transpose-btn {
-      padding: 12px 20px;
-      border: none;
-      border-radius: 10px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      flex: 1;
-      min-width: 120px;
-    }
-
-    .btn-down {
-      background: linear-gradient(135deg, #f44336, #d32f2f);
-      color: white;
-    }
-
-    .btn-up {
-      background: linear-gradient(135deg, #4CAF50, #45a049);
-      color: white;
-    }
-
-    .btn-reset {
-      background: linear-gradient(135deg, #ff9800, #f57c00);
-      color: white;
-    }
-
-    .transpose-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-    }
-
-    .transpose-btn:disabled {
-      background: #e0e0e0 !important;
-      color: #9e9e9e !important;
-      cursor: not-allowed;
-      transform: none !important;
-    }
-
-    .current-key {
-      background: linear-gradient(135deg, #2196F3, #1976D2);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 20px;
-      font-weight: 600;
-      font-size: 1.1rem;
-      text-align: center;
-      box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);
-    }
-
-    .cifra-display {
-      flex: 1;
-      background: #1e1e1e;
-      border-radius: 15px;
-      padding: 25px;
-      overflow-y: auto;
-      margin-top: 10px;
-    }
-
-    .cifra-content {
-      color: #f8f8f2;
-      font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
-      font-size: 16px;
-      line-height: 1.8;
-      white-space: pre-wrap;
-    }
-
-    .chord-highlight {
-      color: #66d9ef;
-      font-weight: bold;
-      background: rgba(102, 217, 239, 0.2);
-      padding: 2px 4px;
-      border-radius: 4px;
-    }
-
-    .empty-state {
-      text-align: center;
-      color: #666;
-      padding: 60px 20px;
-    }
-
-    .empty-state i {
-      font-size: 4rem;
-      margin-bottom: 20px;
-      opacity: 0.5;
-    }
-
-    .loading {
-      text-align: center;
-      color: #666;
-      padding: 40px;
-    }
-
-    .loading::before {
-      content: '';
-      display: inline-block;
-      width: 30px;
-      height: 30px;
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #4CAF50;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-right: 10px;
-      vertical-align: middle;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    @media (max-width: 1024px) {
-      .container {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr;
-        height: auto;
-      }
-
-      .left-panel {
-        max-height: 300px;
-      }
-
-      .music-list {
-        max-height: 200px;
-      }
-    }
-
-    @media (max-width: 768px) {
-      .header-content {
-        flex-direction: column;
-        gap: 15px;
-      }
-
-      .nav-buttons {
-        width: 100%;
-        justify-content: center;
-      }
-
-      .container {
-        padding: 20px 10px;
-        gap: 20px;
-      }
-
-      .transpose-buttons {
-        flex-direction: column;
-      }
-
-      .transpose-btn {
-        min-width: auto;
-      }
-
-      .music-meta {
-        flex-direction: column;
-        gap: 10px;
-      }
-    }
-
-    /* Estilos para botões de ação das setlists */
-    .setlist-actions {
-      display: flex;
-      gap: 8px;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-
-    .setlist-card:hover .setlist-actions {
-      opacity: 1;
-    }
-
-    .action-btn {
-      width: 40px;
-      height: 40px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      transition: all 0.3s ease;
-      color: white;
-    }
-
-    .action-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-
-    .action-btn.view {
-      background: linear-gradient(135deg, #2196F3, #1976D2);
-    }
-
-    .action-btn.cifras {
-      background: linear-gradient(135deg, #FF9800, #F57C00);
-    }
-
-    .action-btn.edit {
-      background: linear-gradient(135deg, #4CAF50, #388E3C);
-    }
-
-    .action-btn.delete {
-      background: linear-gradient(135deg, #F44336, #D32F2F);
-    }
-
-    /* Estilos para botões de ação das músicas */
-    .music-actions {
-      display: flex;
-      gap: 12px;
-      margin-top: 15px;
-      padding-top: 15px;
-      border-top: 2px solid #e0e0e0;
-      justify-content: flex-end;
-    }
-
-    .music-action-btn {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      color: white;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .music-action-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-    }
-
-    .edit-btn {
-      background: linear-gradient(135deg, #4CAF50, #388E3C);
-    }
-
-    .delete-btn {
-      background: linear-gradient(135deg, #F44336, #D32F2F);
-    }
-
-    @media (max-width: 768px) {
-      .music-actions {
-        flex-direction: column;
-      }
-
-      .music-action-btn {
-        width: 100%;
-        justify-content: center;
-      }
+    body { margin: 0; min-height: 100vh; background: var(--color-background); color: var(--color-text-primary); }
+    .songs-page { max-width: 1440px; margin: 0 auto; padding: var(--space-6); }
+    .songs-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-5); }
+    .songs-header h1 { margin: 0 0 var(--space-1); font-size: clamp(1.55rem, 3vw, 2.2rem); }
+    .songs-header p { margin: 0; color: var(--color-text-secondary); }
+    .songs-new-button { white-space: nowrap; }
+    .songs-layout { display: grid; grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.5fr); gap: var(--space-5); align-items: start; }
+    .songs-panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); }
+    .songs-catalog { padding: var(--space-5); }
+    .songs-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
+    .songs-filter--search { grid-column: 1 / -1; }
+    .songs-filter label { display: block; margin-bottom: var(--space-1); font-size: .82rem; font-weight: 700; color: var(--color-text-secondary); }
+    .songs-filter input, .songs-filter select { width: 100%; min-height: 44px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); padding: 0 var(--space-3); }
+    .songs-filter input:focus, .songs-filter select:focus { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+    .songs-filter-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+    .songs-result-count { font-size: .9rem; color: var(--color-text-secondary); }
+    .songs-clear { border: 0; background: transparent; color: var(--color-primary); font-weight: 700; cursor: pointer; padding: var(--space-2); }
+    .songs-clear:disabled { opacity: .5; cursor: default; }
+    .songs-list { display: grid; gap: var(--space-2); }
+    .song-row { width: 100%; text-align: left; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-secondary); color: var(--color-text-primary); padding: var(--space-3); cursor: pointer; transition: border-color .18s ease, transform .18s ease, background .18s ease; }
+    .song-row:hover { border-color: var(--color-primary); transform: translateY(-1px); }
+    .song-row[aria-current="true"] { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface)); }
+    .song-row__title { display: block; font-weight: 800; margin-bottom: 3px; }
+    .song-row__meta { display: flex; flex-wrap: wrap; gap: var(--space-2); font-size: .82rem; color: var(--color-text-secondary); }
+    .songs-pagination { display: flex; align-items: center; justify-content: center; gap: var(--space-3); margin-top: var(--space-4); }
+    .songs-pagination button { min-height: 40px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); padding: 0 var(--space-3); cursor: pointer; }
+    .songs-pagination button:disabled { opacity: .45; cursor: default; }
+    .songs-pagination__label { min-width: 96px; text-align: center; font-size: .88rem; color: var(--color-text-secondary); }
+    .songs-viewer { min-height: 520px; padding: var(--space-5); position: sticky; top: var(--space-4); }
+    .songs-empty { min-height: 420px; display: grid; place-items: center; text-align: center; color: var(--color-text-secondary); padding: var(--space-6); }
+    .songs-empty i { display: block; font-size: 2.3rem; margin-bottom: var(--space-3); color: var(--color-primary); }
+    .song-detail[hidden] { display: none; }
+    .song-detail__header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); }
+    .song-detail__header h2 { margin: 0 0 var(--space-1); font-size: clamp(1.4rem, 3vw, 2rem); }
+    .song-detail__artist { color: var(--color-text-secondary); }
+    .song-detail__meta { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-4) 0; }
+    .song-chip { border: 1px solid var(--color-border); background: var(--color-surface-secondary); border-radius: 999px; padding: var(--space-2) var(--space-3); font-size: .84rem; }
+    .song-cifra { margin: 0; min-height: 320px; max-height: 58vh; overflow: auto; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height: 1.75; background: var(--color-surface-secondary); color: var(--color-text-primary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-4); }
+    .songs-loading { text-align: center; padding: var(--space-6); color: var(--color-text-secondary); }
+    .songs-loading[hidden] { display: none; }
+
+    @media (max-width: 900px) {
+      .songs-page { padding: var(--space-4); }
+      .songs-layout { grid-template-columns: 1fr; }
+      .songs-viewer { position: static; min-height: auto; }
+    }
+    @media (max-width: 600px) {
+      .songs-header { align-items: stretch; flex-direction: column; }
+      .songs-new-button { width: 100%; justify-content: center; }
+      .songs-catalog, .songs-viewer { padding: var(--space-4); }
+      .songs-filters { grid-template-columns: 1fr; }
+      .songs-filter--search { grid-column: auto; }
+      .songs-filter-actions { align-items: flex-start; flex-direction: column; }
+      .songs-clear { padding-left: 0; }
+      .song-detail__header { flex-direction: column; }
+      .song-row__meta { gap: 6px 10px; }
+      .songs-pagination { justify-content: space-between; }
     }
   </style>
-  <link rel="stylesheet" href="../css/music-ide-theme.css">
 </head>
 <body>
-  <header class="header">
-    <div class="header-content">
-      <a href="index.html" class="logo">
-        <i class="fas fa-compact-disc"></i>
-        <span>IDE Music</span>
+  <main class="songs-page" id="songs-page">
+    <header class="songs-header">
+      <div>
+        <h1>Consultar músicas</h1>
+        <p>Encontre rapidamente o repertório por nome, artista, ministro, tom ou tema.</p>
+      </div>
+      <a class="ide-button ide-button--primary ide-button--md songs-new-button" href="nova-musica.html">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+        Nova Música
       </a>
-      
-      <div class="nav-buttons">
-        <a href="index.html" class="nav-btn secondary">
-          <i class="fas fa-home"></i>
-          Início
-        </a>
-        <a href="setlists.html" class="nav-btn primary" style="background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);">
-          <i class="fas fa-calendar-alt"></i>
-          Setlist
-        </a>
-        <a href="nova-musica.html" class="nav-btn primary">
-          <i class="fas fa-plus"></i>
-          Nova Música
-        </a>
-      </div>
+    </header>
+
+    <div class="songs-layout">
+      <section class="songs-panel songs-catalog" aria-labelledby="catalog-title">
+        <h2 id="catalog-title" class="sr-only">Catálogo de músicas</h2>
+        <div class="songs-filters" aria-label="Filtros do catálogo">
+          <div class="songs-filter songs-filter--search">
+            <label for="song-search">Nome da música</label>
+            <input id="song-search" type="search" autocomplete="off" placeholder="Buscar por nome..." />
+          </div>
+          <div class="songs-filter">
+            <label for="song-artist-filter">Artista</label>
+            <select id="song-artist-filter"><option value="">Todos</option></select>
+          </div>
+          <div class="songs-filter">
+            <label for="song-minister-filter">Ministro</label>
+            <select id="song-minister-filter"><option value="">Todos</option></select>
+          </div>
+          <div class="songs-filter">
+            <label for="song-key-filter">Tom</label>
+            <select id="song-key-filter"><option value="">Todos</option></select>
+          </div>
+          <div class="songs-filter">
+            <label for="song-theme-filter">Tema</label>
+            <select id="song-theme-filter"><option value="">Todos</option></select>
+          </div>
+        </div>
+
+        <div class="songs-filter-actions">
+          <div id="songs-result-count" class="songs-result-count" aria-live="polite">Carregando repertório...</div>
+          <button type="button" id="songs-clear-filters" class="songs-clear" disabled>Limpar filtros</button>
+        </div>
+
+        <div id="songs-loading" class="songs-loading" role="status">Carregando músicas...</div>
+        <div id="songs-list" class="songs-list" aria-live="polite"></div>
+        <nav id="songs-pagination" class="songs-pagination" aria-label="Paginação das músicas" hidden>
+          <button type="button" id="songs-prev-page"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Anterior</button>
+          <span id="songs-page-label" class="songs-pagination__label"></span>
+          <button type="button" id="songs-next-page">Próxima <i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+        </nav>
+      </section>
+
+      <section class="songs-panel songs-viewer" aria-live="polite">
+        <div id="songs-empty-viewer" class="songs-empty">
+          <div>
+            <i class="fa-solid fa-music" aria-hidden="true"></i>
+            <h2>Selecione uma música</h2>
+            <p>Os detalhes e a cifra aparecerão aqui.</p>
+          </div>
+        </div>
+
+        <article id="song-detail" class="song-detail" hidden>
+          <div class="song-detail__header">
+            <div>
+              <h2 id="song-detail-title"></h2>
+              <div id="song-detail-artist" class="song-detail__artist"></div>
+            </div>
+            <a id="song-detail-link" class="ide-button ide-button--secondary ide-button--sm" href="#" target="_blank" rel="noopener noreferrer" hidden>
+              <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Referência
+            </a>
+          </div>
+          <div id="song-detail-meta" class="song-detail__meta"></div>
+          <pre id="song-detail-cifra" class="song-cifra"></pre>
+        </article>
+      </section>
     </div>
-  </header>
+  </main>
 
-  <div class="container">
-    <div class="left-panel">
-      <div class="search-section">
-        <h2 class="search-title">
-          <i class="fas fa-music"></i>
-          Buscar Música
-        </h2>
-        <div class="search-container">
-          <i class="fas fa-search search-icon"></i>
-          <input type="text" id="search-input" class="search-box" placeholder="Digite o nome da música...">
-        </div>
-      </div>
-
-      <div id="loading" class="loading">
-        Carregando músicas...
-      </div>
-
-      <div class="music-list" id="music-list" style="display: none;"></div>
-    </div>
-
-    <div class="right-panel">
-      <div id="empty-viewer" class="empty-state">
-        <i class="fas fa-hand-pointer"></i>
-        <h3>Selecione uma música</h3>
-        <p>Escolha uma música da lista ao lado para visualizar e transpor</p>
-      </div>
-
-      <div id="music-viewer" style="display: none;">
-        <div class="music-info-display">
-          <div class="music-title-display" id="current-title">Título da Música</div>
-          <div class="music-meta">
-            <div class="meta-item">
-              <i class="fas fa-microphone"></i>
-              <span id="current-artista">Artista</span>
-            </div>
-            <div class="meta-item">
-              <i class="fas fa-music"></i>
-              <span>Tom da Música: <span id="current-original-key">C</span></span>
-            </div>
-            <div class="meta-item" id="tom-ministro-container-consulta" style="display: none;">
-              <i class="fas fa-user-music"></i>
-              <span>Tom do Ministro: <span id="current-tom-ministro">-</span></span>
-            </div>
-            <div class="meta-item" id="tom-atual-container-consulta" style="display: none;">
-              <i class="fas fa-arrow-right"></i>
-              <span>Tom Transposto: <span id="current-key" class="current-key">C</span></span>
-            </div>
-            <div class="meta-item" id="bpm-container">
-              <i class="fas fa-tachometer-alt"></i>
-              <span id="current-bpm">120 BPM</span>
-            </div>
-            <div class="meta-item" id="link-container-consulta" style="display: none;">
-              <i class="fas fa-external-link-alt"></i>
-              <a id="current-link" href="#" target="_blank">Abrir Música</a>
-            </div>
-          </div>
-          
-          <!-- Botões de Ação -->
-          <div class="music-actions" id="music-actions" style="display: none;">
-            <button class="music-action-btn edit-btn" onclick="editMusica()" title="Editar Música">
-              <i class="fas fa-edit"></i>
-              Editar
-            </button>
-            <button class="music-action-btn delete-btn" onclick="deleteMusica()" title="Excluir Música">
-              <i class="fas fa-trash"></i>
-              Excluir
-            </button>
-          </div>
-        </div>
-
-        <div class="transpose-controls">
-          <div class="controls-title">
-            <i class="fas fa-sliders-h"></i>
-            Controles de Transposição
-          </div>
-          <div class="transpose-buttons">
-            <button class="transpose-btn btn-down" id="btn-down" onclick="transpose(-1)" disabled>
-              <i class="fas fa-arrow-down"></i>
-              Descer Semitom
-            </button>
-            <button class="transpose-btn btn-up" id="btn-up" onclick="transpose(1)" disabled>
-              <i class="fas fa-arrow-up"></i>
-              Subir Semitom
-            </button>
-            <button class="transpose-btn btn-reset" id="btn-reset" onclick="resetTranspose()" disabled>
-              <i class="fas fa-undo"></i>
-              Tom da Música
-            </button>
-          </div>
-        </div>
-
-        <div class="cifra-display">
-          <div class="cifra-content" id="cifra-content"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Debug removido em produção -->
-
-  <script>
-    let allMusicas = [];
-    let selectedMusica = null;
-    let currentStep = 0;
-    let originalCifra = "";
-
-    function updateDebug(message) {
-      // Removido em produção - logs apenas no console
-      console.log(`🔧 CONSULTAR DEBUG: ${message}`);
-    }
-
-    // Elementos DOM
-    let searchInput, musicList, loading, emptyViewer, musicViewer, cifraContent;
-    let currentTitle, currentArtista, currentOriginalKey, currentKey;
-    let currentBpm, bpmContainer, linkContainerConsulta, currentLink;
-    let btnDown, btnUp, btnReset;
-    let tomMinistroContainerConsulta, currentTomMinistro, tomAtualContainerConsulta;
-
-    function initializeElements() {
-      console.log("🔧 Consultar: Inicializando elementos DOM...");
-      
-      try {
-        searchInput = document.getElementById('search-input');
-        musicList = document.getElementById('music-list');
-        loading = document.getElementById('loading');
-        emptyViewer = document.getElementById('empty-viewer');
-        musicViewer = document.getElementById('music-viewer');
-        cifraContent = document.getElementById('cifra-content');
-        currentTitle = document.getElementById('current-title');
-        currentArtista = document.getElementById('current-artista');
-        currentOriginalKey = document.getElementById('current-original-key');
-        currentKey = document.getElementById('current-key');
-        currentBpm = document.getElementById('current-bpm');
-        bpmContainer = document.getElementById('bpm-container');
-        linkContainerConsulta = document.getElementById('link-container-consulta');
-        currentLink = document.getElementById('current-link');
-        btnDown = document.getElementById('btn-down');
-        btnUp = document.getElementById('btn-up');
-        btnReset = document.getElementById('btn-reset');
-        tomMinistroContainerConsulta = document.getElementById('tom-ministro-container-consulta');
-        currentTomMinistro = document.getElementById('current-tom-ministro');
-        tomAtualContainerConsulta = document.getElementById('tom-atual-container-consulta');
-
-        // Verificar elementos críticos
-        const criticalElements = {
-          searchInput, musicList, loading, emptyViewer, musicViewer, 
-          cifraContent, currentTitle, currentKey
-        };
-
-        const missingElements = Object.entries(criticalElements)
-          .filter(([name, element]) => !element)
-          .map(([name]) => name);
-
-        if (missingElements.length > 0) {
-          throw new Error(`Elementos DOM não encontrados: ${missingElements.join(', ')}`);
-        }
-
-        console.log("✅ Consultar: Todos os elementos DOM encontrados");
-        return true;
-      } catch (error) {
-        console.error("❌ Consultar: Erro ao inicializar elementos DOM:", error);
-        updateDebug(`ERRO DOM: ${error.message}`);
-        return false;
-      }
-    }
-
-    // Sistema de inicialização robusta
-    function initializeApp() {
-      console.log("🚀 Consultar: Inicializando aplicação...");
-      updateDebug("Inicializando...");
-      
-      // Primeiro inicializar elementos DOM
-      if (!initializeElements()) {
-        console.error("❌ Consultar: Falha na inicialização dos elementos DOM");
-        return;
-      }
-      
-      // Verificar ChordTransposer
-      checkChordTransposerAndEnableButtons();
-      
-      if (!window.db) {
-        console.log("⏳ Consultar: DB não disponível, aguardando...");
-        updateDebug("DB não disponível");
-        setTimeout(() => {
-          if (window.db) {
-            console.log("✅ Consultar: DB disponível após aguardar");
-            updateDebug("DB disponível - carregando...");
-            loadMusicas();
-            setupEventListeners();
-          } else {
-            console.error("❌ Consultar: DB não disponível após timeout");
-            updateDebug("ERRO: DB não disponível");
-            if (loading) loading.innerHTML = "❌ Erro: Base de dados não inicializada";
-          }
-        }, 500);
-        return;
-      }
-      
-      console.log("✅ Consultar: DB disponível, iniciando...");
-      updateDebug("DB disponível - carregando...");
-      loadMusicas();
-      setupEventListeners();
-    }
-
-    // Função para verificar ChordTransposer e habilitar botões
-    function checkChordTransposerAndEnableButtons() {
-      // Aguardar um pouco antes de verificar
-      setTimeout(() => {
-        if (typeof ChordTransposer !== 'undefined') {
-          console.log("✅ Consultar: ChordTransposer carregado, habilitando botões de transposição");
-        } else {
-          console.warn("⚠️ Consultar: ChordTransposer não carregado, mas habilitando botões com fallback manual");
-        }
-        
-        // Habilitar botões independentemente da biblioteca (fallback manual)
-        if (btnDown) btnDown.disabled = false;
-        if (btnUp) btnUp.disabled = false;
-        if (btnReset) btnReset.disabled = false;
-      }, 500); // Aguardar 500ms para garantir que a biblioteca carregue
-    }
-
-    // Múltiplas estratégias de inicialização
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log("📄 Consultar: DOM carregado");
-      
-      if (window.db) {
-        console.log("✅ Consultar: DB já disponível no DOMContentLoaded");
-        initializeApp();
-      } else {
-        console.log("⏳ Consultar: DB não disponível, aguardando evento dbReady");
-        updateDebug("Aguardando DB...");
-      }
-    });
-
-    window.addEventListener('load', function() {
-      console.log("🌐 Consultar: Window carregado");
-      // Só tentar novamente se ainda não carregou
-      if (allMusicas.length === 0 && window.db) {
-        console.log("🔄 Consultar: Backup window.onload");
-        initializeApp();
-      }
-    });
-
-    window.addEventListener('dbReady', function(event) {
-      console.log("📡 Consultar: Evento dbReady recebido:", event.detail);
-      // Só tentar novamente se ainda não carregou
-      if (allMusicas.length === 0) {
-        initializeApp();
-      }
-    });
-
-    // Timeout de segurança
-    setTimeout(() => {
-      if (allMusicas.length === 0) {
-        console.log("⏰ Consultar: Timeout de segurança");
-        if (window.db) {
-          initializeApp();
-        } else {
-          updateDebug("ERRO: DB não disponível após timeout");
-          loading.innerHTML = "❌ Erro: Sistema de dados não disponível";
-        }
-      }
-    }, 3000);
-
-    function loadMusicas() {
-      console.log("🔄 Consultar: Iniciando loadMusicas...");
-      updateDebug("Carregando músicas...");
-      
-      if (!window.db) {
-        console.error("❌ Consultar: Database não inicializado!");
-        updateDebug("ERRO: DB não disponível");
-        loading.innerHTML = "❌ Erro: Base de dados não inicializada";
-        return;
-      }
-
-      try {
-        console.log("🔍 Consultar: Acessando coleção 'musicas'");
-        const collection = window.db.collection("musicas");
-        
-        if (!collection || typeof collection.orderBy !== 'function') {
-          throw new Error("Coleção 'musicas' inválida ou método orderBy não disponível");
-        }
-        
-        const query = collection.orderBy("titulo");
-        
-        if (!query || typeof query.onSnapshot !== 'function') {
-          throw new Error("Query inválida ou método onSnapshot não disponível");
-        }
-        
-        query.onSnapshot((snapshot) => {
-          console.log("✅ Consultar: Snapshot recebido:", snapshot);
-          updateDebug("Processando dados...");
-          
-          allMusicas = [];
-          
-          if (!snapshot) {
-            console.error("❌ Consultar: Snapshot nulo");
-            updateDebug("ERRO: Snapshot nulo");
-            loading.innerHTML = "❌ Erro: Dados não recebidos";
-            return;
-          }
-          
-          if (typeof snapshot.forEach !== 'function') {
-            console.error("❌ Consultar: Snapshot sem método forEach:", typeof snapshot);
-            updateDebug("ERRO: Snapshot inválido");
-            loading.innerHTML = "❌ Erro: Dados em formato inválido";
-            return;
-          }
-          
-          try {
-            snapshot.forEach((doc) => {
-              try {
-                if (!doc || typeof doc.id !== 'string') {
-                  console.warn("⚠️ Consultar: Documento inválido:", doc);
-                  return;
-                }
-                
-                const data = typeof doc.data === 'function' ? doc.data() : doc.data;
-                if (!data) {
-                  console.warn("⚠️ Consultar: Documento sem dados:", doc.id);
-                  return;
-                }
-                
-                const musicData = {
-                  id: doc.id,
-                  ...data
-                };
-                
-                console.log("🎵 Consultar: Música carregada:", musicData.titulo || 'Sem título');
-                allMusicas.push(musicData);
-              } catch (docError) {
-                console.error("❌ Consultar: Erro ao processar documento:", docError);
-              }
-            });
-
-            console.log(`📈 Consultar: Total de músicas carregadas: ${allMusicas.length}`);
-            updateDebug(`${allMusicas.length} músicas carregadas`);
-
-            loading.style.display = "none";
-            musicList.style.display = "block";
-            
-            renderMusicList();
-          } catch (forEachError) {
-            console.error("❌ Consultar: Erro no forEach:", forEachError);
-            updateDebug(`ERRO forEach: ${forEachError.message}`);
-            loading.innerHTML = "❌ Erro ao processar dados";
-          }
-        }, (error) => {
-          console.error("❌ Consultar: Erro no onSnapshot:", error);
-          updateDebug(`ERRO onSnapshot: ${error.message || error}`);
-          loading.innerHTML = "❌ Erro ao carregar dados: " + (error.message || error);
-        });
-      } catch (error) {
-        console.error("❌ Consultar: Erro crítico ao acessar database:", error);
-        updateDebug(`ERRO crítico: ${error.message || error}`);
-        loading.innerHTML = "❌ Erro crítico: " + (error.message || error);
-      }
-    }
-
-    function setupEventListeners() {
-      if (!searchInput) {
-        console.error("❌ Consultar: searchInput não disponível para eventos");
-        return;
-      }
-      
-      searchInput.addEventListener('input', debounce(renderMusicList, 300));
-      
-      // Atalhos de teclado
-      document.addEventListener('keydown', function(event) {
-        if (selectedMusica && !searchInput.matches(':focus')) {
-          switch(event.key) {
-            case 'ArrowUp':
-              event.preventDefault();
-              transpose(1);
-              break;
-            case 'ArrowDown':
-              event.preventDefault();
-              transpose(-1);
-              break;
-            case 'r':
-            case 'R':
-              event.preventDefault();
-              resetTranspose();
-              break;
-            case 'Escape':
-              event.preventDefault();
-              clearSelection();
-              break;
-          }
-        }
-      });
-      
-      console.log("✅ Consultar: Event listeners configurados");
-    }
-
-    function debounce(func, wait) {
-      let timeout;
-      return function executedFunction(...args) {
-        const later = () => {
-          clearTimeout(timeout);
-          func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-      };
-    }
-
-    function renderMusicList() {
-      console.log("🎨 Consultar: renderMusicList iniciada");
-      console.log(`📊 Consultar: allMusicas.length: ${allMusicas.length}`);
-      
-      if (!musicList) {
-        console.error("❌ musicList element não encontrado");
-        return;
-      }
-      
-      const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-      const filteredMusicas = allMusicas.filter(musica => {
-        if (!musica) return false;
-        
-        let searchFields = [
-          musica.titulo || '',
-          musica.artista || '',
-          musica.tom || '',
-          musica.bpm?.toString() || ''
-        ].join(' ').toLowerCase();
-        
-        // Incluir tom do ministro na busca
-        if (musica.tomMinistro && typeof musica.tomMinistro === 'object') {
-          const tomMinistroText = Object.entries(musica.tomMinistro)
-            .filter(([nome, tom]) => nome && tom)
-            .map(([nome, tom]) => nome)
-            .join(' ').toLowerCase();
-          searchFields += ' ' + tomMinistroText;
-        }
-        
-        return !searchTerm || searchFields.includes(searchTerm);
-      });
-
-      console.log(`📊 Consultar: filteredMusicas.length: ${filteredMusicas.length}`);
-
-      musicList.innerHTML = '';
-
-      if (filteredMusicas.length === 0) {
-        console.log("📭 Consultar: Nenhuma música para exibir");
-        musicList.innerHTML = `
-          <div class="empty-state">
-            <i class="fas fa-search"></i>
-            <h3>Nenhuma música encontrada</h3>
-            <p>Tente um termo diferente</p>
-          </div>
-        `;
-        return;
-      }
-
-      filteredMusicas.forEach((musica, index) => {
-        if (!musica || !musica.id) {
-          console.warn(`⚠️ Música inválida no índice ${index}:`, musica);
-          return;
-        }
-        
-        console.log(`🎵 Consultar: Criando item ${index + 1}: ${musica.titulo}`);
-        
-        const item = document.createElement('div');
-        item.className = 'music-item';
-        if (selectedMusica && selectedMusica.id === musica.id) {
-          item.classList.add('selected');
-        }
-        
-        // Processar tom do ministro para exibição no card
-        let tomMinistroInfo = '';
-        if (musica.tomMinistro && typeof musica.tomMinistro === 'object') {
-          const tomsMinistros = Object.entries(musica.tomMinistro)
-            .filter(([nome, tom]) => nome && tom)
-            .map(([nome, tom]) => nome)
-            .join(', ');
-          
-          if (tomsMinistros) {
-            tomMinistroInfo = `<span><i class="fas fa-user-music"></i> ${tomsMinistros}</span>`;
-          }
-        }
-        
-        item.innerHTML = `
-          <div class="music-item-title">${musica.titulo || 'Título não informado'}</div>
-          ${musica.artista ? `<div class="music-item-artist">${musica.artista}</div>` : ''}
-          <div class="music-item-info">
-            ${musica.tom ? `<span><i class="fas fa-music"></i> ${musica.tom}</span>` : ''}
-            ${musica.bpm && !isNaN(musica.bpm) ? `<span><i class="fas fa-tachometer-alt"></i> ${musica.bpm} BPM</span>` : ''}
-            ${tomMinistroInfo}
-          </div>
-        `;
-        
-        item.onclick = () => selectMusica(musica);
-        musicList.appendChild(item);
-      });
-    }
-
-    function selectMusica(musica) {
-      selectedMusica = musica;
-      currentStep = 0;
-      originalCifra = musica.cifra || '';
-      
-      // Verificar se a cifra existe
-      if (!originalCifra) {
-        console.warn("⚠️ Música sem cifra:", musica.titulo);
-      }
-      
-      // Atualizar informações
-      currentTitle.textContent = musica.titulo || 'Título não informado';
-      
-      currentArtista.textContent = musica.artista || 'Não informado';
-      currentOriginalKey.textContent = musica.tom || 'N/A';
-      
-      // BPM
-      if (musica.bpm && !isNaN(musica.bpm)) {
-        currentBpm.textContent = `${musica.bpm} BPM`;
-        bpmContainer.style.display = 'flex';
-      } else {
-        bpmContainer.style.display = 'none';
-      }
-      
-      // Link
-      if (musica.link && musica.link.trim()) {
-        currentLink.href = musica.link;
-        linkContainerConsulta.style.display = 'flex';
-      } else {
-        linkContainerConsulta.style.display = 'none';
-      }
-      
-      // Tom do Ministro
-      if (musica.tomMinistro && typeof musica.tomMinistro === 'object') {
-        const tomsMinistros = Object.entries(musica.tomMinistro)
-          .filter(([nome, tom]) => nome && tom)
-          .map(([nome, tom]) => nome)
-          .join(', ');
-        
-        if (tomsMinistros) {
-          currentTomMinistro.textContent = tomsMinistros;
-          tomMinistroContainerConsulta.style.display = 'flex';
-        } else {
-          tomMinistroContainerConsulta.style.display = 'none';
-        }
-      } else {
-        tomMinistroContainerConsulta.style.display = 'none';
-      }
-      
-      // Exibir cifra
-      if (originalCifra) {
-        displayCifra(originalCifra);
-      } else {
-        cifraContent.innerHTML = '<div style="color: #999; text-align: center; padding: 40px;">Cifra não disponível para esta música</div>';
-      }
-      
-      updateCurrentKey();
-      
-      // Mostrar viewer
-      emptyViewer.style.display = 'none';
-      musicViewer.style.display = 'block';
-      
-      // Mostrar botões de ação
-      const musicActions = document.getElementById('music-actions');
-      if (musicActions) {
-        musicActions.style.display = 'flex';
-      }
-      
-      // Habilitar botões de transposição quando uma música é selecionada
-      if (btnDown) btnDown.disabled = false;
-      if (btnUp) btnUp.disabled = false;
-      if (btnReset) btnReset.disabled = false;
-      
-      // Atualizar lista
-      renderMusicList();
-      
-      // Atualizar título da página
-      document.title = `${musica.titulo} - Músicas`;
-      
-      console.log("✅ Música selecionada:", musica.titulo);
-    }
-
-    function clearSelection() {
-      selectedMusica = null;
-      currentStep = 0;
-      originalCifra = "";
-      
-      // Desabilitar botões de transposição
-      if (btnDown) btnDown.disabled = true;
-      if (btnUp) btnUp.disabled = true;
-      if (btnReset) btnReset.disabled = true;
-      
-      emptyViewer.style.display = 'block';
-      musicViewer.style.display = 'none';
-      
-      // Ocultar botões de ação
-      const musicActions = document.getElementById('music-actions');
-      if (musicActions) {
-        musicActions.style.display = 'none';
-      }
-      
-      renderMusicList();
-      
-      document.title = 'Músicas — IDE Music';
-    }
-
-    function displayCifra(cifra) {
-      const highlightedCifra = highlightChords(cifra);
-      cifraContent.innerHTML = highlightedCifra;
-    }
-
-    function highlightChords(text) {
-      const chordRegex = /\b([A-G](?:#|b)?(?:m|maj|dim|aug|sus|add|\d)*(?:\/[A-G](?:#|b)?)?)\b/g;
-      return text.replace(chordRegex, '<span class="chord-highlight">$1</span>');
-    }
-
-    function getCurrentKey() {
-      if (!selectedMusica || !selectedMusica.tom || currentStep === 0) {
-        return selectedMusica?.tom || 'N/A';
-      }
-      
-      const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-      const currentIndex = keys.indexOf(selectedMusica.tom);
-      
-      if (currentIndex === -1) return selectedMusica.tom;
-      
-      let newIndex = (currentIndex + currentStep) % 12;
-      if (newIndex < 0) newIndex += 12;
-      
-      return keys[newIndex];
-    }
-
-    function updateCurrentKey() {
-      const key = getCurrentKey();
-      const originalKey = selectedMusica?.tom;
-      
-      // Só mostrar tom transposto se for diferente do original
-      if (currentStep === 0 || key === originalKey) {
-        if (tomAtualContainerConsulta) {
-          tomAtualContainerConsulta.style.display = 'none';
-        }
-      } else {
-        currentKey.textContent = key;
-        if (tomAtualContainerConsulta) {
-          tomAtualContainerConsulta.style.display = 'flex';
-        }
-      }
-      
-      // Atualizar estado do botão reset
-      if (currentStep === 0) {
-        btnReset.disabled = true;
-        btnReset.style.opacity = '0.5';
-      } else {
-        btnReset.disabled = false;
-        btnReset.style.opacity = '1';
-      }
-    }
-
-    // Função de transposição manual como fallback
-    function transposeManual(originalCifra, totalSteps) {
-      try {
-        console.log(`🔧 Consultar: Transposição manual: ${totalSteps} semitons`);
-        
-        // Mapa de correspondência das notas com índices
-        const chordMap = {
-          'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3, 'E': 4, 'F': 5, 
-          'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8, 'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
-        };
-        
-        const chordNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-        
-        // Lista de acordes inválidos a evitar
-        const invalidChords = ['C##', 'D##', 'E#', 'F##', 'G##', 'A##', 'B#', 'Cb', 'Dbb', 'Ebb', 'Fb', 'Gbb', 'Abb', 'Bbb'];
-        
-        let transposed = originalCifra.replace(/\b([A-G](?:#|b)?(?:m|maj|dim|aug|sus|add|\d)*(?:\/[A-G](?:#|b)?)?)\b/g, function(match, chord) {
-          console.log(`  Consultar: Processando acorde: ${chord}`);
-          
-          // Tratar acordes com baixo
-          if (chord.includes('/')) {
-            const [mainChord, bassNote] = chord.split('/');
-            const transposedMain = transposeChordSingle(mainChord);
-            const transposedBass = transposeChordSingle(bassNote);
-            const result = `${transposedMain}/${transposedBass}`;
-            console.log(`  Consultar: ${chord} (com baixo) → ${result}`);
-            return result;
-          }
-          
-          return transposeChordSingle(chord);
-        });
-        
-        // Função auxiliar para transpor um acorde individual
-        function transposeChordSingle(chord) {
-          // Extrair a nota raiz
-          const rootMatch = chord.match(/^([A-G](?:#|b)?)/);
-          if (!rootMatch) return chord;
-          
-          const root = rootMatch[1];
-          const suffix = chord.substring(root.length);
-          const rootIndex = chordMap[root];
-          
-          if (rootIndex === undefined) return chord;
-          
-          // Calcular nova nota
-          let newIndex = (rootIndex + totalSteps) % 12;
-          if (newIndex < 0) newIndex += 12;
-          
-          const newRoot = chordNames[newIndex];
-          const tentativeResult = newRoot + suffix;
-          
-          // Verificar se seria um acorde inválido
-          if (invalidChords.some(invalid => tentativeResult.startsWith(invalid))) {
-            console.warn(`  Consultar: ⚠️ Acorde inválido evitado: ${tentativeResult}, mantendo: ${chord}`);
-            return chord;
-          }
-          
-          console.log(`  Consultar: ${chord} → ${tentativeResult}`);
-          return tentativeResult;
-        }
-        
-        console.log(`✅ Consultar: Transposição manual bem-sucedida`);
-        return transposed;
-        
-      } catch (error) {
-        console.error("❌ Consultar: Erro na transposição manual:", error);
-        throw error;
-      }
-    }
-
-    function transpose(step) {
-      if (!selectedMusica || !originalCifra) {
-        console.warn("⚠️ Consultar: Música não selecionada ou cifra não disponível");
-        return;
-      }
-      
-      try {
-        currentStep += step;
-        
-        // Verificar se ChordTransposer está disponível
-        if (typeof ChordTransposer !== 'undefined') {
-          console.log("✅ Consultar: Usando ChordTransposer para transposição");
-          const transposed = ChordTransposer.transpose(originalCifra).up(currentStep).toString();
-          displayCifra(transposed);
-        } else {
-          console.warn("⚠️ Consultar: ChordTransposer não disponível, usando transposição manual");
-          const transposed = transposeManual(originalCifra, currentStep);
-          displayCifra(transposed);
-        }
-        
-        updateCurrentKey();
-        
-        // Efeito visual
-        cifraContent.style.transform = 'scale(0.98)';
-        setTimeout(() => {
-          cifraContent.style.transform = 'scale(1)';
-        }, 150);
-        
-      } catch (error) {
-        console.error("❌ Consultar: Erro ao transpor:", error);
-        // Tentar fallback manual
-        try {
-          console.log("🔧 Consultar: Tentando fallback manual");
-          const transposed = transposeManual(originalCifra, currentStep);
-          displayCifra(transposed);
-          updateCurrentKey();
-        } catch (fallbackError) {
-          console.error("❌ Consultar: Erro no fallback manual:", fallbackError);
-          alert("Erro ao transpor a música: " + error.message);
-        }
-      }
-    }
-
-    function resetTranspose() {
-      if (!selectedMusica || !originalCifra) {
-        console.warn("⚠️ Consultar: Música não selecionada ou cifra não disponível");
-        return;
-      }
-      
-      console.log("🔄 Consultar: Resetando para tom original");
-      currentStep = 0;
-      displayCifra(originalCifra);
-      updateCurrentKey();
-      
-      // Efeito visual
-      cifraContent.style.transform = 'scale(1.02)';
-      setTimeout(() => {
-        cifraContent.style.transform = 'scale(1)';
-      }, 200);
-    }
-
-    // Função para editar música
-    function editMusica() {
-      if (!selectedMusica) {
-        alert('Nenhuma música selecionada para editar.');
-        return;
-      }
-      
-      console.log('📝 Editando música:', selectedMusica.titulo);
-      window.location.href = `nova-musica.html?edit=${selectedMusica.id}`;
-    }
-
-    // Função para excluir música
-    async function deleteMusica() {
-      if (!selectedMusica) {
-        alert('Nenhuma música selecionada para excluir.');
-        return;
-      }
-      
-      const confirmDelete = confirm(`Tem certeza que deseja excluir a música "${selectedMusica.titulo}"?\n\nEsta ação não pode ser desfeita.`);
-      
-      if (!confirmDelete) {
-        return;
-      }
-      
-      try {
-        console.log('🗑️ Excluindo música:', selectedMusica.titulo);
-        
-        // Verificar se o database está disponível
-        if (!window.db) {
-          throw new Error('Sistema de dados não disponível');
-        }
-        
-        // Excluir do Firestore
-        await window.db.collection('musicas').doc(selectedMusica.id).delete();
-        
-        console.log('✅ Música excluída com sucesso do Firestore');
-        
-        // Limpar seleção atual
-        clearSelection();
-        
-        // Mostrar mensagem de sucesso
-        alert(`Música "${selectedMusica.titulo}" excluída com sucesso!`);
-        
-        // A lista será atualizada automaticamente pelo onSnapshot
-        
-      } catch (error) {
-        console.error('❌ Erro ao excluir música:', error);
-        alert('Erro ao excluir música: ' + (error.message || error));
-      }
-    }
-
-    // Atalhos de teclado para melhor experiência
-    document.addEventListener('keydown', function(event) {
-      // Evitar atalhos se algum input estiver focado
-      if (document.activeElement.tagName === 'INPUT' || 
-          document.activeElement.tagName === 'TEXTAREA') {
-        return;
-      }
-
-      // Só funcionar se uma música estiver selecionada
-      if (!selectedMusica || !originalCifra) {
-        return;
-      }
-
-      switch(event.key) {
-        case 'ArrowUp':
-          event.preventDefault();
-          if (btnUp && !btnUp.disabled) transpose(1);
-          break;
-        case 'ArrowDown':
-          event.preventDefault();
-          if (btnDown && !btnDown.disabled) transpose(-1);
-          break;
-        case 'r':
-        case 'R':
-          event.preventDefault();
-          if (btnReset && !btnReset.disabled) resetTranspose();
-          break;
-        case 'Escape':
-          event.preventDefault();
-          clearSelection();
-          break;
-      }
-    });
-  </script>
-
-  <footer style="text-align: center; font-size: small; margin-top: 20px;">
-    <a href="https://github.com/daviopen/louvor-ide" target="_blank" style="color: inherit; text-decoration: none;">Projeto no GitHub</a>
-  </footer>
+  <script type="module" src="../js/pages/consulta.js?v=20260825-catalog"></script>
 </body>
 </html>
