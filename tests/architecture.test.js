@@ -36,12 +36,14 @@ test('MusicService delegates persistence to MusicRepository', () => {
   assert.doesNotMatch(service, /this\.db\.collection|window\.db/);
 });
 
-test('MusicRepository owns music collection persistence', () => {
+test('MusicRepository owns canonical songs persistence', () => {
   const repository = read('src/repositories/music-repository.js');
   const constants = read('src/constants/collections.js');
   assert.match(repository, /extends BaseRepository/);
-  assert.match(repository, /COLLECTIONS\.MUSICS/);
-  assert.match(constants, /MUSICS:\s*'musicas'/);
+  assert.match(repository, /COLLECTIONS\.SONGS/);
+  assert.match(constants, /SONGS:\s*'songs'/);
+  assert.doesNotMatch(repository, /COLLECTIONS\.MUSICS|legacyCollectionName/);
+  assert.doesNotMatch(constants, /MUSICS:\s*'musicas'/);
 });
 
 test('standard error and UI state contracts are defined', () => {
