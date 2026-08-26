@@ -14,9 +14,9 @@ test('separa próximos e histórico considerando data e status', () => {
   assert.deepEqual(result.history.map(item => item.id), ['cancelled', 'past']);
 });
 
-test('normaliza evento, músicas, artista e ministro para filtros', () => {
+test('normaliza evento, músicas e ministro para filtros', () => {
   const users = new Map([['u1', { name: 'Marina' }]]);
-  const library = new Map([['s1', { title: 'Bondade de Deus', artist: 'Isaías Saad' }]]);
+  const library = new Map([['s1', { title: 'Bondade de Deus' }]]);
   const item = history.normalizeItem(
     { id: 'set1', eventId: 'e1', eventDate: '2026-08-20' },
     { event: { name: 'Culto da Família', theme: 'Gratidão' }, songs: [{ songId: 's1', ministerUserId: 'u1' }], users, library }
@@ -24,16 +24,15 @@ test('normaliza evento, músicas, artista e ministro para filtros', () => {
   assert.equal(item.name, 'Culto da Família');
   assert.deepEqual(item.ministerNames, ['Marina']);
   assert.deepEqual(item.songTitles, ['Bondade de Deus']);
-  assert.deepEqual(item.artists, ['Isaías Saad']);
   assert.equal(item.theme, 'Gratidão');
 });
 
 test('aplica filtros combinados do histórico', () => {
   const items = [{
     dateKey: '2026-08-20', name: 'Culto da Família', event: { name: 'Culto da Família' },
-    ministerNames: ['Marina Oliveira'], songTitles: ['Bondade de Deus'], artists: ['Isaías Saad'], theme: 'Gratidão'
+    ministerNames: ['Marina Oliveira'], songTitles: ['Bondade de Deus'], theme: 'Gratidão'
   }];
-  assert.equal(history.filter(items, { from: '2026-08-01', to: '2026-08-31', event: 'família', minister: 'marina', song: 'bondade', artist: 'isaías', theme: 'gratidão' }).length, 1);
+  assert.equal(history.filter(items, { from: '2026-08-01', to: '2026-08-31', event: 'família', minister: 'marina', song: 'bondade', theme: 'gratidão' }).length, 1);
   assert.equal(history.filter(items, { minister: 'outro' }).length, 0);
 });
 
