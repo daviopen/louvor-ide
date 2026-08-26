@@ -12,9 +12,28 @@ export class MusicRepository extends BaseRepository {
     this.legacyCollectionName = COLLECTIONS.MUSICS;
   }
 
-  async getCollection(name) {
+  async getDatabase() {
     await this.waitUntilReady();
-    return this.db.collection(name);
+
+    // `window.db` ainda é um adaptador híbrido legado e não implementa toda a
+    // API do Firestore (get/onSnapshot/where/batch). O repository precisa da
+    // API nativa para consultas e transações. Dependências injetadas em testes
+    // continuam sendo respeitadas.
+    if (
+      typeof window !== 'undefined'
+      && this.db === window.db
+      && window.firebase
+      && typeof window.firebase.firestore === 'function'
+    ) {
+      return window.firebase.firestore();
+    }
+
+    return this.db;
+  }
+
+  async getCollection(name) {
+    const database = await this.getDatabase();
+    return database.collection(name);
   }
 
   async subscribeAllOrderedByTitle(callback, onError = null) {
@@ -126,10 +145,10 @@ export class MusicRepository extends BaseRepository {
   }
 
   async replaceMinisterKeys(songId, selection) {
-    await this.waitUntilReady();
-    const collection = this.db.collection(COLLECTIONS.SONG_MINISTER_KEYS);
+    const database = await this.getDatabase();
+    const collection = database.collection(COLLECTIONS.SONG_MINISTER_KEYS);
     const existing = await collection.where('songId', '==', songId).get();
-    const batch = this.db.batch();
+    const batch = database.batch();
     existing.docs.forEach(doc => batch.delete(doc.ref));
     selection.forEach(item => {
       const ref = collection.doc(`${songId}_${item.userId}`);
@@ -145,9 +164,9 @@ export class MusicRepository extends BaseRepository {
   }
 
   async addAuditLog(actorUserId, action, entityId, details = {}) {
-    await this.waitUntilReady();
+    const database = await this.getDatabase();
     const createdAt = new Date();
-    const ref = await this.db.collection(COLLECTIONS.AUDIT_LOGS).add({
+    const ref = await database.collection(COLLECTIONS.AUDIT_LOGS).add({
       actorUserId,
       action,
       entityType: 'song',
