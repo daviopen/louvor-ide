@@ -294,16 +294,16 @@
 ## P4 — Biblioteca de músicas
 
 ### 22. Consultar músicas
-- [ ] Submenu Consultar Músicas.
-- [ ] Botão `+ Nova Música` no topo.
-- [ ] Busca por nome.
-- [ ] Filtros por artista, ministro, tom e tema.
-- [ ] Filtros combinados.
-- [ ] Limpar filtros.
-- [ ] Quantidade de resultados.
-- [ ] Paginação.
-- [ ] Empty State.
-- [ ] Layout mobile.
+- [x] Submenu Consultar Músicas.
+- [x] Botão `+ Nova Música` no topo.
+- [x] Busca por nome.
+- [x] Filtros por artista, ministro, tom e tema.
+- [x] Filtros combinados.
+- [x] Limpar filtros.
+- [x] Quantidade de resultados.
+- [x] Paginação.
+- [x] Empty State.
+- [x] Layout mobile.
 
 ### 23. Criar/editar música
 - [ ] Nome.
