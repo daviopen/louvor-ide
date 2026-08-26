@@ -41,3 +41,11 @@ test('consulta vira cards no mobile e contraste depende dos tokens do tema', () 
   assert.match(css, /:root\[data-theme="dark"\][^{]*[\s\S]*color:var\(--ide-primary\)/);
   assert.doesNotMatch(css, /#[0-9a-f]{3,8}\b/i);
 });
+
+test('mobile não extrapola a viewport e mantém ações compactas em duas colunas', () => {
+  assert.match(css, /\.users-page\{box-sizing:border-box;width:100%;max-width:1360px;min-width:0/);
+  assert.match(css, /@media\(max-width:768px\)[\s\S]*\.users-table tbody tr\{box-sizing:border-box;display:block;width:100%;min-width:0/);
+  assert.match(css, /@media\(max-width:768px\)[\s\S]*\.users-actions \.ide-button\{width:100%;min-height:36px/);
+  assert.match(css, /@media\(max-width:560px\)[\s\S]*td\.users-actions\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/);
+  assert.doesNotMatch(css, /@media\(max-width:560px\)[\s\S]*td\.users-actions\{grid-template-columns:1fr\}/);
+});
