@@ -1,0 +1,108 @@
+.performance-page [hidden],
+.exit-stage-button[hidden] {
+  display: none !important;
+}
+
+.performance-dress-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 28px;
+  border-top: 1px solid var(--ide-border);
+  background: var(--ide-surface-secondary);
+}
+
+.performance-dress-code__heading {
+  min-width: 170px;
+}
+
+.performance-dress-code__eyebrow {
+  margin: 0 0 4px;
+  color: var(--ide-text-secondary);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.performance-dress-code h3 {
+  margin: 0;
+  color: var(--ide-text-primary);
+  font-size: 1rem;
+}
+
+.performance-dress-code__colors {
+  display: flex;
+  flex: 1;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.performance-dress-code__swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 6px 11px;
+  color: var(--ide-text-primary);
+  border: 1px solid var(--ide-border);
+  border-radius: var(--ide-radius-pill);
+  background: var(--ide-surface);
+  font-size: .8rem;
+  font-weight: 800;
+}
+
+.performance-dress-code__swatch::before {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--ide-border-strong);
+  border-radius: var(--ide-radius-circle);
+  background: var(--dress-color);
+  box-shadow: 0 0 0 2px var(--ide-surface);
+  content: '';
+}
+
+.performance-dress-code__empty {
+  margin: 0;
+  color: var(--ide-text-secondary);
+  text-align: right;
+}
+
+.stage-mode .performance-dress-code {
+  border-color: var(--ide-border-on-dark);
+  background: var(--ide-surface-dark);
+}
+
+.stage-mode .performance-dress-code h3,
+.stage-mode .performance-dress-code__swatch {
+  color: var(--ide-text-on-dark);
+}
+
+.stage-mode .performance-dress-code__eyebrow,
+.stage-mode .performance-dress-code__empty {
+  color: var(--ide-text-on-dark-secondary);
+}
+
+.stage-mode .performance-dress-code__swatch {
+  border-color: var(--ide-border-on-dark);
+  background: color-mix(in srgb, var(--ide-surface-dark) 88%, white);
+}
+
+@media (max-width: 700px) {
+  .performance-dress-code {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 16px 20px;
+  }
+
+  .performance-dress-code__colors {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .performance-dress-code__empty {
+    text-align: left;
+  }
+}
