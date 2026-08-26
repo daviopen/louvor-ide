@@ -19,6 +19,12 @@ test('menu principal contém toda a árvore prevista no ROADMAP 11', () => {
   }
 });
 
+test('menu principal usa ícones compatíveis nas funcionalidades visíveis', () => {
+  assert.match(shell, /id: 'permissions'.*icon: 'fa-lock'/);
+  assert.match(shell, /id: 'schedules'.*icon: 'fa-calendar-check'/s);
+  assert.doesNotMatch(shell, /fa-shield-halved|fa-people-group/);
+});
+
 test('menu principal aplica rota ativa, permissão e recolhimento persistido', () => {
   assert.match(shell, /aria-current/);
   assert.match(shell, /resolveAccessLevel/);

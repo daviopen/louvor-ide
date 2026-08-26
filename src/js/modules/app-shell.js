@@ -11,12 +11,12 @@
     { id: 'dashboard', label: '', items: [{ id: 'dashboard', label: 'Dashboard', href: 'index.html', icon: 'fa-house', permission: 'dashboard' }] },
     { id: 'users', label: 'Usuários', items: [
       { id: 'users', label: 'Usuários', href: 'users.html', icon: 'fa-users', permission: 'users' },
-      { id: 'permissions', label: 'Permissões', href: 'module.html?section=permissions', icon: 'fa-shield-halved', permission: 'permissions' }
+      { id: 'permissions', label: 'Permissões', href: 'module.html?section=permissions', icon: 'fa-lock', permission: 'permissions' }
     ] },
     { id: 'schedules', label: 'Escalas', items: [
       { id: 'unavailability', label: 'Indisponibilidade', href: 'module.html?section=unavailability', icon: 'fa-calendar-xmark', permission: 'unavailability' },
       { id: 'events', label: 'Eventos', href: 'module.html?section=events', icon: 'fa-calendar-days', permission: 'events' },
-      { id: 'schedules', label: 'Escalas', href: 'module.html?section=schedules', icon: 'fa-people-group', permission: 'schedules' }
+      { id: 'schedules', label: 'Escalas', href: 'module.html?section=schedules', icon: 'fa-calendar-check', permission: 'schedules' }
     ] },
     { id: 'setlists', label: 'Setlist', items: [
       { id: 'setlists-upcoming', label: 'Próximos', href: 'setlists.html?view=upcoming', icon: 'fa-list-check', permission: 'setlists' },
