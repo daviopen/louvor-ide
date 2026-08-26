@@ -117,6 +117,7 @@
     ensureStylesheet('../styles/tokens.css', 'data-ide-tokens');
     ensureStylesheet('../styles/design-system.css', 'data-ide-design-system');
     ensureStylesheet('../styles/legacy-migration.css', 'data-ide-legacy-migration');
+    ensureStylesheet('../styles/main-menu.css?v=20260825-account-menu', 'data-ide-main-menu');
   }
 
   function initializeLgpdGate() {
@@ -222,6 +223,20 @@
     mobile.appendChild(more);
   }
 
+  function mountAccountControls() {
+    const mount = scope.document.getElementById('ide-sidebar-account');
+    const controls = scope.document.getElementById('music-ide-user');
+    if (mount && controls && controls.parentElement !== mount) mount.appendChild(controls);
+  }
+
+  function watchAccountControls() {
+    mountAccountControls();
+    if (typeof scope.MutationObserver !== 'function' || !scope.document.body) return;
+    const observer = new scope.MutationObserver(() => mountAccountControls());
+    observer.observe(scope.document.body, { childList: true });
+    scope.__musicIdeAccountMountObserver = observer;
+  }
+
   function buildShell() {
     if (!scope.document.body || scope.document.getElementById('ide-sidebar')) return;
     const page = currentPage(scope.location && scope.location.pathname);
@@ -251,9 +266,12 @@
     const nav = element('nav', 'ide-sidebar-nav');
     nav.id = 'ide-sidebar-nav';
     nav.setAttribute('aria-label', 'Seções do sistema');
+    const account = element('div', 'ide-sidebar-account');
+    account.id = 'ide-sidebar-account';
+    account.setAttribute('aria-label', 'Conta e preferências');
     const footer = element('div', 'ide-sidebar-footer');
     footer.innerHTML = '<div>IDE Music</div><div class="ide-sidebar-legal"><a href="termos.html">Termos</a><a href="privacidade.html">Privacidade</a></div>';
-    sidebar.append(header, context, nav, footer);
+    sidebar.append(header, context, nav, account, footer);
 
     const toggle = element('button', 'ide-sidebar-toggle');
     toggle.id = 'ide-sidebar-toggle';
@@ -276,16 +294,18 @@
 
     scope.document.body.prepend(sidebar, toggle, overlay);
     scope.document.body.appendChild(mobile);
+    watchAccountControls();
     setCollapsed(readCollapsedPreference());
     renderNavigation(scope.currentMusicIdeProfile || null);
     scope.addEventListener('musicIdeAuthReady', event => {
       const profile = event && event.detail && event.detail.profile || null;
       if (enforceCurrentRoute(profile)) renderNavigation(profile);
+      mountAccountControls();
     });
     scope.document.addEventListener('keydown', event => { if (event.key === 'Escape') setMenuOpen(false); });
   }
 
-  scope.MusicIdeNavigation = { navigationGroups, resolveAccessLevel, canViewItem, currentNavigationId, enforceCurrentRoute };
+  scope.MusicIdeNavigation = { navigationGroups, resolveAccessLevel, canViewItem, currentNavigationId, enforceCurrentRoute, mountAccountControls };
   if (scope.document.readyState === 'loading') scope.document.addEventListener('DOMContentLoaded', buildShell, { once: true });
   else buildShell();
 })(typeof window !== 'undefined' ? window : null);
