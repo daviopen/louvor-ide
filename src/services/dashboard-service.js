@@ -1,15 +1,12 @@
 /**
- * Business rules and read model composition for the IDE Music Dashboard.
+ * Business rules and read model composition for the personal IDE Music Dashboard.
  */
 (function initDashboardService(globalScope, factory) {
   const api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (globalScope) globalScope.MusicIdeDashboardService = api;
 })(typeof window !== 'undefined' ? window : null, function createDashboardServiceModule() {
-  const ACTIVE_EVENT_STATUSES = new Set(['PLANNED', 'CONFIRMED']);
   const ACTIVE_SCHEDULE_STATUSES = new Set(['DRAFT', 'COMPLETE']);
-  const PENDING_SETLIST_STATUSES = new Set(['DRAFT']);
-  const ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN']);
 
   function toDate(value) {
     if (!value) return null;
@@ -55,33 +52,28 @@
     const setlists = Array.isArray(data.setlists) ? data.setlists : [];
     const unavailability = Array.isArray(data.unavailability) ? data.unavailability : [];
     const profile = data.profile || {};
+    const userId = profile.id || profile.uid || data.userId || null;
     const eventsById = new Map(events.map(event => [event.id, event]));
-    const memberCountBySchedule = members.reduce((counts, member) => {
-      if (member && member.active !== false && member.scheduleId) {
-        counts.set(member.scheduleId, (counts.get(member.scheduleId) || 0) + 1);
-      }
-      return counts;
-    }, new Map());
 
-    const upcomingEventsAll = events
-      .filter(event => ACTIVE_EVENT_STATUSES.has(String(event.status || '').toUpperCase()))
-      .map(event => ({ ...event, date: eventDate(event) }))
-      .filter(event => futureOrToday(event.date, today))
-      .sort(byDate);
+    const ownMembers = members.filter(member => member && member.active !== false && (!userId || member.userId === userId));
+    const ownScheduleIds = new Set(ownMembers.map(member => member.scheduleId).filter(Boolean));
 
     const upcomingSchedulesAll = schedules
+      .filter(schedule => ownScheduleIds.has(schedule.id))
       .filter(schedule => ACTIVE_SCHEDULE_STATUSES.has(String(schedule.status || '').toUpperCase()))
       .map(schedule => ({
         ...schedule,
         date: linkedDate(schedule, eventsById),
-        event: eventsById.get(schedule.eventId) || null,
-        memberCount: memberCountBySchedule.get(schedule.id) || 0
+        event: eventsById.get(schedule.eventId) || null
       }))
       .filter(schedule => futureOrToday(schedule.date, today))
       .sort(byDate);
 
-    const pendingSetlistsAll = setlists
-      .filter(setlist => PENDING_SETLIST_STATUSES.has(String(setlist.status || '').toUpperCase()))
+    const ownUpcomingScheduleIds = new Set(upcomingSchedulesAll.map(schedule => schedule.id));
+    const ownUpcomingEventIds = new Set(upcomingSchedulesAll.map(schedule => schedule.eventId).filter(Boolean));
+
+    const upcomingSetlistsAll = setlists
+      .filter(setlist => ownUpcomingScheduleIds.has(setlist.scheduleId) || ownUpcomingEventIds.has(setlist.eventId))
       .map(setlist => ({
         ...setlist,
         date: linkedDate(setlist, eventsById),
@@ -95,21 +87,19 @@
       .filter(item => futureOrToday(item.endAt || item.date, today))
       .sort(byDate);
 
-    const role = String(profile.role || 'MEMBER').toUpperCase();
-    const adminIndicators = ADMIN_ROLES.has(role) ? {
-      upcomingEvents: upcomingEventsAll.length,
+    const userIndicators = {
       upcomingSchedules: upcomingSchedulesAll.length,
-      incompleteSchedules: upcomingSchedulesAll.filter(item => String(item.status || '').toUpperCase() === 'DRAFT').length,
-      pendingSetlists: pendingSetlistsAll.length
-    } : null;
+      draftSchedules: upcomingSchedulesAll.filter(item => String(item.status || '').toUpperCase() === 'DRAFT').length,
+      upcomingSetlists: upcomingSetlistsAll.length,
+      upcomingUnavailability: upcomingUnavailabilityAll.length
+    };
 
     return {
       profile,
-      upcomingEvents: upcomingEventsAll.slice(0, limit),
       upcomingSchedules: upcomingSchedulesAll.slice(0, limit),
-      pendingSetlists: pendingSetlistsAll.slice(0, limit),
+      upcomingSetlists: upcomingSetlistsAll.slice(0, limit),
       upcomingUnavailability: upcomingUnavailabilityAll.slice(0, limit),
-      adminIndicators
+      userIndicators
     };
   }
 
@@ -127,13 +117,13 @@
         this.repository.getOwnProfile(userId),
         this.repository.listEvents(),
         this.repository.listSchedules(),
-        this.repository.listScheduleMembers(),
+        this.repository.listOwnScheduleMembers(userId),
         this.repository.listSetlists(),
         this.repository.listOwnUnavailability(userId)
       ]);
       if (!profile || profile.active !== true) throw new Error('Perfil ativo não encontrado para o Dashboard.');
       return buildDashboardViewModel(
-        { profile, events, schedules, scheduleMembers, setlists, unavailability },
+        { profile, userId, events, schedules, scheduleMembers, setlists, unavailability },
         { now: this.clock(), limit: this.limit }
       );
     }
