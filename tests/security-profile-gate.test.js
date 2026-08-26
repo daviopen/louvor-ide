@@ -11,7 +11,7 @@ const {
 
 const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
 
-function firestoreScope({ snapshot, setError = null }) {
+function firestoreScope({ snapshot, setError = null, permissions = {} }) {
   const profileRef = {
     async get() { return snapshot; },
     async set() {
@@ -22,10 +22,26 @@ function firestoreScope({ snapshot, setError = null }) {
   function firestore() {
     return {
       collection(name) {
-        assert.equal(name, 'users');
-        return {
-          doc() { return profileRef; }
-        };
+        if (name === 'users') {
+          return {
+            doc() { return profileRef; }
+          };
+        }
+        if (name === 'permissions') {
+          return {
+            doc(id) {
+              return {
+                async get() {
+                  const data = permissions[id];
+                  return data
+                    ? { exists: true, data() { return data; } }
+                    : { exists: false, data() { return null; } };
+                }
+              };
+            }
+          };
+        }
+        assert.fail(`Collection inesperada: ${name}`);
       }
     };
   }
@@ -73,15 +89,21 @@ test('perfil existente inativo é rejeitado pelo gate da aplicação', async () 
   assert.equal(result.profile, profile);
 });
 
-test('perfil existente ativo é autorizado pelo gate da aplicação', async () => {
+test('perfil existente ativo é autorizado pelo gate da aplicação com permissões efetivas', async () => {
   const profile = { uid: 'active', active: true, role: 'MEMBER' };
   const scope = firestoreScope({
-    snapshot: { exists: true, data() { return profile; } }
+    snapshot: { exists: true, data() { return profile; } },
+    permissions: {
+      active__unavailability: { userId: 'active', module: 'unavailability', level: 'EDIT' }
+    }
   });
 
   const result = await resolveAuthorizedProfile(scope, { uid: 'active' });
   assert.equal(result.authorized, true);
-  assert.equal(result.profile, profile);
+  assert.deepEqual(result.profile, {
+    ...profile,
+    permissions: { unavailability: 'EDIT' }
+  });
 });
 
 test('Firestore Rules exigem perfil existente e ativo para activeUser', () => {
