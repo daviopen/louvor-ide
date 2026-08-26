@@ -75,6 +75,16 @@ test('modal de evento no mobile permanece navegável quando o teclado virtual re
   assert.match(css, /\.event-dialog-actions\{[^}]*position:sticky[^}]*bottom:0/);
 });
 
+test('falhas ao salvar ficam visíveis dentro do modal e o botão informa o estado de gravação', () => {
+  assert.match(page, /function ensureFormFeedback\(\)/);
+  assert.match(page, /node\.id = 'event-form-feedback'/);
+  assert.match(page, /node\.setAttribute\('role', 'alert'\)/);
+  assert.match(page, /showFormFeedback\(message, 'error'\)/);
+  assert.match(page, /permission-denied/);
+  assert.match(page, /submit\.textContent = 'Salvando\.\.\.'/);
+  assert.match(page, /form\.checkValidity\(\)/);
+});
+
 test('painéis de filtro sempre iniciam fechados e só abrem após ação do usuário', () => {
   assert.match(filterPanel, /panel\.open = false/);
   assert.doesNotMatch(filterPanel, /localStorage/);
