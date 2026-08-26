@@ -75,10 +75,8 @@ test('Dashboard pode ler apenas as dependências operacionais agregadas e manté
   assert.match(unavailability, /resource\.data\.userId == request\.auth\.uid/);
 });
 
-test('biblioteca legada de músicas é somente leitura para Setlist/Músicas', () => {
-  const legacySongs = extractMatch('musicas/{documentId}');
-  assert.match(legacySongs, /canRead\('songs'\) \|\| canRead\('setlists'\)/);
-  assert.match(legacySongs, /allow write: if false;/);
+test('collection legada de músicas não possui mais rota explícita após migração', () => {
+  assert.doesNotMatch(rules, /match \/musicas\//);
 });
 
 test('collections sensíveis possuem regra explícita', () => {
@@ -92,7 +90,6 @@ test('collections sensíveis possuem regra explícita', () => {
     'setlists/{documentId}',
     'setlistSongs/{documentId}',
     'songs/{documentId}',
-    'musicas/{documentId}',
     'songMinisterKeys/{documentId}',
     'auditLogs/{documentId}',
     'lgpdConsents/{documentId}'
