@@ -14,17 +14,25 @@ test('separa próximos e histórico considerando data e status', () => {
   assert.deepEqual(result.history.map(item => item.id), ['cancelled', 'past']);
 });
 
-test('normaliza evento, músicas e ministro para filtros', () => {
+test('normaliza evento, músicas, ministro e Dress Code para listagem', () => {
   const users = new Map([['u1', { name: 'Marina' }]]);
   const library = new Map([['s1', { title: 'Bondade de Deus' }]]);
   const item = history.normalizeItem(
-    { id: 'set1', eventId: 'e1', eventDate: '2026-08-20' },
+    { id: 'set1', eventId: 'e1', eventDate: '2026-08-20', dressCodeColors: ['#d8ff45', '#FFFFFF', '#ffffff', 'inválida'] },
     { event: { name: 'Culto da Família', theme: 'Gratidão' }, songs: [{ songId: 's1', ministerUserId: 'u1' }], users, library }
   );
   assert.equal(item.name, 'Culto da Família');
   assert.deepEqual(item.ministerNames, ['Marina']);
   assert.deepEqual(item.songTitles, ['Bondade de Deus']);
   assert.equal(item.theme, 'Gratidão');
+  assert.deepEqual(item.dressCodeColors, ['#D8FF45', '#FFFFFF']);
+});
+
+test('limita Dress Code a três cores hexadecimais válidas', () => {
+  assert.deepEqual(
+    history.normalizeDressCodeColors(['#111111', '#222222', '#333333', '#444444', 'red']),
+    ['#111111', '#222222', '#333333']
+  );
 });
 
 test('aplica filtros combinados do histórico', () => {
