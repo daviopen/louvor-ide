@@ -124,12 +124,20 @@
     return String(level || 'NONE').toUpperCase();
   }
 
+  function roleOf(profile) {
+    return String(profile && profile.role || 'MEMBER').toUpperCase();
+  }
+
   function isSuperAdmin(profile) {
-    return Boolean(profile && (profile.isSuperAdmin === true || String(profile.role || '').toUpperCase() === 'SUPER_ADMIN'));
+    return Boolean(profile && (profile.isSuperAdmin === true || roleOf(profile) === 'SUPER_ADMIN'));
+  }
+
+  function isAdmin(profile) {
+    return isSuperAdmin(profile) || roleOf(profile) === 'ADMIN';
   }
 
   function canManageOthers(profile, accessLevel) {
-    return isSuperAdmin(profile) || String(accessLevel || '').toUpperCase() === 'EDIT';
+    return isAdmin(profile) && String(accessLevel || '').toUpperCase() === 'EDIT';
   }
 
   function actorId(actor) {
@@ -297,6 +305,7 @@
     conflictingRecords,
     filterAvailableUsers,
     canManageOthers,
+    isAdmin,
     isSuperAdmin
   });
 });
