@@ -41,9 +41,33 @@ const baseUrl = process.env.E2E_BASE_URL || 'https://louvor-ide.web.app';
     await page.goto(`${baseUrl}/login.html`, { waitUntil: 'networkidle' });
     const transition = await page.getByRole('button', { name: 'Continuar com Google' }).evaluate(el => getComputedStyle(el).transitionDuration);
     assert.match(transition, /(^|,\s*)0s/, 'prefers-reduced-motion deve remover transição do login');
+
+    for (const asset of [
+      '/js/modules/audit-auth-runtime.js',
+      '/repositories/audit-repository.js',
+      '/js/modules/audit-page.js',
+      '/js/modules/lgpd-service.js'
+    ]) {
+      const assetResponse = await page.request.get(`${baseUrl}${asset}`);
+      assert.equal(assetResponse.status(), 200, `${asset}: artefato de auditoria deve estar publicado`);
+      const body = await assetResponse.text();
+      assert.ok(body.length > 100, `${asset}: artefato publicado não pode estar vazio`);
+    }
+
+    const auditPageAsset = await page.request.get(`${baseUrl}/js/modules/audit-page.js`);
+    const auditPageBody = await auditPageAsset.text();
+    assert.match(auditPageBody, /Histórico somente leitura/, 'produção deve conter a tela somente leitura de auditoria');
+    assert.match(auditPageBody, /audit-user-filter/, 'produção deve conter filtro por usuário');
+    assert.match(auditPageBody, /audit-from-filter/, 'produção deve conter filtro por período');
+    assert.match(auditPageBody, /audit-action-filter/, 'produção deve conter filtro por ação');
+    assert.match(auditPageBody, /audit-entity-filter/, 'produção deve conter filtro por entidade');
+
+    const lgpdAsset = await page.request.get(`${baseUrl}/js/modules/lgpd-service.js`);
+    assert.match(await lgpdAsset.text(), /LGPD_CONSENT_ACCEPTED/, 'produção deve auditar consentimento LGPD');
+
     await context.close();
 
-    console.log('✅ Produção validada em desktop/mobile com semântica, teclado, overflow e reduced motion');
+    console.log('✅ Produção validada em desktop/mobile, acessibilidade e artefatos do Audit Log');
   } finally {
     await browser.close();
   }
