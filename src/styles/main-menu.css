@@ -72,9 +72,22 @@ body.ide-shell-enabled.ide-sidebar-collapsed { padding-left: var(--ide-sidebar-c
   .ide-mobile-nav-item.active { color:var(--ide-primary); background:rgba(216,255,69,.09); }
   .ide-module-page { padding:78px 16px 112px; }
 
-  /* Reserva horizontal para o botão sanduíche fixo. Aplica-se aos padrões de cabeçalho usados nas telas atuais sem deslocar o conteúdo abaixo deles. */
+  /* Reserva horizontal para o botão sanduíche fixo nos cabeçalhos mobile. */
   body.ide-shell-enabled :where(.page-head,.ide-page-header,.header,.page-header,.module-header,.section-header) {
-    padding-left:max(56px,calc(env(safe-area-inset-left) + 56px));
+    padding-left:max(64px,calc(env(safe-area-inset-left) + 64px))!important;
+  }
+
+  /* Ao abrir o drawer, o botão sai da área do título e passa para o canto direito do próprio menu. */
+  body.ide-sidebar-open .ide-sidebar-toggle {
+    left:auto!important;
+    right:max(12px,env(safe-area-inset-right))!important;
+    top:max(14px,env(safe-area-inset-top))!important;
+    z-index:calc(var(--ide-z-sidebar) + 2)!important;
+  }
+
+  /* O topo do menu reserva a faixa do botão, evitando colisão com a marca IDE Music. */
+  body.ide-sidebar-open .ide-sidebar-header {
+    padding-right:56px;
   }
 }
 @media (min-width:901px) {
