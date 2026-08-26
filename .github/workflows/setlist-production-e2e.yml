@@ -20,7 +20,7 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: 🎼 Validar Setlist e Histórico no Firebase Hosting
+      - name: 🎼 Validar Setlist, Histórico, Cifra e Letra no Firebase Hosting
         env:
           E2E_BASE_URL: https://louvor-ide.web.app
         run: |
@@ -30,6 +30,8 @@ jobs:
           curl --fail-with-body -sS "${E2E_BASE_URL}/setlists.html?view=history" -o /tmp/setlists.html
           curl --fail-with-body -sS "${E2E_BASE_URL}/setlist-view.html" -o /tmp/setlist-view.html
           curl --fail-with-body -sS "${E2E_BASE_URL}/css/styles.css" -o /tmp/styles.css
+          curl --fail-with-body -sS "${E2E_BASE_URL}/css/setlist-performance-view.css" -o /tmp/setlist-performance-view.css
+          curl --fail-with-body -sS "${E2E_BASE_URL}/js/modules/setlist-performance-view.js" -o /tmp/setlist-performance-view.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/js/pages/setlist-schedule.js" -o /tmp/setlist-schedule.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/js/pages/setlists-simple.js" -o /tmp/setlists-simple.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/services/setlist-service.js" -o /tmp/setlist-service.js
@@ -71,7 +73,29 @@ jobs:
           grep -q 'function filter' /tmp/setlist-history-service.js
           grep -q 'function paginate' /tmp/setlist-history-service.js
           grep -q "'COMPLETED', 'CANCELLED'" /tmp/setlist-history-service.js
-          grep -q 'Músicas com Cifras' /tmp/setlist-view.html
+
+          grep -q 'id="view-chords"' /tmp/setlist-view.html
+          grep -q 'Ver cifra' /tmp/setlist-view.html
+          grep -q 'id="view-lyrics"' /tmp/setlist-view.html
+          grep -q 'Ver letra' /tmp/setlist-view.html
+          grep -q 'id="stage-mode-button"' /tmp/setlist-view.html
+          grep -q 'id="transpose-down"' /tmp/setlist-view.html
+          grep -q 'id="transpose-up"' /tmp/setlist-view.html
+          grep -q 'id="execution-key"' /tmp/setlist-view.html
+          grep -q 'id="font-down"' /tmp/setlist-view.html
+          grep -q 'id="font-up"' /tmp/setlist-view.html
+          grep -q 'id="previous-song"' /tmp/setlist-view.html
+          grep -q 'id="next-song"' /tmp/setlist-view.html
+          grep -q 'setlist-performance-view.js' /tmp/setlist-view.html
+          grep -q 'setlist-performance-view.css' /tmp/setlist-view.html
+          grep -q 'LouvorChordTransposer.transposeText' /tmp/setlist-performance-view.js
+          grep -q 'currentSong.letra' /tmp/setlist-performance-view.js
+          grep -q 'requestFullscreen' /tmp/setlist-performance-view.js
+          grep -q "event.key === 'ArrowLeft'" /tmp/setlist-performance-view.js
+          grep -q "event.key === 'ArrowRight'" /tmp/setlist-performance-view.js
+          grep -q -- '--setlist-font-size' /tmp/setlist-performance-view.css
+          grep -q '.stage-mode .performance-song' /tmp/setlist-performance-view.css
+          grep -q '@media(max-width:560px)' /tmp/setlist-performance-view.css
 
           grep -q -- '--surface: var(--ide-surface)' /tmp/styles.css
           grep -q -- '--surface-secondary: var(--ide-surface-secondary)' /tmp/styles.css
@@ -80,4 +104,4 @@ jobs:
           grep -q ':root\[data-theme="dark"\]' /tmp/styles.css
           grep -q -- '--warning-bg: var(--ide-surface-secondary)' /tmp/styles.css
 
-          echo "✅ Setlist, Histórico, filtros, paginação, somente leitura e contraste estão publicados no Firebase Hosting"
+          echo "✅ Setlist, Histórico, cifra/letra, transposição, navegação, modo palco, fonte, mobile e contraste estão publicados no Firebase Hosting"
