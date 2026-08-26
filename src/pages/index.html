@@ -1,289 +1,72 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IDE Music — Repertório e Setlists</title>
+  <title>Dashboard — IDE Music</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="../config/firebase-config.js"></script>
   <script src="../js/modules/auth-service.js?v=20260825-email"></script>
   <script src="../js/modules/app-shell.js?v=20260825-sidebar" defer></script>
+  <script src="../repositories/dashboard-repository.js?v=20260825-dashboard" defer></script>
+  <script src="../services/dashboard-service.js?v=20260825-dashboard" defer></script>
+  <script src="../features/dashboard/dashboard-page.js?v=20260825-dashboard" defer></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
-  <link rel="stylesheet" href="../css/styles.css">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: var(--ide-font-family-sans);
-      background: var(--ide-background);
-      min-height: 100vh;
-      color: var(--ide-text-primary);
-    }
-    .header {
-      background: var(--ide-surface);
-      backdrop-filter: blur(10px);
-      padding: 20px 0;
-      box-shadow: var(--ide-shadow-md);
-      position: sticky;
-      top: 0;
-      z-index: var(--ide-z-sticky);
-    }
-    .header-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: var(--ide-primary-active);
-      text-decoration: none;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-    .logo:hover { transform: scale(1.05); color: var(--ide-primary-hover); }
-    .logo i { font-size: 2rem; }
-    .search-container { flex: 1; max-width: 500px; position: relative; }
-    .search-box {
-      width: 100%;
-      padding: 15px 20px 15px 50px;
-      border: 1px solid var(--ide-border);
-      border-radius: var(--ide-radius-pill);
-      font-size: 16px;
-      background: var(--ide-surface);
-      color: var(--ide-text-primary);
-      box-shadow: var(--ide-shadow-sm);
-      transition: all 0.3s ease;
-    }
-    .search-box:focus {
-      outline: none;
-      box-shadow: 0 0 0 4px var(--ide-primary-ring);
-      border-color: var(--ide-primary-active);
-      transform: translateY(-2px);
-    }
-    .search-icon {
-      position: absolute;
-      left: 18px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--ide-text-secondary);
-      font-size: 18px;
-    }
-    .action-buttons { display: flex; gap: 15px; }
-    .add-button {
-      background: var(--ide-primary);
-      color: var(--ide-primary-ink);
-      padding: 15px 25px;
-      border: 1px solid var(--ide-primary);
-      border-radius: var(--ide-radius-pill);
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      transition: all 0.3s ease;
-      cursor: pointer;
-    }
-    .add-button:hover { transform: translateY(-3px); box-shadow: var(--ide-shadow-md); }
-    .container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
-    .filters {
-      background: var(--ide-surface);
-      backdrop-filter: blur(10px);
-      border: 1px solid var(--ide-border);
-      border-radius: var(--ide-radius-xl);
-      padding: 25px;
-      margin-bottom: 30px;
-      box-shadow: var(--ide-shadow-md);
-    }
-    .filter-row {
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
-      align-items: center;
-      margin-bottom: 15px;
-    }
-    .filter-group { display: flex; flex-direction: column; gap: 8px; min-width: 150px; }
-    .filter-label { font-weight: 600; color: var(--ide-text-secondary); font-size: 14px; }
-    select, .filter-input {
-      padding: 12px 15px;
-      border: 1px solid var(--ide-border-strong);
-      border-radius: var(--ide-radius-md);
-      font-size: 14px;
-      transition: all 0.3s ease;
-      background: var(--ide-surface);
-      color: var(--ide-text-primary);
-    }
-    select:focus, .filter-input:focus {
-      outline: none;
-      border-color: var(--ide-primary-active);
-      box-shadow: 0 0 0 3px var(--ide-primary-ring);
-    }
-    .clear-filters {
-      background: var(--ide-warning);
-      color: var(--ide-primary-ink);
-      border: none;
-      padding: 12px 20px;
-      border-radius: var(--ide-radius-md);
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.3s ease;
-    }
-    .clear-filters:hover { transform: translateY(-2px); box-shadow: var(--ide-shadow-sm); }
-    .stats { display: flex; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; }
-    .stat-card {
-      background: var(--ide-surface);
-      padding: 20px;
-      border-radius: var(--ide-radius-lg);
-      border: 1px solid var(--ide-border);
-      flex: 1;
-      min-width: 200px;
-      text-align: center;
-      box-shadow: var(--ide-shadow-sm);
-      transition: transform 0.3s ease;
-    }
-    .stat-card:hover { transform: translateY(-5px); }
-    .stat-number { font-size: 2.5rem; font-weight: 700; color: var(--ide-primary-active); margin-bottom: 5px; }
-    .stat-label { color: var(--ide-text-secondary); font-weight: 500; }
-    .music-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 25px; }
-    .music-card {
-      background: var(--ide-surface);
-      border-radius: var(--ide-radius-xl);
-      padding: 25px;
-      box-shadow: var(--ide-shadow-md);
-      transition: all 0.3s ease;
-      cursor: pointer;
-      border: 1px solid var(--ide-border);
-    }
-    .music-card:hover { transform: translateY(-8px); box-shadow: var(--ide-shadow-lg); }
-    .music-title { font-size: 1.4rem; font-weight: 700; color: var(--ide-text-primary); margin-bottom: 5px; line-height: 1.3; }
-    .music-subtitle { font-size: 1rem; font-weight: 500; color: var(--ide-text-secondary); margin-bottom: 10px; font-style: italic; }
-    .music-info { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
-    .info-tag {
-      background: var(--ide-surface-secondary);
-      color: var(--ide-text-primary);
-      padding: 6px 12px;
-      border-radius: var(--ide-radius-pill);
-      font-size: 13px;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .info-tag.ministro { background: var(--ide-info); color: var(--ide-text-on-dark); }
-    .info-tag.tom { background: var(--ide-warning); color: var(--ide-primary-ink); }
-    .info-tag.tom-ministro { background: var(--ide-success); color: var(--ide-text-on-dark); font-size: 12px; }
-    .info-tag.bpm { background: var(--ide-secondary); color: var(--ide-text-on-dark); }
-    .info-tag.link { background: var(--ide-surface-dark); color: var(--ide-text-on-dark); }
-    .music-actions { display: flex; gap: 10px; justify-content: space-between; }
-    .action-btn {
-      flex: 1;
-      padding: 12px;
-      border: none;
-      border-radius: var(--ide-radius-md);
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      text-decoration: none;
-      text-align: center;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-    .btn-view { background: var(--ide-primary); color: var(--ide-primary-ink); }
-    .btn-edit { background: var(--ide-info); color: var(--ide-text-on-dark); }
-    .btn-delete { background: var(--ide-error); color: var(--ide-text-on-dark); }
-    .btn-link { background: var(--ide-surface-dark); color: var(--ide-text-on-dark); }
-    .action-btn:hover { transform: translateY(-2px); box-shadow: var(--ide-shadow-md); }
-    .loading { text-align: center; padding: 60px 20px; color: var(--ide-text-primary); font-size: 1.2rem; }
-    .loading::before {
-      content: '';
-      display: inline-block;
-      width: 40px;
-      height: 40px;
-      border: 4px solid var(--ide-border);
-      border-top: 4px solid var(--ide-primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-right: 15px;
-      vertical-align: middle;
-    }
-    .empty-state { text-align: center; padding: 60px 20px; color: var(--ide-text-primary); }
-    .empty-state i { font-size: 4rem; margin-bottom: 20px; opacity: 0.7; }
-    .empty-state h3 { font-size: 1.5rem; margin-bottom: 10px; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    @media (max-width: 768px) {
-      .header-content { flex-direction: column; gap: 15px; }
-      .search-container { order: 1; max-width: 100%; }
-      .logo { order: 0; }
-      .action-buttons { order: 2; width: 100%; }
-      .add-button { flex: 1; justify-content: center; }
-      .filter-row { flex-direction: column; align-items: stretch; }
-      .filter-group { min-width: auto; }
-      .stats { flex-direction: column; }
-      .music-grid { grid-template-columns: 1fr; }
-      .music-actions { flex-direction: column; }
-    }
-  </style>
-  <link rel="stylesheet" href="../css/music-ide-theme.css">
+  <link rel="stylesheet" href="../styles/dashboard.css?v=20260825-dashboard">
 </head>
 <body>
-  <header class="header">
-    <div class="header-content">
-      <a href="index.html" class="logo">
-        <i class="fas fa-guitar"></i>
-        <span>IDE Music</span>
-      </a>
-      <div class="search-container">
-        <i class="fas fa-search search-icon"></i>
-        <input type="text" id="search-input" class="search-box" placeholder="Buscar por título, ministro ou tom...">
+  <main class="ide-dashboard" id="dashboard-main">
+    <header class="ide-dashboard__header">
+      <div>
+        <span class="ide-dashboard__eyebrow">Visão geral</span>
+        <h1 id="dashboard-greeting">Dashboard</h1>
+        <p class="ide-dashboard__subtitle">Acompanhe os próximos compromissos do ministério e acesse rapidamente o que precisa de atenção.</p>
       </div>
-      <div class="action-buttons">
-        <a href="setlists.html" class="add-button"><i class="fas fa-calendar-alt"></i>Setlist</a>
-        <a href="consultar.html" class="add-button"><i class="fas fa-compact-disc"></i>Músicas</a>
+      <span class="ide-dashboard__date" aria-label="Painel operacional">IDE Music · Comunidade IDE</span>
+    </header>
+
+    <div id="dashboard-status" class="ide-dashboard__status" role="status" aria-live="polite">Atualizando seu painel…</div>
+
+    <section class="ide-dashboard-section" aria-labelledby="quick-actions-title">
+      <div class="ide-dashboard-section__heading">
+        <h2 id="quick-actions-title">Ações rápidas</h2>
       </div>
-    </div>
-  </header>
+      <nav id="dashboard-quick-actions" class="ide-dashboard-actions" aria-label="Ações rápidas do Dashboard"></nav>
+    </section>
 
-  <div class="container">
-    <div class="filters">
-      <div class="filter-row">
-        <div class="filter-group">
-          <label class="filter-label">Ministro</label>
-          <select id="filter-ministro"><option value="">Todos os ministros</option></select>
-        </div>
-        <div class="filter-group">
-          <label class="filter-label">Tom</label>
-          <select id="filter-tom">
-            <option value="">Todos os tons</option><option value="C">C (Dó)</option><option value="C#">C# (Dó#)</option><option value="D">D (Ré)</option><option value="D#">D# (Ré#)</option><option value="E">E (Mi)</option><option value="F">F (Fá)</option><option value="F#">F# (Fá#)</option><option value="G">G (Sol)</option><option value="G#">G# (Sol#)</option><option value="A">A (Lá)</option><option value="A#">A# (Lá#)</option><option value="B">B (Si)</option>
-          </select>
-        </div>
+    <section class="ide-dashboard-grid" aria-label="Resumo operacional">
+      <article class="ide-dashboard-card">
+        <header class="ide-dashboard-card__header"><i class="fa-solid fa-calendar-day" aria-hidden="true"></i><h2>Próximos eventos</h2></header>
+        <div id="dashboard-upcoming-events" class="ide-dashboard-list" aria-live="polite"></div>
+      </article>
+
+      <article class="ide-dashboard-card">
+        <header class="ide-dashboard-card__header"><i class="fa-solid fa-people-group" aria-hidden="true"></i><h2>Próximas escalas</h2></header>
+        <div id="dashboard-upcoming-schedules" class="ide-dashboard-list" aria-live="polite"></div>
+      </article>
+
+      <article class="ide-dashboard-card">
+        <header class="ide-dashboard-card__header"><i class="fa-solid fa-list-check" aria-hidden="true"></i><h2>Setlists pendentes</h2></header>
+        <div id="dashboard-pending-setlists" class="ide-dashboard-list" aria-live="polite"></div>
+      </article>
+
+      <article class="ide-dashboard-card">
+        <header class="ide-dashboard-card__header"><i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i><h2>Minhas indisponibilidades</h2></header>
+        <div id="dashboard-upcoming-unavailability" class="ide-dashboard-list" aria-live="polite"></div>
+      </article>
+    </section>
+
+    <section id="dashboard-admin-section" class="ide-dashboard-section" aria-labelledby="admin-indicators-title" hidden>
+      <div class="ide-dashboard-section__heading">
+        <h2 id="admin-indicators-title">Indicadores administrativos</h2>
+        <a href="module.html?section=schedules">Ver operação</a>
       </div>
-      <button class="clear-filters" onclick="clearFilters()">Limpar filtros</button>
-    </div>
-
-    <div class="stats">
-      <div class="stat-card"><div class="stat-number" id="total-count">0</div><div class="stat-label">Músicas</div></div>
-    </div>
-
-    <div id="loading" class="loading">Carregando músicas...</div>
-    <div id="empty-state" class="empty-state" style="display:none"><i class="fas fa-music"></i><h3>Nenhuma música encontrada</h3><p>Tente ajustar os filtros.</p></div>
-    <div id="lista-musicas" class="music-grid"></div>
-    <div id="debug-info" style="display:none"></div>
-  </div>
-
-  <script type="module" src="../js/pages/index.js"></script>
+      <div id="dashboard-admin-indicators" class="ide-dashboard-indicators"></div>
+    </section>
+  </main>
 </body>
 </html>
