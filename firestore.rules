@@ -29,6 +29,19 @@ service cloud.firestore {
     function permissionPath(moduleName) {
       return /databases/$(database)/documents/permissions/$(request.auth.uid + '__' + moduleName);
     }
+    function ownPermissionSlot(permissionId) {
+      return activeUser() && permissionId in [
+        request.auth.uid + '__dashboard',
+        request.auth.uid + '__users',
+        request.auth.uid + '__permissions',
+        request.auth.uid + '__unavailability',
+        request.auth.uid + '__events',
+        request.auth.uid + '__schedules',
+        request.auth.uid + '__setlists',
+        request.auth.uid + '__songs',
+        request.auth.uid + '__audit'
+      ];
+    }
     function explicitPermission(moduleName, acceptedLevels) {
       return activeUser()
         && exists(permissionPath(moduleName))
@@ -151,7 +164,7 @@ service cloud.firestore {
     }
 
     match /permissions/{permissionId} {
-      allow get: if isSuperAdmin() || canRead('permissions') || (activeUser() && resource.data.userId == request.auth.uid);
+      allow get: if isSuperAdmin() || canRead('permissions') || ownPermissionSlot(permissionId);
       allow list: if isSuperAdmin() || canRead('permissions');
       allow create, update: if isSuperAdmin() && validPermissionDocument(permissionId);
       allow delete: if isSuperAdmin();
