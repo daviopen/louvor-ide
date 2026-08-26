@@ -9,6 +9,7 @@
     "build": "make build",
     "deploy": "make deploy",
     "test": "node --test tests/*.test.js",
+    "test:e2e:full": "node tests/production-full-system.e2e.cjs",
     "setup": "./setup.sh",
     "dev": "make dev",
     "status": "make status",
