@@ -70,7 +70,7 @@ test('music create/update/delete emits audit records with minimal before/after s
     /after: this\.auditSnapshot\(processedData\)/
   ]);
   expectAll(musicRepository, [
-    /collection\('auditLogs'\)/,
+    /collection\(COLLECTIONS\.AUDIT_LOGS\)/,
     /entityType: 'song'/,
     /actorUserId/,
     /createdAt/
