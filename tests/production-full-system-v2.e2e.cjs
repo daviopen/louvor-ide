@@ -49,6 +49,23 @@ async function assertHealthy(page, label) {
   record(`Página saudável: ${label}`, url.pathname + url.search);
 }
 
+async function waitForDialogSave(page, dialogSelector, toastSelector, timeout = 25000) {
+  const dialog = page.locator(dialogSelector);
+  const toast = page.locator(toastSelector);
+  await page.waitForFunction(({ dialogSelector, toastSelector }) => {
+    const dialog = document.querySelector(dialogSelector);
+    const toast = document.querySelector(toastSelector);
+    const closed = !dialog || !dialog.open;
+    const visibleToast = toast && !toast.hidden && (toast.textContent || '').trim().length > 0;
+    return closed || visibleToast;
+  }, { dialogSelector, toastSelector }, { timeout });
+
+  if (await dialog.evaluate(node => Boolean(node.open)).catch(() => false)) {
+    const message = ((await toast.textContent().catch(() => '')) || '').trim();
+    throw new Error(`Falha reportada pela interface ao salvar: ${message || 'mensagem não informada'}`);
+  }
+}
+
 async function cleanupByField(db, collection, field, value) {
   const snap = await db.collection(collection).where(field, '==', value).get().catch(() => null);
   if (snap) await Promise.allSettled(snap.docs.map(doc => doc.ref.delete()));
@@ -145,7 +162,7 @@ async function cleanupByField(db, collection, field, value) {
 
     await page.goto(`${baseUrl}/module.html?section=events`, { waitUntil: 'domcontentloaded' });
     await waitHydrated(page);
-    await page.locator('#events-loading').waitFor({ state: 'hidden', timeout: 20000 }).catch(() => {});
+    await page.locator('#events-loading').waitFor({ state: 'hidden', timeout: 20000 });
     await page.locator('#new-event').click();
     await page.locator('#event-name').fill(eventName);
     await page.locator('#event-date').fill(futureDate);
@@ -154,10 +171,13 @@ async function cleanupByField(db, collection, field, value) {
     await page.locator('#event-theme').fill('Validação automática');
     await page.locator('#event-description').fill('Evento temporário do teste E2E completo.');
     await page.locator('#event-submit').click();
-    await page.locator('#event-dialog').waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+    await waitForDialogSave(page, '#event-dialog', '#events-toast');
+    await page.locator('#events-loading').waitFor({ state: 'hidden', timeout: 20000 });
     await page.locator('#events-search').fill(eventName);
-    await page.waitForTimeout(700);
-    assert.ok((await page.locator('#events-list').innerText()).includes(eventName), 'evento criado não apareceu na listagem');
+    await page.waitForFunction(expected => {
+      const list = document.querySelector('#events-list');
+      return Boolean(list && (list.textContent || '').includes(expected));
+    }, eventName, { timeout: 15000 });
     record('Evento: cadastrar → consultar');
 
     await page.goto(`${baseUrl}/module.html?section=unavailability`, { waitUntil: 'domcontentloaded' });
