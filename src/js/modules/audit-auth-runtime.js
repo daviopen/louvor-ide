@@ -77,8 +77,34 @@
     return true;
   }
 
+  function loadScript(src, marker) {
+    if (scope.document.querySelector(`script[${marker}]`)) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const script = scope.document.createElement('script');
+      script.src = src;
+      script.defer = true;
+      script.setAttribute(marker, 'true');
+      script.addEventListener('load', resolve, { once: true });
+      script.addEventListener('error', reject, { once: true });
+      scope.document.head.appendChild(script);
+    });
+  }
+
+  async function bootstrapAuditRoute() {
+    const page = String(scope.location && scope.location.pathname || '').split('/').filter(Boolean).pop();
+    const section = new URLSearchParams(scope.location && scope.location.search || '').get('section');
+    if (page !== 'module.html' || section !== 'audit') return;
+    try {
+      await loadScript('repositories/audit-repository.js?v=20260825-audit', 'data-ide-audit-repository');
+      await loadScript('js/modules/audit-page.js?v=20260825-audit', 'data-ide-audit-page');
+    } catch (error) {
+      console.error('Não foi possível carregar a tela de auditoria:', error);
+    }
+  }
+
   function connect() {
     wrapSignOut();
+    bootstrapAuditRoute();
     if (scope.musicIdeAuthReady && typeof scope.musicIdeAuthReady.then === 'function') {
       scope.musicIdeAuthReady.then(user => recordLogin(user)).catch(() => null);
     }
