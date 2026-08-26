@@ -1,51 +1,10 @@
 /**
- * Catálogo de músicas — consulta, filtros combinados e paginação.
+ * Catálogo de músicas — orquestração de UI.
+ * Regras de busca, filtros e paginação pertencem ao MusicService.
  */
 import musicService from '../modules/music-service.js';
 
 const PAGE_SIZE = 10;
-
-function normalize(value) {
-  return String(value ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLocaleLowerCase('pt-BR');
-}
-
-function uniqueSorted(values) {
-  return [...new Set(values.map(value => String(value || '').trim()).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
-}
-
-function ministerNames(song) {
-  const names = [];
-  if (Array.isArray(song?.ministros)) names.push(...song.ministros);
-  if (song?.ministro) names.push(...String(song.ministro).split(','));
-  if (song?.tomMinistro && typeof song.tomMinistro === 'object') names.push(...Object.keys(song.tomMinistro));
-  return uniqueSorted(names);
-}
-
-function themeValues(song) {
-  const raw = song?.tema ?? song?.theme ?? song?.temas ?? song?.themes;
-  if (Array.isArray(raw)) return raw;
-  if (!raw) return [];
-  return String(raw).split(',');
-}
-
-function matchesFilters(song, filters) {
-  const title = normalize(song?.titulo ?? song?.title);
-  const artist = normalize(song?.artista ?? song?.artist);
-  const key = normalize(song?.tom ?? song?.originalKey ?? song?.key);
-  const ministers = ministerNames(song).map(normalize);
-  const themes = themeValues(song).map(normalize);
-
-  return (!filters.search || title.includes(normalize(filters.search)))
-    && (!filters.artist || artist === normalize(filters.artist))
-    && (!filters.minister || ministers.includes(normalize(filters.minister)))
-    && (!filters.key || key === normalize(filters.key))
-    && (!filters.theme || themes.includes(normalize(filters.theme)));
-}
 
 class MusicCatalogPage {
   constructor() {
@@ -123,7 +82,7 @@ class MusicCatalogPage {
       });
     }
 
-    this.allSongs = songs.sort((a, b) => String(a.titulo || '').localeCompare(String(b.titulo || ''), 'pt-BR', { sensitivity: 'base' }));
+    this.allSongs = musicService.sortMusics(songs, 'titulo', 'asc');
     this.setLoading(false);
     this.populateFilterOptions();
     this.render();
@@ -151,15 +110,11 @@ class MusicCatalogPage {
 
   populateFilterOptions() {
     const current = this.currentFilters();
-    const artists = uniqueSorted(this.allSongs.map(song => song.artista ?? song.artist));
-    const ministers = uniqueSorted(this.allSongs.flatMap(ministerNames));
-    const keys = uniqueSorted(this.allSongs.map(song => song.tom ?? song.originalKey ?? song.key));
-    const themes = uniqueSorted(this.allSongs.flatMap(themeValues));
-
-    this.fillSelect(this.artist, artists, current.artist);
-    this.fillSelect(this.minister, ministers, current.minister);
-    this.fillSelect(this.key, keys, current.key);
-    this.fillSelect(this.theme, themes, current.theme);
+    const options = musicService.getCatalogOptions(this.allSongs);
+    this.fillSelect(this.artist, options.artists, current.artist);
+    this.fillSelect(this.minister, options.ministers, current.minister);
+    this.fillSelect(this.key, options.keys, current.key);
+    this.fillSelect(this.theme, options.themes, current.theme);
   }
 
   fillSelect(select, options, selectedValue) {
@@ -179,32 +134,27 @@ class MusicCatalogPage {
   }
 
   render() {
-    const filters = this.currentFilters();
-    this.filteredSongs = this.allSongs.filter(song => matchesFilters(song, filters));
-
-    const totalPages = Math.max(1, Math.ceil(this.filteredSongs.length / PAGE_SIZE));
-    this.page = Math.min(Math.max(1, this.page), totalPages);
-    const start = (this.page - 1) * PAGE_SIZE;
-    const pageSongs = this.filteredSongs.slice(start, start + PAGE_SIZE);
+    this.filteredSongs = musicService.filterCatalog(this.allSongs, this.currentFilters());
+    const pagination = musicService.paginateCatalog(this.filteredSongs, this.page, PAGE_SIZE);
+    this.page = pagination.page;
 
     this.clear.disabled = !this.hasActiveFilters();
     this.count.textContent = this.resultLabel(this.filteredSongs.length, this.allSongs.length);
     this.list.replaceChildren();
 
-    if (pageSongs.length === 0) {
+    if (pagination.items.length === 0) {
       this.renderEmptyList(
         this.hasActiveFilters() ? 'Nenhuma música encontrada' : 'Nenhuma música cadastrada',
         this.hasActiveFilters() ? 'Ajuste ou limpe os filtros para ampliar a busca.' : 'Cadastre a primeira música para iniciar o repertório.'
       );
     } else {
-      pageSongs.forEach(song => this.list.appendChild(this.createSongRow(song)));
+      pagination.items.forEach(song => this.list.appendChild(this.createSongRow(song)));
     }
 
-    const needsPagination = this.filteredSongs.length > PAGE_SIZE;
-    this.pagination.hidden = !needsPagination;
-    this.prev.disabled = this.page <= 1;
-    this.next.disabled = this.page >= totalPages;
-    this.pageLabel.textContent = `Página ${this.page} de ${totalPages}`;
+    this.pagination.hidden = pagination.total <= PAGE_SIZE;
+    this.prev.disabled = pagination.page <= 1;
+    this.next.disabled = pagination.page >= pagination.totalPages;
+    this.pageLabel.textContent = `Página ${pagination.page} de ${pagination.totalPages}`;
   }
 
   resultLabel(filtered, total) {
@@ -249,7 +199,11 @@ class MusicCatalogPage {
 
     const meta = document.createElement('span');
     meta.className = 'song-row__meta';
-    const values = [song.artista ?? song.artist, song.tom ?? song.originalKey ?? song.key, ...ministerNames(song).slice(0, 2)].filter(Boolean);
+    const values = [
+      song.artista ?? song.artist,
+      song.tom ?? song.originalKey ?? song.key,
+      ...musicService.getMinisterNames(song).slice(0, 2)
+    ].filter(Boolean);
     values.forEach(value => {
       const item = document.createElement('span');
       item.textContent = value;
@@ -277,8 +231,8 @@ class MusicCatalogPage {
 
     const chips = [
       ['Tom', song.tom ?? song.originalKey ?? song.key],
-      ['Ministro', ministerNames(song).join(', ')],
-      ['Tema', themeValues(song).join(', ')],
+      ['Ministro', musicService.getMinisterNames(song).join(', ')],
+      ['Tema', musicService.getThemeValues(song).join(', ')],
       ['BPM', song.bpm]
     ].filter(([, value]) => value !== undefined && value !== null && String(value).trim());
 
@@ -309,10 +263,9 @@ class MusicCatalogPage {
   }
 
   changePage(delta) {
-    const totalPages = Math.max(1, Math.ceil(this.filteredSongs.length / PAGE_SIZE));
-    const nextPage = Math.min(Math.max(1, this.page + delta), totalPages);
-    if (nextPage === this.page) return;
-    this.page = nextPage;
+    const pagination = musicService.paginateCatalog(this.filteredSongs, this.page + delta, PAGE_SIZE);
+    if (pagination.page === this.page) return;
+    this.page = pagination.page;
     this.render();
     document.getElementById('catalog-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -326,4 +279,4 @@ const start = () => new MusicCatalogPage().init();
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
 else start();
 
-export { PAGE_SIZE, normalize, uniqueSorted, ministerNames, themeValues, matchesFilters, MusicCatalogPage };
+export { PAGE_SIZE, MusicCatalogPage };
