@@ -43,6 +43,13 @@ test('operações administrativas impedem exclusão física de usuário', () => 
   assert.match(users, /resource\.data\.role != 'SUPER_ADMIN'/);
 });
 
+test('indisponibilidade de terceiros exige perfil ADMIN além da permissão do módulo', () => {
+  assert.match(rules, /function administrativeUnavailabilityWrite\(\)[\s\S]*isAdmin\(\)[\s\S]*canEdit\('unavailability'\)/);
+  const unavailability = extractMatch('unavailability/{documentId}');
+  assert.match(unavailability, /isAdmin\(\) && canRead\('unavailability'\)/);
+  assert.match(unavailability, /isAdmin\(\) && canEdit\('unavailability'\)/);
+});
+
 test('audit log é append-only e exige ator autenticado', () => {
   const audit = extractMatch('auditLogs/{documentId}');
   assert.match(audit, /actorUserId == request\.auth\.uid/);
