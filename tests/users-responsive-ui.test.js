@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'src', 'pages', 'users.html'), 'utf8');
+const js = fs.readFileSync(path.join(root, 'src', 'js', 'modules', 'users-page.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'src', 'styles', 'users.css'), 'utf8');
 
 test('usuários carrega Button/Input oficiais e mantém CSS da feature por último', () => {
@@ -16,10 +17,14 @@ test('usuários carrega Button/Input oficiais e mantém CSS da feature por últi
   assert.ok(themeIndex >= 0 && usersIndex > themeIndex);
 });
 
-test('criação, edição e senha usam campos e seções responsivas', () => {
+test('criação e edição usam campos responsivos e senha usa redefinição por e-mail', () => {
   assert.match(html, /class="ide-field"/);
   assert.match(html, /class="users-fieldset full"/);
-  assert.match(html, /class="users-dialog users-dialog--compact"/);
+  assert.match(html, /Firebase Authentication gera o UID automaticamente/);
+  assert.doesNotMatch(html, /id="password-dialog"/);
+  assert.doesNotMatch(html, /id="user-password"/);
+  assert.match(js, />Redefinir senha<\/button>/);
+  assert.match(js, /service\.sendPasswordReset\(button\.dataset\.email, button\.dataset\.id\)/);
   assert.match(html, /Função ministerial não concede permissão administrativa/);
   assert.match(css, /\.users-form-grid>\.ide-field[^{]*\{display:grid/);
   assert.match(css, /\.users-form-grid\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
