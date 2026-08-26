@@ -50,7 +50,7 @@ jobs:
           E2E_BASE_URL: https://louvor-ide.web.app
           FIREBASE_PROJECT_ID: louvor-ide
           E2E_ARTIFACTS_DIR: test-results/full-system
-        run: node tests/production-full-system.e2e.cjs
+        run: node tests/production-full-system-v2.e2e.cjs
 
       - name: 📦 Publicar relatório, screenshot e trace do Playwright
         if: always()
