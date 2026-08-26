@@ -72,10 +72,10 @@ jobs:
 
           curl --fail-with-body -sS "${E2E_BASE_URL}/consultar.html" -o /tmp/consultar.html
           curl --fail-with-body -sS "${E2E_BASE_URL}/nova-musica.html" -o /tmp/nova-musica.html
-          curl --fail-with-body -sS "${E2E_BASE_URL}/js/pages/consulta.js?v=20260825-catalog" -o /tmp/consulta.js
-          curl --fail-with-body -sS "${E2E_BASE_URL}/js/pages/song-form.js?v=20260825-roadmap23" -o /tmp/song-form.js
-          curl --fail-with-body -sS "${E2E_BASE_URL}/js/modules/music-service.js" -o /tmp/music-service.js
-          curl --fail-with-body -sS "${E2E_BASE_URL}/repositories/music-repository.js" -o /tmp/music-repository.js
+          curl --fail-with-body -sS "${E2E_BASE_URL}/js/pages/consulta.js?v=20260826-catalog-fix" -o /tmp/consulta.js
+          curl --fail-with-body -sS "${E2E_BASE_URL}/js/pages/song-form.js?v=20260826-theme" -o /tmp/song-form.js
+          curl --fail-with-body -sS "${E2E_BASE_URL}/js/modules/music-service.js?v=20260826-catalog-fix2" -o /tmp/music-service.js
+          curl --fail-with-body -sS "${E2E_BASE_URL}/repositories/music-repository.js?v=20260826-catalog-fix2" -o /tmp/music-repository.js
 
           grep -q 'Consultar músicas' /tmp/consultar.html
           grep -q 'href="nova-musica.html"' /tmp/consultar.html
@@ -88,17 +88,23 @@ jobs:
           grep -q 'id="songs-result-count"' /tmp/consultar.html
           grep -q 'id="songs-pagination"' /tmp/consultar.html
           grep -q '@media (max-width: 600px)' /tmp/consultar.html
+          grep -q 'musicService.getAllMusicsArray' /tmp/consulta.js
+          grep -q 'musicService.loadAllMusics' /tmp/consulta.js
           grep -q 'musicService.filterCatalog' /tmp/consulta.js
           grep -q 'musicService.paginateCatalog' /tmp/consulta.js
+          grep -q 'Promise.resolve(window.musicIdeAuthReady)' /tmp/consulta.js
           grep -q 'filterCatalog(musics, filters = {})' /tmp/music-service.js
           grep -q 'paginateCatalog(musics, page = 1, pageSize = 10)' /tmp/music-service.js
+          grep -q 'async findAll()' /tmp/music-repository.js
+          grep -q 'COLLECTIONS.SONGS' /tmp/music-repository.js
+          grep -q 'COLLECTIONS.MUSICS' /tmp/music-repository.js
 
           for field in titulo artista tom tema link cifra letra observacoes minister-list; do
             grep -q "id=\"${field}\"" /tmp/nova-musica.html || { echo "❌ Campo ${field} ausente do editor publicado"; exit 1; }
           done
           grep -q 'data-preview="cifra"' /tmp/nova-musica.html
           grep -q 'data-preview="letra"' /tmp/nova-musica.html
-          grep -q 'song-form.js?v=20260825-roadmap23' /tmp/nova-musica.html
+          grep -q 'song-form.js?v=20260826-theme' /tmp/nova-musica.html
           grep -q 'listEligibleMinisters' /tmp/song-form.js
           grep -q 'replaceMinisterKeys' /tmp/song-form.js
           grep -q 'SONG_CREATED' /tmp/song-form.js
@@ -109,7 +115,7 @@ jobs:
           grep -q 'AUDIT_LOGS' /tmp/music-repository.js
           grep -q 'super(COLLECTIONS.SONGS' /tmp/music-repository.js
 
-          echo "✅ Consulta e editor de músicas do passo 23 estão publicados no Firebase Hosting"
+          echo "✅ Consulta e editor de músicas atuais estão publicados no Firebase Hosting"
 
       - name: 🔐 Validar autenticação e autorização reais em produção
         env:
@@ -178,5 +184,3 @@ jobs:
           E2E_PASSWORD="${E2E_PASSWORD}" \
           E2E_BASE_URL="${E2E_BASE_URL}" \
           node tests/production-auth.e2e.cjs
-
-          echo "✅ Aplicação validada em navegador real contra produção"
