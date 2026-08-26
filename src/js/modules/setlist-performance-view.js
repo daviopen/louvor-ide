@@ -62,28 +62,32 @@
   if (!globalScope || !globalScope.document) return;
 
   const document = globalScope.document;
+  const params = new URLSearchParams(globalScope.location.search);
   const state = {
     db: null,
-    setlistId: new URLSearchParams(globalScope.location.search).get('id'),
+    setlistId: params.get('id'),
+    songId: params.get('song'),
     setlist: null,
     songs: [],
     activeIndex: 0,
     mode: 'chords',
     fontSize: DEFAULT_FONT_SIZE,
     transposeOffset: 0,
-    stageMode: false
+    stageMode: false,
+    startInStageMode: params.get('stage') === '1'
   };
 
   const el = {};
   function cacheElements() {
     [
-      'loading', 'error', 'viewer', 'setlist-title', 'setlist-meta', 'song-strip-list',
+      'loading', 'error', 'viewer', 'setlist-title', 'setlist-meta', 'song-strip-list', 'song-strip',
       'song-position', 'song-title', 'song-artist', 'song-minister', 'song-key',
       'view-chords', 'view-lyrics', 'transpose-controls', 'transpose-down',
       'transpose-reset', 'transpose-up', 'execution-key', 'font-down', 'font-up',
       'font-size-value', 'chords-content', 'lyrics-content', 'content-empty',
-      'previous-song', 'next-song', 'previous-song-label', 'next-song-label',
-      'stage-mode-button', 'exit-stage-button'
+      'previous-song', 'next-song', 'previous-song-label', 'next-song-label', 'song-navigation',
+      'stage-mode-button', 'exit-stage-button', 'performance-eyebrow', 'performance-back-link',
+      'performance-back-label'
     ].forEach(id => { el[id] = document.getElementById(id); });
   }
 
@@ -95,10 +99,23 @@
     document.documentElement.classList.remove('auth-pending');
   }
 
+  function isValidDocumentId(value) {
+    return Boolean(value && /^[A-Za-z0-9._-]+$/.test(value));
+  }
+
   function resolveSetlistSongs(data) {
     if (Array.isArray(data?.musicas)) return data.musicas;
     if (Array.isArray(data?.songs)) return data.songs;
     return [];
+  }
+
+  function resolveMinisterName(setlistSong, currentSong) {
+    const direct = safeText(setlistSong?.ministro || setlistSong?.ministerName);
+    if (direct) return direct;
+    const values = Array.isArray(currentSong?.ministros)
+      ? currentSong.ministros
+      : Array.isArray(currentSong?.ministers) ? currentSong.ministers : [];
+    return values.map(value => String(value || '').trim()).filter(Boolean).join(', ') || 'Sem ministro';
   }
 
   async function loadSong(setlistSong, index) {
@@ -116,24 +133,35 @@
 
     return {
       id: songId || `song-${index}`,
-      title: safeText(setlistSong.titulo || setlistSong.title || currentSong.nome || currentSong.titulo, `Música ${index + 1}`),
-      artist: safeText(setlistSong.artista || setlistSong.artist || currentSong.artista, 'Artista não informado'),
-      minister: safeText(setlistSong.ministro || setlistSong.ministerName, 'Sem ministro'),
+      title: safeText(setlistSong.titulo || setlistSong.title || currentSong.nome || currentSong.titulo || currentSong.title, `Música ${index + 1}`),
+      artist: safeText(setlistSong.artista || setlistSong.artist || currentSong.artista || currentSong.artist, 'Artista não informado'),
+      minister: resolveMinisterName(setlistSong, currentSong),
       originalKey,
       executionKey,
-      chordText: safeText(currentSong.cifra || currentSong.chords),
+      chordText: safeText(currentSong.cifra || currentSong.chordSheet || currentSong.chords),
       lyricsText: normalizeLyrics(currentSong.letra || currentSong.lyrics || currentSong.letraCompleta)
     };
   }
 
   async function loadData() {
-    if (!state.setlistId || !/^[A-Za-z0-9._-]+$/.test(state.setlistId)) {
-      throw new Error('Setlist inválido. Volte à lista e abra o repertório novamente.');
-    }
     if (!globalScope.firebase) throw new Error('Firebase não foi carregado.');
     const sharedFirebaseConfig = typeof firebaseConfig !== 'undefined' ? firebaseConfig : globalScope.firebaseConfig;
     if (!globalScope.firebase.apps.length) globalScope.firebase.initializeApp(sharedFirebaseConfig);
     state.db = globalScope.firebase.firestore();
+
+    if (state.songId) {
+      if (!isValidDocumentId(state.songId)) throw new Error('Música inválida. Volte ao catálogo e abra a música novamente.');
+      const snapshot = await state.db.collection('musicas').doc(state.songId).get();
+      if (!snapshot.exists) throw new Error('Música não encontrada ou sem permissão de leitura.');
+      const data = snapshot.data() || {};
+      state.setlist = { name: safeText(data.titulo || data.nome || data.title, 'Música') };
+      state.songs = [await loadSong({ id: state.songId }, 0)];
+      return;
+    }
+
+    if (!isValidDocumentId(state.setlistId)) {
+      throw new Error('Setlist inválido. Volte à lista e abra o repertório novamente.');
+    }
 
     const setlistSnapshot = await state.db.collection('setlists').doc(state.setlistId).get();
     if (!setlistSnapshot.exists) throw new Error('Setlist não encontrado ou sem permissão de leitura.');
@@ -144,6 +172,19 @@
   }
 
   function renderHeader() {
+    if (state.songId) {
+      const song = state.songs[0];
+      el['performance-eyebrow'].textContent = 'MÚSICA · CIFRA E LETRA';
+      el['setlist-title'].textContent = song?.title || 'Música';
+      el['setlist-meta'].textContent = `${song?.artist || 'Artista não informado'} · Tom ${song?.executionKey || '—'}`;
+      el['performance-back-link'].href = `consultar.html?song=${encodeURIComponent(state.songId)}`;
+      el['performance-back-label'].textContent = 'Músicas';
+      el['song-strip'].hidden = true;
+      el['song-navigation'].hidden = true;
+      document.title = `${el['setlist-title'].textContent} — Modo palco | IDE Music`;
+      return;
+    }
+
     el['setlist-title'].textContent = safeText(state.setlist?.nome || state.setlist?.name, 'Setlist');
     const date = formatDate(state.setlist?.data || state.setlist?.date);
     const count = state.songs.length;
@@ -152,6 +193,7 @@
   }
 
   function renderSongStrip() {
+    if (state.songId) return;
     el['song-strip-list'].innerHTML = state.songs.map((song, index) => `
       <button class="song-strip-button${index === state.activeIndex ? ' is-active' : ''}" type="button" data-song-index="${index}" aria-current="${index === state.activeIndex ? 'true' : 'false'}">
         <span>${index + 1}</span><strong>${escapeHtml(song.title)}</strong><small>${escapeHtml(song.executionKey)}</small>
@@ -197,6 +239,7 @@
   }
 
   function renderNavigation() {
+    if (state.songId) return;
     const previousIndex = getAdjacentIndex(state.activeIndex, -1, state.songs.length);
     const nextIndex = getAdjacentIndex(state.activeIndex, 1, state.songs.length);
     const previous = previousIndex >= 0 ? state.songs[previousIndex] : null;
@@ -224,7 +267,7 @@
       return;
     }
 
-    el['song-position'].textContent = `Música ${state.activeIndex + 1} de ${state.songs.length}`;
+    el['song-position'].textContent = state.songId ? 'Música avulsa' : `Música ${state.activeIndex + 1} de ${state.songs.length}`;
     el['song-title'].textContent = song.title;
     el['song-artist'].textContent = song.artist;
     el['song-minister'].innerHTML = `<i class="fas fa-user" aria-hidden="true"></i> ${escapeHtml(song.minister)}`;
@@ -289,8 +332,8 @@
 
     document.addEventListener('keydown', event => {
       if (event.target.closest('input, textarea, select')) return;
-      if (event.key === 'ArrowLeft') selectSong(state.activeIndex - 1);
-      if (event.key === 'ArrowRight') selectSong(state.activeIndex + 1);
+      if (!state.songId && event.key === 'ArrowLeft') selectSong(state.activeIndex - 1);
+      if (!state.songId && event.key === 'ArrowRight') selectSong(state.activeIndex + 1);
       if (event.key.toLowerCase() === 'c') setMode('chords');
       if (event.key.toLowerCase() === 'l') setMode('lyrics');
       if (event.key === 'Escape' && state.stageMode) setStageMode(false);
@@ -309,9 +352,10 @@
       el.viewer.hidden = false;
       renderActiveSong();
       document.documentElement.classList.remove('auth-pending');
+      if (state.startInStageMode) setStageMode(true);
     } catch (error) {
       console.error('[setlist-performance-view]', error);
-      showError(error?.message || 'Não foi possível abrir o setlist.');
+      showError(error?.message || 'Não foi possível abrir o repertório.');
     }
   }
 
