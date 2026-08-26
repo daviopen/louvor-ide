@@ -13,16 +13,8 @@
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../css/music-ide-theme.css">
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html,
-    body {
-      min-height: 100%;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; }
 
     body.login-page {
       display: grid;
@@ -97,11 +89,7 @@
       box-shadow: 0 0 0 5px rgba(216, 255, 69, 0.09);
     }
 
-    .brand-copy {
-      position: relative;
-      z-index: 1;
-      max-width: 500px;
-    }
+    .brand-copy { position: relative; z-index: 1; max-width: 500px; }
 
     .eyebrow {
       margin-bottom: 16px;
@@ -124,7 +112,7 @@
 
     .brand-copy p {
       max-width: 410px;
-      color: rgba(255, 255, 255, 0.68);
+      color: rgba(255, 255, 255, 0.72);
       font-size: var(--ide-font-size-md);
       line-height: var(--ide-line-height-relaxed);
     }
@@ -135,13 +123,14 @@
       flex-direction: column;
       justify-content: center;
       padding: clamp(38px, 5vw, 58px);
-      color: var(--ide-text-primary);
+      color: var(--ide-color-neutral-900);
       background: var(--ide-color-neutral-100);
+      color-scheme: light;
     }
 
     .access-panel .eyebrow {
       margin-bottom: var(--ide-space-2);
-      color: var(--music-accent-text);
+      color: var(--ide-color-neutral-700);
     }
 
     .access-panel h2 {
@@ -156,7 +145,7 @@
 
     .access-panel > p {
       margin-bottom: var(--ide-space-8);
-      color: var(--ide-color-neutral-600);
+      color: var(--ide-color-neutral-700);
       font-size: var(--ide-font-size-sm);
       line-height: var(--ide-line-height-relaxed);
     }
@@ -199,19 +188,14 @@
       outline-offset: 2px;
     }
 
-    .google-logo {
-      display: block;
-      width: 19px;
-      height: 19px;
-      flex: 0 0 19px;
-    }
+    .google-logo { display: block; width: 19px; height: 19px; flex: 0 0 19px; }
 
     .login-divider {
       display: flex;
       align-items: center;
       gap: 14px;
       margin: var(--ide-space-6) 0;
-      color: var(--ide-color-neutral-600);
+      color: var(--ide-color-neutral-700);
       font-size: 0.7rem;
       font-weight: var(--ide-font-weight-bold);
       letter-spacing: 0.12em;
@@ -223,13 +207,10 @@
       content: "";
       height: 1px;
       flex: 1;
-      background: rgba(17, 20, 21, 0.14);
+      background: rgba(17, 20, 21, 0.16);
     }
 
-    .email-form {
-      display: grid;
-      gap: var(--ide-space-4);
-    }
+    .email-form { display: grid; gap: var(--ide-space-4); }
 
     .email-form label {
       display: grid;
@@ -244,11 +225,23 @@
       min-height: 48px;
       padding: 0 14px;
       color: var(--ide-color-neutral-900) !important;
-      border: 1px solid rgba(17, 20, 21, 0.22) !important;
+      -webkit-text-fill-color: var(--ide-color-neutral-900) !important;
+      caret-color: var(--ide-color-neutral-900);
+      border: 1px solid rgba(17, 20, 21, 0.26) !important;
       border-radius: var(--ide-radius-md) !important;
       background: var(--ide-color-white) !important;
       font: 500 var(--ide-font-size-sm)/1.2 var(--ide-font-family-sans) !important;
       box-shadow: none !important;
+      color-scheme: light;
+    }
+
+    .email-form input:-webkit-autofill,
+    .email-form input:-webkit-autofill:hover,
+    .email-form input:-webkit-autofill:focus {
+      -webkit-text-fill-color: var(--ide-color-neutral-900) !important;
+      -webkit-box-shadow: 0 0 0 1000px var(--ide-color-white) inset !important;
+      box-shadow: 0 0 0 1000px var(--ide-color-white) inset !important;
+      border-color: rgba(17, 20, 21, 0.26) !important;
     }
 
     .email-form input:focus {
@@ -276,7 +269,7 @@
       justify-self: end;
       min-height: 34px;
       padding: 4px 0;
-      color: var(--music-accent-text) !important;
+      color: var(--ide-color-neutral-700) !important;
       border: 0 !important;
       border-radius: 0 !important;
       background: transparent !important;
@@ -287,6 +280,7 @@
     }
 
     .forgot-button:hover {
+      color: var(--ide-color-neutral-900) !important;
       text-decoration: underline;
       text-underline-offset: 3px;
     }
@@ -302,88 +296,38 @@
     }
 
     #auth-message[data-type="info"] {
-      color: var(--music-accent-text);
-      background: rgba(216, 255, 69, 0.28);
+      color: var(--ide-color-neutral-900);
+      background: rgba(216, 255, 69, 0.38);
     }
 
     .privacy-note {
       margin-top: var(--ide-space-6) !important;
       margin-bottom: 0 !important;
-      color: var(--ide-color-neutral-600) !important;
+      color: var(--ide-color-neutral-700) !important;
       font-size: var(--ide-font-size-xs) !important;
       line-height: var(--ide-line-height-relaxed) !important;
     }
 
     @media (max-width: 760px) {
-      body.login-page {
-        display: block;
-        padding: 0;
-        background: var(--ide-color-neutral-900) !important;
-      }
-
-      .login-shell {
-        width: 100%;
-        min-height: 100vh;
-        grid-template-columns: 1fr;
-        border: 0;
-        border-radius: 0;
-        box-shadow: none;
-      }
-
-      .brand-panel {
-        min-height: 300px;
-        padding: 34px 28px 38px;
-      }
-
-      .brand-panel::after {
-        right: -8px;
-        bottom: -84px;
-        font-size: 20rem;
-      }
-
-      .brand-copy {
-        margin-top: 72px;
-      }
-
-      .brand-copy h1 {
-        margin-bottom: var(--ide-space-4);
-        font-size: clamp(2.85rem, 13vw, 4rem);
-      }
-
-      .brand-copy p {
-        font-size: var(--ide-font-size-sm);
-      }
-
-      .access-panel {
-        padding: 38px 28px 44px;
-      }
-
-      .access-panel > p {
-        margin-bottom: var(--ide-space-6);
-      }
-
-      .privacy-note {
-        margin-top: var(--ide-space-5) !important;
-      }
+      body.login-page { display: block; padding: 0; background: var(--ide-color-neutral-900) !important; }
+      .login-shell { width: 100%; min-height: 100vh; grid-template-columns: 1fr; border: 0; border-radius: 0; box-shadow: none; }
+      .brand-panel { min-height: 300px; padding: 34px 28px 38px; }
+      .brand-panel::after { right: -8px; bottom: -84px; font-size: 20rem; }
+      .brand-copy { margin-top: 72px; }
+      .brand-copy h1 { margin-bottom: var(--ide-space-4); font-size: clamp(2.85rem, 13vw, 4rem); }
+      .brand-copy p { font-size: var(--ide-font-size-sm); }
+      .access-panel { padding: 38px 28px 44px; }
+      .access-panel > p { margin-bottom: var(--ide-space-6); }
+      .privacy-note { margin-top: var(--ide-space-5) !important; }
     }
 
     @media (max-width: 390px) {
-      .brand-panel,
-      .access-panel {
-        padding-left: 22px;
-        padding-right: 22px;
-      }
-
-      .brand-copy h1 {
-        font-size: 2.7rem;
-      }
+      .brand-panel, .access-panel { padding-left: 22px; padding-right: 22px; }
+      .brand-copy h1 { font-size: 2.7rem; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .google-button,
-      .email-button {
-        transition: none;
-      }
+      .google-button, .email-button { transition: none; }
     }
   </style>
 </head>
@@ -416,14 +360,8 @@
       <div class="login-divider">ou</div>
 
       <form class="email-form" onsubmit="event.preventDefault(); MusicIdeAuth.signInWithEmail(this.elements.email.value, this.elements.password.value)">
-        <label for="login-email">
-          E-mail
-          <input id="login-email" name="email" type="email" autocomplete="username" required>
-        </label>
-        <label for="login-password">
-          Senha
-          <input id="login-password" name="password" type="password" autocomplete="current-password" required>
-        </label>
+        <label for="login-email">E-mail<input id="login-email" name="email" type="email" autocomplete="username" required></label>
+        <label for="login-password">Senha<input id="login-password" name="password" type="password" autocomplete="current-password" required></label>
         <button class="email-button" type="submit">Entrar com e-mail</button>
         <button class="forgot-button" type="button" onclick="MusicIdeAuth.sendPasswordReset(document.getElementById('login-email').value)">Esqueci minha senha</button>
       </form>
