@@ -65,6 +65,16 @@ test('Setlist pode ler somente as dependências operacionais necessárias', () =
   assert.match(extractMatch('songMinisterKeys/{documentId}'), /canRead\('songs'\) \|\| canRead\('setlists'\)/);
 });
 
+test('Dashboard pode ler apenas as dependências operacionais agregadas e mantém indisponibilidade pessoal', () => {
+  assert.match(extractMatch('events/{documentId}'), /canRead\('dashboard'\)/);
+  assert.match(extractMatch('schedules/{documentId}'), /canRead\('dashboard'\)/);
+  assert.match(extractMatch('scheduleMembers/{documentId}'), /canRead\('dashboard'\)/);
+  assert.match(extractMatch('setlists/{documentId}'), /canRead\('dashboard'\)/);
+  const unavailability = extractMatch('unavailability/{documentId}');
+  assert.doesNotMatch(unavailability, /canRead\('dashboard'\)/);
+  assert.match(unavailability, /resource\.data\.userId == request\.auth\.uid/);
+});
+
 test('biblioteca legada de músicas é somente leitura para Setlist/Músicas', () => {
   const legacySongs = extractMatch('musicas/{documentId}');
   assert.match(legacySongs, /canRead\('songs'\) \|\| canRead\('setlists'\)/);

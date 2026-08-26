@@ -166,7 +166,7 @@ service cloud.firestore {
       allow write: if canEdit('users');
     }
     match /events/{documentId} {
-      allow read: if canRead('events') || canRead('setlists');
+      allow read: if canRead('events') || canRead('setlists') || canRead('dashboard');
       allow create: if canEdit('events') && canEdit('schedules') && canEdit('setlists') && validEventCreate(documentId) && linkedEventBundleConsistent(documentId);
       allow update: if canEdit('events') && validEventUpdate(documentId);
       allow delete: if canEdit('events') && canEdit('schedules') && canEdit('setlists') && validEventDelete();
@@ -183,9 +183,9 @@ service cloud.firestore {
         || (isAdmin() && canEdit('unavailability'))
       );
     }
-    match /schedules/{documentId} { allow read: if canRead('schedules') || canRead('setlists'); allow write: if canEdit('schedules'); }
-    match /scheduleMembers/{documentId} { allow read: if canRead('schedules') || canRead('setlists'); allow write: if canEdit('schedules'); }
-    match /setlists/{documentId} { allow read: if canRead('setlists'); allow write: if canEdit('setlists'); }
+    match /schedules/{documentId} { allow read: if canRead('schedules') || canRead('setlists') || canRead('dashboard'); allow write: if canEdit('schedules'); }
+    match /scheduleMembers/{documentId} { allow read: if canRead('schedules') || canRead('setlists') || canRead('dashboard'); allow write: if canEdit('schedules'); }
+    match /setlists/{documentId} { allow read: if canRead('setlists') || canRead('dashboard'); allow write: if canEdit('setlists'); }
     match /setlistSongs/{documentId} { allow read: if canRead('setlists'); allow write: if canEdit('setlists'); }
     match /songs/{documentId} { allow read: if canRead('songs') || canRead('setlists'); allow write: if canEdit('songs'); }
     match /musicas/{documentId} { allow read: if canRead('songs') || canRead('setlists'); allow write: if false; }
