@@ -21,6 +21,10 @@
   const DEFAULT_RETURN_URL = 'index.html';
   const THEME_STORAGE_KEY = 'musicIdeTheme';
   const THEME_MODES = Object.freeze(['light', 'dark', 'system']);
+  const PERMISSION_MODULES = Object.freeze([
+    'dashboard', 'users', 'permissions', 'unavailability', 'events',
+    'schedules', 'setlists', 'songs', 'audit'
+  ]);
 
   function currentPageName(pathname) {
     if (typeof pathname !== 'string') return '';
@@ -280,6 +284,22 @@
     };
   }
 
+  async function loadEffectivePermissions(scope, userId) {
+    const database = scope.firebase.firestore();
+    const permissionsCollection = database.collection('permissions');
+    const entries = await Promise.all(PERMISSION_MODULES.map(async moduleName => {
+      const snapshot = await permissionsCollection.doc(`${userId}__${moduleName}`).get();
+      if (!snapshot.exists) return null;
+      const data = snapshot.data() || {};
+      if (data.userId !== userId || data.module !== moduleName) return null;
+      const level = String(data.level || '').toUpperCase();
+      if (!['READ', 'EDIT'].includes(level)) return null;
+      return [moduleName, level];
+    }));
+
+    return Object.fromEntries(entries.filter(Boolean));
+  }
+
   async function resolveAuthorizedProfile(scope, user) {
     if (!scope.firebase || typeof scope.firebase.firestore !== 'function') {
       const error = new Error('Firestore indisponível para validar autorização.');
@@ -311,7 +331,15 @@
       return { authorized: false, reason: 'inactive', profile };
     }
 
-    return { authorized: true, reason: null, profile };
+    const permissions = profile.role === 'SUPER_ADMIN'
+      ? {}
+      : await loadEffectivePermissions(scope, user.uid);
+
+    return {
+      authorized: true,
+      reason: null,
+      profile: { ...profile, permissions }
+    };
   }
 
   function authorizationFailureMessage(reason) {
@@ -510,6 +538,7 @@
     isActiveProfile,
     isAllowedUser,
     isLoginPage,
+    loadEffectivePermissions,
     normalizeThemePreference,
     readThemePreference,
     resolveAuthorizedProfile,
