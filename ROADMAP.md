@@ -377,12 +377,12 @@
 ## P7 — UX e produto
 
 ### 28. Dashboard
-- [ ] Próximos eventos.
-- [ ] Próximas escalas.
-- [ ] Setlists pendentes.
-- [ ] Indisponibilidades próximas.
-- [ ] Ações rápidas.
-- [ ] Indicadores para administradores.
+- [x] Próximos eventos.
+- [x] Próximas escalas.
+- [x] Setlists pendentes.
+- [x] Indisponibilidades próximas.
+- [x] Ações rápidas.
+- [x] Indicadores para administradores.
 
 ### 29. Mobile
 - [x] Navegação mobile dedicada.
