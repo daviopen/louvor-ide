@@ -39,7 +39,6 @@
       return {
         ...song,
         title: song.title || song.titulo || source.title || source.titulo || '',
-        artist: song.artist || song.artista || source.artist || source.artista || '',
         ministerName: song.ministerName || song.ministro || minister.name || minister.displayName || minister.email || ''
       };
     });
@@ -53,7 +52,6 @@
       songs: normalizedSongs,
       ministerNames: [...new Set(normalizedSongs.map(song => text(song.ministerName)).filter(Boolean))],
       songTitles: normalizedSongs.map(song => text(song.title)).filter(Boolean),
-      artists: normalizedSongs.map(song => text(song.artist)).filter(Boolean),
       totalSongs: Number(setlist.totalMusicas ?? normalizedSongs.length ?? 0),
       status: text(setlist.status || event.status || 'DRAFT').toUpperCase()
     };
@@ -92,9 +90,6 @@
 
     const songTerm = lower(filters.song);
     if (songTerm && !item.songTitles.some(title => lower(title).includes(songTerm))) return false;
-
-    const artistTerm = lower(filters.artist);
-    if (artistTerm && !item.artists.some(artist => lower(artist).includes(artistTerm))) return false;
 
     const themeTerm = lower(filters.theme);
     if (themeTerm && !lower(item.theme).includes(themeTerm)) return false;
