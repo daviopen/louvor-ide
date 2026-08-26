@@ -39,6 +39,20 @@ export class MusicRepository extends BaseRepository {
     return true;
   }
 
+  async addAuditLog(actorUserId, action, entityId, details = {}) {
+    await this.waitUntilReady();
+    const createdAt = new Date();
+    const ref = await this.db.collection('auditLogs').add({
+      actorUserId,
+      action,
+      entityType: 'song',
+      entityId,
+      details,
+      createdAt
+    });
+    return { id: ref.id, actorUserId, action, entityType: 'song', entityId, details, createdAt };
+  }
+
   async findAll() {
     const collection = await this.collection();
     const snapshot = await collection.get();
