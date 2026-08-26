@@ -113,7 +113,18 @@ test('usuário cria intervalo quando informa data de fim', async () => {
   assert.equal(repo.audits[0].details.endDate, '2026-09-02');
 });
 
-test('admin com EDIT registra para outra pessoa com confirmação rastreável no Audit Log', async () => {
+test('MEMBER com EDIT pode editar o próprio módulo, mas não ganha gestão de outras pessoas', async () => {
+  const repo = repositoryFixture({ permissionLevel: 'EDIT' });
+  const service = new UnavailabilityService(repo, { clock: () => NOW });
+  const access = await service.resolveAccess(actor, memberProfile);
+  assert.deepEqual(access, { level: 'EDIT', canManageOthers: false });
+  await assert.rejects(
+    service.create({ userId: 'user-2', date: '2026-08-30' }, actor, memberProfile, { access }),
+    /administrador autorizado/
+  );
+});
+
+test('ADMIN com EDIT registra para outra pessoa com confirmação rastreável no Audit Log', async () => {
   const repo = repositoryFixture({ permissionLevel: 'EDIT' });
   const service = new UnavailabilityService(repo, { clock: () => NOW });
   const access = await service.resolveAccess(actor, adminProfile);
