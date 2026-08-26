@@ -63,12 +63,42 @@
     if (scope.document.getElementById('audit-page-style')) return;
     const style = scope.document.createElement('style');
     style.id = 'audit-page-style';
-    style.textContent = `.ide-audit-root{display:grid;gap:1rem}.ide-audit-root h1{margin:.25rem 0}.ide-audit-root>p{margin:0;color:var(--text-secondary)}.ide-audit-filters{display:grid;grid-template-columns:2fr repeat(4,minmax(150px,1fr));gap:.75rem;align-items:end}.ide-audit-filters label{display:grid;gap:.35rem;font-weight:600}.ide-audit-filter-actions{display:flex;gap:.5rem;grid-column:1/-1}.ide-audit-status{color:var(--text-secondary)}.ide-table-wrap{overflow:auto}.ide-audit-table{min-width:980px}.ide-audit-table td{vertical-align:top}.ide-audit-table code{font-size:.82rem}.ide-audit-dialog{width:min(900px,calc(100vw - 2rem));max-height:90vh;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);color:var(--text-primary);padding:1.25rem}.ide-audit-dialog::backdrop{background:rgba(0,0,0,.5)}.ide-audit-dialog-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem}.ide-audit-detail-meta{display:grid;grid-template-columns:max-content 1fr;gap:.35rem .75rem}.ide-audit-detail-meta dt{font-weight:700}.ide-audit-diff{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.ide-audit-dialog pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--surface-secondary);padding:.75rem;border-radius:var(--radius-md);border:1px solid var(--border)}@media(max-width:900px){.ide-audit-filters{grid-template-columns:1fr 1fr}.ide-audit-diff{grid-template-columns:1fr}}@media(max-width:560px){.ide-audit-filters{grid-template-columns:1fr}.ide-audit-filter-actions{grid-column:auto;flex-direction:column}}`;
+    style.textContent = `.ide-audit-root{display:grid;gap:1rem}.ide-audit-root h1{margin:.25rem 0}.ide-audit-root>p{margin:0;color:var(--text-secondary)}.ide-audit-filters{display:grid;grid-template-columns:2fr repeat(4,minmax(150px,1fr));gap:.75rem;align-items:end}.ide-audit-filters label{display:grid;gap:.35rem;font-weight:600}.ide-audit-filter-actions{display:flex;gap:.5rem;grid-column:1/-1}.ide-audit-status{color:var(--text-secondary)}.ide-table-wrap{overflow:auto}.ide-audit-table{min-width:980px}.ide-audit-table td{vertical-align:top}.ide-audit-user{display:grid;gap:.15rem}.ide-audit-user strong{font-weight:700}.ide-audit-user code{color:var(--text-secondary)}.ide-audit-table code{font-size:.82rem}.ide-audit-dialog{width:min(900px,calc(100vw - 2rem));max-height:90vh;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);color:var(--text-primary);padding:1.25rem}.ide-audit-dialog::backdrop{background:rgba(0,0,0,.5)}.ide-audit-dialog-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem}.ide-audit-detail-meta{display:grid;grid-template-columns:max-content 1fr;gap:.35rem .75rem}.ide-audit-detail-meta dt{font-weight:700}.ide-audit-diff{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.ide-audit-dialog pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--surface-secondary);padding:.75rem;border-radius:var(--radius-md);border:1px solid var(--border)}@media(max-width:900px){.ide-audit-filters{grid-template-columns:1fr 1fr}.ide-audit-diff{grid-template-columns:1fr}}@media(max-width:560px){.ide-audit-filters{grid-template-columns:1fr}.ide-audit-filter-actions{grid-column:auto;flex-direction:column}}`;
     scope.document.head.appendChild(style);
   }
 
   let repository;
+  let database;
   let allLogs = [];
+  const actorNames = new Map();
+
+  function actorName(log) {
+    const uid = String(log && log.actorUserId || '').trim();
+    return uid ? actorNames.get(uid) || '' : '';
+  }
+
+  function actorMarkup(log) {
+    const uid = String(log && log.actorUserId || '').trim();
+    const name = actorName(log);
+    if (!uid) return '—';
+    return `<span class="ide-audit-user">${name ? `<strong>${escapeHtml(name)}</strong>` : ''}<code>${escapeHtml(uid)}</code></span>`;
+  }
+
+  async function resolveActorNames(logs) {
+    if (!database) return;
+    const ids = [...new Set(logs.map(log => String(log.actorUserId || '').trim()).filter(Boolean))]
+      .filter(id => !actorNames.has(id));
+    await Promise.all(ids.map(async id => {
+      try {
+        const snapshot = await database.collection('users').doc(id).get();
+        const data = snapshot && snapshot.exists ? snapshot.data() : null;
+        actorNames.set(id, data && data.name ? String(data.name).trim() : '');
+      } catch (error) {
+        console.warn(`Não foi possível resolver o nome do usuário ${id} na auditoria.`, error);
+        actorNames.set(id, '');
+      }
+    }));
+  }
 
   function populateOptions(logs) {
     const fill = (id, values) => {
@@ -83,7 +113,10 @@
 
   function openDetail(log) {
     const details = log.details && typeof log.details === 'object' ? log.details : {};
-    scope.document.getElementById('audit-detail-meta').innerHTML = `<dt>Data/hora</dt><dd>${escapeHtml(formatDate(log.createdAt))}</dd><dt>Usuário</dt><dd><code>${escapeHtml(log.actorUserId || '—')}</code></dd><dt>Ação</dt><dd>${escapeHtml(log.action || '—')}</dd><dt>Entidade</dt><dd>${escapeHtml(log.entityType || '—')}</dd><dt>ID</dt><dd><code>${escapeHtml(log.entityId || '—')}</code></dd>`;
+    const name = actorName(log);
+    const uid = log.actorUserId || '—';
+    const userDisplay = name ? `${escapeHtml(name)} <code>${escapeHtml(uid)}</code>` : `<code>${escapeHtml(uid)}</code>`;
+    scope.document.getElementById('audit-detail-meta').innerHTML = `<dt>Data/hora</dt><dd>${escapeHtml(formatDate(log.createdAt))}</dd><dt>Usuário</dt><dd>${userDisplay}</dd><dt>Ação</dt><dd>${escapeHtml(log.action || '—')}</dd><dt>Entidade</dt><dd>${escapeHtml(log.entityType || '—')}</dd><dt>ID</dt><dd><code>${escapeHtml(log.entityId || '—')}</code></dd>`;
     scope.document.getElementById('audit-before').textContent = pretty(details.before);
     scope.document.getElementById('audit-after').textContent = pretty(details.after);
     const context = { ...details }; delete context.before; delete context.after;
@@ -98,7 +131,7 @@
     empty.hidden = logs.length > 0;
     logs.forEach(log => {
       const tr = scope.document.createElement('tr');
-      tr.innerHTML = `<td>${escapeHtml(formatDate(log.createdAt))}</td><td><code>${escapeHtml(log.actorUserId || '—')}</code></td><td>${escapeHtml(log.action || '—')}</td><td>${escapeHtml(log.entityType || '—')}</td><td><code>${escapeHtml(log.entityId || '—')}</code></td><td><button class="ide-button ide-button--secondary ide-button--sm" type="button">Ver alteração</button></td>`;
+      tr.innerHTML = `<td>${escapeHtml(formatDate(log.createdAt))}</td><td>${actorMarkup(log)}</td><td>${escapeHtml(log.action || '—')}</td><td>${escapeHtml(log.entityType || '—')}</td><td><code>${escapeHtml(log.entityId || '—')}</code></td><td><button class="ide-button ide-button--secondary ide-button--sm" type="button">Ver alteração</button></td>`;
       tr.querySelector('button').addEventListener('click', () => openDetail(log));
       rows.appendChild(tr);
     });
@@ -119,6 +152,7 @@
     try {
       scope.document.getElementById('audit-status').textContent = 'Carregando registros…';
       allLogs = await repository.listRecent(500);
+      await resolveActorNames(allLogs);
       populateOptions(allLogs);
       render(await repository.listFiltered(filters()));
     } catch (error) {
@@ -133,7 +167,8 @@
       scope.document.getElementById('audit-status').textContent = 'Auditoria indisponível nesta sessão.';
       return;
     }
-    repository = new scope.MusicIdeAuditRepository.AuditRepository(scope.firebase.firestore());
+    database = scope.firebase.firestore();
+    repository = new scope.MusicIdeAuditRepository.AuditRepository(database);
     scope.document.getElementById('audit-filters').addEventListener('submit', async event => { event.preventDefault(); render(await repository.listFiltered(filters())); });
     scope.document.getElementById('audit-clear').addEventListener('click', () => {
       ['audit-user-filter','audit-from-filter','audit-to-filter','audit-action-filter','audit-entity-filter'].forEach(id => { scope.document.getElementById(id).value = ''; });
