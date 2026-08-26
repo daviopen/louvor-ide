@@ -8,7 +8,7 @@ const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'auth-a
 const script = fs.readFileSync(path.join(root, 'src', 'scripts', 'reconcile-auth-identities.cjs'), 'utf8');
 
 test('Firebase Authentication impede múltiplas contas para o mesmo e-mail', () => {
-  assert.match(workflow, /allowDuplicateEmails\\":false/);
+  assert.match(workflow, /allowDuplicateEmails\":false/);
   assert.match(workflow, /updateMask=signIn\.allowDuplicateEmails/);
   assert.match(workflow, /Validar configuração efetiva/);
 });
