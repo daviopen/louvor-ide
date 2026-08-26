@@ -2,28 +2,6 @@
   'use strict';
   if (!scope || !scope.document) return;
 
-  const DESKTOP_QUERY = '(min-width: 769px)';
-  const STORAGE_PREFIX = 'musicIdeFilterPanel:';
-
-  function storageKey(panel) {
-    return `${STORAGE_PREFIX}${panel.id || panel.dataset.filterPanel || 'filters'}`;
-  }
-
-  function readPreference(panel) {
-    try {
-      const value = scope.localStorage?.getItem(storageKey(panel));
-      if (value === 'open') return true;
-      if (value === 'closed') return false;
-    } catch (_) {}
-    return null;
-  }
-
-  function writePreference(panel) {
-    try {
-      scope.localStorage?.setItem(storageKey(panel), panel.open ? 'open' : 'closed');
-    } catch (_) {}
-  }
-
   function isControlActive(control) {
     if (!control || control.disabled) return false;
     if (control.matches('[type="checkbox"], [type="radio"]')) return control.checked;
@@ -52,14 +30,12 @@
     if (panel.dataset.filterPanelReady === 'true') return;
     panel.dataset.filterPanelReady = 'true';
 
-    const preference = readPreference(panel);
-    panel.open = preference ?? scope.matchMedia?.(DESKTOP_QUERY).matches ?? true;
+    // Filtros sempre iniciam recolhidos. A abertura é uma ação explícita do usuário
+    // e não é restaurada entre navegações/recarregamentos.
+    panel.open = false;
     updatePanel(panel);
 
-    panel.addEventListener('toggle', () => {
-      writePreference(panel);
-      updatePanel(panel);
-    });
+    panel.addEventListener('toggle', () => updatePanel(panel));
     panel.addEventListener('input', () => updatePanel(panel));
     panel.addEventListener('change', () => updatePanel(panel));
     panel.addEventListener('ideFiltersChanged', () => updatePanel(panel));
