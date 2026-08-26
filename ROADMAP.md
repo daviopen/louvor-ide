@@ -342,11 +342,11 @@
 - [ ] Detalhamento de alterações.
 
 ### 25. Erros e logs
-- [ ] Logging estruturado.
-- [ ] Correlation ID quando aplicável.
-- [ ] Não registrar secrets ou dados sensíveis desnecessários.
-- [ ] Separar mensagem para usuário de detalhe técnico.
-- [ ] Monitorar falhas críticas.
+- [x] Logging estruturado.
+- [x] Correlation ID quando aplicável.
+- [x] Não registrar secrets ou dados sensíveis desnecessários.
+- [x] Separar mensagem para usuário de detalhe técnico.
+- [x] Monitorar falhas críticas.
 
 ## P6 — Qualidade
 
