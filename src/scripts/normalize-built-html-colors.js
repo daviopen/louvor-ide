@@ -45,8 +45,7 @@ function injectAuditRuntime(content) {
 
 function normalizeHtml(content) {
   const validThemeColor = content.replace(themeColorPattern, '$1black$2');
-  const normalizedColors = validThemeColor.replace(hexPattern, value => replacements.get(value.toLowerCase()) || 'var(--ide-text-primary)');
-  return injectAuditRuntime(normalizedColors);
+  return validThemeColor.replace(hexPattern, value => replacements.get(value.toLowerCase()) || 'var(--ide-text-primary)');
 }
 
 function normalizeDirectory(directory = '.') {
@@ -56,7 +55,7 @@ function normalizeDirectory(directory = '.') {
   for (const name of files) {
     const file = path.join(root, name);
     const before = fs.readFileSync(file, 'utf8');
-    const after = normalizeHtml(before);
+    const after = injectAuditRuntime(normalizeHtml(before));
     if (after !== before) {
       fs.writeFileSync(file, after);
       changed += 1;
