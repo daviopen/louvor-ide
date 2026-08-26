@@ -31,6 +31,7 @@ class MusicCatalogPage {
     this.minister = document.getElementById('song-minister-filter');
     this.key = document.getElementById('song-key-filter');
     this.theme = document.getElementById('song-theme-filter');
+    this.filterPanel = document.getElementById('songs-filter-panel');
     this.clear = document.getElementById('songs-clear-filters');
     this.count = document.getElementById('songs-result-count');
     this.loading = document.getElementById('songs-loading');
@@ -46,6 +47,8 @@ class MusicCatalogPage {
     this.detailMeta = document.getElementById('song-detail-meta');
     this.detailCifra = document.getElementById('song-detail-cifra');
     this.detailLink = document.getElementById('song-detail-link');
+    this.detailEdit = document.getElementById('song-detail-edit');
+    this.detailStage = document.getElementById('song-detail-stage');
   }
 
   bindEvents() {
@@ -80,8 +83,6 @@ class MusicCatalogPage {
     };
     window.addEventListener('musicIdeAuthReady', handleAuthReady);
 
-    // O auth-service também expõe uma Promise global. Ela cobre o caso em que
-    // o evento ocorreu antes deste módulo terminar de carregar.
     Promise.resolve(window.musicIdeAuthReady).then(() => {
       const readyProfile = window.currentMusicIdeProfile;
       if (window.currentMusicIdeUser && readyProfile?.active === true) {
@@ -98,13 +99,8 @@ class MusicCatalogPage {
     try {
       this.setLoading(true);
       this.armLoadTimeout();
-
-      // A primeira renderização usa leitura direta. Assim a UI nunca depende
-      // do primeiro evento de um listener realtime para sair do loading.
       const initialSongs = await musicService.getAllMusicsArray();
       this.consumeSongs(initialSongs);
-
-      // Depois da carga inicial, acompanha alterações em tempo real.
       this.unsubscribe = await musicService.loadAllMusics(
         snapshot => this.consumeSnapshot(snapshot),
         error => {
@@ -120,9 +116,7 @@ class MusicCatalogPage {
   armLoadTimeout() {
     this.clearLoadTimeout();
     this.loadTimeout = window.setTimeout(() => {
-      if (!this.loading?.hidden) {
-        this.showLoadError(new Error('Tempo limite excedido ao carregar o repertório.'));
-      }
+      if (!this.loading?.hidden) this.showLoadError(new Error('Tempo limite excedido ao carregar o repertório.'));
     }, LOAD_TIMEOUT_MS);
   }
 
@@ -188,6 +182,19 @@ class MusicCatalogPage {
     return Object.values(this.currentFilters()).some(Boolean);
   }
 
+  canEditSongs() {
+    const profile = window.currentMusicIdeProfile;
+    if (!profile) return false;
+    if (profile.role === 'SUPER_ADMIN' || profile.isSuperAdmin === true) return true;
+    const permission = profile.permissions?.songs;
+    const level = typeof permission === 'object' ? permission.level || permission.access : permission;
+    return ['EDIT', 'edit', 'write', 'edicao', 'edição'].includes(String(level || ''));
+  }
+
+  notifyFilterPanel() {
+    this.filterPanel?.dispatchEvent(new CustomEvent('ideFiltersChanged'));
+  }
+
   populateFilterOptions() {
     const current = this.currentFilters();
     const options = musicService.getCatalogOptions(this.allSongs);
@@ -235,6 +242,7 @@ class MusicCatalogPage {
     this.prev.disabled = pagination.page <= 1;
     this.next.disabled = pagination.page >= pagination.totalPages;
     this.pageLabel.textContent = `Página ${pagination.page} de ${pagination.totalPages}`;
+    this.notifyFilterPanel();
   }
 
   resultLabel(filtered, total) {
@@ -306,7 +314,7 @@ class MusicCatalogPage {
     this.detail.hidden = false;
     this.detailTitle.textContent = this.songTitle(song) || 'Música sem título';
     this.detailArtist.textContent = song.artista || song.artist || 'Artista não informado';
-    this.detailCifra.textContent = song.cifra || 'Cifra não cadastrada.';
+    this.detailCifra.textContent = song.cifra || song.chordSheet || song.chords || 'Cifra não cadastrada.';
     this.detailMeta.replaceChildren();
 
     const chips = [
@@ -322,6 +330,13 @@ class MusicCatalogPage {
       chip.textContent = `${label}: ${value}`;
       this.detailMeta.appendChild(chip);
     });
+
+    const songId = encodeURIComponent(song.id);
+    if (this.detailStage) this.detailStage.href = `setlist-view.html?song=${songId}&stage=1`;
+    if (this.detailEdit) {
+      this.detailEdit.href = `nova-musica.html?edit=${songId}`;
+      this.detailEdit.hidden = !this.canEditSongs();
+    }
 
     const reference = String(song.link || song.referenceUrl || '').trim();
     this.detailLink.hidden = !reference;
