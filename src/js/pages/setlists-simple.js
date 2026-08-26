@@ -16,17 +16,42 @@
     $('tab-upcoming').classList.toggle('active',!history); $('tab-history').classList.toggle('active',history);
     $('tab-upcoming').setAttribute('aria-current',history?'false':'page'); $('tab-history').setAttribute('aria-current',history?'page':'false');
     $('filters').hidden=!history;
-    $('view-hint').textContent=history?'Setlists históricos são abertos em modo somente leitura.':'Selecione um Setlist para abrir e editar conforme sua permissão.';
+    $('view-hint').textContent=history?'Setlists históricos são abertos em modo somente leitura.':'Edite a montagem ou abra o repertório para usar cifras, letras e modo palco.';
   }
 
   function filters(){return {from:$('filter-from').value,to:$('filter-to').value,event:$('filter-event').value,minister:$('filter-minister').value,song:$('filter-song').value,theme:$('filter-theme').value};}
 
+  function statusLabel(status){
+    const normalized=String(status||'DRAFT').trim().toUpperCase();
+    return ({READY:'Pronto',DRAFT:'Rascunho',COMPLETED:'Concluído',CANCELLED:'Cancelado'})[normalized]||status||'Rascunho';
+  }
+
+  function actions(item){
+    const id=encodeURIComponent(item.id);
+    const hasSongs=Number(item.totalSongs||0)>0;
+    const ready=String(item.status||'').trim().toUpperCase()==='READY';
+    const editHref=`setlist.html?id=${id}`;
+    const repertoireHref=`setlist-view.html?id=${id}`;
+
+    if(state.view==='history'){
+      return `<a class="btn btn-secondary" href="${repertoireHref}"><i class="fas fa-eye"></i> Abrir repertório</a>`;
+    }
+
+    if(!hasSongs){
+      return `<a class="btn btn-primary" href="${editHref}"><i class="fas fa-pen-to-square"></i> Editar Setlist</a><span class="btn btn-disabled" aria-disabled="true" title="Adicione ao menos uma música para abrir o repertório"><i class="fas fa-music"></i> Repertório vazio</span>`;
+    }
+
+    if(ready){
+      return `<a class="btn btn-secondary" href="${editHref}"><i class="fas fa-pen-to-square"></i> Editar</a><a class="btn btn-primary" href="${repertoireHref}"><i class="fas fa-music"></i> Abrir repertório</a>`;
+    }
+
+    return `<a class="btn btn-primary" href="${editHref}"><i class="fas fa-pen-to-square"></i> Editar Setlist</a><a class="btn btn-secondary" href="${repertoireHref}"><i class="fas fa-music"></i> Abrir repertório</a>`;
+  }
+
   function card(item){
-    const readonly=state.view==='history';
-    const href=readonly?`setlist-view.html?id=${encodeURIComponent(item.id)}`:`setlist.html?id=${encodeURIComponent(item.id)}`;
     const ministerTags=item.ministerNames.slice(0,3).map(name=>`<span class="tag"><i class="fas fa-microphone"></i>&nbsp;${esc(name)}</span>`).join('');
     const songTags=item.songTitles.slice(0,3).map(title=>`<span class="tag"><i class="fas fa-music"></i>&nbsp;${esc(title)}</span>`).join('');
-    return `<article class="setlist-card"><div class="setlist-card__head"><div><h2>${esc(item.name)}</h2><div class="meta"><span><i class="fas fa-calendar"></i> ${esc(formatDate(item.date))}</span><span><i class="fas fa-music"></i> ${item.totalSongs} música${item.totalSongs===1?'':'s'}</span>${item.theme?`<span><i class="fas fa-tag"></i> ${esc(item.theme)}</span>`:''}</div></div><span class="status">${esc(item.status||'DRAFT')}</span></div>${ministerTags||songTags?`<div class="tags">${ministerTags}${songTags}</div>`:''}<div class="setlist-card__actions"><a class="btn ${readonly?'btn-secondary':'btn-primary'}" href="${href}"><i class="fas ${readonly?'fa-eye':'fa-pen-to-square'}"></i> ${readonly?'Abrir somente leitura':'Abrir Setlist'}</a></div></article>`;
+    return `<article class="setlist-card"><div class="setlist-card__head"><div><h2>${esc(item.name)}</h2><div class="meta"><span><i class="fas fa-calendar"></i> ${esc(formatDate(item.date))}</span><span><i class="fas fa-music"></i> ${item.totalSongs} música${item.totalSongs===1?'':'s'}</span>${item.theme?`<span><i class="fas fa-tag"></i> ${esc(item.theme)}</span>`:''}</div></div><span class="status">${esc(statusLabel(item.status))}</span></div>${ministerTags||songTags?`<div class="tags">${ministerTags}${songTags}</div>`:''}<div class="setlist-card__actions">${actions(item)}</div></article>`;
   }
 
   function render(){
