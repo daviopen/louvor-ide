@@ -52,7 +52,7 @@ test('authentication audits successful login and logout without credentials', ()
 
 test('administrative and operational domains emit audit events', () => {
   expectAll(users, [/USER_CREATED/, /USER_UPDATED/, /USER_DEACTIVATED/, /USER_REACTIVATED/]);
-  expectAll(permissions, [/PERMISSIONS_UPDATED/, /before, after/]);
+  expectAll(permissions, [/ACCESS_PROFILE_UPDATED/, /before, after/]);
   expectAll(functionsService, [/MINISTRY_FUNCTION_CREATED/, /MINISTRY_FUNCTION_UPDATED/, /before:/, /after:/]);
   expectAll(unavailability, [/UNAVAILABILITY_CREATED/, /UNAVAILABILITY_UPDATED/, /UNAVAILABILITY_DELETED/, /UNAVAILABILITY_OVERRIDE_CONFIRMED/]);
   expectAll(events, [/EVENT_CREATED/, /EVENT_UPDATED/, /EVENT_DELETED/]);
