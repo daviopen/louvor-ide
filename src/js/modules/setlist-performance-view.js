@@ -131,7 +131,8 @@
       throw new Error('Setlist inválido. Volte à lista e abra o repertório novamente.');
     }
     if (!globalScope.firebase) throw new Error('Firebase não foi carregado.');
-    if (!globalScope.firebase.apps.length) globalScope.firebase.initializeApp(globalScope.firebaseConfig);
+    const sharedFirebaseConfig = typeof firebaseConfig !== 'undefined' ? firebaseConfig : globalScope.firebaseConfig;
+    if (!globalScope.firebase.apps.length) globalScope.firebase.initializeApp(sharedFirebaseConfig);
     state.db = globalScope.firebase.firestore();
 
     const setlistSnapshot = await state.db.collection('setlists').doc(state.setlistId).get();
