@@ -201,7 +201,6 @@ service cloud.firestore {
     match /setlists/{documentId} { allow read: if canRead('setlists') || canRead('dashboard'); allow write: if canEdit('setlists'); }
     match /setlistSongs/{documentId} { allow read: if canRead('setlists'); allow write: if canEdit('setlists'); }
     match /songs/{documentId} { allow read: if canRead('songs') || canRead('setlists'); allow write: if canEdit('songs'); }
-    match /musicas/{documentId} { allow read: if canRead('songs') || canRead('setlists'); allow write: if false; }
     match /songMinisterKeys/{documentId} { allow read: if canRead('songs') || canRead('setlists'); allow write: if canEdit('songs'); }
     match /auditLogs/{documentId} {
       allow read: if canRead('audit');
