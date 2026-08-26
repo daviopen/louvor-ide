@@ -35,10 +35,18 @@ const replacements = new Map([
 
 const hexPattern = /#[0-9a-fA-F]{3,8}\b/g;
 const themeColorPattern = /(<meta\s+name=["']theme-color["']\s+content=["'])#[0-9a-fA-F]{3,8}(["'][^>]*>)/gi;
+const auditRuntimeTag = '<script src="js/modules/audit-auth-runtime.js" data-ide-audit-runtime></script>';
+
+function injectAuditRuntime(content) {
+  if (content.includes('data-ide-audit-runtime')) return content;
+  if (/<\/body>/i.test(content)) return content.replace(/<\/body>/i, `  ${auditRuntimeTag}\n</body>`);
+  return `${content}\n${auditRuntimeTag}\n`;
+}
 
 function normalizeHtml(content) {
   const validThemeColor = content.replace(themeColorPattern, '$1black$2');
-  return validThemeColor.replace(hexPattern, value => replacements.get(value.toLowerCase()) || 'var(--ide-text-primary)');
+  const normalizedColors = validThemeColor.replace(hexPattern, value => replacements.get(value.toLowerCase()) || 'var(--ide-text-primary)');
+  return injectAuditRuntime(normalizedColors);
 }
 
 function normalizeDirectory(directory = '.') {
@@ -59,7 +67,7 @@ function normalizeDirectory(directory = '.') {
 
 if (require.main === module) {
   const changed = normalizeDirectory(process.argv[2] || '.');
-  console.log(`Normalized legacy colors in ${changed} built HTML files.`);
+  console.log(`Normalized legacy colors and audit runtime in ${changed} built HTML files.`);
 }
 
-module.exports = { replacements, hexPattern, normalizeHtml, normalizeDirectory };
+module.exports = { replacements, hexPattern, auditRuntimeTag, injectAuditRuntime, normalizeHtml, normalizeDirectory };
