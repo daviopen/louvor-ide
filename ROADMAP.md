@@ -385,13 +385,13 @@
 - [ ] Indicadores para administradores.
 
 ### 29. Mobile
-- [ ] Navegação mobile dedicada.
-- [ ] Formulários responsivos.
-- [ ] Tabelas adaptadas.
-- [ ] Setlist otimizado para celular.
-- [ ] Cifra/letra em modo palco.
-- [ ] Botões com área de toque adequada.
-- [ ] Testes em larguras pequenas.
+- [x] Navegação mobile dedicada.
+- [x] Formulários responsivos.
+- [x] Tabelas adaptadas.
+- [x] Setlist otimizado para celular.
+- [x] Cifra/letra em modo palco.
+- [x] Botões com área de toque adequada.
+- [x] Testes em larguras pequenas.
 
 ### 30. Acessibilidade
 - [x] Navegação por teclado.
