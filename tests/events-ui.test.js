@@ -31,6 +31,17 @@ test('UI usa service e não acessa Firestore diretamente', () => {
   assert.doesNotMatch(page, /\.collection\(/);
 });
 
+test('lista não expõe IDs técnicos de escala/setlist e oferece filtro por intervalo de datas', () => {
+  assert.doesNotMatch(page, /Escala:\s*\$\{escapeHtml\(item\.scheduleId/);
+  assert.doesNotMatch(page, /Setlist:\s*\$\{escapeHtml\(item\.setlistId/);
+  assert.match(page, /id="events-date-from"/);
+  assert.match(page, /id="events-date-to"/);
+  assert.match(page, /state\.dateFrom/);
+  assert.match(page, /state\.dateTo/);
+  assert.match(page, /itemDate < state\.dateFrom/);
+  assert.match(page, /itemDate > state\.dateTo/);
+});
+
 test('repository cria evento, escala e Setlist em transação idempotente e audita', () => {
   assert.match(repository, /runTransaction/);
   assert.match(repository, /eventDocumentId\(requestId\)/);
@@ -42,9 +53,12 @@ test('repository cria evento, escala e Setlist em transação idempotente e audi
   assert.match(repository, /auditLogs/);
 });
 
-test('layout de eventos respeita rota oculta e possui tratamento responsivo para mobile', () => {
+test('layout de eventos respeita rota oculta, alinha controles e possui tratamento responsivo', () => {
   assert.match(css, /\.events-page\[hidden\]\{display:none!important\}/);
+  assert.match(css, /\.events-toolbar\{display:grid/);
+  assert.match(css, /height:44px/);
+  assert.match(css, /\.events-item\{[^}]*align-items:center/);
+  assert.match(css, /\.events-item-actions\{[^}]*align-items:center/);
   assert.match(css, /@media\(max-width:700px\)/);
-  assert.match(css, /events-item/);
   assert.match(css, /grid-template-columns:1fr/);
 });
