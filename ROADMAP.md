@@ -306,22 +306,22 @@
 - [x] Layout mobile.
 
 ### 23. Criar/editar música
-- [ ] Nome.
-- [ ] Artista.
-- [ ] Tom original.
-- [ ] Tema.
-- [ ] Link de referência opcional.
-- [ ] Cifra.
-- [ ] Letra.
-- [ ] Observações opcionais.
-- [ ] Mostrar somente usuários com função Ministro.
-- [ ] Permitir vários ministros.
-- [ ] Definir `preferredKey` por ministro.
-- [ ] Validar campos obrigatórios.
-- [ ] Preview de cifra.
-- [ ] Preview de letra.
-- [ ] Confirmar saída com alterações não salvas.
-- [ ] Registrar criação/edição em Audit Log.
+- [x] Nome.
+- [x] Artista.
+- [x] Tom original.
+- [x] Tema.
+- [x] Link de referência opcional.
+- [x] Cifra.
+- [x] Letra.
+- [x] Observações opcionais.
+- [x] Mostrar somente usuários com função Ministro.
+- [x] Permitir vários ministros.
+- [x] Definir `preferredKey` por ministro.
+- [x] Validar campos obrigatórios.
+- [x] Preview de cifra.
+- [x] Preview de letra.
+- [x] Confirmar saída com alterações não salvas.
+- [x] Registrar criação/edição em Audit Log.
 
 ## P5 — Auditoria e observabilidade
 
