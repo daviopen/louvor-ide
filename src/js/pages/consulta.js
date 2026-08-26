@@ -1,457 +1,329 @@
 /**
- * Consulta Page - Página de consulta e transposição
+ * Catálogo de músicas — consulta, filtros combinados e paginação.
  */
-
 import musicService from '../modules/music-service.js';
-import transposeService from '../modules/transpose-service.js';
-import { Utils, MessageService } from '../modules/utils.js';
 
-class ConsultaPage {
+const PAGE_SIZE = 10;
+
+function normalize(value) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleLowerCase('pt-BR');
+}
+
+function uniqueSorted(values) {
+  return [...new Set(values.map(value => String(value || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+}
+
+function ministerNames(song) {
+  const names = [];
+  if (Array.isArray(song?.ministros)) names.push(...song.ministros);
+  if (song?.ministro) names.push(...String(song.ministro).split(','));
+  if (song?.tomMinistro && typeof song.tomMinistro === 'object') names.push(...Object.keys(song.tomMinistro));
+  return uniqueSorted(names);
+}
+
+function themeValues(song) {
+  const raw = song?.tema ?? song?.theme ?? song?.temas ?? song?.themes;
+  if (Array.isArray(raw)) return raw;
+  if (!raw) return [];
+  return String(raw).split(',');
+}
+
+function matchesFilters(song, filters) {
+  const title = normalize(song?.titulo ?? song?.title);
+  const artist = normalize(song?.artista ?? song?.artist);
+  const key = normalize(song?.tom ?? song?.originalKey ?? song?.key);
+  const ministers = ministerNames(song).map(normalize);
+  const themes = themeValues(song).map(normalize);
+
+  return (!filters.search || title.includes(normalize(filters.search)))
+    && (!filters.artist || artist === normalize(filters.artist))
+    && (!filters.minister || ministers.includes(normalize(filters.minister)))
+    && (!filters.key || key === normalize(filters.key))
+    && (!filters.theme || themes.includes(normalize(filters.theme)));
+}
+
+class MusicCatalogPage {
   constructor() {
-    this.allMusicas = [];
-    this.selectedMusica = null;
-    
-    this.initialize();
+    this.allSongs = [];
+    this.filteredSongs = [];
+    this.selectedSongId = null;
+    this.page = 1;
+    this.unsubscribe = null;
   }
 
-  // Inicializar página
-  initialize() {
-    console.log("🔍 ConsultaPage: Inicializando...");
-    
-    // Aguardar DOM estar pronto
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => this.setupPage());
-    } else {
-      this.setupPage();
-    }
+  init() {
+    this.cacheElements();
+    if (!this.list || !this.search) return;
+    this.bindEvents();
+    this.subscribe();
   }
 
-  // Configurar página
-  setupPage() {
-    if (this.initializeElements()) {
-      this.setupEventListeners();
-      this.loadMusicas();
-    }
+  cacheElements() {
+    this.search = document.getElementById('song-search');
+    this.artist = document.getElementById('song-artist-filter');
+    this.minister = document.getElementById('song-minister-filter');
+    this.key = document.getElementById('song-key-filter');
+    this.theme = document.getElementById('song-theme-filter');
+    this.clear = document.getElementById('songs-clear-filters');
+    this.count = document.getElementById('songs-result-count');
+    this.loading = document.getElementById('songs-loading');
+    this.list = document.getElementById('songs-list');
+    this.pagination = document.getElementById('songs-pagination');
+    this.prev = document.getElementById('songs-prev-page');
+    this.next = document.getElementById('songs-next-page');
+    this.pageLabel = document.getElementById('songs-page-label');
+    this.emptyViewer = document.getElementById('songs-empty-viewer');
+    this.detail = document.getElementById('song-detail');
+    this.detailTitle = document.getElementById('song-detail-title');
+    this.detailArtist = document.getElementById('song-detail-artist');
+    this.detailMeta = document.getElementById('song-detail-meta');
+    this.detailCifra = document.getElementById('song-detail-cifra');
+    this.detailLink = document.getElementById('song-detail-link');
   }
 
-  // Inicializar elementos DOM
-  initializeElements() {
+  bindEvents() {
+    const resetPageAndRender = () => {
+      this.page = 1;
+      this.render();
+    };
+
+    this.search.addEventListener('input', resetPageAndRender);
+    [this.artist, this.minister, this.key, this.theme].forEach(select => select?.addEventListener('change', resetPageAndRender));
+    this.clear?.addEventListener('click', () => this.clearFilters());
+    this.prev?.addEventListener('click', () => this.changePage(-1));
+    this.next?.addEventListener('click', () => this.changePage(1));
+    window.addEventListener('beforeunload', () => {
+      if (typeof this.unsubscribe === 'function') this.unsubscribe();
+    }, { once: true });
+  }
+
+  async subscribe() {
     try {
-      this.searchInput = document.getElementById('search-input');
-      this.musicList = document.getElementById('music-list');
-      this.loading = document.getElementById('loading');
-      this.emptyViewer = document.getElementById('empty-viewer');
-      this.musicViewer = document.getElementById('music-viewer');
-      this.cifraContent = document.getElementById('cifra-content');
-      this.currentTitle = document.getElementById('current-title');
-      this.currentMinistro = document.getElementById('current-ministro');
-      this.currentArtista = document.getElementById('current-artista');
-      this.currentOriginalKey = document.getElementById('current-original-key');
-      this.currentKey = document.getElementById('current-key');
-      this.currentBpm = document.getElementById('current-bpm');
-      this.bpmContainer = document.getElementById('bpm-container');
-      this.linkContainerConsulta = document.getElementById('link-container-consulta');
-      this.currentLink = document.getElementById('current-link');
-      this.btnDown = document.getElementById('btn-down');
-      this.btnUp = document.getElementById('btn-up');
-      this.btnReset = document.getElementById('btn-reset');
-      this.currentTomMinistro = document.getElementById('current-tom-ministro');
-      this.tomMinistroContainer = document.getElementById('tom-ministro-container-consulta');
-
-      // Verificar elementos críticos
-      const criticalElements = {
-        searchInput: this.searchInput,
-        musicList: this.musicList,
-        loading: this.loading,
-        emptyViewer: this.emptyViewer,
-        musicViewer: this.musicViewer,
-        cifraContent: this.cifraContent,
-        currentTitle: this.currentTitle,
-        currentKey: this.currentKey
-      };
-
-      const missingElements = Object.entries(criticalElements)
-        .filter(([name, element]) => !element)
-        .map(([name]) => name);
-
-      if (missingElements.length > 0) {
-        throw new Error(`Elementos DOM não encontrados: ${missingElements.join(', ')}`);
-      }
-
-      console.log("✅ ConsultaPage: Todos os elementos DOM encontrados");
-      return true;
+      this.setLoading(true);
+      this.unsubscribe = await musicService.loadAllMusics(snapshot => this.consumeSnapshot(snapshot));
     } catch (error) {
-      console.error("❌ ConsultaPage: Erro ao inicializar elementos DOM:", error);
-      this.showError(`Erro DOM: ${error.message}`);
-      return false;
+      console.error('Erro ao carregar catálogo de músicas:', error);
+      this.setLoading(false);
+      this.count.textContent = 'Não foi possível carregar as músicas.';
+      this.renderEmptyList('Falha ao carregar o repertório', 'Tente atualizar a página.');
     }
   }
 
-  // Configurar event listeners
-  setupEventListeners() {
-    if (!this.searchInput) {
-      console.error("❌ ConsultaPage: searchInput não disponível para eventos");
-      return;
-    }
-    
-    this.searchInput.addEventListener('input', Utils.debounce(() => this.renderMusicList(), 300));
-    
-    // Atalhos de teclado
-    document.addEventListener('keydown', (event) => {
-      if (this.selectedMusica && !this.searchInput.matches(':focus')) {
-        switch(event.key) {
-          case 'ArrowUp':
-            event.preventDefault();
-            this.transposeUp();
-            break;
-          case 'ArrowDown':
-            event.preventDefault();
-            this.transposeDown();
-            break;
-          case 'r':
-          case 'R':
-            event.preventDefault();
-            this.resetTranspose();
-            break;
-          case 'Escape':
-            event.preventDefault();
-            this.clearSelection();
-            break;
-        }
-      }
-    });
-
-    // Eventos dos botões de transposição
-    if (this.btnUp) this.btnUp.onclick = () => this.transposeUp();
-    if (this.btnDown) this.btnDown.onclick = () => this.transposeDown();
-    if (this.btnReset) this.btnReset.onclick = () => this.resetTranspose();
-    
-    console.log("✅ ConsultaPage: Event listeners configurados");
-  }
-
-  // Carregar músicas
-  async loadMusicas() {
-    try {
-      console.log("🔄 ConsultaPage: Carregando músicas...");
-      this.showMessage("Carregando músicas...", "info");
-      
-      await musicService.loadAllMusics((snapshot) => {
-        console.log("📥 ConsultaPage: Snapshot recebido");
-        this.processSnapshot(snapshot);
+  consumeSnapshot(snapshot) {
+    const songs = [];
+    if (snapshot && typeof snapshot.forEach === 'function') {
+      snapshot.forEach(doc => {
+        const data = typeof doc.data === 'function' ? doc.data() : doc.data;
+        if (doc?.id && data) songs.push({ id: doc.id, ...data });
       });
-    } catch (error) {
-      console.error("❌ ConsultaPage: Erro ao carregar músicas:", error);
-      this.showError("Erro ao carregar músicas: " + error.message);
+    }
+
+    this.allSongs = songs.sort((a, b) => String(a.titulo || '').localeCompare(String(b.titulo || ''), 'pt-BR', { sensitivity: 'base' }));
+    this.setLoading(false);
+    this.populateFilterOptions();
+    this.render();
+
+    if (this.selectedSongId) {
+      const selected = this.allSongs.find(song => song.id === this.selectedSongId);
+      if (selected) this.renderDetail(selected);
+      else this.clearSelection();
     }
   }
 
-  // Processar snapshot do banco
-  processSnapshot(snapshot) {
-    try {
-      this.allMusicas = [];
-      
-      if (!snapshot || typeof snapshot.forEach !== 'function') {
-        console.error("❌ ConsultaPage: Snapshot inválido");
-        this.showError("Dados inválidos recebidos");
-        return;
-      }
-      
-      snapshot.forEach((doc) => {
-        try {
-          if (!doc || typeof doc.id !== 'string') {
-            console.warn("⚠️ ConsultaPage: Documento inválido:", doc);
-            return;
-          }
-          
-          const data = typeof doc.data === 'function' ? doc.data() : doc.data;
-          if (!data) {
-            console.warn("⚠️ ConsultaPage: Documento sem dados:", doc.id);
-            return;
-          }
-          
-          const musicData = {
-            id: doc.id,
-            ...data
-          };
-          
-          this.allMusicas.push(musicData);
-        } catch (docError) {
-          console.error("❌ ConsultaPage: Erro ao processar documento:", docError);
-        }
-      });
-
-      console.log(`📈 ConsultaPage: ${this.allMusicas.length} músicas carregadas`);
-      this.showMessage(`${this.allMusicas.length} músicas carregadas`, "success");
-
-      this.loading.style.display = "none";
-      this.musicList.style.display = "block";
-      
-      this.renderMusicList();
-    } catch (error) {
-      console.error("❌ ConsultaPage: Erro ao processar snapshot:", error);
-      this.showError("Erro ao processar dados");
-    }
+  currentFilters() {
+    return {
+      search: this.search?.value || '',
+      artist: this.artist?.value || '',
+      minister: this.minister?.value || '',
+      key: this.key?.value || '',
+      theme: this.theme?.value || ''
+    };
   }
 
-  // Renderizar lista de músicas
-  renderMusicList() {
-    if (!this.musicList) {
-      console.error("❌ ConsultaPage: musicList element não encontrado");
-      return;
-    }
-    
-    const searchTerm = this.searchInput ? this.searchInput.value.toLowerCase() : '';
-    const filteredMusicas = this.allMusicas.filter(musica => {
-      if (!musica) return false;
-      
-      const searchFields = Utils.createSearchFields(musica);
-      return !searchTerm || searchFields.includes(searchTerm);
+  hasActiveFilters() {
+    return Object.values(this.currentFilters()).some(Boolean);
+  }
+
+  populateFilterOptions() {
+    const current = this.currentFilters();
+    const artists = uniqueSorted(this.allSongs.map(song => song.artista ?? song.artist));
+    const ministers = uniqueSorted(this.allSongs.flatMap(ministerNames));
+    const keys = uniqueSorted(this.allSongs.map(song => song.tom ?? song.originalKey ?? song.key));
+    const themes = uniqueSorted(this.allSongs.flatMap(themeValues));
+
+    this.fillSelect(this.artist, artists, current.artist);
+    this.fillSelect(this.minister, ministers, current.minister);
+    this.fillSelect(this.key, keys, current.key);
+    this.fillSelect(this.theme, themes, current.theme);
+  }
+
+  fillSelect(select, options, selectedValue) {
+    if (!select) return;
+    select.replaceChildren();
+    const all = document.createElement('option');
+    all.value = '';
+    all.textContent = 'Todos';
+    select.appendChild(all);
+    options.forEach(value => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = value;
+      select.appendChild(option);
     });
-
-    this.musicList.innerHTML = '';
-
-    if (filteredMusicas.length === 0) {
-      this.musicList.innerHTML = `
-        <div class="empty-state">
-          <i class="fas fa-search"></i>
-          <h3>Nenhuma música encontrada</h3>
-          <p>Tente um termo diferente</p>
-        </div>
-      `;
-      return;
-    }
-
-    filteredMusicas.forEach((musica) => {
-      if (!musica || !musica.id) {
-        console.warn(`⚠️ ConsultaPage: Música inválida:`, musica);
-        return;
-      }
-      
-      const item = this.createMusicListItem(musica);
-      this.musicList.appendChild(item);
-    });
+    if ([...select.options].some(option => option.value === selectedValue)) select.value = selectedValue;
   }
 
-  // Criar item da lista de música
-  createMusicListItem(musica) {
-    const item = document.createElement('div');
-    item.className = 'music-item';
-    if (this.selectedMusica && this.selectedMusica.id === musica.id) {
-      item.classList.add('selected');
-    }
-    
-    const ministrosDisplay = Utils.formatMinistros(musica);
-    const tomMinistroDisplay = Utils.formatTomMinistro(musica);
-    
-    item.innerHTML = `
-      <div class="music-item-title">${Utils.escapeHtml(musica.titulo || 'Título não informado')}</div>
-      ${musica.artista ? `<div class="music-item-artist">${Utils.escapeHtml(musica.artista)}</div>` : ''}
-      <div class="music-item-info">
-        ${ministrosDisplay !== 'Não informado' ? `<span><i class="fas fa-user"></i> ${Utils.escapeHtml(ministrosDisplay)}</span>` : ''}
-        ${musica.tom ? `<span><i class="fas fa-music"></i> ${Utils.escapeHtml(musica.tom)}</span>` : ''}
-        ${tomMinistroDisplay ? `<span style="color: #4CAF50;"><i class="fas fa-user-music"></i> Tom: ${Utils.escapeHtml(tomMinistroDisplay)}</span>` : ''}
-        ${musica.bpm && !isNaN(musica.bpm) ? `<span><i class="fas fa-tachometer-alt"></i> ${musica.bpm} BPM</span>` : ''}
-      </div>
-    `;
-    
-    item.onclick = () => this.selectMusica(musica);
-    return item;
-  }
+  render() {
+    const filters = this.currentFilters();
+    this.filteredSongs = this.allSongs.filter(song => matchesFilters(song, filters));
 
-  // Selecionar música
-  selectMusica(musica) {
-    this.selectedMusica = musica;
-    
-    // Inicializar serviço de transposição
-    if (!transposeService.initialize(musica)) {
-      console.error("❌ ConsultaPage: Erro ao inicializar transposição");
-      this.showError("Erro ao inicializar transposição");
-      return;
-    }
+    const totalPages = Math.max(1, Math.ceil(this.filteredSongs.length / PAGE_SIZE));
+    this.page = Math.min(Math.max(1, this.page), totalPages);
+    const start = (this.page - 1) * PAGE_SIZE;
+    const pageSongs = this.filteredSongs.slice(start, start + PAGE_SIZE);
 
-    // Atualizar informações
-    this.updateMusicInfo(musica);
-    
-    // Exibir cifra
-    this.displayCifra(musica.cifra || '');
-    this.updateCurrentKey();
-    
-    // Mostrar viewer
-    this.emptyViewer.style.display = 'none';
-    this.musicViewer.style.display = 'block';
-    
-    // Atualizar lista
-    this.renderMusicList();
-    
-    // Atualizar título da página
-    document.title = `${musica.titulo} - Consulta e Transposição`;
-    
-    console.log("✅ ConsultaPage: Música selecionada:", musica.titulo);
-  }
+    this.clear.disabled = !this.hasActiveFilters();
+    this.count.textContent = this.resultLabel(this.filteredSongs.length, this.allSongs.length);
+    this.list.replaceChildren();
 
-  // Atualizar informações da música
-  updateMusicInfo(musica) {
-    if (this.currentTitle) {
-      this.currentTitle.textContent = musica.titulo || 'Título não informado';
-    }
-    
-    if (this.currentMinistro) {
-      this.currentMinistro.textContent = Utils.formatMinistros(musica);
-    }
-    
-    if (this.currentArtista) {
-      this.currentArtista.textContent = musica.artista || 'Não informado';
-    }
-    
-    if (this.currentOriginalKey) {
-      this.currentOriginalKey.textContent = musica.tom || 'N/A';
-    }
-    
-    // Tom do Ministro
-    if (this.tomMinistroContainer && this.currentTomMinistro) {
-      const tomMinistroText = Utils.formatTomMinistro(musica);
-      if (tomMinistroText) {
-        this.currentTomMinistro.textContent = tomMinistroText;
-        this.tomMinistroContainer.style.display = 'flex';
-      } else {
-        this.tomMinistroContainer.style.display = 'none';
-      }
-    }
-    
-    // BPM
-    if (this.bpmContainer && this.currentBpm) {
-      if (musica.bpm && !isNaN(musica.bpm)) {
-        this.currentBpm.textContent = `${musica.bpm} BPM`;
-        this.bpmContainer.style.display = 'flex';
-      } else {
-        this.bpmContainer.style.display = 'none';
-      }
-    }
-    
-    // Link
-    if (this.linkContainerConsulta && this.currentLink) {
-      if (musica.link && musica.link.trim()) {
-        this.currentLink.href = musica.link;
-        this.linkContainerConsulta.style.display = 'flex';
-      } else {
-        this.linkContainerConsulta.style.display = 'none';
-      }
-    }
-  }
-
-  // Exibir cifra
-  displayCifra(cifra) {
-    if (!this.cifraContent) return;
-    
-    if (cifra) {
-      const highlightedCifra = Utils.highlightChords(cifra);
-      this.cifraContent.innerHTML = highlightedCifra;
+    if (pageSongs.length === 0) {
+      this.renderEmptyList(
+        this.hasActiveFilters() ? 'Nenhuma música encontrada' : 'Nenhuma música cadastrada',
+        this.hasActiveFilters() ? 'Ajuste ou limpe os filtros para ampliar a busca.' : 'Cadastre a primeira música para iniciar o repertório.'
+      );
     } else {
-      this.cifraContent.innerHTML = '<div style="color: #999; text-align: center; padding: 40px;">Cifra não disponível para esta música</div>';
+      pageSongs.forEach(song => this.list.appendChild(this.createSongRow(song)));
     }
+
+    const needsPagination = this.filteredSongs.length > PAGE_SIZE;
+    this.pagination.hidden = !needsPagination;
+    this.prev.disabled = this.page <= 1;
+    this.next.disabled = this.page >= totalPages;
+    this.pageLabel.textContent = `Página ${this.page} de ${totalPages}`;
   }
 
-  // Atualizar tom atual
-  updateCurrentKey() {
-    if (!this.currentKey) return;
-    
-    const transposeInfo = transposeService.getTransposeInfo();
-    this.currentKey.textContent = transposeInfo.currentKey;
-    
-    // Atualizar estado do botão reset
-    if (this.btnReset) {
-      if (transposeInfo.isOriginal) {
-        this.btnReset.disabled = true;
-        this.btnReset.style.opacity = '0.5';
-      } else {
-        this.btnReset.disabled = false;
-        this.btnReset.style.opacity = '1';
-      }
+  resultLabel(filtered, total) {
+    if (filtered === total) return `${total} ${total === 1 ? 'música' : 'músicas'}`;
+    return `${filtered} de ${total} ${total === 1 ? 'música' : 'músicas'}`;
+  }
+
+  renderEmptyList(title, description) {
+    const empty = document.createElement('div');
+    empty.className = 'songs-empty';
+    const content = document.createElement('div');
+    const icon = document.createElement('i');
+    icon.className = 'fa-solid fa-magnifying-glass';
+    icon.setAttribute('aria-hidden', 'true');
+    const heading = document.createElement('h3');
+    heading.textContent = title;
+    const text = document.createElement('p');
+    text.textContent = description;
+    content.append(icon, heading, text);
+    if (this.hasActiveFilters()) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ide-button ide-button--secondary ide-button--sm';
+      button.textContent = 'Limpar filtros';
+      button.addEventListener('click', () => this.clearFilters());
+      content.appendChild(button);
     }
+    empty.appendChild(content);
+    this.list.appendChild(empty);
   }
 
-  // Transpor para cima
-  transposeUp() {
-    this.transpose(() => transposeService.transposeUp());
+  createSongRow(song) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'song-row';
+    button.setAttribute('aria-current', String(song.id === this.selectedSongId));
+    button.addEventListener('click', () => this.selectSong(song));
+
+    const title = document.createElement('span');
+    title.className = 'song-row__title';
+    title.textContent = song.titulo || song.title || 'Música sem título';
+
+    const meta = document.createElement('span');
+    meta.className = 'song-row__meta';
+    const values = [song.artista ?? song.artist, song.tom ?? song.originalKey ?? song.key, ...ministerNames(song).slice(0, 2)].filter(Boolean);
+    values.forEach(value => {
+      const item = document.createElement('span');
+      item.textContent = value;
+      meta.appendChild(item);
+    });
+
+    button.append(title, meta);
+    return button;
   }
 
-  // Transpor para baixo
-  transposeDown() {
-    this.transpose(() => transposeService.transposeDown());
+  selectSong(song) {
+    this.selectedSongId = song.id;
+    this.renderDetail(song);
+    this.render();
+    if (window.matchMedia('(max-width: 900px)').matches) this.detail?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // Transpor
-  transpose(transposeFunction) {
-    if (!this.selectedMusica) return;
-    
-    try {
-      const result = transposeFunction();
-      this.displayCifra(result.cifra);
-      this.updateCurrentKey();
-      
-      // Efeito visual
-      if (this.cifraContent) {
-        this.cifraContent.style.transform = 'scale(0.98)';
-        setTimeout(() => {
-          this.cifraContent.style.transform = 'scale(1)';
-        }, 150);
-      }
-      
-    } catch (error) {
-      console.error("❌ ConsultaPage: Erro ao transpor:", error);
-      MessageService.error(error.message);
-    }
+  renderDetail(song) {
+    this.emptyViewer.hidden = true;
+    this.detail.hidden = false;
+    this.detailTitle.textContent = song.titulo || song.title || 'Música sem título';
+    this.detailArtist.textContent = song.artista || song.artist || 'Artista não informado';
+    this.detailCifra.textContent = song.cifra || 'Cifra não cadastrada.';
+    this.detailMeta.replaceChildren();
+
+    const chips = [
+      ['Tom', song.tom ?? song.originalKey ?? song.key],
+      ['Ministro', ministerNames(song).join(', ')],
+      ['Tema', themeValues(song).join(', ')],
+      ['BPM', song.bpm]
+    ].filter(([, value]) => value !== undefined && value !== null && String(value).trim());
+
+    chips.forEach(([label, value]) => {
+      const chip = document.createElement('span');
+      chip.className = 'song-chip';
+      chip.textContent = `${label}: ${value}`;
+      this.detailMeta.appendChild(chip);
+    });
+
+    const reference = String(song.link || song.referenceUrl || '').trim();
+    this.detailLink.hidden = !reference;
+    if (reference) this.detailLink.href = reference;
   }
 
-  // Resetar transposição
-  resetTranspose() {
-    if (!this.selectedMusica) return;
-    
-    try {
-      const result = transposeService.reset();
-      this.displayCifra(result.cifra);
-      this.updateCurrentKey();
-      
-      // Efeito visual
-      if (this.cifraContent) {
-        this.cifraContent.style.transform = 'scale(1.02)';
-        setTimeout(() => {
-          this.cifraContent.style.transform = 'scale(1)';
-        }, 200);
-      }
-      
-    } catch (error) {
-      console.error("❌ ConsultaPage: Erro ao resetar:", error);
-      MessageService.error(error.message);
-    }
-  }
-
-  // Limpar seleção
   clearSelection() {
-    this.selectedMusica = null;
-    
-    this.emptyViewer.style.display = 'block';
-    this.musicViewer.style.display = 'none';
-    
-    this.renderMusicList();
-    
-    document.title = 'Consulta e Transposição — IDE Music';
+    this.selectedSongId = null;
+    this.emptyViewer.hidden = false;
+    this.detail.hidden = true;
   }
 
-  // Mostrar erro
-  showError(message) {
-    if (this.loading) {
-      this.loading.innerHTML = `❌ ${message}`;
-      this.loading.style.display = 'block';
-    }
-    console.error("❌ ConsultaPage:", message);
+  clearFilters() {
+    this.search.value = '';
+    [this.artist, this.minister, this.key, this.theme].forEach(select => { if (select) select.value = ''; });
+    this.page = 1;
+    this.render();
+    this.search.focus();
   }
 
-  // Mostrar mensagem
-  showMessage(message, type = 'info') {
-    MessageService.show(message, type);
+  changePage(delta) {
+    const totalPages = Math.max(1, Math.ceil(this.filteredSongs.length / PAGE_SIZE));
+    const nextPage = Math.min(Math.max(1, this.page + delta), totalPages);
+    if (nextPage === this.page) return;
+    this.page = nextPage;
+    this.render();
+    document.getElementById('catalog-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  setLoading(isLoading) {
+    if (this.loading) this.loading.hidden = !isLoading;
   }
 }
 
-// Inicializar página quando script carregar
-new ConsultaPage();
+const start = () => new MusicCatalogPage().init();
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+else start();
+
+export { PAGE_SIZE, normalize, uniqueSorted, ministerNames, themeValues, matchesFilters, MusicCatalogPage };
