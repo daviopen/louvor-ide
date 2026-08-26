@@ -107,6 +107,83 @@ export class MusicService {
     return Utils.sanitizeForSave(processed);
   }
 
+  normalizeCatalogValue(value) {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLocaleLowerCase('pt-BR');
+  }
+
+  uniqueCatalogValues(values) {
+    return [...new Set(values.map(value => String(value || '').trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+  }
+
+  getMinisterNames(song) {
+    const names = [];
+    if (Array.isArray(song?.ministros)) names.push(...song.ministros);
+    if (song?.ministro) names.push(...String(song.ministro).split(','));
+    if (song?.tomMinistro && typeof song.tomMinistro === 'object') names.push(...Object.keys(song.tomMinistro));
+    return this.uniqueCatalogValues(names);
+  }
+
+  getThemeValues(song) {
+    const raw = song?.tema ?? song?.theme ?? song?.temas ?? song?.themes;
+    if (Array.isArray(raw)) return raw.map(value => String(value).trim()).filter(Boolean);
+    if (!raw) return [];
+    return String(raw).split(',').map(value => value.trim()).filter(Boolean);
+  }
+
+  filterCatalog(musics, filters = {}) {
+    const normalizedFilters = {
+      search: this.normalizeCatalogValue(filters.search),
+      artist: this.normalizeCatalogValue(filters.artist),
+      minister: this.normalizeCatalogValue(filters.minister),
+      key: this.normalizeCatalogValue(filters.key),
+      theme: this.normalizeCatalogValue(filters.theme)
+    };
+
+    return (Array.isArray(musics) ? musics : []).filter(song => {
+      const title = this.normalizeCatalogValue(song?.titulo ?? song?.title);
+      const artist = this.normalizeCatalogValue(song?.artista ?? song?.artist);
+      const key = this.normalizeCatalogValue(song?.tom ?? song?.originalKey ?? song?.key);
+      const ministers = this.getMinisterNames(song).map(value => this.normalizeCatalogValue(value));
+      const themes = this.getThemeValues(song).map(value => this.normalizeCatalogValue(value));
+
+      return (!normalizedFilters.search || title.includes(normalizedFilters.search))
+        && (!normalizedFilters.artist || artist === normalizedFilters.artist)
+        && (!normalizedFilters.minister || ministers.includes(normalizedFilters.minister))
+        && (!normalizedFilters.key || key === normalizedFilters.key)
+        && (!normalizedFilters.theme || themes.includes(normalizedFilters.theme));
+    });
+  }
+
+  getCatalogOptions(musics) {
+    const source = Array.isArray(musics) ? musics : [];
+    return {
+      artists: this.uniqueCatalogValues(source.map(song => song.artista ?? song.artist)),
+      ministers: this.uniqueCatalogValues(source.flatMap(song => this.getMinisterNames(song))),
+      keys: this.uniqueCatalogValues(source.map(song => song.tom ?? song.originalKey ?? song.key)),
+      themes: this.uniqueCatalogValues(source.flatMap(song => this.getThemeValues(song)))
+    };
+  }
+
+  paginateCatalog(musics, page = 1, pageSize = 10) {
+    const source = Array.isArray(musics) ? musics : [];
+    const safePageSize = Math.max(1, Number.parseInt(pageSize, 10) || 10);
+    const totalPages = Math.max(1, Math.ceil(source.length / safePageSize));
+    const safePage = Math.min(Math.max(1, Number.parseInt(page, 10) || 1), totalPages);
+    const start = (safePage - 1) * safePageSize;
+    return {
+      items: source.slice(start, start + safePageSize),
+      page: safePage,
+      pageSize: safePageSize,
+      total: source.length,
+      totalPages
+    };
+  }
+
   filterMusics(musics, searchTerm) {
     if (!searchTerm) return musics;
     const term = searchTerm.toLowerCase();
