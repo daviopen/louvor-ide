@@ -57,8 +57,11 @@ jobs:
           grep -q 'id="filter-event"' /tmp/setlists.html
           grep -q 'id="filter-minister"' /tmp/setlists.html
           grep -q 'id="filter-song"' /tmp/setlists.html
-          grep -q 'id="filter-artist"' /tmp/setlists.html
           grep -q 'id="filter-theme"' /tmp/setlists.html
+          if grep -q 'id="filter-artist"' /tmp/setlists.html; then
+            echo "❌ Histórico não deve expor filtro por artista"
+            exit 1
+          fi
           grep -q 'id="pagination"' /tmp/setlists.html
           grep -q 'setlist-history-service.js?v=20260825-roadmap20' /tmp/setlists.html
           grep -q 'setlist.html?id=' /tmp/setlists-simple.js
