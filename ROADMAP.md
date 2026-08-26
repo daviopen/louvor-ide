@@ -280,16 +280,16 @@
 - [x] Paginação.
 
 ### 21. Cifra e letra
-- [ ] Manter “Ver cifra”.
-- [ ] Criar “Ver letra”.
-- [ ] Alternância rápida.
-- [ ] Exibir tom da execução.
-- [ ] Transposição na visualização.
-- [ ] Navegação anterior/próxima.
-- [ ] Modo palco.
-- [ ] Controle de tamanho de fonte.
-- [ ] Otimizar para celular e alto contraste.
-- [ ] Documentar cuidados de direitos autorais para letras completas.
+- [x] Manter “Ver cifra”.
+- [x] Criar “Ver letra”.
+- [x] Alternância rápida.
+- [x] Exibir tom da execução.
+- [x] Transposição na visualização.
+- [x] Navegação anterior/próxima.
+- [x] Modo palco.
+- [x] Controle de tamanho de fonte.
+- [x] Otimizar para celular e alto contraste.
+- [x] Documentar cuidados de direitos autorais para letras completas.
 
 ## P4 — Biblioteca de músicas
 
