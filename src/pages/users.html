@@ -12,10 +12,10 @@
   <script src="../repositories/domain-repositories.js"></script>
   <script src="../repositories/user-repository.js"></script>
   <script src="../services/ministry-functions-service.js?v=20260825-roles"></script>
-  <script src="../services/user-service.js?v=20260825-admin-password"></script>
+  <script src="../services/user-service.js?v=20260825-password-reset"></script>
   <script src="../js/modules/auth-service.js?v=20260825-auth-sync"></script>
   <script src="../js/modules/app-shell.js?v=20260825-auth-sync" defer></script>
-  <script src="../js/modules/users-page.js?v=20260825-admin-password" defer></script>
+  <script src="../js/modules/users-page.js?v=20260825-password-reset" defer></script>
   <script src="../js/modules/user-permissions-integration.js?v=20260825-user-permissions" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="../styles/tokens.css">
@@ -32,7 +32,7 @@
       <div class="users-heading">
         <div class="ide-module-kicker">Administração · Pessoas</div>
         <h1>Usuários</h1>
-        <p>Gerencie perfis, funções ministeriais, permissões, acesso e credenciais com segurança.</p>
+        <p>Gerencie perfis, funções ministeriais, permissões, acesso e recuperação de senha.</p>
       </div>
       <div class="users-header-actions">
         <button id="manage-functions" class="ide-button ide-button--secondary" type="button"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>Funções ministeriais</span></button>
@@ -64,26 +64,12 @@
       <div class="users-form-grid">
         <label class="ide-field"><span class="ide-field__label">Nome</span><input id="user-name" class="ide-field__control ide-field__input" required maxlength="120" autocomplete="name"></label>
         <label class="ide-field"><span class="ide-field__label">E-mail</span><input id="user-email" class="ide-field__control ide-field__input" type="email" required autocomplete="off"></label>
-        <label id="user-password-row" class="ide-field full"><span class="ide-field__label">Senha inicial</span><input id="user-password" class="ide-field__control ide-field__input" type="password" minlength="8" maxlength="128" autocomplete="new-password"><small class="users-muted">A senha é enviada diretamente ao Firebase Authentication e nunca é armazenada no Firestore.</small></label>
         <label class="ide-field full"><span class="ide-field__label">Foto de perfil <span class="users-optional">(URL opcional)</span></span><input id="user-photo" class="ide-field__control ide-field__input" type="url" placeholder="https://..."></label>
-        <div class="users-account-note full"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>Identidade e credenciais são gerenciadas pelo Firebase Authentication. O UID é administrado automaticamente pela plataforma.</span></div>
+        <div class="users-account-note full"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>O Firebase Authentication gera o UID automaticamente. Após o cadastro, o Firebase envia um e-mail para a pessoa definir a senha.</span></div>
         <fieldset class="users-fieldset full"><legend>Funções ministeriais</legend><p class="users-fieldset-help">Selecione uma ou mais funções em que esta pessoa serve.</p><div id="user-functions" class="users-function-list"></div></fieldset>
         <fieldset id="user-permissions-row" class="users-fieldset full"><legend>Permissões iniciais</legend><p class="users-fieldset-help">Defina o acesso aos módulos. Função ministerial não concede permissão administrativa.</p><div id="user-permissions" class="users-permission-list"></div></fieldset>
       </div>
       <footer class="users-dialog-actions"><button id="user-cancel" class="ide-button ide-button--ghost" type="button">Cancelar</button><button id="user-submit" class="ide-button ide-button--primary" type="submit"><i class="fa-solid fa-check" aria-hidden="true"></i>Salvar usuário</button></footer>
-    </form>
-  </dialog>
-
-  <dialog id="password-dialog" class="users-dialog users-dialog--compact">
-    <form id="password-form" class="users-form">
-      <header class="users-dialog-header"><div class="ide-module-kicker">Segurança</div><h2>Definir nova senha</h2><p id="password-user-label"></p></header>
-      <input id="password-user-id" type="hidden">
-      <div class="users-form-stack">
-        <label class="ide-field"><span class="ide-field__label">Nova senha</span><input id="password-new" class="ide-field__control ide-field__input" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label>
-        <label class="ide-field"><span class="ide-field__label">Confirmar nova senha</span><input id="password-confirm" class="ide-field__control ide-field__input" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label>
-        <div class="users-account-note"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>A alteração ocorre diretamente no Firebase Authentication. O conteúdo da senha não é registrado na auditoria.</span></div>
-      </div>
-      <footer class="users-dialog-actions"><button id="password-cancel" class="ide-button ide-button--ghost" type="button">Cancelar</button><button id="password-submit" class="ide-button ide-button--primary" type="submit">Alterar senha</button></footer>
     </form>
   </dialog>
 
