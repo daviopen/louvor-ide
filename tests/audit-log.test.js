@@ -19,6 +19,9 @@ const schedules = read('src/services/schedule-service.js');
 const setlists = read('src/repositories/setlist-repository.js');
 const musicService = read('src/js/modules/music-service.js');
 const musicRepository = read('src/repositories/music-repository.js');
+const lgpd = read('src/js/modules/lgpd-service.js');
+const auditRepository = read('src/repositories/audit-repository.js');
+const auditPage = read('src/js/modules/audit-page.js');
 
 const expectAll = (source, patterns) => patterns.forEach(pattern => assert.match(source, pattern));
 
@@ -76,4 +79,49 @@ test('music create/update/delete emits audit records with minimal before/after s
     /createdAt/
   ]);
   assert.doesNotMatch(musicService.match(/auditSnapshot\(song\)[\s\S]*?\n  }/)[0], /cifra|letra|password|token/i);
+});
+
+test('LGPD consent is audited atomically with minimal versioned before/after data', () => {
+  expectAll(lgpd, [
+    /LGPD_CONSENT_ACCEPTED/,
+    /entityType: 'lgpdConsent'/,
+    /before: null/,
+    /consentVersion: CONSENT_VERSION/,
+    /batch\.set\(auditRef, buildConsentAuditPayload/,
+    /batch\.commit\(\)/
+  ]);
+  const auditBuilder = lgpd.match(/function buildConsentAuditPayload[\s\S]*?\n  }/)[0];
+  assert.doesNotMatch(auditBuilder, /email|password|token|ip|userAgent/i);
+});
+
+test('audit console is read-only and supports user, period, action and entity filters', () => {
+  expectAll(auditRepository, [
+    /class AuditRepository/,
+    /listRecent/,
+    /listFiltered/,
+    /actorUserId/,
+    /filters\.from/,
+    /filters\.to/,
+    /filters\.action/,
+    /filters\.entityType/
+  ]);
+  assert.doesNotMatch(auditRepository, /async (create|update|delete)\s*\(/);
+  expectAll(auditPage, [
+    /section'\) !== 'audit'/,
+    /Histórico somente leitura/,
+    /audit-user-filter/,
+    /audit-from-filter/,
+    /audit-to-filter/,
+    /audit-action-filter/,
+    /audit-entity-filter/,
+    /audit-before/,
+    /audit-after/,
+    /Ver alteração/
+  ]);
+  assert.doesNotMatch(auditPage, /\.add\(|\.set\(|\.update\(|\.delete\(/);
+  expectAll(authAudit, [
+    /repositories\/audit-repository\.js/,
+    /js\/modules\/audit-page\.js/,
+    /section !== 'audit'/
+  ]);
 });
