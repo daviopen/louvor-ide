@@ -351,19 +351,19 @@
 ## P6 — Qualidade
 
 ### 26. Testes
-- [ ] Testes unitários de regras de negócio.
-- [ ] Testes de Services.
-- [ ] Testes de Repositories.
-- [ ] Testes de componentes críticos.
-- [ ] Testes de autenticação e autorização.
-- [ ] Testes de Firestore Rules.
-- [ ] Testes E2E dos fluxos críticos.
-- [ ] Testes de responsividade.
-- [ ] Testes de acessibilidade.
-- [ ] Testes de tema claro/escuro.
-- [ ] Testes de transposição.
-- [ ] Testes de conflito de indisponibilidade.
-- [ ] Testes de geração idempotente de escala/Setlist.
+- [x] Testes unitários de regras de negócio.
+- [x] Testes de Services.
+- [x] Testes de Repositories.
+- [x] Testes de componentes críticos.
+- [x] Testes de autenticação e autorização.
+- [x] Testes de Firestore Rules.
+- [x] Testes E2E dos fluxos críticos.
+- [x] Testes de responsividade.
+- [x] Testes de acessibilidade.
+- [x] Testes de tema claro/escuro.
+- [x] Testes de transposição.
+- [x] Testes de conflito de indisponibilidade.
+- [x] Testes de geração idempotente de escala/Setlist.
 
 ### 27. CI/CD
 - [ ] Lint.
