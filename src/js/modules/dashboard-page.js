@@ -60,39 +60,25 @@
     return link;
   }
 
-  function renderEvents(items) {
-    const container = scope.document.getElementById('dashboard-upcoming-events');
-    if (!container) return;
-    container.textContent = '';
-    if (!items.length) return empty(container, 'fa-calendar-check', 'Agenda livre', 'Não há eventos futuros planejados ou confirmados.');
-    items.forEach(event => container.appendChild(itemLink(
-      `module.html?section=events&eventId=${encodeURIComponent(event.id)}`,
-      event.name || 'Evento',
-      formatDateTime(event.date, event.time),
-      event.status,
-      'fa-calendar-day'
-    )));
-  }
-
   function renderSchedules(items) {
     const container = scope.document.getElementById('dashboard-upcoming-schedules');
     if (!container) return;
     container.textContent = '';
-    if (!items.length) return empty(container, 'fa-people-group', 'Nenhuma escala próxima', 'As próximas escalas aparecerão aqui quando houver eventos futuros.');
+    if (!items.length) return empty(container, 'fa-people-group', 'Nenhuma escala próxima', 'Você não está escalado em nenhum evento futuro.');
     items.forEach(schedule => container.appendChild(itemLink(
       `module.html?section=schedules&scheduleId=${encodeURIComponent(schedule.id)}`,
       schedule.event?.name || 'Escala',
-      `${formatDateTime(schedule.date, schedule.event?.time || schedule.eventTime)} · ${schedule.memberCount} integrante${schedule.memberCount === 1 ? '' : 's'}`,
+      formatDateTime(schedule.date, schedule.event?.time || schedule.eventTime),
       schedule.status,
       'fa-people-group'
     )));
   }
 
   function renderSetlists(items) {
-    const container = scope.document.getElementById('dashboard-pending-setlists');
+    const container = scope.document.getElementById('dashboard-upcoming-setlists');
     if (!container) return;
     container.textContent = '';
-    if (!items.length) return empty(container, 'fa-list-check', 'Setlists em dia', 'Não há setlists futuros pendentes de preparação.');
+    if (!items.length) return empty(container, 'fa-list-check', 'Nenhum setlist próximo', 'Os setlists dos eventos em que você estiver escalado aparecerão aqui.');
     items.forEach(setlist => container.appendChild(itemLink(
       `setlist.html?id=${encodeURIComponent(setlist.id)}`,
       setlist.event?.name || 'Setlist',
@@ -120,56 +106,15 @@
     });
   }
 
-  function normalizePermission(profile, moduleName) {
-    if (profile.role === 'SUPER_ADMIN') return 'EDIT';
-    const entry = profile.permissions && profile.permissions[moduleName];
-    const value = typeof entry === 'object' && entry ? entry.level || entry.access : entry;
-    return String(value || 'NONE').toUpperCase();
-  }
-
-  function canUse(profile, moduleName, level = 'READ') {
-    const access = normalizePermission(profile, moduleName);
-    return level === 'EDIT' ? access === 'EDIT' : access === 'READ' || access === 'EDIT';
-  }
-
-  function renderQuickActions(profile) {
-    const container = scope.document.getElementById('dashboard-quick-actions');
+  function renderUserIndicators(indicators) {
+    const container = scope.document.getElementById('dashboard-user-indicators');
     if (!container) return;
-    const actions = [
-      { module: 'unavailability', level: 'EDIT', href: 'module.html?section=unavailability&action=new', icon: 'fa-calendar-xmark', label: 'Informar indisponibilidade' },
-      { module: 'events', level: 'EDIT', href: 'module.html?section=events&action=new', icon: 'fa-calendar-plus', label: 'Novo evento' },
-      { module: 'schedules', level: 'EDIT', href: 'module.html?section=schedules', icon: 'fa-people-group', label: 'Montar escala' },
-      { module: 'setlists', level: 'EDIT', href: 'setlists.html?view=upcoming', icon: 'fa-list-check', label: 'Preparar setlist' },
-      { module: 'songs', level: 'EDIT', href: 'nova-musica.html', icon: 'fa-circle-plus', label: 'Nova música' }
-    ].filter(action => canUse(profile, action.module, action.level));
     container.textContent = '';
-    if (!actions.length) {
-      const link = element('a', 'ide-dashboard-action', 'Consultar músicas');
-      link.href = 'consultar.html';
-      link.prepend(icon('fa-music'));
-      container.appendChild(link);
-      return;
-    }
-    actions.forEach(action => {
-      const link = element('a', 'ide-dashboard-action', action.label);
-      link.href = action.href;
-      link.prepend(icon(action.icon));
-      container.appendChild(link);
-    });
-  }
-
-  function renderAdminIndicators(indicators) {
-    const section = scope.document.getElementById('dashboard-admin-section');
-    const container = scope.document.getElementById('dashboard-admin-indicators');
-    if (!section || !container) return;
-    section.hidden = !indicators;
-    container.textContent = '';
-    if (!indicators) return;
     const cards = [
-      ['Próximos eventos', indicators.upcomingEvents, 'fa-calendar-day'],
       ['Próximas escalas', indicators.upcomingSchedules, 'fa-people-group'],
-      ['Escalas incompletas', indicators.incompleteSchedules, 'fa-user-clock'],
-      ['Setlists pendentes', indicators.pendingSetlists, 'fa-list-check']
+      ['Escalas pendentes', indicators.draftSchedules, 'fa-user-clock'],
+      ['Próximos setlists', indicators.upcomingSetlists, 'fa-list-check'],
+      ['Indisponibilidades futuras', indicators.upcomingUnavailability, 'fa-calendar-xmark']
     ];
     cards.forEach(([label, value, iconName]) => {
       const card = element('article', 'ide-dashboard-indicator');
@@ -189,12 +134,10 @@
   function render(viewModel) {
     const greeting = scope.document.getElementById('dashboard-greeting');
     if (greeting) greeting.textContent = viewModel.profile.name ? `Olá, ${viewModel.profile.name.split(' ')[0]}.` : 'Olá.';
-    renderQuickActions(viewModel.profile);
-    renderEvents(viewModel.upcomingEvents);
     renderSchedules(viewModel.upcomingSchedules);
-    renderSetlists(viewModel.pendingSetlists);
+    renderSetlists(viewModel.upcomingSetlists);
     renderUnavailability(viewModel.upcomingUnavailability);
-    renderAdminIndicators(viewModel.adminIndicators);
+    renderUserIndicators(viewModel.userIndicators);
     setStatus('', 'success');
   }
 
