@@ -67,6 +67,14 @@ test('layout de eventos respeita rota oculta, alinha controles e possui tratamen
   assert.match(css, /@media\(max-width:420px\)/);
 });
 
+test('modal de evento no mobile permanece navegável quando o teclado virtual reduz a área visível', () => {
+  assert.match(css, /max-height:calc\(100dvh - 2rem\)/);
+  assert.match(css, /@media\(max-width:700px\)[\s\S]*\.event-dialog\{[^}]*position:fixed[^}]*inset:0[^}]*height:100dvh[^}]*max-height:100dvh[^}]*overflow-y:auto/);
+  assert.match(css, /\.event-dialog-heading\{[^}]*position:sticky[^}]*top:0/);
+  assert.match(css, /\.event-form-grid \.ide-field__control\{scroll-margin-block:6rem 45vh\}/);
+  assert.match(css, /\.event-dialog-actions\{[^}]*position:sticky[^}]*bottom:0/);
+});
+
 test('painéis de filtro sempre iniciam fechados e só abrem após ação do usuário', () => {
   assert.match(filterPanel, /panel\.open = false/);
   assert.doesNotMatch(filterPanel, /localStorage/);
