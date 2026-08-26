@@ -12,14 +12,14 @@
     state.view=getView();
     const history=state.view==='history';
     $('page-title').textContent=history?'Histórico de Setlists':'Próximos Setlists';
-    $('page-subtitle').textContent=history?'Consulte repertórios anteriores com filtros por evento, ministro, música, artista e tema.':'Repertórios dos próximos eventos e escalas.';
+    $('page-subtitle').textContent=history?'Consulte repertórios anteriores com filtros por evento, ministro, música e tema.':'Repertórios dos próximos eventos e escalas.';
     $('tab-upcoming').classList.toggle('active',!history); $('tab-history').classList.toggle('active',history);
     $('tab-upcoming').setAttribute('aria-current',history?'false':'page'); $('tab-history').setAttribute('aria-current',history?'page':'false');
     $('filters').hidden=!history;
     $('view-hint').textContent=history?'Setlists históricos são abertos em modo somente leitura.':'Selecione um Setlist para abrir e editar conforme sua permissão.';
   }
 
-  function filters(){return {from:$('filter-from').value,to:$('filter-to').value,event:$('filter-event').value,minister:$('filter-minister').value,song:$('filter-song').value,artist:$('filter-artist').value,theme:$('filter-theme').value};}
+  function filters(){return {from:$('filter-from').value,to:$('filter-to').value,event:$('filter-event').value,minister:$('filter-minister').value,song:$('filter-song').value,theme:$('filter-theme').value};}
 
   function card(item){
     const readonly=state.view==='history';
@@ -40,8 +40,8 @@
   }
 
   function bind(){
-    ['filter-from','filter-to','filter-event','filter-minister','filter-song','filter-artist','filter-theme'].forEach(id=>$(id).addEventListener('input',()=>{state.page=1;render();}));
-    $('clear-filters').addEventListener('click',()=>{['filter-from','filter-to','filter-event','filter-minister','filter-song','filter-artist','filter-theme'].forEach(id=>$(id).value='');state.page=1;render();});
+    ['filter-from','filter-to','filter-event','filter-minister','filter-song','filter-theme'].forEach(id=>$(id).addEventListener('input',()=>{state.page=1;render();}));
+    $('clear-filters').addEventListener('click',()=>{['filter-from','filter-to','filter-event','filter-minister','filter-song','filter-theme'].forEach(id=>$(id).value='');state.page=1;render();});
     $('prev-page').addEventListener('click',()=>{state.page--;render();window.scrollTo({top:0,behavior:'smooth'});});
     $('next-page').addEventListener('click',()=>{state.page++;render();window.scrollTo({top:0,behavior:'smooth'});});
   }
