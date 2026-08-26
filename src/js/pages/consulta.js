@@ -5,6 +5,7 @@
 import musicService from '../modules/music-service.js';
 
 const PAGE_SIZE = 10;
+const LOAD_TIMEOUT_MS = 12000;
 
 class MusicCatalogPage {
   constructor() {
@@ -13,13 +14,15 @@ class MusicCatalogPage {
     this.selectedSongId = null;
     this.page = 1;
     this.unsubscribe = null;
+    this.loadTimeout = null;
+    this.started = false;
   }
 
   init() {
     this.cacheElements();
     if (!this.list || !this.search) return;
     this.bindEvents();
-    this.subscribe();
+    this.startWhenAuthenticated();
   }
 
   cacheElements() {
@@ -57,20 +60,62 @@ class MusicCatalogPage {
     this.prev?.addEventListener('click', () => this.changePage(-1));
     this.next?.addEventListener('click', () => this.changePage(1));
     window.addEventListener('beforeunload', () => {
+      this.clearLoadTimeout();
       if (typeof this.unsubscribe === 'function') this.unsubscribe();
     }, { once: true });
   }
 
+  startWhenAuthenticated() {
+    const profile = window.currentMusicIdeProfile;
+    if (window.currentMusicIdeUser && profile?.active === true) {
+      this.subscribe();
+      return;
+    }
+
+    window.addEventListener('musicIdeAuthReady', event => {
+      const { user, profile: readyProfile } = event.detail || {};
+      if (!user || readyProfile?.active !== true) return;
+      this.subscribe();
+    }, { once: true });
+  }
+
   async subscribe() {
+    if (this.started) return;
+    this.started = true;
+
     try {
       this.setLoading(true);
+      this.armLoadTimeout();
       this.unsubscribe = await musicService.loadAllMusics(snapshot => this.consumeSnapshot(snapshot));
     } catch (error) {
-      console.error('Erro ao carregar catálogo de músicas:', error);
-      this.setLoading(false);
-      this.count.textContent = 'Não foi possível carregar as músicas.';
-      this.renderEmptyList('Falha ao carregar o repertório', 'Tente atualizar a página.');
+      this.showLoadError(error);
     }
+  }
+
+  armLoadTimeout() {
+    this.clearLoadTimeout();
+    this.loadTimeout = window.setTimeout(() => {
+      if (this.allSongs.length === 0 && !this.loading?.hidden) {
+        this.showLoadError(new Error('Tempo limite excedido ao carregar o repertório.'));
+      }
+    }, LOAD_TIMEOUT_MS);
+  }
+
+  clearLoadTimeout() {
+    if (this.loadTimeout) window.clearTimeout(this.loadTimeout);
+    this.loadTimeout = null;
+  }
+
+  showLoadError(error) {
+    console.error('Erro ao carregar catálogo de músicas:', error);
+    this.clearLoadTimeout();
+    this.setLoading(false);
+    if (this.count) this.count.textContent = 'Não foi possível carregar as músicas.';
+    if (this.list) {
+      this.list.replaceChildren();
+      this.renderEmptyList('Falha ao carregar o repertório', 'Atualize a página. Se o problema continuar, verifique sua permissão de Músicas.');
+    }
+    if (this.pagination) this.pagination.hidden = true;
   }
 
   consumeSnapshot(snapshot) {
@@ -82,7 +127,8 @@ class MusicCatalogPage {
       });
     }
 
-    this.allSongs = musicService.sortMusics(songs, 'titulo', 'asc');
+    this.clearLoadTimeout();
+    this.allSongs = [...songs].sort((a, b) => this.songTitle(a).localeCompare(this.songTitle(b), 'pt-BR', { sensitivity: 'base' }));
     this.setLoading(false);
     this.populateFilterOptions();
     this.render();
@@ -92,6 +138,10 @@ class MusicCatalogPage {
       if (selected) this.renderDetail(selected);
       else this.clearSelection();
     }
+  }
+
+  songTitle(song) {
+    return String(song?.titulo ?? song?.title ?? song?.nome ?? song?.name ?? '').trim();
   }
 
   currentFilters() {
@@ -138,8 +188,8 @@ class MusicCatalogPage {
     const pagination = musicService.paginateCatalog(this.filteredSongs, this.page, PAGE_SIZE);
     this.page = pagination.page;
 
-    this.clear.disabled = !this.hasActiveFilters();
-    this.count.textContent = this.resultLabel(this.filteredSongs.length, this.allSongs.length);
+    if (this.clear) this.clear.disabled = !this.hasActiveFilters();
+    if (this.count) this.count.textContent = this.resultLabel(this.filteredSongs.length, this.allSongs.length);
     this.list.replaceChildren();
 
     if (pagination.items.length === 0) {
@@ -195,7 +245,7 @@ class MusicCatalogPage {
 
     const title = document.createElement('span');
     title.className = 'song-row__title';
-    title.textContent = song.titulo || song.title || 'Música sem título';
+    title.textContent = this.songTitle(song) || 'Música sem título';
 
     const meta = document.createElement('span');
     meta.className = 'song-row__meta';
@@ -224,7 +274,7 @@ class MusicCatalogPage {
   renderDetail(song) {
     this.emptyViewer.hidden = true;
     this.detail.hidden = false;
-    this.detailTitle.textContent = song.titulo || song.title || 'Música sem título';
+    this.detailTitle.textContent = this.songTitle(song) || 'Música sem título';
     this.detailArtist.textContent = song.artista || song.artist || 'Artista não informado';
     this.detailCifra.textContent = song.cifra || 'Cifra não cadastrada.';
     this.detailMeta.replaceChildren();
@@ -279,4 +329,4 @@ const start = () => new MusicCatalogPage().init();
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
 else start();
 
-export { PAGE_SIZE, MusicCatalogPage };
+export { LOAD_TIMEOUT_MS, PAGE_SIZE, MusicCatalogPage };
