@@ -10,7 +10,6 @@ export const COLLECTIONS = Object.freeze({
   SCHEDULE_MEMBERS: 'scheduleMembers',
   SETLISTS: 'setlists',
   SETLIST_SONGS: 'setlistSongs',
-  MUSICS: 'musicas',
   SONGS: 'songs',
   SONG_MINISTER_KEYS: 'songMinisterKeys',
   AUDIT_LOGS: 'auditLogs',

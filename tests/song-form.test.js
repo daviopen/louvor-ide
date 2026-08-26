@@ -40,8 +40,8 @@ test('criação e edição validam obrigatórios, auditam e protegem alteraçõe
   assert.match(controller, /alterações não salvas/);
 });
 
-test('novas gravações usam songs e o catálogo mantém leitura legada de musicas', () => {
+test('novas gravações e leituras usam somente songs após migração', () => {
   assert.match(repository, /super\(COLLECTIONS\.SONGS/);
-  assert.match(repository, /legacyCollectionName\s*=\s*COLLECTIONS\.MUSICS/);
-  assert.match(repository, /migratedFrom/);
+  assert.match(repository, /getCollection\(COLLECTIONS\.SONGS\)/);
+  assert.doesNotMatch(repository, /legacyCollectionName|COLLECTIONS\.MUSICS|migratedFrom/);
 });

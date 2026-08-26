@@ -1,24 +1,18 @@
 import { BaseRepository } from './base-repository.js';
 import { COLLECTIONS } from '../constants/collections.js';
 
-/**
- * Persistência canônica de músicas.
- * `songs` recebe novas gravações; `musicas` permanece somente leitura durante
- * a migração para preservar o repertório histórico publicado.
- */
+/** Persistência canônica de músicas em `songs`. */
 export class MusicRepository extends BaseRepository {
   constructor(database = null) {
     super(COLLECTIONS.SONGS, database);
-    this.legacyCollectionName = COLLECTIONS.MUSICS;
   }
 
   async getDatabase() {
     await this.waitUntilReady();
 
-    // `window.db` ainda é um adaptador híbrido legado e não implementa toda a
-    // API do Firestore (get/onSnapshot/where/batch). O repository precisa da
-    // API nativa para consultas e transações. Dependências injetadas em testes
-    // continuam sendo respeitadas.
+    // `window.db` ainda é um adaptador híbrido e não implementa toda a API
+    // nativa do Firestore. O repository usa a instância nativa quando ela
+    // estiver disponível; dependências injetadas em testes seguem respeitadas.
     if (
       typeof window !== 'undefined'
       && this.db === window.db
@@ -38,21 +32,10 @@ export class MusicRepository extends BaseRepository {
 
   async subscribeAllOrderedByTitle(callback, onError = null) {
     const canonical = await this.getCollection(COLLECTIONS.SONGS);
-    const legacy = await this.getCollection(this.legacyCollectionName);
-    let canonicalDocs = [];
-    let legacyDocs = [];
 
     const titleOf = doc => {
       const data = typeof doc?.data === 'function' ? doc.data() : {};
       return String(data?.titulo || data?.title || data?.nome || data?.name || '');
-    };
-
-    const emit = () => {
-      const byId = new Map();
-      legacyDocs.forEach(doc => byId.set(doc.id, doc));
-      canonicalDocs.forEach(doc => byId.set(doc.id, doc));
-      const docs = [...byId.values()].sort((a, b) => titleOf(a).localeCompare(titleOf(b), 'pt-BR', { sensitivity: 'base' }));
-      callback({ forEach(handler) { docs.forEach(handler); } });
     };
 
     const handleError = error => {
@@ -60,32 +43,20 @@ export class MusicRepository extends BaseRepository {
       if (typeof onError === 'function') onError(error);
     };
 
-    // Não usar orderBy aqui: parte do repertório legado pode não possuir
-    // `titulo`; a ordenação é feita no cliente para não excluir documentos.
-    const unsubscribeLegacy = legacy.onSnapshot(snapshot => {
-      legacyDocs = snapshot.docs;
-      emit();
+    // A ordenação permanece no cliente para aceitar documentos históricos
+    // migrados que não possuam `titulo`, mas tenham `title`/`nome`.
+    return canonical.onSnapshot(snapshot => {
+      const docs = [...snapshot.docs]
+        .sort((a, b) => titleOf(a).localeCompare(titleOf(b), 'pt-BR', { sensitivity: 'base' }));
+      callback({ forEach(handler) { docs.forEach(handler); } });
     }, handleError);
-    const unsubscribeCanonical = canonical.onSnapshot(snapshot => {
-      canonicalDocs = snapshot.docs;
-      emit();
-    }, handleError);
-
-    return () => {
-      unsubscribeLegacy?.();
-      unsubscribeCanonical?.();
-    };
   }
 
   async findById(id) {
     const canonical = await this.getCollection(COLLECTIONS.SONGS);
-    const canonicalDoc = await canonical.doc(id).get();
-    if (canonicalDoc.exists) return { id: canonicalDoc.id, ...canonicalDoc.data(), _collection: COLLECTIONS.SONGS };
-
-    const legacy = await this.getCollection(this.legacyCollectionName);
-    const legacyDoc = await legacy.doc(id).get();
-    if (!legacyDoc.exists) return null;
-    return { id: legacyDoc.id, ...legacyDoc.data(), _collection: this.legacyCollectionName };
+    const doc = await canonical.doc(id).get();
+    if (!doc.exists) return null;
+    return { id: doc.id, ...doc.data(), _collection: COLLECTIONS.SONGS };
   }
 
   async create(data) {
@@ -95,23 +66,16 @@ export class MusicRepository extends BaseRepository {
 
   async update(id, data) {
     const canonical = await this.getCollection(COLLECTIONS.SONGS);
-    const canonicalDoc = await canonical.doc(id).get();
-    if (canonicalDoc.exists) {
-      await canonical.doc(id).update(data);
-      return { id };
-    }
-
-    const legacy = await this.getCollection(this.legacyCollectionName);
-    const legacyDoc = await legacy.doc(id).get();
-    if (!legacyDoc.exists) throw new Error('Música não encontrada.');
-    await canonical.doc(id).set({ ...legacyDoc.data(), ...data });
-    return { id, migratedFrom: this.legacyCollectionName };
+    const doc = await canonical.doc(id).get();
+    if (!doc.exists) throw new Error('Música não encontrada.');
+    await canonical.doc(id).update(data);
+    return { id };
   }
 
   async delete(id) {
     const canonical = await this.getCollection(COLLECTIONS.SONGS);
     const doc = await canonical.doc(id).get();
-    if (!doc.exists) throw new Error('A exclusão de registros legados exige migração prévia.');
+    if (!doc.exists) throw new Error('Música não encontrada.');
     await canonical.doc(id).delete();
     return true;
   }
@@ -178,15 +142,9 @@ export class MusicRepository extends BaseRepository {
   }
 
   async findAll() {
-    const [canonical, legacy] = await Promise.all([
-      this.getCollection(COLLECTIONS.SONGS),
-      this.getCollection(this.legacyCollectionName)
-    ]);
-    const [canonicalSnapshot, legacySnapshot] = await Promise.all([canonical.get(), legacy.get()]);
-    const byId = new Map();
-    legacySnapshot.docs.forEach(doc => byId.set(doc.id, { id: doc.id, ...doc.data() }));
-    canonicalSnapshot.docs.forEach(doc => byId.set(doc.id, { id: doc.id, ...doc.data() }));
-    return [...byId.values()];
+    const canonical = await this.getCollection(COLLECTIONS.SONGS);
+    const snapshot = await canonical.get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   }
 }
 

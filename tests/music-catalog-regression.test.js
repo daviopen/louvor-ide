@@ -39,12 +39,12 @@ test('music catalog performs an eager initial read before realtime updates', () 
   assert.match(serviceSource, /subscribeAllOrderedByTitle\(callback, onError\)/);
 });
 
-test('music repository does not exclude legacy documents without titulo', () => {
+test('music repository reads only canonical songs after production migration', () => {
   const source = read('src/repositories/music-repository.js');
 
-  assert.match(source, /legacy\.onSnapshot/);
+  assert.match(source, /COLLECTIONS\.SONGS/);
   assert.match(source, /canonical\.onSnapshot/);
-  assert.doesNotMatch(source, /legacy\.orderBy\('titulo'\)/);
+  assert.doesNotMatch(source, /legacyCollectionName|legacy\.onSnapshot|COLLECTIONS\.MUSICS|['"]musicas['"]/);
   assert.doesNotMatch(source, /canonical\.orderBy\('titulo'\)/);
   assert.match(source, /data\?\.titulo \|\| data\?\.title \|\| data\?\.nome \|\| data\?\.name/);
 });
