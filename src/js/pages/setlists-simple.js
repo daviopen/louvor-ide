@@ -49,10 +49,17 @@
     return `<a class="ide-button ide-button--primary" href="${editHref}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Editar Setlist</a><a class="ide-button ide-button--secondary" href="${repertoireHref}"><i class="fa-solid fa-music" aria-hidden="true"></i> Abrir repertório</a>`;
   }
 
+  function renderDressCode(item){
+    const colors=Array.isArray(item.dressCodeColors)?item.dressCodeColors:[];
+    if(!colors.length) return '';
+    const swatches=colors.map((color,index)=>`<span class="setlist-dress__swatch" style="--dress-color:${esc(color)}" title="Cor ${index+1}: ${esc(color)}" aria-label="Cor ${index+1} do Dress Code: ${esc(color)}"></span>`).join('');
+    return `<div class="setlist-dress" aria-label="Dress Code"><span class="setlist-dress__label"><i class="fa-solid fa-shirt" aria-hidden="true"></i> Dress Code</span><span class="setlist-dress__colors">${swatches}</span></div>`;
+  }
+
   function card(item){
     const ministerTags=item.ministerNames.slice(0,3).map(name=>`<span class="tag"><i class="fa-solid fa-microphone"></i>&nbsp;${esc(name)}</span>`).join('');
     const songTags=item.songTitles.slice(0,3).map(title=>`<span class="tag"><i class="fa-solid fa-music"></i>&nbsp;${esc(title)}</span>`).join('');
-    return `<article class="setlist-card"><div class="setlist-card__head"><div><h2>${esc(item.name)}</h2><div class="meta"><span><i class="fa-solid fa-calendar"></i> ${esc(formatDate(item.date))}</span><span><i class="fa-solid fa-music"></i> ${item.totalSongs} música${item.totalSongs===1?'':'s'}</span>${item.theme?`<span><i class="fa-solid fa-tag"></i> ${esc(item.theme)}</span>`:''}</div></div><span class="status">${esc(statusLabel(item.status))}</span></div>${ministerTags||songTags?`<div class="tags">${ministerTags}${songTags}</div>`:''}<div class="setlist-card__actions">${actions(item)}</div></article>`;
+    return `<article class="setlist-card"><div class="setlist-card__head"><div class="setlist-card__identity"><h2>${esc(item.name)}</h2><div class="meta"><span><i class="fa-solid fa-calendar"></i> ${esc(formatDate(item.date))}</span><span><i class="fa-solid fa-music"></i> ${item.totalSongs} música${item.totalSongs===1?'':'s'}</span>${item.theme?`<span><i class="fa-solid fa-tag"></i> ${esc(item.theme)}</span>`:''}</div>${renderDressCode(item)}</div><span class="status">${esc(statusLabel(item.status))}</span></div>${ministerTags||songTags?`<div class="tags">${ministerTags}${songTags}</div>`:''}<div class="setlist-card__actions">${actions(item)}</div></article>`;
   }
 
   function render(){
