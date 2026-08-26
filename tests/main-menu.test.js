@@ -7,13 +7,14 @@ const root = path.resolve(__dirname, '..');
 const shell = fs.readFileSync(path.join(root, 'src/js/modules/app-shell.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'src/styles/main-menu.css'), 'utf8');
 const modulePage = fs.readFileSync(path.join(root, 'src/pages/module.html'), 'utf8');
+const helpPage = fs.readFileSync(path.join(root, 'src/pages/help.html'), 'utf8');
 
 const expectedLabels = [
   'Dashboard', 'Usuários', 'Permissões', 'Indisponibilidade', 'Eventos', 'Escalas',
-  'Próximos', 'Histórico', 'Consultar', 'Nova Música', 'Auditoria', 'Configurações'
+  'Próximos', 'Histórico', 'Consultar', 'Nova Música', 'Auditoria', 'Configurações', 'Ajuda'
 ];
 
-test('menu principal contém toda a árvore prevista no ROADMAP 11', () => {
+test('menu principal contém toda a árvore prevista no ROADMAP 11 e a central de ajuda', () => {
   for (const label of expectedLabels) {
     assert.match(shell, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
@@ -22,6 +23,7 @@ test('menu principal contém toda a árvore prevista no ROADMAP 11', () => {
 test('menu principal usa ícones compatíveis nas funcionalidades visíveis', () => {
   assert.match(shell, /id: 'permissions'.*icon: 'fa-lock'/);
   assert.match(shell, /id: 'schedules'.*icon: 'fa-calendar-check'/s);
+  assert.match(shell, /id: 'help'.*icon: 'fa-circle-question'/s);
   assert.doesNotMatch(shell, /fa-shield-halved|fa-people-group/);
 });
 
@@ -32,6 +34,16 @@ test('menu principal aplica rota ativa, permissão e recolhimento persistido', (
   assert.match(shell, /musicIdeSidebarCollapsed/);
   assert.match(shell, /ide-sidebar-collapsed/);
   assert.match(shell, /musicIdeAuthReady/);
+});
+
+test('ajuda fica disponível sem regra de permissionamento', () => {
+  assert.match(shell, /id: 'help'.*public: true/s);
+  assert.match(shell, /if \(item && item\.public === true\) return true/);
+  assert.match(shell, /page === 'help\.html'/);
+  assert.match(helpPage, /Central de ajuda/);
+  for (const moduleName of ['Dashboard', 'Usuários', 'Permissões', 'Indisponibilidade', 'Eventos', 'Escalas', 'Próximos', 'Histórico', 'Consultar', 'Nova Música', 'Auditoria', 'Configurações']) {
+    assert.match(helpPage, new RegExp(`>${moduleName}<`));
+  }
 });
 
 test('navegação móvel e sidebar responsiva possuem contrato visual', () => {
