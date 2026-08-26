@@ -394,13 +394,13 @@
 - [ ] Testes em larguras pequenas.
 
 ### 30. Acessibilidade
-- [ ] Navegação por teclado.
-- [ ] Focus visível.
-- [ ] Labels corretos.
-- [ ] ARIA onde necessário.
-- [ ] Contraste WCAG.
-- [ ] Componentes não dependerem somente de cor.
-- [ ] Mensagens de erro acessíveis.
+- [x] Navegação por teclado.
+- [x] Focus visível.
+- [x] Labels corretos.
+- [x] ARIA onde necessário.
+- [x] Contraste WCAG.
+- [x] Componentes não dependerem somente de cor.
+- [x] Mensagens de erro acessíveis.
 
 ## P8 — Migração e legado
 
