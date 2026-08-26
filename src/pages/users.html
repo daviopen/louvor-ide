@@ -42,12 +42,20 @@
 
     <p id="users-readonly" class="users-readonly" hidden>Você possui acesso somente para consulta neste módulo.</p>
 
-    <section class="users-toolbar" aria-label="Filtros de usuários">
-      <label class="ide-field users-search"><span class="ide-field__label">Buscar</span><input id="filter-search" class="ide-field__control ide-field__input" type="search" placeholder="Nome ou e-mail" autocomplete="off"></label>
-      <label class="ide-field"><span class="ide-field__label">Status</span><select id="filter-status" class="ide-field__control ide-select"><option value="ALL">Todos</option><option value="ACTIVE">Ativos</option><option value="INACTIVE">Inativos</option></select></label>
-      <label class="ide-field"><span class="ide-field__label">Função</span><select id="filter-function" class="ide-field__control ide-select"><option value="ALL">Todas as funções</option></select></label>
-      <button id="clear-filters" class="ide-button ide-button--ghost users-clear-filters" type="button"><i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i><span>Limpar filtros</span></button>
-    </section>
+    <details id="users-filter-panel" class="ide-filter-panel" data-filter-panel="users">
+      <summary class="ide-filter-panel__summary">
+        <span class="ide-filter-panel__summary-main"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filtros <span class="ide-filter-panel__badge">0</span></span>
+        <span class="ide-filter-panel__summary-meta"><span class="ide-filter-panel__state">Mostrar</span></span>
+      </summary>
+      <div class="ide-filter-panel__body">
+        <section class="users-toolbar" aria-label="Filtros de usuários">
+          <label class="ide-field users-search"><span class="ide-field__label">Buscar</span><input id="filter-search" class="ide-field__control ide-field__input" type="search" placeholder="Nome ou e-mail" autocomplete="off"></label>
+          <label class="ide-field"><span class="ide-field__label">Status</span><select id="filter-status" class="ide-field__control ide-select" data-filter-neutral="ALL"><option value="ALL">Todos</option><option value="ACTIVE">Ativos</option><option value="INACTIVE">Inativos</option></select></label>
+          <label class="ide-field"><span class="ide-field__label">Função</span><select id="filter-function" class="ide-field__control ide-select" data-filter-neutral="ALL"><option value="ALL">Todas as funções</option></select></label>
+          <button id="clear-filters" class="ide-button ide-button--ghost users-clear-filters" type="button"><i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i><span>Limpar filtros</span></button>
+        </section>
+      </div>
+    </details>
 
     <section class="users-list-section" aria-labelledby="users-count">
       <div class="users-summary"><strong id="users-count">0 usuários</strong><span><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Usuários com histórico são inativados, nunca excluídos fisicamente.</span></div>

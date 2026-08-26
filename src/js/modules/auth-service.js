@@ -219,7 +219,7 @@
       avatar = scope.document.createElement('span');
       avatar.className = 'music-ide-user-placeholder';
       avatar.setAttribute('aria-hidden', 'true');
-      avatar.textContent = '♪';
+      avatar.textContent = String(user.displayName || user.email || 'U').trim().charAt(0).toUpperCase();
     }
 
     const name = scope.document.createElement('span');
@@ -230,10 +230,9 @@
     themeLabel.className = 'music-ide-theme-control';
     themeLabel.setAttribute('aria-label', 'Tema da interface');
 
-    const themeIcon = scope.document.createElement('span');
-    themeIcon.className = 'music-ide-theme-icon';
+    const themeIcon = scope.document.createElement('i');
+    themeIcon.className = 'fa-solid fa-circle-half-stroke music-ide-theme-icon';
     themeIcon.setAttribute('aria-hidden', 'true');
-    themeIcon.textContent = '◐';
 
     const themeSelect = scope.document.createElement('select');
     themeSelect.className = 'music-ide-theme-select';
@@ -246,7 +245,7 @@
     const signOutButton = scope.document.createElement('button');
     signOutButton.type = 'button';
     signOutButton.className = 'music-ide-signout';
-    signOutButton.textContent = 'Sair';
+    signOutButton.innerHTML = '<i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i><span>Sair</span>';
     signOutButton.addEventListener('click', () => scope.MusicIdeAuth.signOut());
 
     container.append(avatar, name, themeLabel, signOutButton);

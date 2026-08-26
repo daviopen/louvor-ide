@@ -40,8 +40,8 @@ body.ide-shell-enabled.ide-sidebar-collapsed { padding-left: var(--ide-sidebar-c
 .ide-sidebar-collapsed .ide-sidebar-link i { width:32px; flex-basis:32px; }
 .ide-sidebar-collapsed .ide-sidebar-account { padding-top:var(--ide-space-2); }
 .ide-sidebar-collapsed .ide-sidebar-account .music-ide-user { display:flex!important; justify-content:center; }
-.ide-sidebar-collapsed .ide-sidebar-account .music-ide-signout { padding:8px 10px; font-size:0; }
-.ide-sidebar-collapsed .ide-sidebar-account .music-ide-signout::before { content:'↪'; font-size:1rem; }
+.ide-sidebar-collapsed .ide-sidebar-account .music-ide-signout { padding:8px 10px; }
+.ide-sidebar-collapsed .ide-sidebar-account .music-ide-signout span { display:none; }
 .ide-mobile-navigation { display:none; }
 .ide-module-page { min-height:100vh; padding:48px 28px 112px; }
 .ide-module-page__inner { width:min(920px,100%); margin:0 auto; }
@@ -61,7 +61,7 @@ body.ide-shell-enabled.ide-sidebar-collapsed { padding-left: var(--ide-sidebar-c
   .ide-sidebar-collapsed .ide-sidebar-account .music-ide-theme-control { display:flex!important; }
   .ide-sidebar-collapsed .ide-sidebar-account .music-ide-user { display:grid!important; }
   .ide-sidebar-collapsed .ide-sidebar-account .music-ide-signout { padding:7px 11px; font-size:.76rem; }
-  .ide-sidebar-collapsed .ide-sidebar-account .music-ide-signout::before { content:none; }
+  .ide-sidebar-collapsed .ide-sidebar-account .music-ide-signout span { display:inline; }
   .ide-sidebar-collapsed .ide-sidebar-header { flex-direction:row; }
   .ide-sidebar-collapsed .ide-sidebar-link { justify-content:flex-start; padding-inline:12px; }
   .ide-sidebar-account { padding-bottom:var(--ide-space-2); }

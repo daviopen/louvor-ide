@@ -65,12 +65,19 @@
       <article class="events-stat"><span>Cancelados</span><strong id="events-stat-cancelled">0</strong></article>
     </section>
 
-    <section class="ide-section-card">
-      <div class="events-toolbar">
-        <label><span>Buscar evento</span><input id="events-search" class="ide-field__control ide-field__input" type="search" placeholder="Nome, local, tema ou descrição"></label>
-        <label><span>Status</span><select id="events-status-filter" class="ide-field__control ide-select"><option value="ALL">Todos</option><option value="PLANNED">Planejado</option><option value="CONFIRMED">Confirmado</option><option value="COMPLETED">Concluído</option><option value="CANCELLED">Cancelado</option></select></label>
+    <details id="events-filter-panel" class="ide-filter-panel" data-filter-panel="events">
+      <summary class="ide-filter-panel__summary">
+        <span class="ide-filter-panel__summary-main"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filtros <span class="ide-filter-panel__badge">0</span></span>
+        <span class="ide-filter-panel__summary-meta"><span class="ide-filter-panel__state">Mostrar</span></span>
+      </summary>
+      <div class="ide-filter-panel__body">
+        <div class="events-toolbar">
+          <label><span>Buscar evento</span><input id="events-search" class="ide-field__control ide-field__input" type="search" placeholder="Nome, local, tema ou descrição"></label>
+          <label><span>Status</span><select id="events-status-filter" class="ide-field__control ide-select" data-filter-neutral="ALL"><option value="ALL">Todos</option><option value="PLANNED">Planejado</option><option value="CONFIRMED">Confirmado</option><option value="COMPLETED">Concluído</option><option value="CANCELLED">Cancelado</option></select></label>
+          <button id="events-clear-filters" class="ide-button ide-button--ghost events-clear-filters" type="button"><i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i> Limpar filtros</button>
+        </div>
       </div>
-    </section>
+    </details>
 
     <section aria-labelledby="events-list-title">
       <h2 id="events-list-title" class="sr-only">Lista de eventos</h2>

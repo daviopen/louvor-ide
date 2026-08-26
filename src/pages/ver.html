@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Ver Música — IDE Music</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -450,22 +451,28 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="../styles/tokens.css">
+  <link rel="stylesheet" href="../styles/design-system.css">
+  <link rel="stylesheet" href="../styles/button.css">
+  <link rel="stylesheet" href="../styles/input.css">
   <link rel="stylesheet" href="../css/music-ide-theme.css">
+  <link rel="stylesheet" href="../styles/song-view.css?v=20260826-ui-consistency">
 </head>
 <body>
   <div class="container">
     <div class="header">
       <div class="header-nav">
         <a href="index.html" class="back-link">
-          <i class="fas fa-home"></i>
+          <i class="fa-solid fa-house" aria-hidden="true"></i>
           Início
         </a>
         <a href="consultar.html" class="back-link">
-          <i class="fas fa-compact-disc"></i>
+          <i class="fa-solid fa-music" aria-hidden="true"></i>
           Músicas
         </a>
         <a href="setlists.html" class="back-link">
-          <i class="fas fa-calendar"></i>
+          <i class="fa-solid fa-list-check" aria-hidden="true"></i>
           Setlist
         </a>
       </div>
@@ -476,27 +483,27 @@
     <div class="content">
       <div class="info-section">
         <div class="info-item">
-          <span class="info-label"> Artista/Banda:</span> 
+          <span class="info-label"><i class="fa-solid fa-microphone-lines" aria-hidden="true"></i> Artista/Banda:</span>
           <span class="info-value" id="artista">-</span>
         </div>
         <div class="info-item">
-          <span class="info-label">🎵 Tom da Música:</span> 
+          <span class="info-label"><i class="fa-solid fa-music" aria-hidden="true"></i> Tom da música:</span>
           <span class="info-value" id="tom">-</span>
         </div>
         <div class="info-item" id="tom-ministro-container" style="display: none;">
-          <span class="info-label">🎤 Tom do Ministro:</span> 
+          <span class="info-label"><i class="fa-solid fa-user" aria-hidden="true"></i> Tom do ministro:</span>
           <span class="info-value" id="tom-ministro">-</span>
         </div>
         <div class="info-item" id="tom-atual-container" style="display: none;">
-          <span class="info-label">🎶 Tom Transposto:</span> 
+          <span class="info-label"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Tom transposto:</span>
           <span id="tom-atual">-</span>
         </div>
         <div class="info-item">
-          <span class="info-label">⚡ BPM:</span> 
+          <span class="info-label"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> BPM:</span>
           <span class="info-value" id="bpm">-</span>
         </div>
         <div class="info-item" id="link-container" style="display: none;">
-          <span class="info-label">🔗 Link:</span> 
+          <span class="info-label"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Referência:</span>
           <a id="link-musica" href="#" target="_blank" class="info-link">Abrir Música</a>
         </div>
       </div>
@@ -504,33 +511,33 @@
       <!-- Seção de Ações -->
       <div class="action-section" id="action-section" style="display: none;">
         <div class="action-title">
-          <i class="fas fa-tools"></i>
+          <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
           Ações da Música
         </div>
         <div class="action-buttons">
-          <button class="action-btn edit-btn" onclick="editMusica()" title="Editar Música">
-            <i class="fas fa-edit"></i>
+          <button class="ide-button ide-button--secondary" onclick="editMusica()" title="Editar música">
+            <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
             Editar
           </button>
-          <button class="action-btn delete-btn" onclick="deleteMusica()" title="Excluir Música">
-            <i class="fas fa-trash"></i>
+          <button class="ide-button ide-button--danger" onclick="deleteMusica()" title="Excluir música">
+            <i class="fa-solid fa-trash" aria-hidden="true"></i>
             Excluir
           </button>
         </div>
       </div>
       
       <div class="controls">
-        <button onclick="transpose(-1)" id="btn-descer" class="btn-transpose-down" disabled>
-          ↓ Descer Semitom
+        <button onclick="transpose(-1)" id="btn-descer" class="ide-button ide-button--secondary" disabled>
+          <i class="fa-solid fa-minus" aria-hidden="true"></i> Descer semitom
         </button>
-        <button onclick="transpose(1)" id="btn-subir" class="btn-transpose-up" disabled>
-          ↑ Subir Semitom
+        <button onclick="transpose(1)" id="btn-subir" class="ide-button ide-button--secondary" disabled>
+          <i class="fa-solid fa-plus" aria-hidden="true"></i> Subir semitom
         </button>
-        <button onclick="resetTranspose()" id="btn-reset" class="btn-reset" disabled>
-          🔄 Tom da Música
+        <button onclick="resetTranspose()" id="btn-reset" class="ide-button ide-button--ghost" disabled>
+          <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Tom original
         </button>
-        <button onclick="window.history.back()" class="btn-back">
-          ← Voltar
+        <button onclick="window.history.back()" class="ide-button ide-button--ghost">
+          <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Voltar
         </button>
       </div>
       

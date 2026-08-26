@@ -206,7 +206,7 @@ async function save(event) {
 
   saving = true;
   saveBtn.disabled = true;
-  saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+  saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
 
   try {
     let before = null;
@@ -235,7 +235,7 @@ async function save(event) {
   } finally {
     saving = false;
     saveBtn.disabled = false;
-    saveBtn.innerHTML = '<i class="fas fa-save"></i> Salvar música';
+    saveBtn.innerHTML = '<i class="fa-solid fa-save"></i> Salvar música';
   }
 }
 

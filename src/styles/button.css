@@ -27,8 +27,10 @@
 .ide-button--primary { --ide-button-bg: var(--ide-primary); --ide-button-color: var(--ide-primary-ink); --ide-button-border: var(--ide-primary); }
 .ide-button--primary:hover:not(:disabled) { --ide-button-bg: var(--ide-primary-hover); --ide-button-border: var(--ide-primary-hover); }
 .ide-button--primary:active:not(:disabled) { --ide-button-bg: var(--ide-primary-active); --ide-button-border: var(--ide-primary-active); }
-.ide-button--secondary { --ide-button-bg: var(--ide-surface-dark); --ide-button-color: var(--ide-text-on-dark); --ide-button-border: var(--ide-border-on-dark); }
-.ide-button--ghost { --ide-button-bg: transparent; --ide-button-color: currentColor; --ide-button-border: var(--ide-border-strong); }
+.ide-button--secondary { --ide-button-bg: var(--ide-surface-secondary); --ide-button-color: var(--ide-text-primary); --ide-button-border: var(--ide-border-strong); }
+.ide-button--secondary:hover:not(:disabled) { --ide-button-bg: var(--ide-surface); --ide-button-border: var(--ide-text-secondary); }
+.ide-button--ghost { --ide-button-bg: transparent; --ide-button-color: var(--ide-text-secondary); --ide-button-border: transparent; }
+.ide-button--ghost:hover:not(:disabled) { --ide-button-bg: var(--ide-surface-secondary); --ide-button-color: var(--ide-text-primary); --ide-button-border: var(--ide-border); }
 .ide-button--danger { --ide-button-bg: var(--ide-error); --ide-button-color: var(--ide-text-on-dark); --ide-button-border: var(--ide-error); }
 .ide-button--sm { min-height: 36px; padding-inline: var(--ide-space-3); border-radius: var(--ide-radius-sm); font-size: var(--ide-font-size-xs); }
 .ide-button--md { min-height: 44px; font-size: var(--ide-font-size-sm); }

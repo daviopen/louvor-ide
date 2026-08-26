@@ -371,14 +371,14 @@ class SetlistManager {
       // Alterar título da página principal
       const pageTitle = document.querySelector('.page-title');
       if (pageTitle) {
-        pageTitle.innerHTML = '<i class="fas fa-edit"></i> Editar Setlist';
+        pageTitle.innerHTML = '<i class="fa-solid fa-edit"></i> Editar Setlist';
       }
       
       // Alterar texto do botão salvar
       const saveBtn = document.getElementById('save-setlist');
       if (saveBtn) {
         saveBtn.textContent = 'Atualizar Setlist';
-        saveBtn.innerHTML = '<i class="fas fa-save"></i> Atualizar Setlist';
+        saveBtn.innerHTML = '<i class="fa-solid fa-save"></i> Atualizar Setlist';
       }
     } else {
       console.log('✨ Modo de criação de nova setlist');
@@ -691,7 +691,7 @@ class SetlistManager {
     if (this.selectedSongs.length === 0) {
       list.innerHTML = `
         <div class="empty-state">
-          <i class="fas fa-music" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
+          <i class="fa-solid fa-music" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
           <p>Nenhuma música selecionada ainda.</p>
         </div>
       `;
@@ -710,7 +710,7 @@ class SetlistManager {
           
           <div class="minister-selector" style="margin-bottom: 10px;">
             <label style="font-size: 0.9rem; color: #555; margin-bottom: 5px; display: block;">
-              <i class="fas fa-user-tie" style="margin-right: 5px;"></i>Ministro para esta música:
+              <i class="fa-solid fa-user-tie" style="margin-right: 5px;"></i>Ministro para esta música:
             </label>
             <select onchange="setlistManager.changeSongMinister(${index}, this.value)" 
                     style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
@@ -725,13 +725,13 @@ class SetlistManager {
           
           ${song.assignedMinister ? `
             <div style="font-size: 0.85rem; color: #4CAF50; margin-bottom: 8px;">
-              <i class="fas fa-check-circle" style="margin-right: 5px;"></i>
+              <i class="fa-solid fa-check-circle" style="margin-right: 5px;"></i>
               Ministro: <strong>${song.assignedMinister}</strong>
               ${song.ministerSpecific ? ` (usando tom específico desta música: ${song.finalKey})` : ` (usando tom preferido: ${song.finalKey})`}
             </div>
           ` : `
             <div style="font-size: 0.85rem; color: #f44336; margin-bottom: 8px;">
-              <i class="fas fa-exclamation-triangle" style="margin-right: 5px;"></i>
+              <i class="fa-solid fa-exclamation-triangle" style="margin-right: 5px;"></i>
               <strong>Nenhum ministro definido!</strong>
             </div>
           `}
@@ -740,7 +740,7 @@ class SetlistManager {
         <div class="song-actions" style="text-align: right;">
           <button class="btn-remove" onclick="setlistManager.removeSong(${index})" 
                   style="background: #f44336; color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer;">
-            <i class="fas fa-trash"></i> Remover
+            <i class="fa-solid fa-trash"></i> Remover
           </button>
         </div>
       </div>
@@ -765,7 +765,7 @@ class SetlistManager {
       summaryElement.innerHTML = `
         <div style="background: #ffebee; border: 1px solid #f44336; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
           <h4 style="color: #f44336; margin: 0 0 10px 0;">
-            <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>Atenção!
+            <i class="fa-solid fa-exclamation-triangle" style="margin-right: 8px;"></i>Atenção!
           </h4>
           <p style="margin: 0; color: #666;">Nenhum ministro definido para as músicas da setlist.</p>
         </div>
@@ -777,13 +777,13 @@ class SetlistManager {
     summaryElement.innerHTML = `
       <div style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
         <h4 style="color: #333; margin: 0 0 15px 0;">
-          <i class="fas fa-users" style="margin-right: 8px;"></i>Ministros na Setlist
+          <i class="fa-solid fa-users" style="margin-right: 8px;"></i>Ministros na Setlist
         </h4>
         <div style="display: grid; gap: 10px;">
           ${ministersUsed.map(minister => `
             <div style="background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px;">
               <div style="font-weight: bold; color: #333; margin-bottom: 5px;">
-                <i class="fas fa-user" style="margin-right: 5px; color: #4CAF50;"></i>
+                <i class="fa-solid fa-user" style="margin-right: 5px; color: #4CAF50;"></i>
                 ${minister.name}
                 ${minister.isDefault ? ' (Padrão)' : ''}
                 <span style="font-size: 0.8rem; background: #2196F3; color: white; padding: 2px 6px; border-radius: 10px; margin-left: 8px;">

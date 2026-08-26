@@ -41,6 +41,7 @@
   --ide-text-primary: var(--ide-color-neutral-900);
   --ide-text-secondary: var(--ide-color-neutral-600);
   --ide-text-on-dark: var(--ide-color-white);
+  --ide-text-on-dark-secondary: var(--ide-color-neutral-300);
   --ide-border: rgba(17, 20, 21, 0.14);
   --ide-border-strong: rgba(17, 20, 21, 0.28);
   --ide-border-on-dark: rgba(255, 255, 255, 0.16);
@@ -139,6 +140,7 @@
   --ide-text-primary: var(--ide-color-neutral-50);
   --ide-text-secondary: var(--ide-color-neutral-300);
   --ide-text-on-dark: var(--ide-color-white);
+  --ide-text-on-dark-secondary: var(--ide-color-neutral-300);
   --ide-border: rgba(255, 255, 255, 0.14);
   --ide-border-strong: rgba(255, 255, 255, 0.28);
   --ide-border-on-dark: rgba(255, 255, 255, 0.20);

@@ -35,24 +35,24 @@
     const repertoireHref=`setlist-view.html?id=${id}`;
 
     if(state.view==='history'){
-      return `<a class="btn btn-secondary" href="${repertoireHref}"><i class="fas fa-eye"></i> Abrir repertório</a>`;
+      return `<a class="ide-button ide-button--secondary" href="${repertoireHref}"><i class="fa-solid fa-eye" aria-hidden="true"></i> Abrir repertório</a>`;
     }
 
     if(!hasSongs){
-      return `<a class="btn btn-primary" href="${editHref}"><i class="fas fa-pen-to-square"></i> Editar Setlist</a><span class="btn btn-disabled" aria-disabled="true" title="Adicione ao menos uma música para abrir o repertório"><i class="fas fa-music"></i> Repertório vazio</span>`;
+      return `<a class="ide-button ide-button--primary" href="${editHref}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Editar Setlist</a><span class="ide-button ide-button--secondary btn-disabled" aria-disabled="true" title="Adicione ao menos uma música para abrir o repertório"><i class="fa-solid fa-music" aria-hidden="true"></i> Repertório vazio</span>`;
     }
 
     if(ready){
-      return `<a class="btn btn-secondary" href="${editHref}"><i class="fas fa-pen-to-square"></i> Editar</a><a class="btn btn-primary" href="${repertoireHref}"><i class="fas fa-music"></i> Abrir repertório</a>`;
+      return `<a class="ide-button ide-button--secondary" href="${editHref}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Editar</a><a class="ide-button ide-button--primary" href="${repertoireHref}"><i class="fa-solid fa-music" aria-hidden="true"></i> Abrir repertório</a>`;
     }
 
-    return `<a class="btn btn-primary" href="${editHref}"><i class="fas fa-pen-to-square"></i> Editar Setlist</a><a class="btn btn-secondary" href="${repertoireHref}"><i class="fas fa-music"></i> Abrir repertório</a>`;
+    return `<a class="ide-button ide-button--primary" href="${editHref}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Editar Setlist</a><a class="ide-button ide-button--secondary" href="${repertoireHref}"><i class="fa-solid fa-music" aria-hidden="true"></i> Abrir repertório</a>`;
   }
 
   function card(item){
-    const ministerTags=item.ministerNames.slice(0,3).map(name=>`<span class="tag"><i class="fas fa-microphone"></i>&nbsp;${esc(name)}</span>`).join('');
-    const songTags=item.songTitles.slice(0,3).map(title=>`<span class="tag"><i class="fas fa-music"></i>&nbsp;${esc(title)}</span>`).join('');
-    return `<article class="setlist-card"><div class="setlist-card__head"><div><h2>${esc(item.name)}</h2><div class="meta"><span><i class="fas fa-calendar"></i> ${esc(formatDate(item.date))}</span><span><i class="fas fa-music"></i> ${item.totalSongs} música${item.totalSongs===1?'':'s'}</span>${item.theme?`<span><i class="fas fa-tag"></i> ${esc(item.theme)}</span>`:''}</div></div><span class="status">${esc(statusLabel(item.status))}</span></div>${ministerTags||songTags?`<div class="tags">${ministerTags}${songTags}</div>`:''}<div class="setlist-card__actions">${actions(item)}</div></article>`;
+    const ministerTags=item.ministerNames.slice(0,3).map(name=>`<span class="tag"><i class="fa-solid fa-microphone"></i>&nbsp;${esc(name)}</span>`).join('');
+    const songTags=item.songTitles.slice(0,3).map(title=>`<span class="tag"><i class="fa-solid fa-music"></i>&nbsp;${esc(title)}</span>`).join('');
+    return `<article class="setlist-card"><div class="setlist-card__head"><div><h2>${esc(item.name)}</h2><div class="meta"><span><i class="fa-solid fa-calendar"></i> ${esc(formatDate(item.date))}</span><span><i class="fa-solid fa-music"></i> ${item.totalSongs} música${item.totalSongs===1?'':'s'}</span>${item.theme?`<span><i class="fa-solid fa-tag"></i> ${esc(item.theme)}</span>`:''}</div></div><span class="status">${esc(statusLabel(item.status))}</span></div>${ministerTags||songTags?`<div class="tags">${ministerTags}${songTags}</div>`:''}<div class="setlist-card__actions">${actions(item)}</div></article>`;
   }
 
   function render(){

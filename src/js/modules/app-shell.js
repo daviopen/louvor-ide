@@ -128,8 +128,22 @@
   function ensureDesignSystemStyles() {
     ensureStylesheet('../styles/tokens.css', 'data-ide-tokens');
     ensureStylesheet('../styles/design-system.css', 'data-ide-design-system');
+    ensureStylesheet('../styles/button.css', 'data-ide-buttons');
+    ensureStylesheet('../styles/input.css', 'data-ide-inputs');
+    ensureStylesheet('../styles/filter-panel.css', 'data-ide-filter-panel');
     ensureStylesheet('../styles/legacy-migration.css', 'data-ide-legacy-migration');
     ensureStylesheet('../styles/main-menu.css?v=20260825-account-menu', 'data-ide-main-menu');
+    ensureStylesheet('../styles/ui-consistency.css?v=20260826-ui-consistency', 'data-ide-ui-consistency');
+  }
+
+  function initializeFilterPanels() {
+    if (scope.MusicIdeFilterPanels) return scope.MusicIdeFilterPanels.bootstrap();
+    if (scope.document.querySelector('script[data-ide-filter-panel]')) return;
+    const script = scope.document.createElement('script');
+    script.src = '../js/modules/filter-panel.js?v=20260826-filter-panel';
+    script.defer = true;
+    script.setAttribute('data-ide-filter-panel', 'true');
+    scope.document.head.appendChild(script);
   }
 
   function initializeLgpdGate() {
@@ -155,10 +169,14 @@
     if (!body) return;
     body.classList.add('ide-ds-migrated');
     scope.document.querySelectorAll('button, .btn, .action-btn, .add-button, .clear-filters, .back-btn, .nav-btn, .nav-button, .transpose-btn, .music-action-btn, .song-link-btn, .create-setlist-btn').forEach(node => {
+      if (node.matches('.performance-button, .segment-button, .icon-control, .key-control, .navigation-button, .song-strip-button, .exit-stage-button, .view-tab')) return;
       node.classList.add('ide-button', 'ide-button--md');
-      if (node.classList.contains('btn-delete') || node.classList.contains('delete-btn') || node.classList.contains('delete')) node.classList.add('ide-button--danger');
-      else if (node.classList.contains('btn-secondary') || node.classList.contains('secondary') || node.classList.contains('back-btn')) node.classList.add('ide-button--secondary');
-      else node.classList.add('ide-button--primary');
+      const hasVariant = ['primary', 'secondary', 'ghost', 'danger'].some(variant => node.classList.contains(`ide-button--${variant}`));
+      if (hasVariant) return;
+      if (['btn-delete', 'delete-btn', 'delete', 'btn-danger'].some(name => node.classList.contains(name))) node.classList.add('ide-button--danger');
+      else if (['btn-primary', 'primary', 'add-button', 'save-btn', 'create-setlist-btn'].some(name => node.classList.contains(name))) node.classList.add('ide-button--primary');
+      else if (['btn-reset', 'clear-filters', 'forgot-button'].some(name => node.classList.contains(name))) node.classList.add('ide-button--ghost');
+      else node.classList.add('ide-button--secondary');
     });
     addClasses('input:not([type="checkbox"]):not([type="radio"]), .form-input, .filter-input, .search-box', 'ide-field__control', 'ide-field__input');
     addClasses('textarea, .form-textarea', 'ide-field__control', 'ide-field__textarea');
@@ -199,6 +217,7 @@
     const link = element('a', compact ? 'ide-mobile-nav-item' : 'ide-sidebar-link');
     link.href = item.href;
     link.dataset.navId = item.id;
+    link.dataset.tooltip = item.label;
     const icon = element('i', `fa-solid ${item.icon}`);
     icon.setAttribute('aria-hidden', 'true');
     link.append(icon, element('span', compact ? 'ide-mobile-nav-label' : 'ide-sidebar-label', item.label));
@@ -255,6 +274,7 @@
     if (shellExcludedPages.has(page)) return;
     initializeLgpdGate();
     ensureDesignSystemStyles();
+    initializeFilterPanels();
     migrateLegacyControls();
     scope.document.body.classList.add('ide-shell-enabled');
 

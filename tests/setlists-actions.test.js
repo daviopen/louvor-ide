@@ -15,8 +15,8 @@ test('setlist cards expose separate editing and repertoire destinations', () => 
 
 test('ready setlists prioritize repertoire while drafts prioritize editing', () => {
   assert.match(js, /if\(ready\)/);
-  assert.match(js, /btn btn-secondary[^\n]+Editar[^\n]+btn btn-primary[^\n]+Abrir repertório/);
-  assert.match(js, /btn btn-primary[^\n]+Editar Setlist[^\n]+btn btn-secondary[^\n]+Abrir repertório/);
+  assert.match(js, /ide-button--secondary[^\n]+Editar[^\n]+ide-button--primary[^\n]+Abrir repertório/);
+  assert.match(js, /ide-button--primary[^\n]+Editar Setlist[^\n]+ide-button--secondary[^\n]+Abrir repertório/);
 });
 
 test('empty setlists do not navigate to an empty repertoire', () => {

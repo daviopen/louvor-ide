@@ -270,7 +270,7 @@
     el['song-position'].textContent = state.songId ? 'Música avulsa' : `Música ${state.activeIndex + 1} de ${state.songs.length}`;
     el['song-title'].textContent = song.title;
     el['song-artist'].textContent = song.artist;
-    el['song-minister'].innerHTML = `<i class="fas fa-user" aria-hidden="true"></i> ${escapeHtml(song.minister)}`;
+    el['song-minister'].innerHTML = `<i class="fa-solid fa-user" aria-hidden="true"></i> ${escapeHtml(song.minister)}`;
     renderSongStrip();
     renderContent(song);
     renderNavigation();

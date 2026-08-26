@@ -1,0 +1,109 @@
+/* Cross-screen visual contract. Loaded last by app-shell to neutralize legacy page CSS. */
+.ide-ds-migrated .ide-button {
+  min-height: 44px;
+  padding-inline: var(--ide-space-4);
+  color: var(--ide-button-color) !important;
+  border: 1px solid var(--ide-button-border) !important;
+  border-radius: var(--ide-radius-md) !important;
+  background: var(--ide-button-bg) !important;
+  box-shadow: none;
+}
+
+.ide-ds-migrated .ide-button--primary {
+  --ide-button-bg: var(--ide-primary);
+  --ide-button-color: var(--ide-primary-ink);
+  --ide-button-border: var(--ide-primary);
+}
+
+.ide-ds-migrated .ide-button--secondary {
+  --ide-button-bg: var(--ide-surface-secondary);
+  --ide-button-color: var(--ide-text-primary);
+  --ide-button-border: var(--ide-border-strong);
+}
+
+.ide-ds-migrated .ide-button--ghost {
+  --ide-button-bg: transparent;
+  --ide-button-color: var(--ide-text-secondary);
+  --ide-button-border: transparent;
+}
+
+.ide-ds-migrated .ide-button--danger {
+  --ide-button-bg: var(--ide-error);
+  --ide-button-color: var(--ide-text-on-dark);
+  --ide-button-border: var(--ide-error);
+}
+
+.ide-ds-migrated .ide-button--sm {
+  min-height: 36px;
+  padding-inline: var(--ide-space-3);
+  border-radius: var(--ide-radius-sm) !important;
+}
+
+.ide-ds-migrated .ide-button--icon {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+}
+
+.ide-ds-migrated .ide-button:hover:not(:disabled):not([aria-disabled='true']) {
+  transform: translateY(-1px);
+  box-shadow: var(--ide-shadow-xs);
+}
+
+.ide-ds-migrated .ide-button--primary:hover:not(:disabled) {
+  --ide-button-bg: var(--ide-primary-hover);
+  --ide-button-border: var(--ide-primary-hover);
+}
+
+.ide-ds-migrated .ide-button--secondary:hover:not(:disabled),
+.ide-ds-migrated .ide-button--ghost:hover:not(:disabled) {
+  --ide-button-bg: var(--ide-surface);
+  --ide-button-color: var(--ide-text-primary);
+  --ide-button-border: var(--ide-border-strong);
+}
+
+.ide-ds-migrated :where(input, textarea, select, .ide-field__control) {
+  color: var(--ide-text-primary) !important;
+  border-color: var(--ide-border-strong) !important;
+  background: var(--ide-surface) !important;
+}
+
+.ide-ds-migrated :where(input, textarea)::placeholder {
+  color: var(--ide-text-secondary) !important;
+  opacity: .78;
+}
+
+.ide-filter-panel { box-shadow: var(--ide-shadow-xs); }
+.ide-filter-panel :where(.users-toolbar, .events-toolbar, .schedules-filters, .ide-audit-filters) {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ide-sidebar-collapsed .ide-sidebar-link[data-tooltip] { position: relative; }
+.ide-sidebar-collapsed .ide-sidebar-link[data-tooltip]:hover::after,
+.ide-sidebar-collapsed .ide-sidebar-link[data-tooltip]:focus-visible::after {
+  content: attr(data-tooltip);
+  position: fixed;
+  z-index: var(--ide-z-dropdown);
+  left: calc(var(--ide-sidebar-collapsed-width) + 8px);
+  padding: 7px 10px;
+  color: var(--ide-text-on-dark);
+  border: 1px solid var(--ide-border-on-dark);
+  border-radius: var(--ide-radius-sm);
+  background: var(--ide-surface-dark);
+  box-shadow: var(--ide-shadow-md);
+  font-size: var(--ide-font-size-xs);
+  font-weight: var(--ide-font-weight-semibold);
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .ide-sidebar-collapsed .ide-sidebar-link[data-tooltip]::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ide-ds-migrated .ide-button { transition: none; }
+}

@@ -76,7 +76,9 @@
     const markup = `
       <label data-events-filter="date"><span>Data inicial</span><input id="events-date-from" class="ide-field__control ide-field__input" type="date" aria-label="Filtrar eventos a partir da data"></label>
       <label data-events-filter="date"><span>Data final</span><input id="events-date-to" class="ide-field__control ide-field__input" type="date" aria-label="Filtrar eventos até a data"></label>`;
-    toolbar.insertAdjacentHTML('beforeend', markup);
+    const clearButton = el('events-clear-filters');
+    if (clearButton) clearButton.insertAdjacentHTML('beforebegin', markup);
+    else toolbar.insertAdjacentHTML('beforeend', markup);
   }
 
   function filteredEvents() {
@@ -220,6 +222,7 @@
     el('events-status-filter').addEventListener('change', event => { state.status = event.target.value; renderList(); });
     el('events-date-from').addEventListener('change', event => { state.dateFrom = event.target.value; renderList(); });
     el('events-date-to').addEventListener('change', event => { state.dateTo = event.target.value; renderList(); });
+    el('events-clear-filters').addEventListener('click', () => { state.search = ''; state.status = 'ALL'; state.dateFrom = ''; state.dateTo = ''; el('events-search').value = ''; el('events-status-filter').value = 'ALL'; el('events-date-from').value = ''; el('events-date-to').value = ''; el('events-filter-panel').dispatchEvent(new CustomEvent('ideFiltersChanged')); renderList(); });
     el('event-description').addEventListener('input', event => { el('event-description-count').textContent = String(event.target.value.length); });
   }
 

@@ -189,13 +189,13 @@ class IndexPage {
         <div class="info-row">
           ${ministrosDisplay !== 'Não informado' ? 
             `<span class="info-item">
-              <i class="fas fa-user"></i>
+              <i class="fa-solid fa-user"></i>
               ${Utils.escapeHtml(ministrosDisplay)}
             </span>` : ''
           }
           ${musica.tom ? 
             `<span class="info-item">
-              <i class="fas fa-music"></i>
+              <i class="fa-solid fa-music"></i>
               Tom: ${Utils.escapeHtml(musica.tom)}
             </span>` : ''
           }
@@ -204,7 +204,7 @@ class IndexPage {
         ${tomMinistroDisplay ? 
           `<div class="info-row">
             <span class="info-item tom-ministro">
-              <i class="fas fa-user-music"></i>
+              <i class="fa-solid fa-user-music"></i>
               ${Utils.escapeHtml(tomMinistroDisplay)}
             </span>
           </div>` : ''
@@ -213,13 +213,13 @@ class IndexPage {
         <div class="info-row">
           ${musica.bpm && !isNaN(musica.bpm) ? 
             `<span class="info-item">
-              <i class="fas fa-tachometer-alt"></i>
+              <i class="fa-solid fa-tachometer-alt"></i>
               ${musica.bpm} BPM
             </span>` : ''
           }
           ${musica.criadoEm ? 
             `<span class="info-item">
-              <i class="fas fa-calendar"></i>
+              <i class="fa-solid fa-calendar"></i>
               ${Utils.formatTimestamp(musica.criadoEm)}
             </span>` : ''
           }
@@ -228,25 +228,25 @@ class IndexPage {
 
       <div class="music-actions">
         <a href="consultar.html" class="action-btn btn-view">
-          <i class="fas fa-eye"></i>
+          <i class="fa-solid fa-eye"></i>
           Consultar
         </a>
         <a href="ver.html?id=${encodeURIComponent(musica.id)}" class="action-btn btn-view-full">
-          <i class="fas fa-file-alt"></i>
+          <i class="fa-solid fa-file-alt"></i>
           Visualizar
         </a>
         ${musica.link ? 
           `<a href="${Utils.escapeHtml(musica.link)}" target="_blank" class="action-btn btn-link">
-            <i class="fas fa-external-link-alt"></i>
+            <i class="fa-solid fa-external-link-alt"></i>
             Link
           </a>` : ''
         }
         <button class="action-btn btn-edit" onclick="editMusica('${musica.id}')">
-          <i class="fas fa-edit"></i>
+          <i class="fa-solid fa-edit"></i>
           Editar
         </button>
         <button class="action-btn btn-delete" onclick="deleteMusica('${musica.id}', '${Utils.escapeHtml(musica.titulo || '')}')">
-          <i class="fas fa-trash"></i>
+          <i class="fa-solid fa-trash"></i>
           Excluir
         </button>
       </div>

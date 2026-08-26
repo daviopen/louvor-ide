@@ -30,14 +30,19 @@
           <div class="ide-module-kicker">Administração · Segurança</div>
           <h1 id="audit-title">Auditoria</h1>
           <p>Histórico somente leitura das ações relevantes realizadas no IDE Music.</p>
-          <form id="audit-filters" class="ide-audit-filters" aria-label="Filtros de auditoria">
-            <label><span>Usuário (UID)</span><input id="audit-user-filter" class="ide-field__control ide-field__input" type="search" autocomplete="off" placeholder="UID ou parte do UID"></label>
-            <label><span>De</span><input id="audit-from-filter" class="ide-field__control ide-field__input" type="date"></label>
-            <label><span>Até</span><input id="audit-to-filter" class="ide-field__control ide-field__input" type="date"></label>
-            <label><span>Ação</span><select id="audit-action-filter" class="ide-field__control ide-select"><option value="">Todas</option></select></label>
-            <label><span>Entidade</span><select id="audit-entity-filter" class="ide-field__control ide-select"><option value="">Todas</option></select></label>
-            <div class="ide-audit-filter-actions"><button class="ide-button ide-button--primary" type="submit">Aplicar filtros</button><button id="audit-clear" class="ide-button ide-button--secondary" type="button">Limpar</button></div>
-          </form>
+          <details id="audit-filter-panel" class="ide-filter-panel" data-filter-panel="audit">
+            <summary class="ide-filter-panel__summary"><span class="ide-filter-panel__summary-main"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filtros <span class="ide-filter-panel__badge">0</span></span><span class="ide-filter-panel__summary-meta"><span class="ide-filter-panel__state">Mostrar</span></span></summary>
+            <div class="ide-filter-panel__body">
+              <form id="audit-filters" class="ide-audit-filters" aria-label="Filtros de auditoria">
+                <label><span>Usuário (UID)</span><input id="audit-user-filter" class="ide-field__control ide-field__input" type="search" autocomplete="off" placeholder="UID ou parte do UID"></label>
+                <label><span>De</span><input id="audit-from-filter" class="ide-field__control ide-field__input" type="date"></label>
+                <label><span>Até</span><input id="audit-to-filter" class="ide-field__control ide-field__input" type="date"></label>
+                <label><span>Ação</span><select id="audit-action-filter" class="ide-field__control ide-select"><option value="">Todas</option></select></label>
+                <label><span>Entidade</span><select id="audit-entity-filter" class="ide-field__control ide-select"><option value="">Todas</option></select></label>
+                <div class="ide-audit-filter-actions"><button class="ide-button ide-button--primary" type="submit">Aplicar filtros</button><button id="audit-clear" class="ide-button ide-button--ghost" type="button"><i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i> Limpar filtros</button></div>
+              </form>
+            </div>
+          </details>
           <div id="audit-status" class="ide-audit-status" role="status" aria-live="polite">Carregando registros…</div>
           <div class="ide-table-wrap"><table class="ide-table ide-audit-table"><thead><tr><th>Data/hora</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>ID</th><th>Detalhes</th></tr></thead><tbody id="audit-rows"></tbody></table></div>
           <div id="audit-empty" class="ide-empty-state" hidden><strong>Nenhum registro encontrado</strong><span>Ajuste os filtros para ampliar a consulta.</span></div>
@@ -50,6 +55,7 @@
         <section><h3>Contexto</h3><pre id="audit-context"></pre></section>
       </dialog>`;
     scope.document.body.appendChild(root);
+    if (scope.MusicIdeFilterPanels) scope.MusicIdeFilterPanels.bootstrap();
     return root;
   }
 
@@ -131,6 +137,7 @@
     scope.document.getElementById('audit-filters').addEventListener('submit', async event => { event.preventDefault(); render(await repository.listFiltered(filters())); });
     scope.document.getElementById('audit-clear').addEventListener('click', () => {
       ['audit-user-filter','audit-from-filter','audit-to-filter','audit-action-filter','audit-entity-filter'].forEach(id => { scope.document.getElementById(id).value = ''; });
+      scope.document.getElementById('audit-filter-panel').dispatchEvent(new CustomEvent('ideFiltersChanged'));
       render(allLogs);
     });
     scope.document.getElementById('audit-detail-close').addEventListener('click', () => scope.document.getElementById('audit-detail').close());
