@@ -125,12 +125,15 @@ test('UserService inativa sem exclusão física e registra auditoria', async () 
 test('UserService atualiza via repositório e sincroniza múltiplas funções', async () => {
   const calls = [];
   const repository = {
-    updateUser: async (id, patch) => { calls.push(['update', id, patch]); return { id, ...patch }; },
+    getUser: async id => ({ id, uid: id, name: 'Nome anterior', email: 'nome@ide.com', photoURL: null }),
+    updateUser: async (id, patch) => { calls.push(['update', id, patch]); return { id, uid: id, ...patch }; },
     replaceUserFunctions: async (id, ids) => { calls.push(['functions', id, ids]); return ids; },
     addAuditLog: async (...args) => { calls.push(['audit', ...args]); return {}; }
   };
   const service = new UserService(repository, { actorProvider: () => ({ uid: 'admin-1' }) });
-  await service.update('user-1', { name: 'Nome', email: 'nome@ide.com', photoURL: null, functionIds: ['dm', 'teclado'] });
+  const result = await service.update('user-1', { name: 'Nome', email: 'nome@ide.com', photoURL: null, functionIds: ['dm', 'teclado'] });
+  assert.equal(result.emailChanged, false);
+  assert.deepEqual(calls[0], ['update', 'user-1', { name: 'Nome', email: 'nome@ide.com', photoURL: null }]);
   assert.deepEqual(calls[1], ['functions', 'user-1', ['dm', 'teclado']]);
   assert.equal(calls[2][2], 'USER_UPDATED');
 });
