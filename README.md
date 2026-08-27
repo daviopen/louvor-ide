@@ -1,389 +1,425 @@
-# IDE Music — Sistema de Cifras 🎵
+# IDE Music 🎵
 
-Sistema completo para gerenciamento de cifras musicais com suporte híbrido Firebase + localStorage.
+Sistema web para gestão do ministério de música da **Comunidade IDE**.
 
-> A evolução para cadastro de equipe, indisponibilidades, eventos e geração de escalas está detalhada em [`docs/ROADMAP-ESCALAS.md`](docs/ROADMAP-ESCALAS.md).
+O IDE Music centraliza usuários, funções ministeriais, indisponibilidades, eventos, escalas, setlists e biblioteca de músicas/cifras em uma aplicação responsiva, com autenticação, permissões, auditoria e integração com Firebase.
 
-> A ativação do acesso Google está documentada em [`docs/GOOGLE-AUTH-SETUP.md`](docs/GOOGLE-AUTH-SETUP.md).
+> Produção: https://louvor-ide.web.app
 
-## ✅ Melhorias Implementadas (v2.0)
+## Visão geral
 
-### 🔧 Sistema de Dados Robusto
-- **Sistema híbrido Firebase + localStorage**: Funciona mesmo sem conexão com internet
-- **Inicialização múltipla**: Várias estratégias de carregamento para garantir funcionamento
-- **Fallback automático**: Se Firebase falhar, usa localStorage automaticamente
-- **Dados de exemplo**: Carrega automaticamente músicas de exemplo na primeira execução
+O projeto nasceu como uma ferramenta de gerenciamento de cifras e evoluiu para uma plataforma de apoio à operação completa do ministério de música.
 
-### 📱 Interface Melhorada
-- **Carregamento robusto**: Sistema nunca fica em loading infinito
-- **Feedback visual**: Indicadores claros de status do sistema
-- **Responsivo**: Funciona perfeitamente em desktop e mobile
-- **Performance**: Carregamento otimizado e rápido
+Hoje a aplicação contempla, entre outros recursos:
 
-### 🎯 Funcionalidades
-- **Página Principal (index.html)**: Lista todas as músicas com filtros e busca
-- **Página de Consulta (consultar.html)**: Visualização e transposição de cifras
-- **Nova Música (nova-musica.html)**: Formulário para adicionar músicas
-- **Visualização (ver.html)**: Exibição completa da cifra com transposição
-- **Sistema de Salvamento**: Salva no Firebase quando possível, localStorage como backup
+- autenticação com Google e e-mail/senha;
+- gestão de usuários e permissões por módulo;
+- funções ministeriais configuráveis;
+- registro de indisponibilidades;
+- cadastro e acompanhamento de eventos;
+- criação e edição de escalas vinculadas aos eventos;
+- geração de setlists por escala;
+- biblioteca de músicas, cifras, letras, tons e BPM;
+- dress code dos eventos/setlists;
+- auditoria de alterações administrativas;
+- consentimento e controles relacionados à LGPD;
+- temas claro, escuro e preferência do sistema;
+- experiência responsiva para desktop e mobile.
 
-### 🗂️ Estrutura de Arquivos
+## Módulos
+
+### Dashboard
+
+Visão resumida da operação, priorizando informações relacionadas ao usuário autenticado, como próximas escalas, setlists e indisponibilidades.
+
+### Usuários
+
+Permite administrar as pessoas que utilizam ou participam do ministério.
+
+Principais recursos:
+
+- cadastro e edição de usuários;
+- ativação e inativação;
+- múltiplas funções ministeriais por pessoa;
+- autenticação via Firebase Authentication;
+- fluxo seguro para definição e recuperação de senha;
+- permissões independentes das funções ministeriais.
+
+### Permissões
+
+O acesso aos módulos é controlado por níveis de permissão:
+
+- **Sem acesso**;
+- **Leitura**;
+- **Edição**.
+
+Funções ministeriais, como Ministro, Back Vocal ou Bateria, não concedem automaticamente permissões administrativas.
+
+### Funções Ministeriais
+
+As funções utilizadas nas escalas são parametrizáveis e podem ser ativadas, inativadas e ordenadas.
+
+Exemplos:
+
+- Ministro;
+- Back Vocal;
+- Bateria;
+- Baixo;
+- Guitarra;
+- Violão;
+- Teclado;
+- Sax;
+- DM;
+- novas funções cadastradas posteriormente.
+
+### Indisponibilidades
+
+Os usuários podem informar períodos em que não poderão participar das escalas.
+
+A aplicação considera essas informações durante a montagem das escalas e suporta tratamento administrativo de exceções com rastreabilidade.
+
+### Eventos
+
+Eventos representam cultos, reuniões e demais compromissos que podem demandar equipe de música.
+
+O cadastro suporta informações como:
+
+- nome;
+- data;
+- horário;
+- descrição;
+- local;
+- tema;
+- status.
+
+Ao criar um evento, a aplicação mantém a estrutura relacionada de escala e setlist.
+
+### Escalas
+
+Cada evento possui sua escala correspondente.
+
+A montagem considera:
+
+- funções necessárias;
+- usuários ativos;
+- funções ministeriais de cada usuário;
+- indisponibilidades;
+- conflitos e duplicidades;
+- completude da equipe.
+
+A interface foi preparada para operação tanto em desktop quanto em dispositivos móveis.
+
+### Setlists
+
+Os setlists são vinculados ao evento e à escala.
+
+Recursos disponíveis incluem:
+
+- inclusão e remoção de músicas;
+- ordenação das músicas;
+- ministro responsável por música;
+- tom específico da execução;
+- sugestão de tom preferido do ministro;
+- observações, transições e momentos especiais;
+- integrantes da escala;
+- dress code;
+- histórico de setlists.
+
+### Músicas
+
+A biblioteca concentra o repertório do ministério.
+
+Os registros podem conter:
+
+- título;
+- artista;
+- ministros;
+- tom original;
+- tom preferido por ministro;
+- BPM;
+- links de referência;
+- cifra;
+- letra e demais informações de apoio.
+
+A aplicação possui visualização de cifra/letra, transposição e modo palco.
+
+### Auditoria
+
+Operações administrativas relevantes são registradas para aumentar rastreabilidade e segurança.
+
+### Configurações
+
+Área administrativa destinada às parametrizações globais do IDE Music, incluindo configurações relacionadas às funções ministeriais e ao template utilizado para composição das escalas.
+
+## Arquitetura
+
+O projeto utiliza arquitetura modular por domínio/feature.
+
+Fluxo preferencial:
+
+```text
+Page / Component
+      ↓
+Service / Use Case
+      ↓
+Repository
+      ↓
+Firebase / Data Source
 ```
+
+Responsabilidades principais:
+
+- **Pages / Components**: interface, interação e estado visual;
+- **Features**: composição das funcionalidades de negócio;
+- **Services**: regras de negócio e casos de uso;
+- **Repositories**: persistência e consultas;
+- **DTOs**: contratos de entrada e saída;
+- **Models**: entidades de domínio;
+- **Routes**: navegação e proteção de rotas;
+- **Core**: infraestrutura transversal, autenticação e erros;
+- **Styles**: design system, tokens e temas.
+
+Consulte [`AGENTS.md`](AGENTS.md) para as regras completas de arquitetura, segurança, UX e desenvolvimento.
+
+## Estrutura do projeto
+
+```text
 louvor-ide/
-├── index.html              # Página principal (Firebase Hosting)
-├── README.md               # Documentação principal
-├── Makefile                # Comandos padronizados
-├── package.json            # Configuração Node.js
-├── src/                    # Código fonte
-│   ├── pages/              # Páginas HTML da aplicação
-│   │   ├── index.html      # Página principal (fonte)
-│   │   ├── consultar.html  # Página de consulta e transposição
-├── nova-musica.html        # Formulário de nova música
-├── ver.html               # Visualização de música
-├── firebase-config.js     # Configuração híbrida do banco de dados
-└── scripts/
-    └── salvar.js          # Script de salvamento de músicas
+├── .github/              # GitHub Actions e automações
+├── docs/                 # Documentação técnica e funcional
+├── src/
+│   ├── components/       # Componentes reutilizáveis
+│   ├── config/           # Configurações e integrações
+│   ├── constants/        # Constantes e enumerações
+│   ├── core/             # Infraestrutura compartilhada
+│   ├── css/              # CSS legado em migração
+│   ├── dtos/             # Contratos de transporte
+│   ├── features/         # Domínios e funcionalidades
+│   ├── js/               # JavaScript legado em migração
+│   ├── models/           # Modelos de domínio
+│   ├── pages/            # Páginas da aplicação
+│   ├── repositories/     # Acesso a dados
+│   ├── routes/           # Rotas e guards
+│   ├── scripts/          # Scripts da aplicação
+│   ├── services/         # Regras de negócio
+│   ├── styles/           # Design system e temas
+│   ├── tests/            # Testes próximos da arquitetura nova
+│   └── utils/            # Utilitários puros
+├── tests/                # Suíte automatizada
+├── AGENTS.md             # Regras de engenharia do projeto
+├── ROADMAP.md            # Roadmap oficial
+├── firebase.json         # Hosting e Firestore Rules
+├── firestore.rules       # Regras de segurança do Firestore
+├── Makefile              # Comandos padronizados
+└── package.json
 ```
 
-### 🔄 Funcionamento do Sistema
-1. **Carregamento**: Tenta conectar com Firebase, se falhar usa localStorage
-2. **Dados de exemplo**: Na primeira execução, carrega 3 músicas de exemplo
-3. **Sincronização**: Quando Firebase está disponível, dados são sincronizados
-4. **Backup**: LocalStorage sempre mantém cópia local dos dados
+## Stack
 
-### 🚀 Como Usar
-1. Abra `index.html` em qualquer navegador
-2. O sistema carregará automaticamente (Firebase ou localStorage)
-3. Use os filtros para buscar músicas
-4. Clique em "Nova Música" para adicionar cifras
-5. Use "Consultar" para transposição interativa
+- HTML5;
+- CSS3;
+- JavaScript vanilla;
+- Firebase Authentication;
+- Cloud Firestore;
+- Firebase Hosting;
+- Firebase CLI;
+- Node.js 18+;
+- `node --test`;
+- GitHub Actions;
+- Makefile.
 
-### 📋 Dados de Música Suportados
-- **Título** (obrigatório)
-- **Artista**
-- **Ministro(s)** (suporte a múltiplos ministros)
-- **Tom original**
-- **Tom por ministro** (cada ministro pode ter seu tom preferido)
-- **BPM**
-- **Link** (YouTube, Spotify, etc.)
-- **Cifra** (obrigatória)
+O projeto não utiliza framework ou bundler como requisito da arquitetura atual.
 
-### 🛠️ Tecnologias
-- HTML5, CSS3, JavaScript vanilla
-- Firebase Firestore (opcional)
-- LocalStorage (backup)
-- Chord Transposer (transposição)
-- Font Awesome (ícones)
+## Firebase
 
-## 🚀 Deploy e Hospedagem
+### Authentication
 
-### 🏗️ Ambiente Padronizado com Makefile
+Firebase Authentication é a fonte de identidade do sistema.
 
-O projeto utiliza um Makefile para padronizar comandos e facilitar o desenvolvimento:
+Provedores suportados:
 
-#### Comandos principais:
-```bash
-# Setup inicial completo
-make setup
+- Google;
+- e-mail e senha.
 
-# Ambiente de desenvolvimento local
-make dev              # ou make serve
+Senhas não devem ser armazenadas no Firestore ou no `localStorage`.
 
-# Build para produção
-make build
+### Firestore
 
-# Deploy manual
-make deploy
+O modelo de dados contempla domínios como:
 
-# Verificar status do site
-make status
-
-# Executar testes
-make test
-
-# Limpeza de arquivos temporários
-make clean
-
-# Informações do projeto
-make info
-
-# Diagnóstico completo
-make diagnose
-
-# Ver todos os comandos
-make help
+```text
+users
+ministryFunctions
+userFunctions
+permissions
+events
+unavailability
+schedules
+scheduleMembers
+setlists
+setlistSongs
+songs
+songMinisterKeys
+auditLogs
+lgpdConsents
 ```
 
-### 🤖 CI/CD Automatizado (GitHub Actions)
+A autorização não deve depender somente da interface. Operações protegidas também devem respeitar as regras de segurança do Firestore e, quando necessário, mecanismos confiáveis de backend.
 
-Deploy automático configurado via GitHub Actions:
+### Hosting
 
-#### Como funciona:
-- **Push para main/master**: Deploy automático para produção
-- **Pull Request**: Executa testes automáticos (sem deploy)
-- **Pipeline completo**: Build → Test → Deploy → Verificação
+A aplicação é publicada no Firebase Hosting.
 
-#### Arquivos de configuração:
-- `.github/workflows/deploy.yml` - Pipeline de CI/CD
-- `GITHUB-ACTIONS.md` - Guia de configuração completo
+- Produção: https://louvor-ide.web.app
+- Alternativa: https://louvor-ide.firebaseapp.com
 
-#### URLs de produção:
-- **Principal**: https://louvor-ide.web.app
-- **Alternativa**: https://louvor-ide.firebaseapp.com
+## Desenvolvimento local
 
-### 🔧 Desenvolvimento Local
+### Requisitos
 
-#### Opção 1: Com Makefile (Recomendado)
+- Node.js 18 ou superior;
+- npm 8 ou superior;
+- Firebase CLI para operações de hosting/deploy;
+- acesso ao projeto Firebase correspondente.
+
+### Setup
+
 ```bash
-# Setup inicial (instala dependências, verifica configuração)
 make setup
+```
 
-# Servidor de desenvolvimento
+ou:
+
+```bash
+npm run setup
+```
+
+### Servidor local
+
+```bash
 make dev
-# Servidor disponível em: http://localhost:5000
 ```
 
-#### Opção 2: Manual (Firebase CLI)
+ou:
+
 ```bash
-# Instalar Firebase CLI
-npm install -g firebase-tools
-
-# Login no Firebase
-firebase login
-
-# Servidor local
-firebase serve --port 5000
+npm run dev
 ```
 
-### 📦 Deploy Manual
+Por padrão, o Firebase Hosting local utiliza:
 
-#### Opção 1: Via Makefile (Recomendado)
+```text
+http://localhost:5000
+```
+
+## Testes
+
+### Testes automatizados
+
 ```bash
-# Deploy completo com verificação
+npm test
+```
+
+A suíte principal utiliza o test runner nativo do Node.js.
+
+### Teste E2E completo
+
+```bash
+npm run test:e2e:full
+```
+
+Esse fluxo é utilizado para validar a operação integrada das funcionalidades do sistema.
+
+## Build
+
+```bash
+make build
+```
+
+ou:
+
+```bash
+npm run build
+```
+
+## Deploy
+
+### Via Makefile
+
+```bash
 make deploy
 ```
 
-#### Opção 2: Script personalizado
+### Via npm
+
 ```bash
-./deploy.sh
+npm run deploy
 ```
 
-#### Opção 3: Firebase CLI direto
+### Via Firebase CLI
+
 ```bash
 firebase deploy --only hosting
 ```
 
-### 🔍 Verificação e Monitoramento
+Para alterações em regras do Firestore, valide também o escopo correspondente antes da publicação.
 
-```bash
-# Status completo do site
-make status
+## CI/CD
 
-# Diagnóstico do ambiente
-make diagnose
+O projeto utiliza GitHub Actions para automatizar verificações do repositório e o fluxo de publicação.
 
-# Verificação manual
-./check-status.sh
+O princípio de entrega adotado pelo projeto é:
+
+```text
+Build ✅ → Testes ✅ → Actions ✅ → Validação da aplicação ✅ → Concluído
 ```
 
-### URLs do projeto
-- **Produção**: https://louvor-ide.web.app
-- **Alternativa**: https://louvor-ide.firebaseapp.com
-- **Local**: http://localhost:5000
+Não considerar uma funcionalidade finalizada apenas porque o código foi alterado localmente.
 
-### Arquivos de configuração
-- `firebase.json` - Configuração do hosting
-- `.firebaserc` - Projeto Firebase (louvor-ide)
-- `deploy.sh` - Script automatizado de deploy
+## Segurança
 
-## 🔐 Configuração de Segurança
+Princípios obrigatórios:
 
-### Variáveis de Ambiente
-O projeto usa variáveis de ambiente para proteger as credenciais do Firebase:
+- não versionar secrets;
+- não armazenar senhas;
+- utilizar Firebase Authentication como identidade canônica;
+- aplicar menor privilégio;
+- separar função ministerial de permissão do sistema;
+- proteger operações críticas também fora do frontend;
+- registrar alterações administrativas relevantes;
+- tratar dados pessoais conforme os princípios da LGPD.
 
-1. **Copie o arquivo de exemplo**:
-   ```bash
-   cp .env.example .env
-   ```
+## Design System e UX
 
-2. **Configure suas credenciais no .env**:
-   ```bash
-   VITE_FIREBASE_API_KEY=sua_api_key_aqui
-   VITE_FIREBASE_AUTH_DOMAIN=seu-projeto.firebaseapp.com
-   VITE_FIREBASE_PROJECT_ID=seu-projeto-id
-   VITE_FIREBASE_STORAGE_BUCKET=seu-projeto.firebasestorage.app
-   VITE_FIREBASE_MESSAGING_SENDER_ID=seu_sender_id
-   VITE_FIREBASE_APP_ID=seu_app_id
-   VITE_FIREBASE_MEASUREMENT_ID=seu_measurement_id
-   ```
+O IDE Music possui uma identidade visual compartilhada e componentes reutilizáveis para manter consistência entre os módulos.
 
-3. **IMPORTANTE**: 
-   - ❌ **NUNCA** commite o arquivo `.env` 
-   - ✅ O `.env` já está no `.gitignore`
-   - ✅ Use `.env.example` como referência
-   - ✅ No GitHub Actions, configure as mesmas variáveis como secrets
+A aplicação deve preservar:
 
-### GitHub Secrets
-Configure as seguintes variáveis como secrets no GitHub:
-- `VITE_FIREBASE_API_KEY`
-- `VITE_FIREBASE_AUTH_DOMAIN`
-- `VITE_FIREBASE_PROJECT_ID`
-- `VITE_FIREBASE_STORAGE_BUCKET`
-- `VITE_FIREBASE_MESSAGING_SENDER_ID`
-- `VITE_FIREBASE_APP_ID`
-- `VITE_FIREBASE_MEASUREMENT_ID`
+- suporte a tema claro, escuro e preferência do sistema;
+- contraste adequado;
+- responsividade desktop/mobile;
+- navegação por teclado nos componentes interativos;
+- estados padronizados de loading, erro e vazio;
+- botões, formulários, filtros, modais e tabelas consistentes entre as telas.
 
-## 🔄 Funcionamento do Sistema
-1. **Carregamento**: Tenta conectar com Firebase, se falhar usa localStorage
-2. **Dados de exemplo**: Na primeira execução, carrega 3 músicas de exemplo
-3. **Sincronização**: Quando Firebase está disponível, dados são sincronizados
-4. **Backup**: LocalStorage sempre mantém cópia local dos dados
+## Roadmap
 
-### 🚀 Como Usar
-1. Abra `index.html` em qualquer navegador
-2. O sistema carregará automaticamente (Firebase ou localStorage)
-3. Use os filtros para buscar músicas
-4. Clique em "Nova Música" para adicionar cifras
-5. Use "Consultar" para transposição interativa
+O planejamento oficial e o status detalhado das funcionalidades ficam em:
 
-### 📋 Dados de Música Suportados
-- **Título** (obrigatório)
-- **Artista**
-- **Ministro(s)** (suporte a múltiplos ministros)
-- **Tom original**
-- **Tom por ministro** (cada ministro pode ter seu tom preferido)
-- **BPM**
-- **Link** (YouTube, Spotify, etc.)
-- **Cifra** (obrigatória)
+[`ROADMAP.md`](ROADMAP.md)
 
-### 🛠️ Tecnologias
-- HTML5, CSS3, JavaScript vanilla
-- Firebase Firestore (opcional)
-- LocalStorage (backup)
-- Chord Transposer (transposição)
-- Font Awesome (ícones)
+Um item só deve ser marcado como concluído depois de implementado, testado e validado.
 
-## 🚀 Deploy e Hospedagem
+## Documentação adicional
 
-### 🏗️ Ambiente Padronizado com Makefile
+- [`AGENTS.md`](AGENTS.md) — arquitetura, padrões e regras de engenharia;
+- [`ROADMAP.md`](ROADMAP.md) — evolução funcional do produto;
+- [`docs/GOOGLE-AUTH-SETUP.md`](docs/GOOGLE-AUTH-SETUP.md) — configuração do login Google, quando aplicável.
 
-O projeto utiliza um Makefile para padronizar comandos e facilitar o desenvolvimento:
+## Licença
 
-#### Comandos principais:
-```bash
-# Setup inicial completo
-make setup
-
-# Ambiente de desenvolvimento local
-make dev              # ou make serve
-
-# Build para produção
-make build
-
-# Deploy manual
-make deploy
-
-# Verificar status do site
-make status
-
-# Executar testes
-make test
-
-# Limpeza de arquivos temporários
-make clean
-
-# Informações do projeto
-make info
-
-# Diagnóstico completo
-make diagnose
-
-# Ver todos os comandos
-make help
-```
-
-### 🤖 CI/CD Automatizado (GitHub Actions)
-
-Deploy automático configurado via GitHub Actions:
-
-#### Como funciona:
-- **Push para main/master**: Deploy automático para produção
-- **Pull Request**: Executa testes automáticos (sem deploy)
-- **Pipeline completo**: Build → Test → Deploy → Verificação
-
-#### Arquivos de configuração:
-- `.github/workflows/deploy.yml` - Pipeline de CI/CD
-- `GITHUB-ACTIONS.md` - Guia de configuração completo
-
-#### URLs de produção:
-- **Principal**: https://louvor-ide.web.app
-- **Alternativa**: https://louvor-ide.firebaseapp.com
-
-### 🔧 Desenvolvimento Local
-
-#### Opção 1: Com Makefile (Recomendado)
-```bash
-# Setup inicial (instala dependências, verifica configuração)
-make setup
-
-# Servidor de desenvolvimento
-make dev
-# Servidor disponível em: http://localhost:5000
-```
-
-#### Opção 2: Manual (Firebase CLI)
-```bash
-# Instalar Firebase CLI
-npm install -g firebase-tools
-
-# Login no Firebase
-firebase login
-
-# Servidor local
-firebase serve --port 5000
-```
-
-### 📦 Deploy Manual
-
-#### Opção 1: Via Makefile (Recomendado)
-```bash
-# Deploy completo com verificação
-make deploy
-```
-
-#### Opção 2: Script personalizado
-```bash
-./deploy.sh
-```
-
-#### Opção 3: Firebase CLI direto
-```bash
-firebase deploy --only hosting
-```
-
-### 🔍 Verificação e Monitoramento
-
-```bash
-# Status completo do site
-make status
-
-# Diagnóstico do ambiente
-make diagnose
-
-# Verificação manual
-./check-status.sh
-```
-
-### URLs do projeto
-- **Produção**: https://louvor-ide.web.app
-- **Alternativa**: https://louvor-ide.firebaseapp.com
-- **Local**: http://localhost:5000
-
-### Arquivos de configuração
-- `firebase.json` - Configuração do hosting
-- `.firebaserc` - Projeto Firebase (louvor-ide)
-- `deploy.sh` - Script automatizado de deploy
+O projeto está licenciado sob a licença MIT, conforme definido no `package.json`.
 
 ---
 
-**Sistema desenvolvido com foco em robustez e disponibilidade constante! 🎸**
+**IDE Music — tecnologia a serviço da organização do ministério de música.**
