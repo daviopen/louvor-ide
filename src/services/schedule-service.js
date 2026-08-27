@@ -70,15 +70,20 @@
     async load(user, profile = null) {
       const access = await this.resolveAccess(user, profile);
       if (!access.canRead) throw new Error('Você não possui permissão para consultar escalas.');
-      const [schedules, users, functions, userFunctions, unavailability] = await Promise.all([
+      const [schedules, users, functions, userFunctions, unavailability, members] = await Promise.all([
         this.repository.listSchedules(), this.repository.listActiveUsers(), this.repository.listActiveFunctions(),
-        this.repository.listUserFunctions(), this.repository.listUnavailability()
+        this.repository.listUserFunctions(), this.repository.listUnavailability(), this.repository.listAllMembers()
       ]);
-      const result = [];
-      for (const schedule of schedules) {
-        const members = await this.repository.listMembers(schedule.id);
-        result.push({ ...schedule, members, completeness: scheduleCompleteness(schedule, members) });
-      }
+      const membersBySchedule = new Map();
+      members.forEach(member => {
+        if (!member.scheduleId) return;
+        if (!membersBySchedule.has(member.scheduleId)) membersBySchedule.set(member.scheduleId, []);
+        membersBySchedule.get(member.scheduleId).push(member);
+      });
+      const result = schedules.map(schedule => {
+        const scheduleMembers = membersBySchedule.get(schedule.id) || [];
+        return { ...schedule, members: scheduleMembers, completeness: scheduleCompleteness(schedule, scheduleMembers) };
+      });
       return { access, schedules: result, users, functions, userFunctions, unavailability };
     }
 
