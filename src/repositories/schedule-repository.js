@@ -37,6 +37,7 @@
 
     async getSchedule(id) { return entity(await this.schedules().doc(id).get()); }
     async getEvent(id) { return entity(await this.events().doc(id).get()); }
+    async getUser(id) { return entity(await this.users().doc(id).get()); }
 
     async listSchedules() {
       const [schedules, events] = await Promise.all([this.schedules().get(), this.events().get()]);
@@ -123,8 +124,18 @@
       return entities(snapshot).filter(item => item.active !== false);
     }
 
+    async listUserFunctionsForUser(userId) {
+      const snapshot = await this.userFunctions().where('userId', '==', userId).get();
+      return entities(snapshot).filter(item => item.active !== false);
+    }
+
     async listUnavailability() {
       return entities(await this.unavailability().get());
+    }
+
+    async listUnavailabilityForUser(userId) {
+      const snapshot = await this.unavailability().where('userId', '==', userId).get();
+      return entities(snapshot);
     }
 
     async getPermissionLevel(userId, moduleName = 'schedules') {
