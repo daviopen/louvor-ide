@@ -83,7 +83,7 @@
     root.addEventListener('click',handleEditorClick); root.addEventListener('change',handleEditorChange);
   }
 
-  async function reload() { try { state.data=await service.load(scope.currentMusicIdeUser,scope.currentMusicIdeProfile); state.scheduleId?renderEditorView():renderListView(); } catch(error){console.error(error);toast(error.message||'Não foi possível carregar escalas.','error');} }
+  async function reload() { try { state.data=state.scheduleId?await service.loadEditor(state.scheduleId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile):await service.load(scope.currentMusicIdeUser,scope.currentMusicIdeProfile); state.scheduleId?renderEditorView():renderListView(); } catch(error){console.error(error);toast(error.message||'Não foi possível carregar escalas.','error');} }
 
   async function assign(schedule,slot,selectedUserId,options={}) { if(!selectedUserId)return; const conflict=service.userConflict(selectedUserId,slot.functionId,schedule,scheduleEvent(schedule),state.data); if(conflict.unavailable&&!options.override)throw new Error('Usuário indisponível. Use o fluxo explícito de exceção administrativa.'); if(conflict.otherRole&&!scope.confirm(`${userName(selectedUserId)} já está em ${functionName(conflict.otherRole.functionId)}. Deseja manter a pessoa em múltiplas funções?`))return; await service.assign(schedule.id,slot.id,selectedUserId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile,options); toast(options.override?'Exceção administrativa registrada.':'Escala atualizada.'); await reload(); }
 
