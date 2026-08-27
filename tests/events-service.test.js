@@ -102,13 +102,13 @@ test('cancelados e concluídos ficam imutáveis no histórico e transições fin
   await assert.rejects(service.update('done', { name: 'Alterado' }, actor, profile, { access: fullAccess }), /somente no histórico/);
 });
 
-test('exclusão física é restrita a planejado sem integrantes ou músicas', async () => {
-  const base = { id: 'event-1', name: 'Culto', date: NOW, status: 'PLANNED', scheduleId: 'schedule_event-1', setlistId: 'setlist_event-1' };
-  const blockedRepo = repositoryFixture({ events: [base], dependencies: { scheduleMembers: 1, setlistSongs: 0 } });
-  await assert.rejects(new EventService(blockedRepo).remove('event-1', actor, profile, { access: fullAccess }), /já possui integrantes ou músicas/);
-  const repo = repositoryFixture({ events: [base] });
+test('exclusão física remove o bundle mesmo quando há conteúdo, desde que existam permissões vinculadas', async () => {
+  const populated = { id: 'event-1', name: 'Culto', date: NOW, status: 'CONFIRMED', scheduleId: 'schedule_event-1', setlistId: 'setlist_event-1' };
+  const repo = repositoryFixture({ events: [populated], dependencies: { scheduleMembers: 4, setlistSongs: 6 } });
   await new EventService(repo).remove('event-1', actor, profile, { access: fullAccess });
   assert.equal(repo.calls.deletes.length, 1);
+  assert.equal(repo.events.length, 0);
+  await assert.rejects(new EventService(repositoryFixture({ events: [populated] })).remove('event-1', actor, profile, { access: eventEditOnly }), /Excluir evento exige permissão/);
 });
 
 test('SUPER_ADMIN recebe acesso completo e listagem é ordenada por data/horário', async () => {
