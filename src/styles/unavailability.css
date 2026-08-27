@@ -36,7 +36,8 @@
 .unavailability-item-main{min-width:0;display:grid;gap:var(--ide-space-1)}
 .unavailability-item-main strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.unavailability-item-main small{color:var(--ide-text-secondary);line-height:var(--ide-line-height-normal)}
 .unavailability-item-meta{display:flex;gap:var(--ide-space-2);flex-wrap:wrap}
-.unavailability-item-meta .ide-badge{border:1px solid var(--ide-border);background:var(--ide-surface-secondary);color:var(--ide-text-primary)}
+.unavailability-item-meta .ide-badge{display:inline-flex;align-items:center;gap:.35rem;border:1px solid var(--ide-border);background:var(--ide-surface-secondary);color:var(--ide-text-primary)}
+.unavailability-item-meta .ide-badge i{display:inline-block;flex:0 0 auto;line-height:1}
 .unavailability-item-actions{display:flex;gap:var(--ide-space-2);flex-wrap:wrap;justify-content:flex-end}
 .unavailability-item-actions .ide-button--secondary{--ide-button-bg:var(--ide-primary);--ide-button-color:var(--ide-primary-ink);--ide-button-border:var(--ide-primary)}
 .unavailability-item-actions .ide-button--secondary:hover:not(:disabled){--ide-button-bg:var(--ide-primary-hover);--ide-button-border:var(--ide-primary-hover)}
