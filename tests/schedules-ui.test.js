@@ -25,17 +25,34 @@ test('listagem e edição de escala ficam separadas por scheduleId', () => {
   assert.match(page, /Voltar para escalas/);
 });
 
-test('seleção normal usa somente elegíveis em seletor visual com nome e avatar', () => {
+test('seleção normal usa somente elegíveis em modal visual com nome e avatar', () => {
   assert.match(page, /service\.eligibleUsers/);
   assert.match(page, /schedule-person-trigger/);
   assert.match(page, /schedule-person-option/);
   assert.match(page, /renderAvatar/);
-  assert.match(page, /data-action=\"select-person\"/);
+  assert.match(page, /data-modal-action=\"select-person\"/);
+  assert.match(page, /schedule-person-backdrop/);
+  assert.match(page, /aria-modal=\"true\"/);
   assert.doesNotMatch(page, /data-user-combobox/);
   assert.doesNotMatch(page, /<datalist/);
   assert.doesNotMatch(page, /data-exception-user/);
   assert.doesNotMatch(page, /assign-exception/);
   assert.doesNotMatch(page, /Exceção administrativa/);
+});
+
+test('modal pode ser cancelado por clique fora, botão fechar ou Esc', () => {
+  assert.match(page, /event\.target === backdrop/);
+  assert.match(page, /event\.key === 'Escape'/);
+  assert.match(page, /data-modal-action=\"close\"/);
+  assert.match(page, /function closePersonPicker\(\)/);
+});
+
+test('seleção e adição atualizam a UI localmente sem reload completo', () => {
+  assert.match(page, /assignOptimistic/);
+  assert.match(page, /closePersonPicker\(\);\s*renderEditorView\(\)/);
+  assert.match(page, /pending_slot_/);
+  assert.match(page, /schedule\.members=beforeMembers\.filter/);
+  assert.doesNotMatch(page, /toast\('Escala atualizada\.'\);\s*await reload\(\)/);
 });
 
 test('funções repetidas recebem numeração e cada perfil possui marcador de cor', () => {
@@ -70,15 +87,13 @@ test('editor e popup usam tokens semânticos oficiais em claro e escuro', () => 
   assert.match(css, /--background:var\(--ide-background\)/);
   assert.match(css, /background:var\(--ide-background\)/);
   assert.match(css, /background:var\(--ide-surface\)/);
-  assert.match(css, /z-index:var\(--ide-z-modal\)/);
-  assert.match(css, /var\(--ide-shadow-overlay\)/);
-  assert.match(css, /100vmax rgba\(0,0,0,.64\)/);
+  assert.match(page, /var\(--ide-z-modal,10000\)/);
+  assert.match(page, /var\(--ide-shadow-overlay\)/);
 });
 
-test('popup possui tratamento específico para toque e viewport mobile', () => {
-  assert.match(css, /100dvh/);
-  assert.match(css, /76dvh/);
-  assert.match(css, /env\(safe-area-inset-bottom\)/);
+test('popup possui tratamento para viewport e safe-area mobile', () => {
+  assert.match(page, /76dvh/);
+  assert.match(page, /env\(safe-area-inset-bottom\)/);
   assert.match(css, /schedule-person-option\{min-height:60px/);
   assert.match(css, /schedule-slot__actions \.ide-button\{min-height:44px/);
 });
