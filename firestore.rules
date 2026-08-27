@@ -117,7 +117,7 @@ service cloud.firestore {
     function validEventDelete() {
       let schedulePath = /databases/$(database)/documents/schedules/$(resource.data.scheduleId);
       let setlistPath = /databases/$(database)/documents/setlists/$(resource.data.setlistId);
-      return resource.data.status == 'PLANNED'
+      return resource.data.status in ['PLANNED', 'CONFIRMED', 'CANCELLED', 'COMPLETED']
         && !existsAfter(schedulePath)
         && !existsAfter(setlistPath);
     }
