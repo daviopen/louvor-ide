@@ -16,6 +16,8 @@ test('provisionamento operacional não armazena credenciais e mantém usuário d
 
   for (const user of users) {
     assert.match(user.email, /^[^@\s]+@[^@\s]+\.[^@\s]+$/);
+    assert.equal(typeof user.name, 'string');
+    assert.ok(user.name.trim().length > 0);
     assert.ok(['MEMBER', 'ADMIN', 'SUPER_ADMIN'].includes(user.role));
     assert.equal(typeof user.active, 'boolean');
     assert.equal(Object.hasOwn(user, 'password'), false);
@@ -26,12 +28,14 @@ test('provisionamento operacional não armazena credenciais e mantém usuário d
   const testUser = users.find(user => user.email === 'teste.firebase@gmail.com');
   assert.deepEqual(testUser, {
     email: 'teste.firebase@gmail.com',
+    name: 'Usuário de Teste Firebase',
     role: 'MEMBER',
     active: true
   });
 
   assert.match(script, /applicationDefault\(\)/);
   assert.match(script, /getUserByEmail/);
+  assert.match(script, /createUser/);
   assert.match(script, /updateUser/);
   assert.match(script, /collection\('users'\)/);
 });
