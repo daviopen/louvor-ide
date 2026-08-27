@@ -6,6 +6,7 @@ import musicService from '../modules/music-service.js?v=20260826-catalog-fix2';
 
 const PAGE_SIZE = 10;
 const LOAD_TIMEOUT_MS = 12000;
+const SEARCH_DEBOUNCE_MS = 160;
 
 class MusicCatalogPage {
   constructor() {
@@ -15,6 +16,7 @@ class MusicCatalogPage {
     this.page = 1;
     this.unsubscribe = null;
     this.loadTimeout = null;
+    this.searchTimer = null;
     this.started = false;
   }
 
@@ -57,13 +59,17 @@ class MusicCatalogPage {
       this.render();
     };
 
-    this.search.addEventListener('input', resetPageAndRender);
+    this.search.addEventListener('input', () => {
+      window.clearTimeout(this.searchTimer);
+      this.searchTimer = window.setTimeout(resetPageAndRender, SEARCH_DEBOUNCE_MS);
+    });
     [this.artist, this.minister, this.key, this.theme].forEach(select => select?.addEventListener('change', resetPageAndRender));
     this.clear?.addEventListener('click', () => this.clearFilters());
     this.prev?.addEventListener('click', () => this.changePage(-1));
     this.next?.addEventListener('click', () => this.changePage(1));
     window.addEventListener('beforeunload', () => {
       this.clearLoadTimeout();
+      window.clearTimeout(this.searchTimer);
       if (typeof this.unsubscribe === 'function') this.unsubscribe();
     }, { once: true });
   }
@@ -99,8 +105,8 @@ class MusicCatalogPage {
     try {
       this.setLoading(true);
       this.armLoadTimeout();
-      const initialSongs = await musicService.getAllMusicsArray();
-      this.consumeSongs(initialSongs);
+      // onSnapshot entrega o estado atual no primeiro callback e segue em tempo real.
+      // Evita uma leitura completa duplicada antes de registrar o listener.
       this.unsubscribe = await musicService.loadAllMusics(
         snapshot => this.consumeSnapshot(snapshot),
         error => {
@@ -350,6 +356,7 @@ class MusicCatalogPage {
   }
 
   clearFilters() {
+    window.clearTimeout(this.searchTimer);
     this.search.value = '';
     [this.artist, this.minister, this.key, this.theme].forEach(select => { if (select) select.value = ''; });
     this.page = 1;
@@ -374,4 +381,4 @@ const start = () => new MusicCatalogPage().init();
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
 else start();
 
-export { LOAD_TIMEOUT_MS, PAGE_SIZE, MusicCatalogPage };
+export { LOAD_TIMEOUT_MS, PAGE_SIZE, SEARCH_DEBOUNCE_MS, MusicCatalogPage };
