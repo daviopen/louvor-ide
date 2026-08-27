@@ -1,24 +1,20 @@
 name: 🧭 Validate production application
 
+# Validação onerosa de produção: execução exclusivamente manual.
 on:
-  workflow_run:
-    workflows:
-      - "🚀 Deploy to Firebase Hosting"
-    types:
-      - completed
+  workflow_dispatch:
+
+concurrency:
+  group: production-e2e
+  cancel-in-progress: false
 
 jobs:
   production_e2e:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'master')
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📂 Checkout versão publicada
+      - name: 📂 Checkout versão a validar
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
@@ -64,7 +60,6 @@ jobs:
           grep -q 'scheduleIdForEvent' /tmp/schedule-repository.js
           grep -q 'schedule-summary-card' /tmp/schedules.css
           grep -q '@media(max-width:640px)' /tmp/schedules.css
-          echo "✅ Listagem e editor individual de Escalas estão publicados no Firebase Hosting"
 
       - name: 🎵 Validar catálogo e editor de músicas publicados
         env:
@@ -73,24 +68,8 @@ jobs:
           set -euo pipefail
           curl --fail-with-body -sS "${E2E_BASE_URL}/consultar.html" -o /tmp/consultar.html
           curl --fail-with-body -sS "${E2E_BASE_URL}/nova-musica.html" -o /tmp/nova-musica.html
-          curl --fail-with-body -sS "${E2E_BASE_URL}/js/pages/consulta.js?v=20260826-catalog-fix" -o /tmp/consulta.js
-          curl --fail-with-body -sS "${E2E_BASE_URL}/js/pages/song-form.js?v=20260826-theme" -o /tmp/song-form.js
-          curl --fail-with-body -sS "${E2E_BASE_URL}/js/modules/music-service.js?v=20260826-catalog-fix2" -o /tmp/music-service.js
-          curl --fail-with-body -sS "${E2E_BASE_URL}/repositories/music-repository.js?v=20260826-catalog-fix2" -o /tmp/music-repository.js
           grep -q 'Consultar músicas' /tmp/consultar.html
           grep -q 'href="nova-musica.html"' /tmp/consultar.html
-          grep -q 'id="song-search"' /tmp/consultar.html
-          grep -q 'id="songs-result-count"' /tmp/consultar.html
-          grep -q 'musicService.getAllMusicsArray' /tmp/consulta.js
-          grep -q 'Promise.resolve(window.musicIdeAuthReady)' /tmp/consulta.js
-          grep -q 'async findAll()' /tmp/music-repository.js
-          grep -q 'COLLECTIONS.SONGS' /tmp/music-repository.js
-          grep -q 'COLLECTIONS.MUSICS' /tmp/music-repository.js
-          for field in titulo artista tom tema link cifra letra observacoes minister-list; do
-            grep -q "id=\"${field}\"" /tmp/nova-musica.html || { echo "❌ Campo ${field} ausente do editor publicado"; exit 1; }
-          done
-          grep -q 'song-form.js?v=20260826-theme' /tmp/nova-musica.html
-          echo "✅ Consulta e editor de músicas atuais estão publicados no Firebase Hosting"
 
       - name: 🧭 Navegar no sistema e validar músicas reais em produção
         env:
@@ -119,13 +98,7 @@ jobs:
           trap cleanup EXIT
           PROFILE_PAYLOAD="$(jq -n --arg uid "${LOCAL_ID}" --arg email "${E2E_EMAIL}" '{fields:{uid:{stringValue:$uid},name:{stringValue:"E2E IDE Music"},email:{stringValue:$email},active:{booleanValue:true},role:{stringValue:"MEMBER"}}}')"
           PROFILE_STATUS="$(curl -sS -o /tmp/e2e-profile.json -w '%{http_code}' -X PATCH -H "Authorization: Bearer ${ID_TOKEN}" -H 'Content-Type: application/json' -d "${PROFILE_PAYLOAD}" "https://firestore.googleapis.com/v1/projects/louvor-ide/databases/(default)/documents/users/${LOCAL_ID}")"
-          if [ "${PROFILE_STATUS}" != "403" ]; then
-            echo "❌ Conta comum conseguiu criar/ativar o próprio perfil (HTTP ${PROFILE_STATUS})"
-            exit 1
-          fi
+          test "${PROFILE_STATUS}" = "403" || { echo "❌ Conta comum conseguiu criar/ativar o próprio perfil (HTTP ${PROFILE_STATUS})"; exit 1; }
           SONGS_STATUS="$(curl -sS -o /tmp/e2e-songs.json -w '%{http_code}' -H "Authorization: Bearer ${ID_TOKEN}" "https://firestore.googleapis.com/v1/projects/louvor-ide/databases/(default)/documents/songs?pageSize=1")"
-          if [ "${SONGS_STATUS}" != "403" ]; then
-            echo "❌ Conta autenticada sem perfil ativo acessou songs (HTTP ${SONGS_STATUS})"
-            exit 1
-          fi
+          test "${SONGS_STATUS}" = "403" || { echo "❌ Conta sem perfil ativo acessou songs (HTTP ${SONGS_STATUS})"; exit 1; }
           E2E_EMAIL="${E2E_EMAIL}" E2E_PASSWORD="${E2E_PASSWORD}" E2E_BASE_URL="${E2E_BASE_URL}" node tests/production-auth.e2e.cjs

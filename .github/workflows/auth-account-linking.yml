@@ -1,22 +1,20 @@
 name: 🔗 Reconcile Firebase auth identities
 
+# Operação administrativa sobre dados reais. Nunca executar automaticamente após deploy.
 on:
-  workflow_run:
-    workflows:
-      - 🚀 Deploy to Firebase Hosting
-    types:
-      - completed
+  workflow_dispatch:
+
+concurrency:
+  group: reconcile-firebase-auth-identities
+  cancel-in-progress: false
 
 jobs:
   reconcile_auth:
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📂 Checkout código publicado
+      - name: 📂 Checkout código
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
@@ -39,26 +37,17 @@ jobs:
           set -euo pipefail
           ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"
           CONFIG_URL="https://identitytoolkit.googleapis.com/admin/v2/projects/louvor-ide/config"
-
-          HTTP_CODE="$(curl -sS \
-            -o /tmp/auth-config.json \
-            -w '%{http_code}' \
-            -X PATCH \
+          HTTP_CODE="$(curl -sS -o /tmp/auth-config.json -w '%{http_code}' -X PATCH \
             -H "Authorization: Bearer ${ACCESS_TOKEN}" \
             -H "Content-Type: application/json" \
             -H "X-Goog-User-Project: louvor-ide" \
             -d '{"signIn":{"allowDuplicateEmails":false}}' \
             "${CONFIG_URL}?updateMask=signIn.allowDuplicateEmails")"
-
           if [ "${HTTP_CODE}" -lt 200 ] || [ "${HTTP_CODE}" -ge 300 ]; then
-            echo "❌ Identity Toolkit PATCH retornou HTTP ${HTTP_CODE}:"
             cat /tmp/auth-config.json
             exit 1
           fi
-
-          cat /tmp/auth-config.json
           test "$(jq -r '.signIn.allowDuplicateEmails // false' /tmp/auth-config.json)" = "false"
-          echo "✅ Firebase Authentication configurado para uma única conta por e-mail."
 
       - name: 🔍 Validar configuração efetiva
         run: |
@@ -70,4 +59,4 @@ jobs:
             -H "X-Goog-User-Project: louvor-ide" \
             "${CONFIG_URL}" >/tmp/auth-config-verified.json
           test "$(jq -r '.signIn.allowDuplicateEmails // false' /tmp/auth-config-verified.json)" = "false"
-          echo "✅ Configuração validada: contas duplicadas por e-mail estão bloqueadas."
+          echo "✅ Configuração validada"

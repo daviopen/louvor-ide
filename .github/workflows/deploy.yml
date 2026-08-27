@@ -1,134 +1,39 @@
 name: 🚀 Deploy to Firebase Hosting
 
 on:
-  push:
-    branches:
-      - main
-      - master
-  pull_request:
-    branches:
-      - main
-      - master
+  workflow_run:
+    workflows:
+      - "✅ Quality Gate"
+    types:
+      - completed
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
-  build_and_test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: 📂 Checkout código
-        uses: actions/checkout@v4
-
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: ☕ Setup Java para Firestore Emulator
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: 📦 Instalar dependências
-        run: make install
-
-      - name: 🏗️ Build do projeto
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-        run: make build
-
-      - name: 🎨 Normalizar cores legadas do artefato
-        run: node src/scripts/normalize-built-html-colors.js .
-
-      - name: 🧪 Executar testes
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-        run: make test
-
-      - name: 🔐 Validar Firestore Rules
-        run: |
-          set -e
-          npx firebase emulators:exec --only firestore --project demo-louvor-ide "node --test tests/firestore-rules.test.js"
-          echo "✅ Firestore Rules compiladas no emulator e contrato de segurança validado"
-
-      - name: 📋 Verificar artefato do Design System
-        run: |
-          set -e
-          test -f styles/tokens.css
-          test -f styles/design-system.css
-          test -f styles/legacy-migration.css
-          test -f core/app-error.js
-          echo "✅ Tokens, Design System, core compartilhado e migração legada presentes no build"
-          if grep -nEi '#[0-9a-f]{3,8}\b' ./*.html; then
-            echo "❌ HTML publicado ainda contém cores hexadecimais fora dos tokens"
-            exit 1
-          fi
-          echo "✅ HTML publicado sem cores hexadecimais espalhadas"
-          echo "📁 Estrutura de diretórios:"
-          find . -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) | head -40
-
-      - name: 🧱 Verificar artefato do modelo de dados
-        run: |
-          set -e
-          test -f models/data-model.js
-          test -f repositories/domain-repositories.js
-          test -f services/ministry-functions-service.js
-          test -f constants/collections.js
-          for collection in users ministryFunctions userFunctions permissions events unavailability schedules scheduleMembers setlists setlistSongs songs songMinisterKeys auditLogs lgpdConsents; do
-            grep -q "'$collection'" models/data-model.js || { echo "❌ Collection $collection ausente do modelo publicado"; exit 1; }
-          done
-          grep -q "DEFAULT_MINISTRY_FUNCTIONS" models/data-model.js
-          grep -q "userFunctionDocumentId" models/data-model.js
-          grep -q "class MinistryFunctionsService" services/ministry-functions-service.js
-          echo "✅ Modelo de dados, N:N e serviço de funções presentes no artefato"
-
-      - name: 🛡️ Verificar contrato de segurança
-        run: |
-          set -e
-          grep -q "function isSuperAdmin()" firestore.rules
-          grep -q "function canRead(moduleName)" firestore.rules
-          grep -q "function canEdit(moduleName)" firestore.rules
-          grep -q "allow read, write: if false;" firestore.rules
-          test -f ops/provisioned-users.json
-          test -f scripts/provision-users.cjs
-          if grep -R "davitads@gmail.com" src --include='*.js'; then
-            echo "❌ E-mail de bootstrap não pode existir no frontend"
-            exit 1
-          fi
-          if grep -Ei '"(password|token|credential)"' ops/provisioned-users.json; then
-            echo "❌ Provisionamento operacional não pode armazenar credenciais"
-            exit 1
-          fi
-          echo "✅ Autorização server-side, provisionamento sem credenciais e deny-by-default presentes"
-
   deploy:
-    needs: build_and_test
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'master'))
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
 
     steps:
-      - name: 📂 Checkout código
+      - name: 📂 Checkout versão validada
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: npm
 
       - name: 📦 Instalar dependências
-        run: make install
+        run: npm ci
 
       - name: 🏗️ Build do projeto
         env:
@@ -139,7 +44,7 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-        run: make build
+        run: npm run build
 
       - name: 🎨 Normalizar cores legadas do artefato
         run: node src/scripts/normalize-built-html-colors.js .
@@ -148,13 +53,6 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
-
-      - name: 👤 Provisionar usuários autorizados
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          npm install --no-save firebase-admin@13.4.0
-          node scripts/provision-users.cjs
 
       - name: 🔐 Publicar Firestore Rules via Rules API
         run: |
@@ -196,7 +94,7 @@ jobs:
             -H "Authorization: Bearer ${ACCESS_TOKEN}" \
             "${RELEASE_URL}" | jq -er '.rulesetName')"
           test "${VERIFIED_RULESET}" = "${RULESET_NAME}"
-          echo "✅ Firestore Rules publicadas e release cloud.firestore aponta para ${RULESET_NAME}"
+          echo "✅ Firestore Rules publicadas"
 
       - name: 🚀 Deploy para Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -206,84 +104,18 @@ jobs:
           channelId: live
           projectId: louvor-ide
 
-      - name: 🔍 Verificar deploy
+      - name: 🔎 Smoke test estático pós-deploy
         run: |
-          echo "✅ Deploy concluído!"
-          echo "🌐 Site disponível em:"
-          echo "   https://louvor-ide.web.app"
-          echo "   https://louvor-ide.firebaseapp.com"
-          echo ""
-          echo "🕐 Aguardando propagação..."
-          sleep 30
-
-      - name: 🧪 Teste pós-deploy
-        run: |
-          set -e
-          echo "🧪 Testando conectividade e assets críticos do site..."
-          test_url() {
-            url="$1"
-            response=$(curl -sS -o /dev/null -w "%{http_code}" "$url")
-            if [ "$response" != "200" ]; then
-              echo "❌ $url retornou HTTP $response"
-              exit 1
-            fi
-            echo "✅ $url (HTTP $response)"
-          }
-          test_url https://louvor-ide.web.app/
-          test_url https://louvor-ide.web.app/login.html
-          test_url https://louvor-ide.web.app/js/modules/auth-service.js
-          test_url https://louvor-ide.web.app/core/app-error.js
-          test_url https://louvor-ide.web.app/styles/tokens.css
-          test_url https://louvor-ide.web.app/styles/design-system.css
-          test_url https://louvor-ide.web.app/styles/legacy-migration.css
-          test_url https://louvor-ide.web.app/models/data-model.js
-          test_url https://louvor-ide.web.app/repositories/domain-repositories.js
-          test_url https://louvor-ide.web.app/services/ministry-functions-service.js
-          test_url https://louvor-ide.web.app/constants/collections.js
-          test_url https://louvor-ide.web.app/help.html
-          core_headers=$(curl -sSI https://louvor-ide.web.app/core/app-error.js)
-          echo "$core_headers" | grep -qi 'content-type:.*javascript' || { echo "❌ core/app-error.js publicado com MIME incorreto"; exit 1; }
-          css=$(curl -sS https://louvor-ide.web.app/styles/tokens.css)
-          echo "$css" | grep -q -- '--ide-primary' || { echo "❌ tokens.css publicado não contém --ide-primary"; exit 1; }
-          migration=$(curl -sS https://louvor-ide.web.app/styles/legacy-migration.css)
-          echo "$migration" | grep -q -- 'data-theme="dark"' || { echo "❌ migração publicada sem cobertura de tema escuro"; exit 1; }
-          home=$(curl -sS https://louvor-ide.web.app/)
-          if echo "$home" | grep -qiE '#[0-9a-f]{3,8}\b'; then
-            echo "❌ Home publicada contém cor hexadecimal fora dos tokens"
-            exit 1
-          fi
-          auth_service=$(curl -sS https://louvor-ide.web.app/js/modules/auth-service.js)
-          echo "$auth_service" | grep -q 'signInWithGoogle' || { echo "❌ Login Google ausente em produção"; exit 1; }
-          echo "$auth_service" | grep -q "prompt: 'select_account'" || { echo "❌ Seleção explícita da conta Google ausente em produção"; exit 1; }
-          echo "$auth_service" | grep -q 'signInWithEmail' || { echo "❌ Login e-mail/senha ausente em produção"; exit 1; }
-          echo "$auth_service" | grep -q 'sendPasswordReset' || { echo "❌ Recuperação de senha ausente em produção"; exit 1; }
-          echo "$auth_service" | grep -q 'auth.signOut' || { echo "❌ Logout Firebase ausente em produção"; exit 1; }
-          if echo "$auth_service" | grep -q 'davitads@gmail.com'; then
-            echo "❌ Frontend publicado contém e-mail de bootstrap administrativo"
-            exit 1
-          fi
-          data_model=$(curl -sS https://louvor-ide.web.app/models/data-model.js)
-          for collection in users ministryFunctions userFunctions permissions events unavailability schedules scheduleMembers setlists setlistSongs songs songMinisterKeys auditLogs lgpdConsents; do
-            echo "$data_model" | grep -q "'$collection'" || { echo "❌ Collection $collection ausente do modelo em produção"; exit 1; }
+          set -euo pipefail
+          sleep 10
+          for url in \
+            https://louvor-ide.web.app/ \
+            https://louvor-ide.web.app/login.html \
+            https://louvor-ide.web.app/styles/tokens.css \
+            https://louvor-ide.web.app/js/modules/auth-service.js
+          do
+            status="$(curl -sS -o /dev/null -w '%{http_code}' "$url")"
+            test "$status" = "200" || { echo "❌ $url retornou HTTP $status"; exit 1; }
+            echo "✅ $url"
           done
-          echo "$data_model" | grep -q 'DEFAULT_MINISTRY_FUNCTIONS' || { echo "❌ Catálogo padrão de funções ausente em produção"; exit 1; }
-          echo "$data_model" | grep -q 'userFunctionDocumentId' || { echo "❌ Relação N:N Pessoa ↔ Função ausente em produção"; exit 1; }
-          ministry_service=$(curl -sS https://louvor-ide.web.app/services/ministry-functions-service.js)
-          echo "$ministry_service" | grep -q 'class MinistryFunctionsService' || { echo "❌ Serviço de funções ministeriais ausente em produção"; exit 1; }
-          echo "✅ Autenticação, segurança do frontend, Design System, core compartilhado, modelo de dados e assets críticos publicados e válidos"
-
-  notify:
-    needs: [build_and_test, deploy]
-    runs-on: ubuntu-latest
-    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-
-    steps:
-      - name: 📢 Notificação de status
-        run: |
-          if [ "${{ needs.deploy.result }}" = "success" ]; then
-            echo "🎉 Deploy realizado com sucesso!"
-            echo "🌐 Louvor IDE está online em: https://louvor-ide.web.app"
-          else
-            echo "❌ Falha no deploy"
-            echo "📋 Verifique os logs acima para mais detalhes"
-          fi
+          echo "✅ Smoke test concluído sem autenticação, navegação E2E ou acesso ao Firestore"

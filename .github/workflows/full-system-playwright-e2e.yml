@@ -1,9 +1,8 @@
 name: 🎭 Full-system Playwright E2E
 
+# Executa produção real e consome Firestore/Auth. Somente sob solicitação explícita.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 9 * * *'
 
 concurrency:
   group: full-system-playwright-e2e

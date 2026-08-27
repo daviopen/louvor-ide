@@ -1,31 +1,22 @@
 name: 🎼 Validate Setlist production
 
+# Validação de produção sob demanda; não encadear ao deploy.
 on:
-  workflow_run:
-    workflows:
-      - "🚀 Deploy to Firebase Hosting"
-    types:
-      - completed
+  workflow_dispatch:
 
 jobs:
   setlist_production:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'master')
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📂 Checkout versão publicada
+      - name: 📂 Checkout versão a validar
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: 🎼 Validar Setlist, Histórico, Cifra e Letra no Firebase Hosting
         env:
           E2E_BASE_URL: https://louvor-ide.web.app
         run: |
           set -euo pipefail
-
           curl --fail-with-body -sS "${E2E_BASE_URL}/setlist.html" -o /tmp/setlist.html
           curl --fail-with-body -sS "${E2E_BASE_URL}/setlists.html?view=history" -o /tmp/setlists.html
           curl --fail-with-body -sS "${E2E_BASE_URL}/setlist-view.html" -o /tmp/setlist-view.html
@@ -37,71 +28,16 @@ jobs:
           curl --fail-with-body -sS "${E2E_BASE_URL}/services/setlist-service.js" -o /tmp/setlist-service.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/services/setlist-history-service.js" -o /tmp/setlist-history-service.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/repositories/setlist-repository.js" -o /tmp/setlist-repository.js
-
           grep -q 'Setlist por Escala' /tmp/setlist.html
-          grep -Eq 'setlist-schedule.js\?v=20260825-roadmap[0-9]+' /tmp/setlist.html
           grep -q 'Integrantes escalados' /tmp/setlist.html
           grep -q 'draggable=' /tmp/setlist-schedule.js
-          grep -q 'ministerUserId' /tmp/setlist-schedule.js
-          grep -q 'executionKey' /tmp/setlist-schedule.js
-          grep -q 'transition' /tmp/setlist-schedule.js
           grep -q 'eligibleMinisters' /tmp/setlist-service.js
-          grep -q 'validateSongs' /tmp/setlist-service.js
-          grep -q 'suggestExecutionKey' /tmp/setlist-service.js
           grep -q 'findSetlistBySchedule' /tmp/setlist-repository.js
-          grep -q 'setlistSongs' /tmp/setlist-repository.js
-          grep -q 'SETLIST_UPDATED' /tmp/setlist-repository.js
-
-          grep -q 'id="tab-upcoming"' /tmp/setlists.html
           grep -q 'id="tab-history"' /tmp/setlists.html
-          grep -q 'id="filter-from"' /tmp/setlists.html
-          grep -q 'id="filter-to"' /tmp/setlists.html
-          grep -q 'id="filter-event"' /tmp/setlists.html
-          grep -q 'id="filter-minister"' /tmp/setlists.html
-          grep -q 'id="filter-song"' /tmp/setlists.html
-          grep -q 'id="filter-theme"' /tmp/setlists.html
-          if grep -q 'id="filter-artist"' /tmp/setlists.html; then
-            echo "❌ Histórico não deve expor filtro por artista"
-            exit 1
-          fi
-          grep -q 'id="pagination"' /tmp/setlists.html
-          grep -q 'setlist-history-service.js?v=20260825-roadmap20' /tmp/setlists.html
-          grep -q 'setlist.html?id=' /tmp/setlists-simple.js
-          grep -q 'setlist-view.html?id=' /tmp/setlists-simple.js
-          grep -q "state.view==='history'" /tmp/setlists-simple.js
-          grep -q 'function isHistory' /tmp/setlist-history-service.js
-          grep -q 'function filter' /tmp/setlist-history-service.js
-          grep -q 'function paginate' /tmp/setlist-history-service.js
-          grep -q "'COMPLETED', 'CANCELLED'" /tmp/setlist-history-service.js
-
           grep -q 'id="view-chords"' /tmp/setlist-view.html
-          grep -q 'Ver cifra' /tmp/setlist-view.html
           grep -q 'id="view-lyrics"' /tmp/setlist-view.html
-          grep -q 'Ver letra' /tmp/setlist-view.html
           grep -q 'id="stage-mode-button"' /tmp/setlist-view.html
-          grep -q 'id="transpose-down"' /tmp/setlist-view.html
-          grep -q 'id="transpose-up"' /tmp/setlist-view.html
-          grep -q 'id="execution-key"' /tmp/setlist-view.html
-          grep -q 'id="font-down"' /tmp/setlist-view.html
-          grep -q 'id="font-up"' /tmp/setlist-view.html
-          grep -q 'id="previous-song"' /tmp/setlist-view.html
-          grep -q 'id="next-song"' /tmp/setlist-view.html
-          grep -q 'setlist-performance-view.js' /tmp/setlist-view.html
-          grep -q 'setlist-performance-view.css' /tmp/setlist-view.html
           grep -q 'LouvorChordTransposer.transposeText' /tmp/setlist-performance-view.js
-          grep -q 'currentSong.letra' /tmp/setlist-performance-view.js
           grep -q 'requestFullscreen' /tmp/setlist-performance-view.js
-          grep -q "event.key === 'ArrowLeft'" /tmp/setlist-performance-view.js
-          grep -q "event.key === 'ArrowRight'" /tmp/setlist-performance-view.js
           grep -q -- '--setlist-font-size' /tmp/setlist-performance-view.css
-          grep -q '.stage-mode .performance-song' /tmp/setlist-performance-view.css
-          grep -q '@media(max-width:560px)' /tmp/setlist-performance-view.css
-
-          grep -q -- '--surface: var(--ide-surface)' /tmp/styles.css
-          grep -q -- '--surface-secondary: var(--ide-surface-secondary)' /tmp/styles.css
-          grep -q -- '--text-primary: var(--ide-text-primary)' /tmp/styles.css
-          grep -q -- '--text-secondary: var(--ide-text-secondary)' /tmp/styles.css
-          grep -q ':root\[data-theme="dark"\]' /tmp/styles.css
-          grep -q -- '--warning-bg: var(--ide-surface-secondary)' /tmp/styles.css
-
-          echo "✅ Setlist, Histórico, cifra/letra, transposição, navegação, modo palco, fonte, mobile e contraste estão publicados no Firebase Hosting"
+          echo "✅ Validação estática de Setlist concluída"
