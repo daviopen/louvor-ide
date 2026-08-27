@@ -6,25 +6,16 @@
   if (!scope || !scope.document) return;
 
   const MODULES = Object.freeze([
-    ['dashboard', 'Dashboard'],
-    ['users', 'Usuários'],
-    ['permissions', 'Permissões'],
-    ['unavailability', 'Indisponibilidades'],
-    ['events', 'Eventos'],
-    ['schedules', 'Escalas'],
-    ['setlists', 'Setlists'],
-    ['songs', 'Músicas'],
-    ['audit', 'Auditoria']
+    ['dashboard', 'Dashboard'], ['users', 'Usuários'], ['permissions', 'Permissões'],
+    ['unavailability', 'Indisponibilidades'], ['events', 'Eventos'], ['schedules', 'Escalas'],
+    ['setlists', 'Setlists'], ['songs', 'Músicas'], ['audit', 'Auditoria']
   ]);
-  const LEVELS = Object.freeze([
-    ['NONE', 'Sem acesso'],
-    ['READ', 'Leitura'],
-    ['EDIT', 'Edição']
-  ]);
-  const ROLES = Object.freeze([
-    ['MEMBER', 'Membro'],
-    ['ADMIN', 'Administrador']
-  ]);
+  const LEVELS = Object.freeze([['NONE', 'Sem acesso'], ['READ', 'Leitura'], ['EDIT', 'Edição']]);
+  const ROLES = Object.freeze([['MEMBER', 'Membro'], ['ADMIN', 'Administrador']]);
+  const PERMISSION_CACHE_TTL_MS = 30000;
+  const permissionCache = new Map();
+  const permissionRequests = new Map();
+  let selectionVersion = 0;
 
   const normalizeLevel = value => {
     const level = String(value || '').toUpperCase();
@@ -36,9 +27,14 @@
   };
   const escapeHtml = value => String(value == null ? '' : value)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    .replace(/\"/g, '&quot;').replace(/'/g, '&#039;');
   const isSuperAdmin = profile => Boolean(profile && (profile.role === 'SUPER_ADMIN' || profile.isSuperAdmin === true));
   const currentSection = () => new URLSearchParams(scope.location.search).get('section');
+  const now = () => scope.performance && typeof scope.performance.now === 'function' ? scope.performance.now() : Date.now();
+  const reportDuration = (event, startedAt, context = {}) => {
+    const durationMs = Math.round((now() - startedAt) * 10) / 10;
+    scope.MusicIdeObservability?.info?.(event, 'Métrica de performance da tela de permissões.', { ...context, durationMs });
+  };
 
   function ensureStyles() {
     if (scope.document.querySelector('link[data-ide-permissions-styles]')) return;
@@ -54,7 +50,7 @@
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   }
 
-  async function loadPermissions(db, userId) {
+  async function queryPermissions(db, userId) {
     const snapshot = await db.collection('permissions').where('userId', '==', userId).get();
     const result = {};
     snapshot.forEach(doc => {
@@ -62,6 +58,25 @@
       if (data.module) result[data.module] = normalizeLevel(data.level);
     });
     return result;
+  }
+
+  async function loadPermissions(db, userId, options = {}) {
+    const fresh = options.fresh === true;
+    const cached = permissionCache.get(userId);
+    if (!fresh && cached && Date.now() - cached.loadedAt < PERMISSION_CACHE_TTL_MS) return { ...cached.permissions };
+    if (!fresh && permissionRequests.has(userId)) return { ...(await permissionRequests.get(userId)) };
+
+    const request = queryPermissions(db, userId).then(permissions => {
+      permissionCache.set(userId, { loadedAt: Date.now(), permissions: { ...permissions } });
+      return permissions;
+    }).finally(() => permissionRequests.delete(userId));
+    permissionRequests.set(userId, request);
+    return { ...(await request) };
+  }
+
+  function invalidatePermissions(userId) {
+    permissionCache.delete(userId);
+    permissionRequests.delete(userId);
   }
 
   function userOption(user) {
@@ -73,35 +88,12 @@
 
   function renderShell(root, users, selectedId, editable) {
     root.innerHTML = `
-      <div class="ide-permissions-toolbar">
-        <div>
-          <h2>Permissões de acesso</h2>
-          <p>Defina o perfil administrativo e o nível de acesso da pessoa em cada módulo do IDE Music.</p>
-        </div>
-      </div>
+      <div class="ide-permissions-toolbar"><div><h2>Permissões de acesso</h2><p>Defina o perfil administrativo e o nível de acesso da pessoa em cada módulo do IDE Music.</p></div></div>
       ${editable ? '' : '<div class="ide-permissions-note"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>Você está em modo somente leitura. Apenas SUPER_ADMIN pode alterar perfis e permissões.</span></div>'}
-      <section class="ide-permissions-user-picker">
-        <label class="ide-field">
-          <span class="ide-field__label">Usuário</span>
-          <select id="permissions-user" class="ide-field__control ide-select">
-            <option value="">Selecione um usuário</option>
-            ${users.map(userOption).join('')}
-          </select>
-        </label>
-      </section>
+      <section class="ide-permissions-user-picker"><label class="ide-field"><span class="ide-field__label">Usuário</span><select id="permissions-user" class="ide-field__control ide-select"><option value="">Selecione um usuário</option>${users.map(userOption).join('')}</select></label></section>
       <div id="permissions-editor" class="ide-permissions-editor"></div>
       <div id="permissions-status" class="ide-permissions-status" role="status" aria-live="polite"></div>
-      <dialog id="permissions-review" class="ide-permissions-dialog">
-        <form method="dialog">
-          <h3>Confirmar alterações administrativas</h3>
-          <p>Revise as mudanças antes de salvar. Perfil e permissões possuem responsabilidades diferentes.</p>
-          <div id="permissions-diff"></div>
-          <div class="ide-permissions-dialog-actions">
-            <button value="cancel" class="ide-button ide-button--secondary">Cancelar</button>
-            <button id="permissions-confirm" value="default" class="ide-button ide-button--primary">Confirmar e salvar</button>
-          </div>
-        </form>
-      </dialog>`;
+      <dialog id="permissions-review" class="ide-permissions-dialog"><form method="dialog"><h3>Confirmar alterações administrativas</h3><p>Revise as mudanças antes de salvar. Perfil e permissões possuem responsabilidades diferentes.</p><div id="permissions-diff"></div><div class="ide-permissions-dialog-actions"><button value="cancel" class="ide-button ide-button--secondary">Cancelar</button><button id="permissions-confirm" value="default" class="ide-button ide-button--primary">Confirmar e salvar</button></div></form></dialog>`;
     const select = root.querySelector('#permissions-user');
     if (selectedId && users.some(user => user.id === selectedId)) select.value = selectedId;
   }
@@ -121,28 +113,11 @@
 
     editor.innerHTML = `
       <article class="ide-permissions-user" data-user-id="${escapeHtml(user.id)}" data-user-name="${escapeHtml(user.name || user.email || 'Usuário')}">
-        <header class="ide-permissions-user__header">
-          <div class="ide-permissions-user__identity">
-            <div class="ide-permissions-user__avatar">${initials}</div>
-            <div class="ide-permissions-user__text"><strong>${escapeHtml(user.name || 'Sem nome')}</strong><small>${escapeHtml(user.email || '')}</small></div>
-          </div>
-          ${user.active === false ? '<span class="ide-permission-inactive">Inativo</span>' : ''}
-        </header>
+        <header class="ide-permissions-user__header"><div class="ide-permissions-user__identity"><div class="ide-permissions-user__avatar">${initials}</div><div class="ide-permissions-user__text"><strong>${escapeHtml(user.name || 'Sem nome')}</strong><small>${escapeHtml(user.email || '')}</small></div></div>${user.active === false ? '<span class="ide-permission-inactive">Inativo</span>' : ''}</header>
         <div class="ide-permissions-section-heading"><strong>Perfil administrativo</strong><span>O perfil define o alcance da ação; as permissões abaixo definem em quais módulos ela pode acontecer.</span></div>
-        <div class="ide-permissions-grid">
-          <div class="ide-permission-field">
-            <label for="permission-role">Perfil</label>
-            ${roleControl}
-            <small>${lockedSuperAdmin ? 'O perfil Super Admin é protegido.' : 'Administrador pode atuar sobre dados de outras pessoas somente nos módulos em que também possuir Edição.'}</small>
-          </div>
-        </div>
+        <div class="ide-permissions-grid"><div class="ide-permission-field"><label for="permission-role">Perfil</label>${roleControl}<small>${lockedSuperAdmin ? 'O perfil Super Admin é protegido.' : 'Administrador pode atuar sobre dados de outras pessoas somente nos módulos em que também possuir Edição.'}</small></div></div>
         <div class="ide-permissions-section-heading"><strong>Acessos aos módulos</strong><span>Edição inclui leitura, mas não transforma um Membro em Administrador.</span></div>
-        <div class="ide-permissions-grid">
-          ${MODULES.map(([moduleName, label]) => {
-            const current = normalizeLevel(permissions[moduleName]);
-            return `<div class="ide-permission-field"><label for="permission-${escapeHtml(moduleName)}">${escapeHtml(label)}</label><select id="permission-${escapeHtml(moduleName)}" data-permission-module="${escapeHtml(moduleName)}" data-original="${current}" data-level="${current}" ${editable ? '' : 'disabled'}>${LEVELS.map(([level, text]) => `<option value="${level}" ${current === level ? 'selected' : ''}>${text}</option>`).join('')}</select></div>`;
-          }).join('')}
-        </div>
+        <div class="ide-permissions-grid">${MODULES.map(([moduleName, label]) => { const current = normalizeLevel(permissions[moduleName]); return `<div class="ide-permission-field"><label for="permission-${escapeHtml(moduleName)}">${escapeHtml(label)}</label><select id="permission-${escapeHtml(moduleName)}" data-permission-module="${escapeHtml(moduleName)}" data-original="${current}" data-level="${current}" ${editable ? '' : 'disabled'}>${LEVELS.map(([level, text]) => `<option value="${level}" ${current === level ? 'selected' : ''}>${text}</option>`).join('')}</select></div>`; }).join('')}</div>
         ${editable ? '<footer class="ide-permissions-user__footer"><span>As alterações só serão aplicadas depois da revisão.</span><button id="permissions-save" class="ide-button ide-button--primary" type="button"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Revisar alterações</button></footer>' : ''}
       </article>`;
   }
@@ -170,10 +145,9 @@
     const labels = Object.fromEntries(MODULES);
     const levelLabels = Object.fromEntries(LEVELS);
     const roleLabels = { MEMBER: 'Membro', ADMIN: 'Administrador', SUPER_ADMIN: 'Super Admin' };
-    return `<ul class="ide-permissions-diff">${changes.map(change => {
-      if (change.type === 'ROLE') return `<li><strong>Perfil</strong>: ${escapeHtml(roleLabels[change.before])} → <strong>${escapeHtml(roleLabels[change.after])}</strong></li>`;
-      return `<li><strong>${escapeHtml(labels[change.module])}</strong>: ${escapeHtml(levelLabels[change.before])} → <strong>${escapeHtml(levelLabels[change.after])}</strong></li>`;
-    }).join('')}</ul>`;
+    return `<ul class="ide-permissions-diff">${changes.map(change => change.type === 'ROLE'
+      ? `<li><strong>Perfil</strong>: ${escapeHtml(roleLabels[change.before])} → <strong>${escapeHtml(roleLabels[change.after])}</strong></li>`
+      : `<li><strong>${escapeHtml(labels[change.module])}</strong>: ${escapeHtml(levelLabels[change.before])} → <strong>${escapeHtml(levelLabels[change.after])}</strong></li>`).join('')}</ul>`;
   }
 
   async function persistChanges(db, changes, actor) {
@@ -187,15 +161,10 @@
     let nextRole = normalizeRole(profile.role);
 
     changes.forEach(change => {
-      if (change.type === 'ROLE') {
-        nextRole = change.after;
-        return;
-      }
+      if (change.type === 'ROLE') { nextRole = change.after; return; }
       const ref = db.collection('permissions').doc(`${change.userId}__${change.module}`);
-      if (change.after === 'NONE') {
-        batch.delete(ref);
-        delete snapshotPermissions[change.module];
-      } else {
+      if (change.after === 'NONE') { batch.delete(ref); delete snapshotPermissions[change.module]; }
+      else {
         batch.set(ref, { userId: change.userId, module: change.module, level: change.after, updatedAt: timestamp, updatedBy: actor.uid }, { merge: true });
         snapshotPermissions[change.module] = change.after;
       }
@@ -203,12 +172,8 @@
 
     batch.update(userRef, { role: nextRole, permissions: snapshotPermissions, updatedAt: timestamp });
     batch.set(db.collection('auditLogs').doc(), {
-      actorUserId: actor.uid,
-      action: 'PERMISSIONS_UPDATED',
-      entityType: 'permissions',
-      entityId: userId,
-      details: { changes: changes.map(change => ({ type: change.type, module: change.module || null, before: change.before, after: change.after })) },
-      createdAt: timestamp
+      actorUserId: actor.uid, action: 'PERMISSIONS_UPDATED', entityType: 'permissions', entityId: userId,
+      details: { changes: changes.map(change => ({ type: change.type, module: change.module || null, before: change.before, after: change.after })) }, createdAt: timestamp
     });
     await batch.commit();
   }
@@ -224,7 +189,9 @@
       const actor = scope.currentMusicIdeUser;
       if (!profile || !actor) return;
       const db = scope.firebase.firestore();
+      const loadStartedAt = now();
       const users = await loadUsers(db);
+      reportDuration('performance.permissions.users', loadStartedAt, { users: users.length });
       const editable = isSuperAdmin(profile);
       const requestedId = new URLSearchParams(scope.location.search).get('userId') || '';
       card.classList.add('ide-module-card--wide');
@@ -234,12 +201,16 @@
       renderShell(root, users, requestedId, editable);
 
       const showUser = async userId => {
+        const version = ++selectionVersion;
         const user = users.find(item => item.id === userId) || null;
         if (!user) return renderEditor(root, null, {}, editable);
         root.querySelector('#permissions-status').textContent = 'Carregando permissões…';
+        const startedAt = now();
         const permissions = await loadPermissions(db, userId);
+        if (version !== selectionVersion) return;
         root.querySelector('#permissions-status').textContent = '';
         renderEditor(root, user, permissions, editable);
+        reportDuration('performance.permissions.selection', startedAt, { userId, cached: permissionCache.has(userId) });
         const saveButton = root.querySelector('#permissions-save');
         if (saveButton) saveButton.addEventListener('click', () => {
           const changes = collectChanges(root);
@@ -264,7 +235,9 @@
         const status = root.querySelector('#permissions-status');
         status.textContent = 'Salvando alterações…';
         try {
+          const startedAt = now();
           await persistChanges(db, changes, actor);
+          invalidatePermissions(changes[0].userId);
           const roleSelect = root.querySelector('#permission-role');
           if (roleSelect && !roleSelect.disabled) roleSelect.dataset.originalRole = normalizeRole(roleSelect.value);
           root.querySelectorAll('select[data-permission-module]').forEach(select => { select.dataset.original = normalizeLevel(select.value); });
@@ -272,6 +245,7 @@
           const roleChange = changes.find(change => change.type === 'ROLE');
           if (user && roleChange) user.role = roleChange.after;
           status.textContent = 'Perfil e permissões atualizados com sucesso.';
+          reportDuration('performance.permissions.save', startedAt, { changes: changes.length });
         } catch (error) {
           console.error(error);
           status.textContent = 'Não foi possível salvar o perfil e as permissões.';
