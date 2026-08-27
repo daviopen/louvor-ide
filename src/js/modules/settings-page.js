@@ -12,6 +12,24 @@
     { slug: 'bateria', quantity: 1 },
     { slug: 'teclado', quantity: 1 }
   ]);
+  const ICON_OPTIONS = Object.freeze([
+    ['fa-microphone', 'Microfone'],
+    ['fa-microphone-lines', 'Vocal / Ministro'],
+    ['fa-guitar', 'Guitarra / Violão'],
+    ['fa-drum', 'Bateria / Percussão'],
+    ['fa-music', 'Música'],
+    ['fa-headphones', 'Áudio / Retorno'],
+    ['fa-sliders', 'Técnica / Mesa'],
+    ['fa-user-group', 'Equipe'],
+    ['fa-users', 'Grupo'],
+    ['fa-hands-praying', 'Ministério'],
+    ['fa-star', 'Destaque'],
+    ['fa-circle', 'Genérico']
+  ]);
+  const DEFAULT_ICONS = Object.freeze({
+    'back-vocal': 'fa-microphone', ministro: 'fa-microphone-lines', guitarra: 'fa-guitar', violao: 'fa-guitar',
+    baixo: 'fa-guitar', bateria: 'fa-drum', teclado: 'fa-music', percussao: 'fa-drum'
+  });
   const MAX_QUANTITY = 12;
   const state = { data: null, tab: params.get('tab') === 'functions' ? 'functions' : 'schedule-template', editingFunctionId: null };
   const esc = value => String(value == null ? '' : value).replace(/[&<>'\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '\"': '&quot;' }[c]));
@@ -25,6 +43,16 @@
     return String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
   }
 
+  function normalizeIcon(value, slug) {
+    const requested = String(value || '').trim();
+    if (ICON_OPTIONS.some(([icon]) => icon === requested)) return requested;
+    return DEFAULT_ICONS[slug] || 'fa-user-group';
+  }
+
+  function iconFor(fn) {
+    return normalizeIcon(fn?.icon, fn?.slug);
+  }
+
   function defaultQuantity(fn) {
     const item = DEFAULT_TEMPLATE.find(entry => entry.slug === fn.slug);
     return item ? item.quantity : 0;
@@ -36,6 +64,11 @@
 
   function orderedFunctions(functions, activeOnly = false) {
     return (functions || []).filter(item => !activeOnly || item.active !== false).sort((a, b) => Number(a.order ?? 999) - Number(b.order ?? 999) || String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR'));
+  }
+
+  function iconOptions(selected, slug) {
+    const current = normalizeIcon(selected, slug);
+    return ICON_OPTIONS.map(([value, label]) => `<option value="${esc(value)}" ${value === current ? 'selected' : ''}>${esc(label)}</option>`).join('');
   }
 
   function toast(message, type = 'success') {
@@ -54,7 +87,7 @@
     const style = scope.document.createElement('style');
     style.id = 'settings-template-styles';
     style.textContent = `
-      .settings-page{padding:clamp(1rem,3vw,2rem);max-width:1180px;margin:0 auto}.settings-header{margin-bottom:1.25rem}.settings-header h1{margin:.25rem 0}.settings-header p{margin:0;color:var(--text-secondary);max-width:760px}.settings-layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:1rem;align-items:start}.settings-submenu{display:grid;gap:.4rem;position:sticky;top:1rem}.settings-submenu button{justify-content:flex-start;width:100%}.settings-submenu button.is-active{background:var(--surface-secondary);border-color:var(--border-strong,var(--border))}.settings-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:clamp(1rem,2vw,1.5rem);box-shadow:var(--shadow-sm)}.settings-card__heading{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:1rem}.settings-card__heading h2{margin:.2rem 0}.settings-card__heading p{margin:0;color:var(--text-secondary)}.settings-template-list,.settings-functions-list{display:grid;gap:.65rem}.settings-template-row,.settings-function-row{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:1rem;align-items:center;padding:.85rem 0;border-bottom:1px solid var(--border)}.settings-function-row{grid-template-columns:42px minmax(0,1fr) auto minmax(250px,auto)}.settings-template-row:last-child,.settings-function-row:last-child{border-bottom:0}.settings-template-role{display:flex;gap:.8rem;align-items:center}.settings-template-role i{width:2rem;height:2rem;border-radius:999px;display:grid;place-items:center;background:var(--surface-secondary);color:var(--text-secondary)}.settings-template-role strong,.settings-template-role small,.settings-function-main strong,.settings-function-main small{display:block}.settings-template-role small,.settings-function-main small{color:var(--text-secondary);margin-top:.15rem}.settings-quantity label{display:block;font-size:.78rem;color:var(--text-secondary);margin-bottom:.3rem}.settings-quantity input{text-align:center}.settings-summary{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin:1rem 0 0;color:var(--text-secondary)}.settings-actions,.settings-function-actions,.settings-function-form-actions{display:flex;justify-content:flex-end;gap:.6rem;flex-wrap:wrap}.settings-actions{margin-top:1.25rem}.settings-note{margin-top:1rem;padding:.85rem 1rem;border-radius:var(--radius-md);background:var(--surface-secondary);color:var(--text-secondary)}.settings-function-form{display:grid;grid-template-columns:1fr 1fr auto;gap:.75rem;align-items:end;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}.settings-function-order{width:2rem;height:2rem;border-radius:999px;display:grid;place-items:center;background:var(--surface-secondary);font-weight:700}.settings-toast{position:fixed;right:1rem;bottom:1rem;z-index:10020;padding:.8rem 1rem;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-lg)}.settings-toast[data-type="error"]{border-color:var(--danger)}@media(max-width:800px){.settings-layout{grid-template-columns:1fr}.settings-submenu{position:static;grid-template-columns:1fr 1fr}.settings-function-form{grid-template-columns:1fr}.settings-function-row{grid-template-columns:38px minmax(0,1fr);}.settings-function-row>.ide-badge,.settings-function-actions{grid-column:2}.settings-function-actions{justify-content:flex-start}}@media(max-width:640px){.settings-card__heading{display:block}.settings-template-row{grid-template-columns:1fr}.settings-quantity{max-width:160px}.settings-actions{flex-direction:column}.settings-actions button{width:100%}.settings-submenu{grid-template-columns:1fr}}
+      .settings-page{padding:clamp(1rem,3vw,2rem);max-width:1180px;margin:0 auto}.settings-header{margin-bottom:1.25rem}.settings-header h1{margin:.25rem 0}.settings-header p{margin:0;color:var(--text-secondary);max-width:760px}.settings-layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:1rem;align-items:start}.settings-submenu{display:grid;gap:.4rem;position:sticky;top:1rem}.settings-submenu button{justify-content:flex-start;width:100%}.settings-submenu button.is-active{background:var(--surface-secondary);border-color:var(--border-strong,var(--border))}.settings-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:clamp(1rem,2vw,1.5rem);box-shadow:var(--shadow-sm)}.settings-card__heading{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:1rem}.settings-card__heading h2{margin:.2rem 0}.settings-card__heading p{margin:0;color:var(--text-secondary)}.settings-template-list,.settings-functions-list{display:grid;gap:.65rem}.settings-template-row,.settings-function-row{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:1rem;align-items:center;padding:.85rem 0;border-bottom:1px solid var(--border)}.settings-function-row{grid-template-columns:42px 42px minmax(0,1fr) auto minmax(250px,auto)}.settings-template-row:last-child,.settings-function-row:last-child{border-bottom:0}.settings-template-role,.settings-function-icon{display:flex;gap:.8rem;align-items:center}.settings-template-role i,.settings-function-icon i,.settings-icon-preview{width:2rem;height:2rem;border-radius:999px;display:grid;place-items:center;background:var(--surface-secondary);color:var(--text-secondary)}.settings-template-role strong,.settings-template-role small,.settings-function-main strong,.settings-function-main small{display:block}.settings-template-role small,.settings-function-main small{color:var(--text-secondary);margin-top:.15rem}.settings-quantity label{display:block;font-size:.78rem;color:var(--text-secondary);margin-bottom:.3rem}.settings-quantity input{text-align:center}.settings-summary{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin:1rem 0 0;color:var(--text-secondary)}.settings-actions,.settings-function-actions,.settings-function-form-actions{display:flex;justify-content:flex-end;gap:.6rem;flex-wrap:wrap}.settings-actions{margin-top:1.25rem}.settings-note{margin-top:1rem;padding:.85rem 1rem;border-radius:var(--radius-md);background:var(--surface-secondary);color:var(--text-secondary)}.settings-function-form{display:grid;grid-template-columns:1fr 1fr minmax(190px,.8fr) auto;gap:.75rem;align-items:end;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}.settings-function-order{width:2rem;height:2rem;border-radius:999px;display:grid;place-items:center;background:var(--surface-secondary);font-weight:700}.settings-icon-field{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.5rem;align-items:center}.settings-toast{position:fixed;right:1rem;bottom:1rem;z-index:10020;padding:.8rem 1rem;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-lg)}.settings-toast[data-type="error"]{border-color:var(--danger)}@media(max-width:900px){.settings-function-form{grid-template-columns:1fr 1fr}.settings-function-form-actions{grid-column:1/-1}.settings-function-row{grid-template-columns:38px 38px minmax(0,1fr)}.settings-function-row>.ide-badge,.settings-function-actions{grid-column:3}.settings-function-actions{justify-content:flex-start}}@media(max-width:800px){.settings-layout{grid-template-columns:1fr}.settings-submenu{position:static;grid-template-columns:1fr 1fr}.settings-function-form{grid-template-columns:1fr}.settings-function-form-actions{grid-column:auto}}@media(max-width:640px){.settings-card__heading{display:block}.settings-template-row{grid-template-columns:1fr}.settings-quantity{max-width:160px}.settings-actions{flex-direction:column}.settings-actions button{width:100%}.settings-submenu{grid-template-columns:1fr}.settings-function-row{grid-template-columns:34px 34px minmax(0,1fr)}.settings-function-actions{gap:.4rem}}
     `;
     scope.document.head.appendChild(style);
   }
@@ -71,7 +104,7 @@
   }
 
   function renderShell(root) {
-    root.innerHTML = `<div class="settings-page"><header class="settings-header"><div class="ide-module-kicker">Administração · Configurações</div><h1>Configurações</h1><p>Parametrize estruturas administrativas utilizadas pelo IDE Music.</p></header><div class="settings-layout"><nav class="settings-submenu" aria-label="Submenu de configurações"><button class="ide-button ide-button--secondary" data-settings-tab="schedule-template" type="button"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Template de escala</button><button class="ide-button ide-button--secondary" data-settings-tab="functions" type="button"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Funções ministeriais</button></nav><div id="settings-content"></div></div></div>`;
+    root.innerHTML = `<div class="settings-page"><header class="settings-header"><div class="ide-module-kicker">Administração · Configurações</div><h1>Configurações</h1><p>Parametrize estruturas administrativas utilizadas pelo IDE Music.</p></header><div class="settings-layout"><nav class="settings-submenu" aria-label="Submenu de configurações"><button class="ide-button ide-button--secondary" data-settings-tab="schedule-template" type="button"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Template de Escala</button><button class="ide-button ide-button--secondary" data-settings-tab="functions" type="button"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Funções Ministeriais</button></nav><div id="settings-content"></div></div></div>`;
     root.querySelectorAll('[data-settings-tab]').forEach(button => button.addEventListener('click', () => setTab(button.dataset.settingsTab)));
     renderCurrentTab();
   }
@@ -97,7 +130,7 @@
     const configured = templateMap(state.data.template);
     const rows = functions.map(fn => {
       const quantity = configured.has(String(fn.id)) ? configured.get(String(fn.id)) : defaultQuantity(fn);
-      return `<div class="settings-template-row"><div class="settings-template-role"><i class="fa-solid fa-user-group" aria-hidden="true"></i><div><strong>${esc(fn.name || fn.slug || 'Função')}</strong><small>${quantity > 0 ? 'Incluída no template' : 'Fora do template'}</small></div></div><div class="settings-quantity"><label for="template-${esc(fn.id)}">Quantidade</label><input id="template-${esc(fn.id)}" class="ide-field__control ide-field__input" data-template-quantity data-function-id="${esc(fn.id)}" type="number" min="0" max="${MAX_QUANTITY}" step="1" value="${quantity}"></div></div>`;
+      return `<div class="settings-template-row"><div class="settings-template-role"><i class="fa-solid ${esc(iconFor(fn))}" aria-hidden="true"></i><div><strong>${esc(fn.name || fn.slug || 'Função')}</strong><small>${quantity > 0 ? 'Incluída no template' : 'Fora do template'}</small></div></div><div class="settings-quantity"><label for="template-${esc(fn.id)}">Quantidade</label><input id="template-${esc(fn.id)}" class="ide-field__control ide-field__input" data-template-quantity data-function-id="${esc(fn.id)}" type="number" min="0" max="${MAX_QUANTITY}" step="1" value="${quantity}"></div></div>`;
     }).join('');
     content.innerHTML = `<section class="settings-card" aria-labelledby="schedule-template-title"><div class="settings-card__heading"><div><span class="ide-module-kicker">Escalas</span><h2 id="schedule-template-title">Template padrão de escala</h2><p>Defina as funções e o número de posições criadas automaticamente em cada nova escala. Quantidade 0 exclui a função do template.</p></div></div><div class="settings-template-list">${rows || '<div class="ide-empty-state"><strong>Nenhuma função ativa</strong><span>Ative ou cadastre uma função ministerial no submenu correspondente.</span></div>'}</div><div class="settings-summary"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span id="settings-template-summary"></span></div><div class="settings-note"><strong>Importante:</strong> alterações são aplicadas somente às novas escalas. Escalas já existentes permanecem como estão.</div><div class="settings-actions"><button id="settings-template-reset" class="ide-button ide-button--secondary" type="button">Restaurar padrão</button><button id="settings-template-save" class="ide-button ide-button--primary" type="button"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Salvar template</button></div></section>`;
     updateSummary();
@@ -139,10 +172,15 @@
     const content = scope.document.getElementById('settings-content');
     const functions = orderedFunctions(state.data.functions);
     const editing = functions.find(item => item.id === state.editingFunctionId) || null;
-    const rows = functions.map((fn, index) => `<div class="settings-function-row"><div class="settings-function-order">${index + 1}</div><div class="settings-function-main"><strong>${esc(fn.name)}</strong><small>${esc(fn.slug)}</small></div><span class="ide-badge ${fn.active === false ? 'ide-badge--neutral' : 'ide-badge--success'}">${fn.active === false ? 'Inativa' : 'Ativa'}</span><div class="settings-function-actions"><button class="ide-button ide-button--secondary ide-button--sm" data-function-action="up" data-id="${esc(fn.id)}" type="button" ${index === 0 ? 'disabled' : ''} aria-label="Mover para cima"><i class="fa-solid fa-arrow-up"></i></button><button class="ide-button ide-button--secondary ide-button--sm" data-function-action="down" data-id="${esc(fn.id)}" type="button" ${index === functions.length - 1 ? 'disabled' : ''} aria-label="Mover para baixo"><i class="fa-solid fa-arrow-down"></i></button><button class="ide-button ide-button--secondary ide-button--sm" data-function-action="edit" data-id="${esc(fn.id)}" type="button">Editar</button><button class="ide-button ${fn.active === false ? 'ide-button--primary' : 'ide-button--danger'} ide-button--sm" data-function-action="status" data-id="${esc(fn.id)}" data-active="${fn.active === false ? 'true' : 'false'}" type="button">${fn.active === false ? 'Reativar' : 'Inativar'}</button></div></div>`).join('');
-    content.innerHTML = `<section class="settings-card" aria-labelledby="functions-title"><div class="settings-card__heading"><div><span class="ide-module-kicker">Cadastros administrativos</span><h2 id="functions-title">Funções ministeriais</h2><p>Gerencie o catálogo de funções usado no cadastro de pessoas, filtros e templates de escala.</p></div></div><form id="settings-function-form" class="settings-function-form"><label><span class="ide-field__label">Nome da função</span><input id="settings-function-name" class="ide-field__control ide-field__input" maxlength="80" required value="${esc(editing?.name || '')}" placeholder="Ex.: Percussão"></label><label><span class="ide-field__label">Identificador</span><input id="settings-function-slug" class="ide-field__control ide-field__input" maxlength="80" value="${esc(editing?.slug || '')}" placeholder="Gerado a partir do nome"></label><div class="settings-function-form-actions">${editing ? '<button id="settings-function-cancel" class="ide-button ide-button--ghost" type="button">Cancelar</button>' : ''}<button class="ide-button ide-button--primary" type="submit">${editing ? 'Salvar alterações' : 'Adicionar função'}</button></div></form>${rows ? `<div class="settings-functions-list">${rows}</div>` : '<div class="ide-empty-state"><strong>Nenhuma função ministerial</strong><span>Cadastre a primeira função acima.</span></div>'}<div class="settings-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> A ordem definida aqui também é usada nas escalas e seletores. Inativar preserva os vínculos históricos.</div></section>`;
+    const rows = functions.map((fn, index) => `<div class="settings-function-row"><div class="settings-function-order">${index + 1}</div><div class="settings-function-icon" title="Ícone da função"><i class="fa-solid ${esc(iconFor(fn))}" aria-hidden="true"></i></div><div class="settings-function-main"><strong>${esc(fn.name)}</strong><small>${esc(fn.slug)}</small></div><span class="ide-badge ${fn.active === false ? 'ide-badge--neutral' : 'ide-badge--success'}">${fn.active === false ? 'Inativa' : 'Ativa'}</span><div class="settings-function-actions"><button class="ide-button ide-button--secondary ide-button--sm" data-function-action="up" data-id="${esc(fn.id)}" type="button" ${index === 0 ? 'disabled' : ''} aria-label="Mover para cima"><i class="fa-solid fa-arrow-up"></i></button><button class="ide-button ide-button--secondary ide-button--sm" data-function-action="down" data-id="${esc(fn.id)}" type="button" ${index === functions.length - 1 ? 'disabled' : ''} aria-label="Mover para baixo"><i class="fa-solid fa-arrow-down"></i></button><button class="ide-button ide-button--secondary ide-button--sm" data-function-action="edit" data-id="${esc(fn.id)}" type="button"><i class="fa-solid fa-pen" aria-hidden="true"></i> Editar</button><button class="ide-button ${fn.active === false ? 'ide-button--primary' : 'ide-button--danger'} ide-button--sm" data-function-action="status" data-id="${esc(fn.id)}" data-active="${fn.active === false ? 'true' : 'false'}" type="button">${fn.active === false ? 'Reativar' : 'Inativar'}</button></div></div>`).join('');
+    const selectedIcon = iconFor(editing || { slug: '' });
+    content.innerHTML = `<section class="settings-card" aria-labelledby="functions-title"><div class="settings-card__heading"><div><span class="ide-module-kicker">Cadastros administrativos</span><h2 id="functions-title">Funções Ministeriais</h2><p>Gerencie nome, identificador, ícone, ordem e status das funções usadas no cadastro de pessoas, filtros e templates de escala.</p></div></div><form id="settings-function-form" class="settings-function-form"><label><span class="ide-field__label">Nome da função</span><input id="settings-function-name" class="ide-field__control ide-field__input" maxlength="80" required value="${esc(editing?.name || '')}" placeholder="Ex.: Percussão"></label><label><span class="ide-field__label">Identificador</span><input id="settings-function-slug" class="ide-field__control ide-field__input" maxlength="80" value="${esc(editing?.slug || '')}" placeholder="Gerado a partir do nome"></label><label><span class="ide-field__label">Ícone</span><span class="settings-icon-field"><i id="settings-function-icon-preview" class="fa-solid ${esc(selectedIcon)} settings-icon-preview" aria-hidden="true"></i><select id="settings-function-icon" class="ide-field__control ide-select" aria-label="Ícone da função">${iconOptions(editing?.icon, editing?.slug)}</select></span></label><div class="settings-function-form-actions">${editing ? '<button id="settings-function-cancel" class="ide-button ide-button--ghost" type="button">Cancelar</button>' : ''}<button class="ide-button ide-button--primary" type="submit">${editing ? 'Salvar alterações' : 'Adicionar função'}</button></div></form>${rows ? `<div class="settings-functions-list">${rows}</div>` : '<div class="ide-empty-state"><strong>Nenhuma função ministerial</strong><span>Cadastre a primeira função acima.</span></div>'}<div class="settings-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> O ícone definido aqui acompanha a função no Template de Escala. A ordem também é usada nas escalas e seletores; inativar preserva os vínculos históricos.</div></section>`;
     content.querySelector('#settings-function-form').addEventListener('submit', submitFunction);
     content.querySelector('#settings-function-cancel')?.addEventListener('click', () => { state.editingFunctionId = null; renderFunctionsTab(); });
+    content.querySelector('#settings-function-icon')?.addEventListener('change', event => {
+      const preview = content.querySelector('#settings-function-icon-preview');
+      if (preview) preview.className = `fa-solid ${normalizeIcon(event.target.value)} settings-icon-preview`;
+    });
     content.querySelectorAll('[data-function-action]').forEach(button => button.addEventListener('click', handleFunctionAction));
   }
 
@@ -156,6 +194,7 @@
     const name = scope.document.getElementById('settings-function-name').value.trim();
     const requestedSlug = scope.document.getElementById('settings-function-slug').value.trim();
     const slug = normalizeSlug(requestedSlug || name);
+    const icon = normalizeIcon(scope.document.getElementById('settings-function-icon')?.value, slug);
     if (!name) return toast('Informe o nome da função.', 'error');
     if (!slug) return toast('Não foi possível gerar um identificador válido.', 'error');
     const duplicate = state.data.functions.find(fn => fn.slug === slug && fn.id !== state.editingFunctionId);
@@ -164,14 +203,14 @@
       const db = scope.firebase.firestore(); const actorUserId = scope.currentMusicIdeUser?.uid || scope.currentMusicIdeUser?.id; const now = scope.firebase.firestore.FieldValue.serverTimestamp();
       if (state.editingFunctionId) {
         const current = state.data.functions.find(fn => fn.id === state.editingFunctionId);
-        await db.collection('ministryFunctions').doc(state.editingFunctionId).set({ name, slug, order: Number(current?.order || 10), active: current?.active !== false, updatedBy: actorUserId, updatedAt: now }, { merge: true });
-        await auditFunction('MINISTRY_FUNCTION_UPDATED', state.editingFunctionId, { name, slug });
+        await db.collection('ministryFunctions').doc(state.editingFunctionId).set({ name, slug, icon, order: Number(current?.order || 10), active: current?.active !== false, updatedBy: actorUserId, updatedAt: now }, { merge: true });
+        await auditFunction('MINISTRY_FUNCTION_UPDATED', state.editingFunctionId, { name, slug, icon });
         toast('Função ministerial atualizada.');
       } else {
         const maxOrder = state.data.functions.reduce((max, item) => Math.max(max, Number(item.order) || 0), 0);
         const ref = db.collection('ministryFunctions').doc();
-        await ref.set({ name, slug, order: maxOrder + 10, active: true, createdBy: actorUserId, updatedBy: actorUserId, createdAt: now, updatedAt: now });
-        await auditFunction('MINISTRY_FUNCTION_CREATED', ref.id, { name, slug, order: maxOrder + 10 });
+        await ref.set({ name, slug, icon, order: maxOrder + 10, active: true, createdBy: actorUserId, updatedBy: actorUserId, createdAt: now, updatedAt: now });
+        await auditFunction('MINISTRY_FUNCTION_CREATED', ref.id, { name, slug, icon, order: maxOrder + 10 });
         toast('Função ministerial adicionada.');
       }
       state.editingFunctionId = null; state.data = await loadData(); renderFunctionsTab();
