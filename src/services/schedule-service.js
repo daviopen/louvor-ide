@@ -122,37 +122,57 @@
       const schedule = await this.repository.getSchedule(scheduleId);
       if (!schedule) throw new Error('Escala não encontrada.');
       const members = await this.repository.listMembers(scheduleId);
-      for (const member of members.filter(item => item.slotId === slotId)) await this.repository.removeMember(member.id, this.actorId(user));
+      await Promise.all(members.filter(item => item.slotId === slotId).map(member => this.repository.removeMember(member.id, this.actorId(user))));
       const slots = (schedule.slots || []).filter(item => item.id !== slotId);
       await this.repository.updateSchedule(scheduleId, { slots, status: 'DRAFT' }, this.actorId(user));
       await this.repository.addAuditLog(this.actorId(user), 'SCHEDULE_SLOT_REMOVED', scheduleId, { slotId });
     }
 
+    async loadAssignmentContext(scheduleId, userId) {
+      const schedule = await this.repository.getSchedule(scheduleId);
+      if (!schedule) throw new Error('Escala não encontrada.');
+      const [members, event, selectedUser, userFunctions, unavailability] = await Promise.all([
+        this.repository.listMembers(scheduleId),
+        this.repository.getEvent(schedule.eventId),
+        this.repository.getUser(userId),
+        this.repository.listUserFunctionsForUser(userId),
+        this.repository.listUnavailabilityForUser(userId)
+      ]);
+      return { schedule, members, event, selectedUser, userFunctions, unavailability };
+    }
+
     async assign(scheduleId, slotId, userId, user, profile = null, options = {}) {
       const access = await this.resolveAccess(user, profile);
       if (!access.canEdit) throw new Error('Você não possui permissão para editar escalas.');
-      const [schedule, context] = await Promise.all([this.repository.getSchedule(scheduleId), this.load(user, profile)]);
-      if (!schedule) throw new Error('Escala não encontrada.');
-      const fullSchedule = context.schedules.find(item => item.id === scheduleId) || { ...schedule, members: [] };
+
+      // A validação de edição é feita com leituras direcionadas ao registro que
+      // está sendo alterado. Evita recarregar todas as escalas e catálogos em
+      // cada troca de integrante, sem confiar em estado antigo da tela.
+      const assignment = await this.loadAssignmentContext(scheduleId, userId);
+      const { schedule, members, event, selectedUser, userFunctions, unavailability } = assignment;
       const slot = (schedule.slots || []).find(item => item.id === slotId);
       if (!slot) throw new Error('Função/posição não encontrada na escala.');
-      const event = fullSchedule.event || await this.repository.getEvent(schedule.eventId);
-      const selectedUser = context.users.find(item => (item.id || item.uid) === userId);
       if (!selectedUser || selectedUser.active === false) throw new Error('Usuário inativo ou inexistente.');
-      const hasFunction = context.userFunctions.some(item => item.active !== false && item.functionId === slot.functionId && item.userId === userId);
+      const hasFunction = userFunctions.some(item => item.active !== false && item.functionId === slot.functionId && item.userId === userId);
       if (!hasFunction) throw new Error('O usuário selecionado não possui esta função ministerial.');
-      const conflict = this.userConflict(userId, slot.functionId, fullSchedule, event, context);
+
+      const fullSchedule = { ...schedule, members };
+      const conflict = this.userConflict(userId, slot.functionId, fullSchedule, event, { unavailability });
       if (conflict.duplicateFunction) throw new Error('Este usuário já está escalado nesta mesma função.');
       if (conflict.unavailable && !options.override) throw new Error('Usuário indisponível para este evento. Confirme uma exceção administrativa para continuar.');
       if (conflict.unavailable && options.override && !String(options.reason || '').trim()) throw new Error('Informe o motivo da exceção administrativa.');
-      const existing = fullSchedule.members.find(item => item.slotId === slotId && item.active !== false);
+
+      const existing = members.find(item => item.slotId === slotId && item.active !== false);
       if (existing) await this.repository.removeMember(existing.id, this.actorId(user));
       const member = await this.repository.createMember({
         scheduleId, slotId, userId, functionId: slot.functionId,
         exception: conflict.unavailable ? { override: true, reason: String(options.reason).trim() } : null
       }, this.actorId(user));
-      const members = (await this.repository.listMembers(scheduleId));
-      const completeness = scheduleCompleteness(schedule, members);
+
+      const nextMembers = members
+        .filter(item => item.active !== false && item.id !== existing?.id)
+        .concat(member);
+      const completeness = scheduleCompleteness(schedule, nextMembers);
       await this.repository.updateSchedule(scheduleId, { status: completeness.complete ? 'COMPLETE' : 'DRAFT' }, this.actorId(user));
       await this.repository.addAuditLog(this.actorId(user), conflict.unavailable ? 'SCHEDULE_MEMBER_OVERRIDE_ASSIGNED' : 'SCHEDULE_MEMBER_ASSIGNED', scheduleId, {
         memberId: member.id, slotId, userId, functionId: slot.functionId, reason: options.reason || null
