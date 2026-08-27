@@ -72,6 +72,20 @@
     return { complete: missingSlotIds.length === 0, filled: slots.length - missingSlotIds.length, total: slots.length, missingSlotIds };
   }
 
+  function sortSlotsByFunction(slots, functions) {
+    const order = new Map((functions || []).map((item, index) => [String(item.id), index]));
+    return [...(Array.isArray(slots) ? slots : [])]
+      .map((slot, index) => ({ slot, index }))
+      .sort((left, right) => {
+        const leftOrder = order.has(String(left.slot.functionId)) ? order.get(String(left.slot.functionId)) : Number.MAX_SAFE_INTEGER;
+        const rightOrder = order.has(String(right.slot.functionId)) ? order.get(String(right.slot.functionId)) : Number.MAX_SAFE_INTEGER;
+        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+        const byFunction = String(left.slot.functionId || '').localeCompare(String(right.slot.functionId || ''), 'pt-BR');
+        return byFunction || left.index - right.index;
+      })
+      .map(item => item.slot);
+  }
+
   class ScheduleService {
     constructor(repository) {
       if (!repository) throw new Error('ScheduleRepository é obrigatório.');
@@ -123,9 +137,10 @@
         this.repository.listUserFunctions(), this.repository.listUnavailability()
       ]);
       const activeMembers = members.filter(item => item.active !== false);
+      const orderedSchedule = { ...schedule, slots: sortSlotsByFunction(schedule.slots, functions) };
       return {
         access,
-        schedules: [{ ...schedule, event: event || null, members: activeMembers, completeness: scheduleCompleteness(schedule, activeMembers) }],
+        schedules: [{ ...orderedSchedule, event: event || null, members: activeMembers, completeness: scheduleCompleteness(orderedSchedule, activeMembers) }],
         users, functions, userFunctions, unavailability
       };
     }
@@ -223,5 +238,5 @@
     }
   }
 
-  return Object.freeze({ ScheduleService, dateKey, periodForTime, dateMatchesUnavailability, unavailabilityMatches, scheduleCompleteness });
+  return Object.freeze({ ScheduleService, dateKey, periodForTime, dateMatchesUnavailability, unavailabilityMatches, scheduleCompleteness, sortSlotsByFunction });
 });
