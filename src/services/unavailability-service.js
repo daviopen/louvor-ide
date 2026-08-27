@@ -8,6 +8,8 @@
 })(typeof window !== 'undefined' ? window : null, function createModule() {
   const PERIODS = Object.freeze(['MORNING', 'AFTERNOON', 'EVENING']);
   const PERIOD_LABELS = Object.freeze({ MORNING: 'Manhã', AFTERNOON: 'Tarde', EVENING: 'Noite' });
+  const WEEKDAY_LABELS = Object.freeze(['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']);
+  const OPEN_ENDED_DATE = '2099-12-31';
 
   function toDate(value) {
     if (!value) return null;
@@ -49,6 +51,24 @@
     return normalized;
   }
 
+  function normalizeWeekdays(values) {
+    const source = Array.isArray(values) ? values : [];
+    const weekdays = [...new Set(source.map(Number))].sort((a, b) => a - b);
+    if (weekdays.some(value => !Number.isInteger(value) || value < 0 || value > 6)) {
+      throw new Error('Dia da semana inválido.');
+    }
+    return weekdays;
+  }
+
+  function normalizeRecurrence(value) {
+    if (!value) return null;
+    const frequency = String(value.frequency || 'WEEKLY').toUpperCase();
+    if (frequency !== 'WEEKLY') throw new Error('Recorrência inválida.');
+    const weekdays = normalizeWeekdays(value.weekdays);
+    if (!weekdays.length) throw new Error('Selecione pelo menos um dia da semana para a recorrência.');
+    return { frequency: 'WEEKLY', weekdays, openEnded: value.openEnded !== false };
+  }
+
   function periodFromTime(value) {
     if (!value) return null;
     if (/^\d{2}:\d{2}$/.test(String(value))) {
@@ -76,6 +96,16 @@
     return { start, end };
   }
 
+  function buildRecordRange(startValue, endValue, recurrence, now = new Date()) {
+    const normalizedRecurrence = normalizeRecurrence(recurrence);
+    if (!normalizedRecurrence) return { ...validateDateRange(startValue, endValue, now), recurrence: null };
+    const start = validateDate(startValue, now);
+    const openEnded = !endValue || recurrence.openEnded === true;
+    const end = endOfDay(openEnded ? OPEN_ENDED_DATE : endValue);
+    if (!end || end < start) throw new Error('A data de fim não pode ser anterior à data de início.');
+    return { start, end, recurrence: { ...normalizedRecurrence, openEnded } };
+  }
+
   function isFutureRecord(record, now = new Date()) {
     const end = toDate(record && record.endAt) || endOfDay(record && record.date);
     return Boolean(end && end.getTime() >= now.getTime());
@@ -89,7 +119,10 @@
     const start = startOfDay(record && record.date);
     const end = endOfDay((record && record.endAt) || (record && record.date));
     const target = startOfDay(value);
-    return Boolean(start && end && target && target >= start && target <= end);
+    if (!(start && end && target && target >= start && target <= end)) return false;
+    const recurrence = record && record.recurrence ? normalizeRecurrence(record.recurrence) : null;
+    if (!recurrence) return true;
+    return recurrence.weekdays.includes(target.getDay());
   }
 
   function periodConflicts(recordPeriod, contextPeriodOrTime) {
@@ -188,11 +221,12 @@
       const access = options.access || await this.resolveAccess(actor, profile);
       const userId = String(input.userId || id);
       if (userId !== id && !access.canManageOthers) throw new Error('Somente um administrador autorizado pode registrar indisponibilidade para outra pessoa.');
-      const range = validateDateRange(input.date, input.endDate, this.clock());
+      const range = buildRecordRange(input.date, input.endDate, input.recurrence, this.clock());
       const document = {
         userId,
         date: range.start,
         endAt: range.end,
+        recurrence: range.recurrence,
         period: normalizePeriod(input.period),
         eventId: input.eventId ? String(input.eventId) : null,
         note: sanitizeNote(input.note),
@@ -212,13 +246,16 @@
       if (!isFutureRecord(current, this.clock())) throw new Error('Somente indisponibilidades futuras podem ser editadas.');
       if (current.userId !== id && !access.canManageOthers) throw new Error('Você não pode editar a indisponibilidade de outra pessoa.');
       const startInput = input.date || current.date;
+      const recurrenceInput = Object.prototype.hasOwnProperty.call(input, 'recurrence') ? input.recurrence : current.recurrence;
+      const currentOpenEnded = Boolean(current.recurrence && current.recurrence.openEnded);
       const endInput = Object.prototype.hasOwnProperty.call(input, 'endDate')
         ? input.endDate
-        : (input.date ? null : current.endAt);
-      const range = validateDateRange(startInput, endInput, this.clock());
+        : (input.date || currentOpenEnded ? null : current.endAt);
+      const range = buildRecordRange(startInput, endInput, recurrenceInput, this.clock());
       const patch = {
         date: range.start,
         endAt: range.end,
+        recurrence: range.recurrence,
         period: normalizePeriod(input.period),
         eventId: input.eventId ? String(input.eventId) : null,
         note: sanitizeNote(input.note),
@@ -249,7 +286,10 @@
       const conflicts = await this.checkAvailability(userId, context);
       if (!conflicts.length) return { available: true, conflicts: [] };
       if (!options.overrideConfirmed) {
-        const error = new Error('A pessoa está indisponível para esta data, período ou evento.');
+        const recurring = conflicts.some(item => item.recurrence && item.recurrence.frequency === 'WEEKLY');
+        const error = new Error(recurring
+          ? 'A pessoa possui indisponibilidade recorrente para este dia, período ou evento.'
+          : 'A pessoa está indisponível para esta data, período ou evento.');
         error.code = 'UNAVAILABILITY_CONFLICT';
         error.conflicts = conflicts;
         throw error;
@@ -272,11 +312,14 @@
 
     async audit(id, action, entityId, record, administrative) {
       if (typeof this.repository.addAuditLog !== 'function') return null;
+      const recurrence = record.recurrence ? normalizeRecurrence(record.recurrence) : null;
       return this.repository.addAuditLog(id, action, entityId, {
         targetUserId: record.userId,
         date: dateKey(record.date),
         startDate: dateKey(record.date),
-        endDate: dateKey(record.endAt || record.date),
+        endDate: recurrence && recurrence.openEnded ? null : dateKey(record.endAt || record.date),
+        recurrence: recurrence ? recurrence.frequency : null,
+        weekdays: recurrence ? recurrence.weekdays : [],
         period: record.period || null,
         eventId: record.eventId || null,
         administrative: Boolean(administrative)
@@ -287,15 +330,20 @@
   return Object.freeze({
     PERIODS,
     PERIOD_LABELS,
+    WEEKDAY_LABELS,
+    OPEN_ENDED_DATE,
     UnavailabilityService,
     toDate,
     startOfDay,
     endOfDay,
     dateKey,
     normalizePeriod,
+    normalizeWeekdays,
+    normalizeRecurrence,
     periodFromTime,
     validateDate,
     validateDateRange,
+    buildRecordRange,
     isFutureRecord,
     sameDate,
     dateInRange,
