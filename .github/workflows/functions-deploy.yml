@@ -36,7 +36,7 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
 
       - name: 🚀 Publicar updateUserIdentity
-        run: npx firebase-tools@13.35.1 deploy --only functions:updateUserIdentity --project louvor-ide --non-interactive
+        run: npx firebase-tools@latest deploy --only functions:updateUserIdentity --project louvor-ide --non-interactive
 
       - name: ✅ Confirmar backend publicado
         run: echo '✅ Backend de sincronização de identidade publicado com Firebase Admin SDK.'
