@@ -35,6 +35,21 @@
     if(photo) return `<span class="${className}"><img src="${esc(photo)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>`;
     return `<span class="${className}" aria-hidden="true">${userInitials(user)}</span>`;
   }
+  function slotFunctionLabel(schedule, slot) {
+    const slots=Array.isArray(schedule?.slots)?schedule.slots:[];
+    const matches=slots.filter(item=>item.functionId===slot.functionId);
+    const base=functionName(slot.functionId);
+    if(matches.length<=1)return base;
+    const position=matches.findIndex(item=>item.id===slot.id)+1;
+    return `${base} ${position > 0 ? position : 1}`;
+  }
+  function functionColorIndex(functionId) {
+    const index=state.data.functions.findIndex(item=>item.id===functionId);
+    return ((index < 0 ? 0 : index) % 8) + 1;
+  }
+  function renderFunctionDot(functionId) {
+    return `<span class="schedule-function-dot schedule-function-dot--${functionColorIndex(functionId)}" aria-hidden="true"></span>`;
+  }
 
   function matchesFilters(schedule) {
     const event=scheduleEvent(schedule), f=state.filters, term=f.term.trim().toLocaleLowerCase('pt-BR');
@@ -81,9 +96,11 @@
     const currentEligible=current&&eligible.some(user=>userId(user)===member.userId);
     const options=current&&!currentEligible?[current,...eligible]:eligible;
     const uniqueOptions=[...new Map(options.map(user=>[userId(user),user])).values()];
+    const roleLabel=slotFunctionLabel(schedule,slot);
+    const roleDot=renderFunctionDot(slot.functionId);
     const avatar=current?renderAvatar(current):'<span class="schedule-avatar schedule-avatar--empty" aria-hidden="true"><i class="fa-solid fa-user-plus"></i></span>';
-    const personControl=state.data.access.canEdit?`<div class="schedule-person-picker"><button class="schedule-person-trigger" type="button" data-action="toggle-person" aria-expanded="false"><span class="schedule-person-trigger__content">${current?renderAvatar(current,'schedule-person-trigger__avatar'):'<span class="schedule-person-trigger__avatar schedule-avatar--empty" aria-hidden="true"><i class="fa-solid fa-user-plus"></i></span>'}<span><small>${member?'Pessoa escalada':'Selecionar pessoa'}</small><strong>${current?esc(current.name||current.email):'Escolher integrante'}</strong></span></span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button><div class="schedule-person-options" data-person-options hidden><div class="schedule-person-options__header"><strong>${esc(functionName(slot.functionId))}</strong><small>${uniqueOptions.length} pessoa${uniqueOptions.length===1?'':'s'} disponível${uniqueOptions.length===1?'':'is'}</small></div>${uniqueOptions.length?uniqueOptions.map(user=>renderPersonOption(user,member?.userId)).join(''):'<div class="schedule-person-options__empty">Nenhuma pessoa disponível para esta função.</div>'}</div></div>`:`<div class="schedule-person-readonly">${current?renderAvatar(current,'schedule-person-trigger__avatar'):''}<strong>${current?esc(current.name||current.email):'Nenhuma pessoa definida'}</strong></div>`;
-    return `<article class="schedule-slot" data-slot-id="${esc(slot.id)}"><div class="schedule-slot__identity">${avatar}<div><span class="schedule-slot__label">Função</span><strong>${esc(functionName(slot.functionId))}</strong><span>${member?'Posição preenchida':'Aguardando pessoa'}</span></div></div><div class="schedule-slot__controls">${personControl}<div class="schedule-slot__actions">${member&&state.data.access.canEdit?`<button class="ide-button ide-button--secondary ide-button--sm" data-action="remove-member" data-member-id="${esc(member.id)}" type="button"><i class="fa-solid fa-user-minus" aria-hidden="true"></i> Remover pessoa</button>`:''}${state.data.access.canEdit?'<button class="ide-button ide-button--ghost ide-button--sm schedule-remove-slot" data-action="remove-slot" type="button" aria-label="Remover função"><i class="fa-solid fa-trash-can" aria-hidden="true"></i><span>Remover função</span></button>':''}</div></div></article>`;
+    const personControl=state.data.access.canEdit?`<div class="schedule-person-picker"><button class="schedule-person-trigger" type="button" data-action="toggle-person" aria-expanded="false"><span class="schedule-person-trigger__content">${current?renderAvatar(current,'schedule-person-trigger__avatar'):'<span class="schedule-person-trigger__avatar schedule-avatar--empty" aria-hidden="true"><i class="fa-solid fa-user-plus"></i></span>'}<span><small>${member?'Pessoa escalada':'Selecionar pessoa'}</small><strong>${current?esc(current.name||current.email):'Escolher integrante'}</strong></span></span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button><div class="schedule-person-options" data-person-options hidden><div class="schedule-person-options__header"><strong><span class="schedule-function-name">${roleDot}${esc(roleLabel)}</span></strong><small>${uniqueOptions.length} pessoa${uniqueOptions.length===1?'':'s'} disponível${uniqueOptions.length===1?'':'is'}</small></div>${uniqueOptions.length?uniqueOptions.map(user=>renderPersonOption(user,member?.userId)).join(''):'<div class="schedule-person-options__empty">Nenhuma pessoa disponível para esta função.</div>'}</div></div>`:`<div class="schedule-person-readonly">${current?renderAvatar(current,'schedule-person-trigger__avatar'):''}<strong>${current?esc(current.name||current.email):'Nenhuma pessoa definida'}</strong></div>`;
+    return `<article class="schedule-slot" data-slot-id="${esc(slot.id)}"><div class="schedule-slot__identity">${avatar}<div><span class="schedule-slot__label">Função</span><strong class="schedule-function-name">${roleDot}${esc(roleLabel)}</strong><span>${member?'Posição preenchida':'Aguardando pessoa'}</span></div></div><div class="schedule-slot__controls">${personControl}<div class="schedule-slot__actions">${member&&state.data.access.canEdit?`<button class="ide-button ide-button--secondary ide-button--sm" data-action="remove-member" data-member-id="${esc(member.id)}" type="button"><i class="fa-solid fa-user-minus" aria-hidden="true"></i> Remover pessoa</button>`:''}${state.data.access.canEdit?'<button class="ide-button ide-button--ghost ide-button--sm schedule-remove-slot" data-action="remove-slot" type="button" aria-label="Remover função"><i class="fa-solid fa-trash-can" aria-hidden="true"></i><span>Remover função</span></button>':''}</div></div></article>`;
   }
 
   function renderEditorView() {
