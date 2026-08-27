@@ -66,6 +66,23 @@ test('editor possui hierarquia visual, seletor de pessoas e layout mobile', () =
   assert.match(css, /@media\(max-width:640px\)/);
 });
 
+test('editor e popup usam tokens semânticos oficiais em claro e escuro', () => {
+  assert.match(css, /--background:var\(--ide-background\)/);
+  assert.match(css, /background:var\(--ide-background\)/);
+  assert.match(css, /background:var\(--ide-surface\)/);
+  assert.match(css, /z-index:var\(--ide-z-modal\)/);
+  assert.match(css, /var\(--ide-shadow-overlay\)/);
+  assert.match(css, /100vmax rgba\(0,0,0,.64\)/);
+});
+
+test('popup possui tratamento específico para toque e viewport mobile', () => {
+  assert.match(css, /100dvh/);
+  assert.match(css, /76dvh/);
+  assert.match(css, /env\(safe-area-inset-bottom\)/);
+  assert.match(css, /schedule-person-option\{min-height:60px/);
+  assert.match(css, /schedule-slot__actions \.ide-button\{min-height:44px/);
+});
+
 test('UI não acessa collections do Firestore diretamente', () => {
   assert.doesNotMatch(page, /\.collection\(/);
   assert.match(css, /schedule-summary-card/);
