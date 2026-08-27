@@ -7,6 +7,16 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (globalScope) globalScope.MusicIdeEventRepository = api;
 })(typeof window !== 'undefined' ? window : null, function createModule() {
+  const FALLBACK_TEMPLATE = Object.freeze([
+    { slug: 'back-vocal', quantity: 4 },
+    { slug: 'ministro', quantity: 2 },
+    { slug: 'guitarra', quantity: 1 },
+    { slug: 'violao', quantity: 1 },
+    { slug: 'baixo', quantity: 1 },
+    { slug: 'bateria', quantity: 1 },
+    { slug: 'teclado', quantity: 1 }
+  ]);
+
   function snapshotToEntity(snapshot) {
     return snapshot && snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null;
   }
@@ -40,6 +50,29 @@
     return { schedule: activeScheduleStatus(scheduleStatus), setlist: activeSetlistStatus(setlistStatus) };
   }
 
+  function safeSlotPart(value) {
+    return String(value || 'funcao').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'funcao';
+  }
+
+  function buildScheduleSlots(functions, configuredTemplate) {
+    const activeFunctions = (functions || []).filter(item => item.active !== false);
+    const byId = new Map(activeFunctions.map(item => [String(item.id), item]));
+    const bySlug = new Map(activeFunctions.filter(item => item.slug).map(item => [String(item.slug), item]));
+    const configured = Array.isArray(configuredTemplate?.slots) ? configuredTemplate.slots : [];
+    const source = configured.length
+      ? configured.map(item => ({ function: byId.get(String(item.functionId)), quantity: Number(item.quantity) || 0 }))
+      : FALLBACK_TEMPLATE.map(item => ({ function: bySlug.get(item.slug), quantity: item.quantity }));
+    const slots = [];
+    source.forEach(entry => {
+      if (!entry.function || !Number.isInteger(entry.quantity) || entry.quantity <= 0) return;
+      const base = safeSlotPart(entry.function.slug || entry.function.id);
+      for (let index = 1; index <= entry.quantity; index += 1) {
+        slots.push({ id: `slot_${base}_${index}`, functionId: entry.function.id });
+      }
+    });
+    return slots;
+  }
+
   class EventRepository {
     constructor(database, options = {}) {
       if (!database || typeof database.collection !== 'function') throw new Error('Firestore é obrigatório para EventRepository.');
@@ -65,6 +98,20 @@
       return String(snapshot.data()?.level || 'NONE').toUpperCase();
     }
 
+    async loadScheduleTemplate() {
+      const [functionsSnapshot, templateSnapshot] = await Promise.all([
+        this.db.collection('ministryFunctions').get(),
+        this.db.collection('settings').doc('scheduleTemplate').get()
+      ]);
+      const functions = mapSnapshot(functionsSnapshot);
+      const template = templateSnapshot.exists ? { id: templateSnapshot.id, ...templateSnapshot.data() } : null;
+      return {
+        slots: buildScheduleSlots(functions, template),
+        version: Number(template?.version || 0),
+        source: template ? 'CONFIGURED' : 'FALLBACK'
+      };
+    }
+
     async createEventBundle(data, actorUserId, requestId) {
       if (typeof this.db.runTransaction !== 'function') throw new Error('Firestore configurado não oferece transações.');
       const eventId = eventDocumentId(requestId);
@@ -75,6 +122,7 @@
       const setlistRef = this.setlists().doc(setlistId);
       const auditRef = this.auditLogs().doc();
       const now = this.clock();
+      const scheduleTemplate = await this.loadScheduleTemplate();
 
       return this.db.runTransaction(async transaction => {
         const existing = await transaction.get(eventRef);
@@ -92,6 +140,9 @@
         const scheduleDocument = {
           eventId,
           status: 'DRAFT',
+          slots: scheduleTemplate.slots,
+          defaultTemplateVersion: scheduleTemplate.version,
+          templateSource: scheduleTemplate.source,
           eventDate: data.date,
           eventTime: data.time || null,
           createdBy: actorUserId,
@@ -118,7 +169,16 @@
           action: 'EVENT_CREATED',
           entityType: 'event',
           entityId: eventId,
-          details: { scheduleId, setlistId, status: data.status, date: data.date, time: data.time || null },
+          details: {
+            scheduleId,
+            setlistId,
+            status: data.status,
+            date: data.date,
+            time: data.time || null,
+            scheduleTemplateVersion: scheduleTemplate.version,
+            scheduleTemplateSource: scheduleTemplate.source,
+            schedulePositions: scheduleTemplate.slots.length
+          },
           createdAt: now
         });
         return { id: eventId, ...eventDocument, idempotent: false };
@@ -235,6 +295,8 @@
     eventDocumentId,
     scheduleDocumentId,
     setlistDocumentId,
-    linkedStatuses
+    linkedStatuses,
+    buildScheduleSlots,
+    FALLBACK_TEMPLATE
   });
 });

@@ -4,32 +4,34 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const html = fs.readFileSync(path.join(root, 'src', 'pages', 'users.html'), 'utf8');
-const page = fs.readFileSync(path.join(root, 'src', 'js', 'modules', 'users-page.js'), 'utf8');
+const usersHtml = fs.readFileSync(path.join(root, 'src', 'pages', 'users.html'), 'utf8');
+const settingsPage = fs.readFileSync(path.join(root, 'src', 'js', 'modules', 'settings-page.js'), 'utf8');
+const shell = fs.readFileSync(path.join(root, 'src', 'js', 'modules', 'app-shell.js'), 'utf8');
 const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 
-test('módulo de usuários expõe gestão completa de funções ministeriais', () => {
-  assert.match(html, /id="manage-functions"/);
-  assert.match(html, />\s*Funções ministeriais\s*</);
-  assert.match(html, /id="functions-dialog"/);
-  assert.match(html, /id="function-form"/);
-  assert.match(html, /Funções descrevem onde a pessoa serve no ministério\. Elas não concedem acesso administrativo ao sistema\./);
-  assert.match(html, /repositories\/domain-repositories\.js/);
-  assert.match(html, /services\/ministry-functions-service\.js/);
-
-  assert.match(page, /ensureDefaultFunctions\(\)/);
-  assert.match(page, /createFunction\(/);
-  assert.match(page, /updateFunction\(/);
-  assert.match(page, /setFunctionActive\(/);
-  assert.match(page, /ministryService\.reorder\(/);
-  assert.match(page, /data-function-action="up"/);
-  assert.match(page, /data-function-action="down"/);
-  assert.match(page, /Os vínculos históricos serão preservados/);
+test('funções ministeriais são geridas como submenu administrativo de Configurações', () => {
+  assert.match(shell, /id: 'settings'.*adminOnly: true/);
+  assert.match(settingsPage, /data-settings-tab="functions"/);
+  assert.match(settingsPage, /<h2 id="functions-title">Funções ministeriais<\/h2>/);
+  assert.match(settingsPage, /Gerencie o catálogo de funções usado no cadastro de pessoas, filtros e templates de escala/);
+  assert.match(settingsPage, /MINISTRY_FUNCTION_CREATED/);
+  assert.match(settingsPage, /MINISTRY_FUNCTION_UPDATED/);
+  assert.match(settingsPage, /MINISTRY_FUNCTION_REACTIVATED/);
+  assert.match(settingsPage, /MINISTRY_FUNCTION_DEACTIVATED/);
+  assert.match(settingsPage, /MINISTRY_FUNCTIONS_REORDERED/);
+  assert.match(settingsPage, /data-function-action="up"/);
+  assert.match(settingsPage, /data-function-action="down"/);
+  assert.match(settingsPage, /Os vínculos históricos serão preservados/);
 });
 
-test('Firestore mantém função ministerial separada de autorização do sistema', () => {
+test('tela de usuários mantém apenas vínculo pessoa-função e não expõe gestão do catálogo', () => {
+  assert.match(usersHtml, /id="manage-functions"[^>]*hidden/);
+  assert.match(usersHtml, /O catálogo de funções é gerenciado em Configurações/);
+});
+
+test('Firestore mantém catálogo ministerial separado dos vínculos e restringe gestão a administradores', () => {
   assert.match(rules, /match \/ministryFunctions\/\{documentId\}/);
-  assert.match(rules, /allow write: if isSuperAdmin\(\) \|\| canEdit\('users'\)/);
+  assert.match(rules, /allow write: if isAdmin\(\)/);
   assert.match(rules, /match \/userFunctions\/\{documentId\}/);
   assert.match(rules, /allow write: if canEdit\('users'\)/);
 });

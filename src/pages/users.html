@@ -32,10 +32,10 @@
       <div class="users-heading">
         <div class="ide-module-kicker">Administração · Pessoas</div>
         <h1>Usuários</h1>
-        <p>Gerencie perfis, funções ministeriais, permissões, acesso e recuperação de senha.</p>
+        <p>Gerencie perfis, vínculos com funções ministeriais, permissões, acesso e recuperação de senha.</p>
       </div>
       <div class="users-header-actions">
-        <button id="manage-functions" class="ide-button ide-button--secondary" type="button"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>Funções ministeriais</span></button>
+        <button id="manage-functions" class="ide-button ide-button--secondary" type="button" hidden aria-hidden="true" tabindex="-1"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>Funções ministeriais</span></button>
         <button id="new-user" class="ide-button ide-button--primary" type="button"><i class="fa-solid fa-user-plus" aria-hidden="true"></i><span>Novo usuário</span></button>
       </div>
     </header>
@@ -73,7 +73,7 @@
         <label class="ide-field"><span class="ide-field__label">E-mail</span><input id="user-email" class="ide-field__control ide-field__input" type="email" required autocomplete="off"></label>
         <label class="ide-field full"><span class="ide-field__label">Foto de perfil <span class="users-optional">(URL opcional)</span></span><input id="user-photo" class="ide-field__control ide-field__input" type="url" placeholder="https://..."></label>
         <div class="users-account-note full"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>O Firebase Authentication gera o UID automaticamente. Após o cadastro, o Firebase envia um e-mail para a pessoa definir a senha.</span></div>
-        <fieldset class="users-fieldset full"><legend>Funções ministeriais</legend><p class="users-fieldset-help">Selecione uma ou mais funções em que esta pessoa serve.</p><div id="user-functions" class="users-function-list"></div></fieldset>
+        <fieldset class="users-fieldset full"><legend>Funções ministeriais</legend><p class="users-fieldset-help">Selecione uma ou mais funções em que esta pessoa serve. O catálogo de funções é gerenciado em Configurações.</p><div id="user-functions" class="users-function-list"></div></fieldset>
         <fieldset id="user-permissions-row" class="users-fieldset full"><legend>Permissões iniciais</legend><p class="users-fieldset-help">Defina o acesso aos módulos. Função ministerial não concede permissão administrativa.</p><div id="user-permissions" class="users-permission-list"></div></fieldset>
       </div>
       <footer class="users-dialog-actions"><button id="user-cancel" class="ide-button ide-button--ghost" type="button">Cancelar</button><button id="user-submit" class="ide-button ide-button--primary" type="submit"><i class="fa-solid fa-check" aria-hidden="true"></i>Salvar usuário</button></footer>
@@ -82,7 +82,7 @@
 
   <dialog id="functions-dialog" class="users-dialog functions-dialog">
     <section class="users-form" aria-labelledby="functions-title">
-      <div class="functions-heading"><div><div class="ide-module-kicker">Pessoas · Catálogo</div><h2 id="functions-title">Funções ministeriais</h2><p class="users-muted">Funções descrevem onde a pessoa serve no ministério. Elas não concedem acesso administrativo ao sistema.</p></div><button id="functions-close" class="ide-button ide-button--ghost ide-button--sm" type="button" aria-label="Fechar funções ministeriais">Fechar</button></div>
+      <div class="functions-heading"><div><div class="ide-module-kicker">Pessoas · Catálogo</div><h2 id="functions-title">Funções ministeriais</h2><p class="users-muted">O catálogo de funções é administrado em Configurações.</p></div><button id="functions-close" class="ide-button ide-button--ghost ide-button--sm" type="button" aria-label="Fechar funções ministeriais">Fechar</button></div>
       <form id="function-form" class="functions-form"><input id="function-id" type="hidden"><label class="ide-field"><span class="ide-field__label">Nome da função</span><input id="function-name" class="ide-field__control ide-field__input" required maxlength="80" placeholder="Ex.: Percussão"></label><label class="ide-field"><span class="ide-field__label">Identificador</span><input id="function-slug" class="ide-field__control ide-field__input" maxlength="80" placeholder="Gerado a partir do nome"></label><div class="functions-form-actions"><button id="function-cancel" class="ide-button ide-button--ghost" type="button" hidden>Cancelar edição</button><button id="function-submit" class="ide-button ide-button--primary" type="submit">Adicionar função</button></div></form>
       <div class="functions-legend"><span><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Use as setas para definir a ordem exibida nas escalas e seletores.</span></div><div id="functions-loading" class="users-loading" role="status" hidden>Carregando funções...</div><div id="functions-empty" class="users-empty" hidden><p>Nenhuma função ministerial cadastrada.</p></div><div id="functions-list" class="functions-list" aria-live="polite"></div>
     </section>
