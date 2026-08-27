@@ -25,14 +25,17 @@ test('listagem e edição de escala ficam separadas por scheduleId', () => {
   assert.match(page, /Voltar para escalas/);
 });
 
-test('seleção normal usa somente elegíveis e um único campo pesquisável por função', () => {
+test('seleção normal usa somente elegíveis em seletor visual com nome e avatar', () => {
   assert.match(page, /service\.eligibleUsers/);
-  assert.match(page, /data-user-combobox/);
-  assert.match(page, /<datalist/);
-  assert.doesNotMatch(page, /data-user-search/);
-  assert.match(page, /data-exception-user/);
-  assert.match(page, /override:true/);
-  assert.match(page, /motivo da exceção administrativa/i);
+  assert.match(page, /schedule-person-trigger/);
+  assert.match(page, /schedule-person-option/);
+  assert.match(page, /renderAvatar/);
+  assert.match(page, /data-action=\"select-person\"/);
+  assert.doesNotMatch(page, /data-user-combobox/);
+  assert.doesNotMatch(page, /<datalist/);
+  assert.doesNotMatch(page, /data-exception-user/);
+  assert.doesNotMatch(page, /assign-exception/);
+  assert.doesNotMatch(page, /Exceção administrativa/);
 });
 
 test('UI possui avatar, status de completude e filtros históricos na listagem', () => {
@@ -45,9 +48,16 @@ test('UI possui avatar, status de completude e filtros históricos na listagem',
   assert.match(page, /schedule-filter-to/);
 });
 
-test('UI não acessa collections do Firestore diretamente e possui layout mobile', () => {
-  assert.doesNotMatch(page, /\.collection\(/);
+test('editor possui hierarquia visual, seletor de pessoas e layout mobile', () => {
+  assert.match(css, /schedule-editor-card__heading/);
+  assert.match(css, /schedule-person-options/);
+  assert.match(css, /schedule-person-option__avatar/);
+  assert.match(css, /schedule-slot__actions/);
   assert.match(css, /@media\(max-width:640px\)/);
+});
+
+test('UI não acessa collections do Firestore diretamente', () => {
+  assert.doesNotMatch(page, /\.collection\(/);
   assert.match(css, /schedule-summary-card/);
   assert.match(css, /schedule-slot/);
 });
