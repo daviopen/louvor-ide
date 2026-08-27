@@ -92,6 +92,11 @@
       return snapshot.docs.map(entity);
     }
 
+    async listActiveUserFunctions() {
+      const snapshot = await this.userFunctions().where('active', '==', true).get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
     async listUserFunctionIds(userId) {
       const snapshot = await this.userFunctions().where('userId', '==', userId).where('active', '==', true).get();
       return snapshot.docs.map(doc => doc.data().functionId);
