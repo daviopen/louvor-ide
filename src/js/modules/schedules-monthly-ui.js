@@ -12,6 +12,46 @@
   const currentMonth = () => monthly().monthKey(new Date());
   const formatMonth = value => /^\d{4}-\d{2}$/.test(String(value || ''))
     ? new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(new Date(`${value}-01T12:00:00`)) : '';
+  const weekdayLabels = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+
+  function formatDateKey(value) {
+    const key = monthly().dateKey(value);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(key || ''))) return '';
+    const [year, month, day] = key.split('-');
+    return `${day}/${month}/${year}`;
+  }
+
+  function joinNatural(items) {
+    const list = (items || []).filter(Boolean);
+    if (list.length <= 1) return list[0] || '';
+    return `${list.slice(0, -1).join(', ')} e ${list[list.length - 1]}`;
+  }
+
+  function recurrenceLabel(record) {
+    if (record?.recurrence?.frequency !== 'WEEKLY') return '';
+    const days = Array.isArray(record.recurrence.weekdays)
+      ? Array.from(new Set(record.recurrence.weekdays.map(Number))).filter(day => day >= 0 && day <= 6).sort((a, b) => a - b)
+      : [];
+    if (!days.length) return 'Recorrente semanal';
+    if (days.length === 1) {
+      const day = days[0];
+      return `${day === 0 || day === 6 ? 'Todo' : 'Toda'} ${weekdayLabels[day]}`;
+    }
+    return `Toda semana: ${joinNatural(days.map(day => weekdayLabels[day]))}`;
+  }
+
+  function absencePeriod(record) {
+    const start = formatDateKey(record?.date);
+    const end = formatDateKey(record?.endAt || record?.date);
+    if (record?.recurrence?.frequency === 'WEEKLY') {
+      const recurrence = recurrenceLabel(record);
+      const range = record.recurrence.openEnded
+        ? (start ? `a partir de ${start}` : '')
+        : (start && end && start !== end ? `${start} a ${end}` : start);
+      return [recurrence, range].filter(Boolean).join(' · ');
+    }
+    return start && end && start !== end ? `${start} a ${end}` : start;
+  }
 
   function injectNav() {
     const nav = scope.document.getElementById('ide-sidebar-nav');
@@ -107,21 +147,83 @@
       const event = schedule.event || {};
       const key = monthly().dateKey(event.date || schedule.eventDate);
       const date = key ? new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${key}T12:00:00`)) : 'Data a definir';
-      return `<article class="ide-section-card monthly-export-event"><h2 style="margin:0">${esc(event.name || 'Evento')}</h2><p><strong>${esc(date)}</strong>${event.time || schedule.eventTime ? ` · ${esc(event.time || schedule.eventTime)}` : ''}</p>${event.location ? `<p>${esc(event.location)}</p>` : ''}<table class="ide-table"><tbody>${Array.from(people.entries()).map(([fn, names]) => `<tr><th>${esc(fn)}</th><td>${esc(names.join(', '))}</td></tr>`).join('') || '<tr><td>Nenhuma pessoa escalada.</td></tr>'}</tbody></table></article>`;
+      return `<article class="ide-section-card monthly-export-event"><div class="monthly-export-event-heading"><div><span class="monthly-export-eyebrow">Evento</span><h2>${esc(event.name || 'Evento')}</h2></div><div class="monthly-export-date"><strong>${esc(date)}</strong>${event.time || schedule.eventTime ? `<span>${esc(event.time || schedule.eventTime)}</span>` : ''}</div></div>${event.location ? `<p class="monthly-export-location">${esc(event.location)}</p>` : ''}<table class="ide-table monthly-export-team"><tbody>${Array.from(people.entries()).map(([fn, names]) => `<tr><th>${esc(fn)}</th><td>${esc(names.join(', '))}</td></tr>`).join('') || '<tr><td>Nenhuma pessoa escalada.</td></tr>'}</tbody></table></article>`;
     }).join('') || '<div class="ide-empty-state"><strong>Nenhuma escala encontrada neste mês</strong></div>';
   }
 
   function absenceTable(data, month) {
     const users = new Map(data.users.map(user => [userId(user), user.name || user.email || 'Usuário']));
-    const records = (data.unavailability || []).filter(record => monthly().unavailabilityOverlapsMonth(record, month));
-    return `<section class="ide-section-card monthly-absence-list"><h2>Indisponibilidades do mês</h2><div style="overflow:auto"><table class="ide-table"><thead><tr><th>Pessoa</th><th>Período</th><th>Observação</th></tr></thead><tbody>${records.map(record => { const start=monthly().dateKey(record.date); const end=monthly().dateKey(record.endAt || record.date); return `<tr><td>${esc(users.get(record.userId) || 'Usuário')}</td><td>${esc(start)}${end && end !== start ? ` a ${esc(end)}` : ''}${record.recurrence?.frequency === 'WEEKLY' ? ' · recorrente' : ''}</td><td>${esc(record.note || '')}</td></tr>`; }).join('') || '<tr><td colspan="3">Nenhuma indisponibilidade registrada no mês.</td></tr>'}</tbody></table></div></section>`;
+    const records = (data.unavailability || [])
+      .filter(record => monthly().unavailabilityOverlapsMonth(record, month))
+      .sort((a, b) => {
+        const nameA = users.get(a.userId) || 'Usuário';
+        const nameB = users.get(b.userId) || 'Usuário';
+        return nameA.localeCompare(nameB, 'pt-BR') || monthly().dateKey(a.date).localeCompare(monthly().dateKey(b.date));
+      });
+    return `<section class="ide-section-card monthly-absence-list"><div class="monthly-absence-heading"><span class="monthly-export-eyebrow">Disponibilidade</span><h2>Indisponibilidades do mês</h2><p>Restrições consideradas durante a montagem das escalas.</p></div><div class="monthly-absence-table-wrap"><table class="ide-table"><thead><tr><th>Pessoa</th><th>Quando não pode servir</th><th>Observação</th></tr></thead><tbody>${records.map(record => `<tr><td><strong>${esc(users.get(record.userId) || 'Usuário')}</strong></td><td>${esc(absencePeriod(record))}</td><td>${esc(record.note || '—')}</td></tr>`).join('') || '<tr><td colspan="3">Nenhuma indisponibilidade registrada no mês.</td></tr>'}</tbody></table></div></section>`;
   }
 
   function ensurePrintStyle() {
     if (scope.document.getElementById('monthly-print-style')) return;
     const style = scope.document.createElement('style');
     style.id = 'monthly-print-style';
-    style.textContent = '@media print{body.ide-monthly-print>*{display:none!important}body.ide-monthly-print>#schedule-print-report{display:block!important}#schedule-print-report{font-family:Arial,sans-serif;color:#111;background:#fff}#schedule-print-report .ide-section-card{break-inside:avoid;border:1px solid #aaa;margin:0 0 12px;padding:12px}#schedule-print-report table{width:100%;border-collapse:collapse}#schedule-print-report th,#schedule-print-report td{padding:5px;border-bottom:1px solid #ddd;text-align:left}}';
+    style.textContent = `
+      @page{size:A4 portrait;margin:10mm}
+      @media print{
+        body.ide-monthly-print>*{display:none!important}
+        body.ide-monthly-print>#schedule-print-report{display:block!important}
+        html,body{background:#090b0c!important}
+        body.ide-monthly-print{margin:0!important;background:#090b0c!important}
+        #schedule-print-report{
+          display:block!important;
+          min-height:100vh;
+          box-sizing:border-box;
+          font-family:Inter,"Segoe UI",Arial,sans-serif;
+          color:#fffef9!important;
+          background:#090b0c!important;
+          -webkit-print-color-adjust:exact!important;
+          print-color-adjust:exact!important;
+        }
+        #schedule-print-report *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box}
+        #schedule-print-report>header{
+          margin:0 0 14px;
+          padding:18px 20px;
+          border:1px solid rgba(255,255,255,.14);
+          border-left:5px solid #d8ff45;
+          border-radius:14px;
+          background:#111415!important;
+        }
+        #schedule-print-report>header h1{margin:0;color:#d8ff45!important;font-size:24px;line-height:1.15;letter-spacing:-.02em}
+        #schedule-print-report>header p{margin:6px 0 0;color:#d8dcda!important;font-size:13px;text-transform:capitalize}
+        #schedule-print-report .ide-section-card{
+          break-inside:avoid;
+          margin:0 0 12px;
+          padding:15px 16px;
+          border:1px solid rgba(255,255,255,.14)!important;
+          border-radius:12px!important;
+          background:#111415!important;
+          color:#fffef9!important;
+          box-shadow:none!important;
+        }
+        #schedule-print-report .monthly-export-event-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:10px}
+        #schedule-print-report .monthly-export-eyebrow{display:block;margin:0 0 4px;color:#8478ff!important;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+        #schedule-print-report .monthly-export-event h2,#schedule-print-report .monthly-absence-list h2{margin:0;color:#fffef9!important;font-size:17px;line-height:1.2}
+        #schedule-print-report .monthly-export-date{text-align:right;display:grid;gap:3px;min-width:170px}
+        #schedule-print-report .monthly-export-date strong{color:#d8ff45!important;font-size:11px;text-transform:capitalize}
+        #schedule-print-report .monthly-export-date span{color:#d8dcda!important;font-size:11px}
+        #schedule-print-report .monthly-export-location{margin:0 0 10px;color:#a8afad!important;font-size:11px}
+        #schedule-print-report table{width:100%;border-collapse:collapse;background:transparent!important;font-size:10.5px}
+        #schedule-print-report th,#schedule-print-report td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.10)!important;text-align:left;vertical-align:top;color:#fffef9!important;background:transparent!important}
+        #schedule-print-report th{font-weight:750;color:#d8ff45!important}
+        #schedule-print-report tr:last-child th,#schedule-print-report tr:last-child td{border-bottom:0!important}
+        #schedule-print-report .monthly-export-team th{width:27%}
+        #schedule-print-report .monthly-absence-list{margin-top:18px!important;border-top:3px solid #8478ff!important}
+        #schedule-print-report .monthly-absence-heading{margin-bottom:12px}
+        #schedule-print-report .monthly-absence-heading p{margin:5px 0 0;color:#a8afad!important;font-size:10.5px}
+        #schedule-print-report .monthly-absence-list thead th{background:#1a1f20!important;color:#d8ff45!important;border-bottom:1px solid rgba(216,255,69,.28)!important}
+        #schedule-print-report .monthly-absence-list tbody td:first-child{width:25%}
+        #schedule-print-report .monthly-absence-list tbody td:nth-child(2){width:43%}
+      }`;
     scope.document.head.appendChild(style);
   }
 
@@ -215,10 +317,8 @@
       const records = admin ? await repository.listAll() : await repository.listByUser(actor);
       const matches = records.filter(record => rangeOverlapsRecord(record, from, to)).sort((a,b) => monthly().dateKey(a.date).localeCompare(monthly().dateKey(b.date)));
       filtered.innerHTML = matches.map(record => {
-        const start = monthly().dateKey(record.date);
-        const end = monthly().dateKey(record.endAt || record.date);
         const person = admin ? (names.get(record.userId) || 'Usuário') : (scope.currentMusicIdeProfile?.name || scope.currentMusicIdeUser?.displayName || scope.currentMusicIdeUser?.email || 'Você');
-        return `<article class="unavailability-item"><div class="unavailability-item-main"><strong>${esc(person)}</strong><small>${esc(start)}${end && end !== start ? ` até ${esc(end)}` : ''}${record.recurrence?.frequency === 'WEEKLY' ? ' · recorrente semanal' : ''}</small><div class="unavailability-item-meta"><span class="ide-badge">${esc(record.period || 'Dia inteiro')}</span></div>${record.note ? `<small>${esc(record.note)}</small>` : ''}</div></article>`;
+        return `<article class="unavailability-item"><div class="unavailability-item-main"><strong>${esc(person)}</strong><small>${esc(absencePeriod(record))}</small><div class="unavailability-item-meta"><span class="ide-badge">${esc(record.period || 'Dia inteiro')}</span></div>${record.note ? `<small>${esc(record.note)}</small>` : ''}</div></article>`;
       }).join('') || '<div class="ide-empty-state"><strong>Nenhuma indisponibilidade no período selecionado</strong></div>';
     };
     monthInput.addEventListener('change', apply);
