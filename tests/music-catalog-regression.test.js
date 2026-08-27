@@ -28,13 +28,14 @@ test('music catalog waits for authenticated profile before Firestore subscriptio
   assert.match(source, /showLoadError/);
 });
 
-test('music catalog performs an eager initial read before realtime updates', () => {
+test('music catalog usa o primeiro snapshot em tempo real sem leitura completa duplicada', () => {
   const pageSource = read('src/js/pages/consulta.js');
   const serviceSource = read('src/js/modules/music-service.js');
 
-  assert.match(pageSource, /await musicService\.getAllMusicsArray\(\)/);
-  assert.match(pageSource, /this\.consumeSongs\(initialSongs\)/);
+  assert.doesNotMatch(pageSource, /await musicService\.getAllMusicsArray\(\)/);
+  assert.doesNotMatch(pageSource, /this\.consumeSongs\(initialSongs\)/);
   assert.match(pageSource, /musicService\.loadAllMusics\(/);
+  assert.match(pageSource, /SEARCH_DEBOUNCE_MS\s*=\s*160/);
   assert.match(serviceSource, /loadAllMusics\(callback, onError = null\)/);
   assert.match(serviceSource, /subscribeAllOrderedByTitle\(callback, onError\)/);
 });
