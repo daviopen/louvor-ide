@@ -72,15 +72,7 @@ function extractLegacyFunctionLabels(profile) {
     String(value).split(/[;,|]/).map(item => item.trim()).filter(Boolean).forEach(item => labels.push(item));
   };
 
-  [
-    profile.functions,
-    profile.ministryFunctions,
-    profile.funcoes,
-    profile.funcao,
-    profile.instrumentos,
-    profile.instrumento
-  ].forEach(append);
-
+  [profile.functions, profile.ministryFunctions, profile.funcoes, profile.funcao, profile.instrumentos, profile.instrumento].forEach(append);
   return [...new Set(labels)];
 }
 
@@ -91,18 +83,22 @@ function relationDocumentId(userId, functionId) {
 function readProvisioningConfig() {
   const items = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   if (!Array.isArray(items) || items.length === 0) throw new Error('ops/provisioned-users.json deve conter ao menos um usuário.');
+
+  const seen = new Set();
   return items.map((item, index) => {
-    if (!item || typeof item.email !== 'string' || !item.email.includes('@')) throw new Error(`Usuário #${index + 1} sem e-mail válido.`);
-    if (item.name != null && (typeof item.name !== 'string' || !item.name.trim())) throw new Error(`Nome inválido para ${item.email}.`);
+    if (!item || typeof item.email !== 'string' || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(item.email.trim())) {
+      throw new Error(`Usuário #${index + 1} sem e-mail válido.`);
+    }
+    if (typeof item.name !== 'string' || !item.name.trim()) throw new Error(`Nome inválido para ${item.email}.`);
     if (!allowedRoles.has(item.role)) throw new Error(`Papel inválido para ${item.email}: ${item.role}`);
     if (typeof item.active !== 'boolean') throw new Error(`Campo active inválido para ${item.email}.`);
     if ('password' in item || 'token' in item || 'credential' in item) throw new Error(`Credenciais não podem existir no arquivo de provisionamento (${item.email}).`);
-    return {
-      email: item.email.trim().toLowerCase(),
-      name: item.name ? item.name.trim() : null,
-      role: item.role,
-      active: item.active
-    };
+
+    const email = item.email.trim().toLowerCase();
+    if (seen.has(email)) throw new Error(`E-mail duplicado no provisionamento: ${email}.`);
+    seen.add(email);
+
+    return { email, name: item.name.trim(), role: item.role, active: item.active };
   });
 }
 
@@ -134,12 +130,7 @@ async function reconcileMinistryFunctions(db) {
     }
 
     const ref = functionsRef.doc(seed.slug);
-    await ref.set({
-      ...seed,
-      active: true,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp()
-    }, { merge: true });
+    await ref.set({ ...seed, active: true, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     bySlug.set(seed.slug, { id: ref.id, ...seed, active: true });
     created += 1;
   }
@@ -188,9 +179,7 @@ async function reconcileApplicationUsers(auth, db) {
     if (!authUser) {
       try {
         const byEmail = await auth.getUserByEmail(email);
-        if (byEmail.uid !== profileDoc.id) {
-          throw new Error(`UID divergente para ${email}: Auth=${byEmail.uid}, Firestore=${profileDoc.id}.`);
-        }
+        if (byEmail.uid !== profileDoc.id) throw new Error(`UID divergente para ${email}: Auth=${byEmail.uid}, Firestore=${profileDoc.id}.`);
         authUser = byEmail;
       } catch (error) {
         if (error.code !== 'auth/user-not-found') throw error;
@@ -210,13 +199,66 @@ async function reconcileApplicationUsers(auth, db) {
     }
 
     const shouldBeDisabled = profile.active === false;
-    if (authUser.disabled !== shouldBeDisabled) {
-      await auth.updateUser(authUser.uid, { disabled: shouldBeDisabled });
-      console.log(`🔄 ${email}: estado do Authentication sincronizado com o perfil da aplicação`);
+    const patch = {};
+    if (authUser.disabled !== shouldBeDisabled) patch.disabled = shouldBeDisabled;
+    if (profile.name && authUser.displayName !== profile.name) patch.displayName = profile.name;
+    if (Object.keys(patch).length) {
+      await auth.updateUser(authUser.uid, patch);
+      console.log(`🔄 ${email}: estado/dados do Authentication sincronizados com o perfil da aplicação`);
     }
   }
 
   console.log(`✅ Reconciliação Firestore ↔ Firebase Auth concluída: ${profiles.size} perfil(is), ${repaired} conta(s) reparada(s).`);
+}
+
+async function provisionRosterUser(auth, db, config) {
+  let userRecord;
+  let createdAuth = false;
+
+  try {
+    userRecord = await auth.getUserByEmail(config.email);
+  } catch (error) {
+    if (!error || error.code !== 'auth/user-not-found') throw error;
+    userRecord = await auth.createUser({
+      email: config.email,
+      displayName: config.name,
+      disabled: !config.active
+    });
+    createdAuth = true;
+    console.log(`🆕 ${config.email}: conta criada no Firebase Authentication com UID ${userRecord.uid}`);
+  }
+
+  const authPatch = {};
+  if (userRecord.disabled === config.active) authPatch.disabled = !config.active;
+  if (userRecord.displayName !== config.name) authPatch.displayName = config.name;
+  if (Object.keys(authPatch).length) {
+    userRecord = await auth.updateUser(userRecord.uid, authPatch);
+    console.log(`🔄 ${config.email}: dados do Firebase Authentication sincronizados`);
+  }
+
+  const profileRef = db.collection('users').doc(userRecord.uid);
+  const existing = await profileRef.get();
+  const payload = {
+    uid: userRecord.uid,
+    email: userRecord.email || config.email,
+    name: config.name,
+    photoURL: userRecord.photoURL || null,
+    active: config.active,
+    role: config.role,
+    updatedAt: FieldValue.serverTimestamp()
+  };
+  if (!existing.exists) payload.createdAt = FieldValue.serverTimestamp();
+  await profileRef.set(payload, { merge: true });
+
+  const verifiedAuth = await auth.getUser(userRecord.uid);
+  const verifiedProfile = (await profileRef.get()).data();
+  if (verifiedAuth.disabled === config.active) throw new Error(`Estado do Firebase Authentication não corresponde ao esperado para ${config.email}.`);
+  if (!verifiedProfile || verifiedProfile.active !== config.active || verifiedProfile.role !== config.role || verifiedProfile.name !== config.name || verifiedProfile.email.toLowerCase() !== config.email) {
+    throw new Error(`Perfil Firestore não corresponde ao provisionamento de ${config.email}.`);
+  }
+
+  console.log(`✅ ${config.email}: ${createdAuth ? 'CRIADO' : 'EXISTENTE/RECONCILIADO'} | Auth ${verifiedAuth.disabled ? 'disabled' : 'enabled'} | perfil ${verifiedProfile.role}/${verifiedProfile.active ? 'ativo' : 'inativo'} (${verifiedProfile.name})`);
+  return createdAuth ? 'created' : 'reconciled';
 }
 
 async function main() {
@@ -224,58 +266,19 @@ async function main() {
   const auth = getAuth();
   const db = getFirestore();
   const users = readProvisioningConfig();
-  const pendingAuth = [];
+  const summary = { created: [], reconciled: [] };
 
   for (const config of users) {
-    let userRecord;
-    try {
-      userRecord = await auth.getUserByEmail(config.email);
-    } catch (error) {
-      if (error && error.code === 'auth/user-not-found') {
-        pendingAuth.push(config.email);
-        console.warn(`⚠️ ${config.email}: ainda não existe no Firebase Authentication; perfil será provisionado quando a conta existir.`);
-        continue;
-      }
-      throw error;
-    }
-
-    const authPatch = {};
-    if (userRecord.disabled === config.active) authPatch.disabled = !config.active;
-    if (config.name && userRecord.displayName !== config.name) authPatch.displayName = config.name;
-    if (Object.keys(authPatch).length) {
-      userRecord = await auth.updateUser(userRecord.uid, authPatch);
-      console.log(`🔄 ${config.email}: dados do Firebase Authentication sincronizados`);
-    }
-
-    const profileRef = db.collection('users').doc(userRecord.uid);
-    const existing = await profileRef.get();
-    const payload = {
-      uid: userRecord.uid,
-      email: userRecord.email || config.email,
-      name: config.name || userRecord.displayName || userRecord.email || config.email,
-      photoURL: userRecord.photoURL || null,
-      active: config.active,
-      role: config.role,
-      updatedAt: FieldValue.serverTimestamp()
-    };
-    if (!existing.exists) payload.createdAt = FieldValue.serverTimestamp();
-    await profileRef.set(payload, { merge: true });
-
-    const verifiedAuth = await auth.getUser(userRecord.uid);
-    const profile = (await profileRef.get()).data();
-    if (verifiedAuth.disabled === config.active) throw new Error(`Estado do Firebase Authentication não corresponde ao esperado para ${config.email}.`);
-    if (!profile || profile.active !== config.active || profile.role !== config.role || (config.name && profile.name !== config.name)) {
-      throw new Error(`Perfil Firestore não corresponde ao provisionamento de ${config.email}.`);
-    }
-    console.log(`✅ ${config.email}: Auth ${verifiedAuth.disabled ? 'disabled' : 'enabled'}, perfil ${profile.role}/${profile.active ? 'ativo' : 'inativo'} (${profile.name})`);
-  }
-
-  if (pendingAuth.length) {
-    console.warn(`⚠️ ${pendingAuth.length} usuário(s) da lista ainda não existem no Firebase Authentication: ${pendingAuth.join(', ')}`);
+    const result = await provisionRosterUser(auth, db, config);
+    summary[result].push(config.email);
   }
 
   await reconcileMinistryFunctions(db);
   await reconcileApplicationUsers(auth, db);
+
+  console.log(`📊 Provisionamento concluído: ${summary.created.length} criado(s), ${summary.reconciled.length} existente(s)/reconciliado(s), ${users.length} total.`);
+  if (summary.created.length) console.log(`🆕 Criados: ${summary.created.join(', ')}`);
+  if (summary.reconciled.length) console.log(`🔄 Existentes/reconciliados: ${summary.reconciled.join(', ')}`);
 }
 
 main().catch(error => {
