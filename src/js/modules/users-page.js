@@ -92,7 +92,12 @@
     clearUserFormFeedback();
     state.editingId = user && user.id || null;
     el('user-form-title').textContent = user ? 'Editar usuário' : 'Novo usuário';
-    el('user-name').value = user?.name || ''; el('user-email').value = user?.email || ''; el('user-photo').value = user?.photoURL || '';
+    el('user-name').value = user?.name || '';
+    const emailField = el('user-email');
+    emailField.value = user?.email || '';
+    emailField.disabled = Boolean(user);
+    emailField.title = user ? 'O e-mail de login é definido no cadastro e não pode ser alterado.' : '';
+    el('user-photo').value = user?.photoURL || '';
     el('user-permissions-row').hidden = Boolean(user);
     el('user-functions').innerHTML = state.functions.filter(item => item.active !== false).map(fn => `<label class="users-function-option"><input type="checkbox" value="${escapeHtml(fn.id)}" ${user?.functionIds?.includes(fn.id) ? 'checked' : ''}><span>${escapeHtml(fn.name)}</span></label>`).join('');
     if (!user) renderInitialPermissions();
@@ -108,7 +113,8 @@
     const submitButton = el('user-submit');
     const originalButtonHtml = submitButton.innerHTML;
     const functionIds = Array.from(el('user-functions').querySelectorAll('input:checked')).map(input => input.value);
-    const payload = { name: el('user-name').value.trim(), email: el('user-email').value.trim(), photoURL: el('user-photo').value.trim() || null, functionIds, permissions: state.editingId ? undefined : readInitialPermissions() };
+    const editingUser = state.editingId ? findUser(state.editingId) : null;
+    const payload = { name: el('user-name').value.trim(), email: editingUser?.email || el('user-email').value.trim(), photoURL: el('user-photo').value.trim() || null, functionIds, permissions: state.editingId ? undefined : readInitialPermissions() };
     submitButton.disabled = true;
     submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>Salvando...';
     try {
