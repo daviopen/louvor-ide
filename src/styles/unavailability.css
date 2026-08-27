@@ -26,8 +26,13 @@
 .unavailability-loading{padding:var(--ide-space-6);text-align:center;color:var(--ide-text-secondary)}
 .unavailability-list{display:grid;gap:var(--ide-space-3)}
 .unavailability-item{display:grid;grid-template-columns:auto 1fr auto;gap:var(--ide-space-3);align-items:center;padding:var(--ide-space-4);border:1px solid var(--ide-border);border-radius:var(--ide-radius-md);background:var(--ide-surface)}
-.unavailability-date-badge{display:grid;place-items:center;width:3.25rem;min-height:3.25rem;border-radius:var(--ide-radius-md);background:var(--ide-surface-secondary);text-align:center}
-.unavailability-date-badge strong{font-size:var(--ide-font-size-xl);line-height:1}.unavailability-date-badge span{text-transform:uppercase;font-size:var(--ide-font-size-xs);color:var(--ide-text-secondary)}
+.unavailability-date-badge{display:grid;place-items:center;width:3.25rem;min-width:3.25rem;min-height:3.25rem;padding:.3rem .2rem;border-radius:var(--ide-radius-md);background:var(--ide-surface-secondary);text-align:center;overflow:hidden}
+.unavailability-date-badge strong{font-size:var(--ide-font-size-xl);line-height:1;max-width:100%}.unavailability-date-badge span{text-transform:uppercase;font-size:var(--ide-font-size-xs);line-height:1.1;color:var(--ide-text-secondary);max-width:100%}
+.unavailability-date-badge strong:first-child:not(:only-child){overflow-wrap:normal;word-break:normal}
+.unavailability-date-badge:has(strong:first-child:nth-last-child(2)){box-sizing:border-box}
+.unavailability-date-badge:has(strong:first-child:nth-last-child(2)) span{white-space:nowrap}
+.unavailability-date-badge:has(strong:first-child:nth-last-child(2)) strong{white-space:nowrap}
+.unavailability-date-badge:has(strong:first-child:nth-last-child(2)){width:4.5rem;min-width:4.5rem}
 .unavailability-item-main{min-width:0;display:grid;gap:var(--ide-space-1)}
 .unavailability-item-main strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.unavailability-item-main small{color:var(--ide-text-secondary);line-height:var(--ide-line-height-normal)}
 .unavailability-item-meta{display:flex;gap:var(--ide-space-2);flex-wrap:wrap}
