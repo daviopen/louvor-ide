@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { filterUsers, paginate, canManageUsers, UserService, DEFAULT_PASSWORD_RESET_URL } = require('../src/services/user-service.js');
+const { filterUsers, paginate, canManageUsers, UserService, DEFAULT_PASSWORD_RESET_URL, DEFAULT_MEMBER_PERMISSIONS } = require('../src/services/user-service.js');
 
 test('filterUsers busca por nome/e-mail e combina função/status', () => {
   const users = [
@@ -23,6 +23,20 @@ test('canManageUsers permite ADMIN e SUPER_ADMIN gerenciarem usuários', () => {
   assert.equal(canManageUsers({ role: 'SUPER_ADMIN' }), true);
   assert.equal(canManageUsers({ role: 'MEMBER' }), false);
   assert.equal(canManageUsers({ role: 'MEMBER', permissions: { users: 'EDIT' } }), true);
+});
+
+test('permissões padrão de novo membro seguem o perfil operacional definido', () => {
+  assert.deepEqual(DEFAULT_MEMBER_PERMISSIONS, {
+    dashboard: 'READ',
+    users: 'NONE',
+    permissions: 'NONE',
+    unavailability: 'EDIT',
+    events: 'NONE',
+    schedules: 'READ',
+    setlists: 'EDIT',
+    songs: 'EDIT',
+    audit: 'NONE'
+  });
 });
 
 test('UserService cria conta com UID gerado pelo Firebase e solicita definição de senha', async () => {
@@ -53,6 +67,29 @@ test('UserService cria conta com UID gerado pelo Firebase e solicita definição
   assert.equal(result.passwordEmailSent, true);
   assert.equal(auth.languageCode, 'pt-BR');
   assert.deepEqual(resetCalls, [{ email: 'pessoa@ide.com', settings: { url: DEFAULT_PASSWORD_RESET_URL, handleCodeInApp: false } }]);
+});
+
+test('UserService aplica permissões padrão quando o cadastro não informa permissões', async () => {
+  const calls = [];
+  const secondaryAuth = {
+    createUserWithEmailAndPassword: async () => ({ user: { uid: 'firebase-default-uid', delete: async () => {} } }),
+    signOut: async () => {}
+  };
+  const firebase = {
+    app: () => ({ options: { projectId: 'demo' } }),
+    initializeApp: () => ({ auth: () => secondaryAuth, delete: async () => {} })
+  };
+  const repository = {
+    findByEmail: async () => null,
+    createUser: async input => ({ id: input.uid, ...input }),
+    replaceUserFunctions: async () => [],
+    replaceInitialPermissions: async (id, permissions) => { calls.push({ id, permissions }); return permissions; },
+    addAuditLog: async () => ({})
+  };
+  const auth = { sendPasswordResetEmail: async () => {} };
+  const service = new UserService(repository, { firebase, auth, actorProvider: () => ({ uid: 'admin-1' }) });
+  await service.create({ name: 'Novo membro', email: 'novo@ide.com' });
+  assert.deepEqual(calls[0], { id: 'firebase-default-uid', permissions: DEFAULT_MEMBER_PERMISSIONS });
 });
 
 test('ADMIN pode solicitar redefinição pelo Firebase com URL explícita e auditoria', async () => {
