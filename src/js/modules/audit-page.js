@@ -86,18 +86,20 @@
 
   async function resolveActorNames(logs) {
     if (!database) return;
-    const ids = [...new Set(logs.map(log => String(log.actorUserId || '').trim()).filter(Boolean))]
-      .filter(id => !actorNames.has(id));
-    await Promise.all(ids.map(async id => {
-      try {
-        const snapshot = await database.collection('users').doc(id).get();
-        const data = snapshot && snapshot.exists ? snapshot.data() : null;
-        actorNames.set(id, data && data.name ? String(data.name).trim() : '');
-      } catch (error) {
-        console.warn(`Não foi possível resolver o nome do usuário ${id} na auditoria.`, error);
-        actorNames.set(id, '');
-      }
-    }));
+    const ids = new Set(logs.map(log => String(log.actorUserId || '').trim()).filter(Boolean));
+    if (!ids.size) return;
+    try {
+      const snapshot = await database.collection('users').get();
+      snapshot.forEach(doc => {
+        if (!ids.has(doc.id)) return;
+        const data = doc.data() || {};
+        actorNames.set(doc.id, data.name ? String(data.name).trim() : '');
+      });
+      ids.forEach(id => { if (!actorNames.has(id)) actorNames.set(id, ''); });
+    } catch (error) {
+      console.warn('Não foi possível resolver nomes dos usuários da auditoria em lote.', error);
+      ids.forEach(id => actorNames.set(id, ''));
+    }
   }
 
   function populateOptions(logs) {
@@ -154,7 +156,7 @@
       allLogs = await repository.listRecent(500);
       await resolveActorNames(allLogs);
       populateOptions(allLogs);
-      render(await repository.listFiltered(filters()));
+      render(await repository.listFiltered(filters(), allLogs));
     } catch (error) {
       console.error('Erro ao consultar auditoria:', error);
       scope.document.getElementById('audit-status').textContent = 'Não foi possível consultar a auditoria. Verifique sua permissão de leitura.';
@@ -169,7 +171,7 @@
     }
     database = scope.firebase.firestore();
     repository = new scope.MusicIdeAuditRepository.AuditRepository(database);
-    scope.document.getElementById('audit-filters').addEventListener('submit', async event => { event.preventDefault(); render(await repository.listFiltered(filters())); });
+    scope.document.getElementById('audit-filters').addEventListener('submit', async event => { event.preventDefault(); await load(); });
     scope.document.getElementById('audit-clear').addEventListener('click', () => {
       ['audit-user-filter','audit-from-filter','audit-to-filter','audit-action-filter','audit-entity-filter'].forEach(id => { scope.document.getElementById(id).value = ''; });
       scope.document.getElementById('audit-filter-panel').dispatchEvent(new CustomEvent('ideFiltersChanged'));
