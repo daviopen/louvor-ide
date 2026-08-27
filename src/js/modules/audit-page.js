@@ -8,6 +8,7 @@
   const params = new URLSearchParams(scope.location && scope.location.search || '');
   if (params.get('section') !== 'audit') return;
 
+  const RENDER_CHUNK_SIZE = 75;
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
   const toDate = value => value && typeof value.toDate === 'function' ? value.toDate() : (value ? new Date(value) : null);
   const formatDate = value => {
@@ -15,6 +16,12 @@
     return date && !Number.isNaN(date.getTime()) ? date.toLocaleString('pt-BR') : '—';
   };
   const pretty = value => JSON.stringify(value ?? null, null, 2);
+  const now = () => scope.performance && typeof scope.performance.now === 'function' ? scope.performance.now() : Date.now();
+  const reportDuration = (event, startedAt, context = {}) => {
+    const durationMs = Math.round((now() - startedAt) * 10) / 10;
+    if (scope.MusicIdeObservability?.info) scope.MusicIdeObservability.info(event, 'Métrica de performance da tela de auditoria.', { ...context, durationMs });
+    return durationMs;
+  };
 
   function ensureLayout() {
     const placeholder = scope.document.getElementById('module-placeholder');
@@ -45,6 +52,7 @@
           </details>
           <div id="audit-status" class="ide-audit-status" role="status" aria-live="polite">Carregando registros…</div>
           <div class="ide-table-wrap"><table class="ide-table ide-audit-table"><thead><tr><th>Data/hora</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>ID</th><th>Detalhes</th></tr></thead><tbody id="audit-rows"></tbody></table></div>
+          <div class="ide-audit-more"><button id="audit-load-more" class="ide-button ide-button--secondary" type="button" hidden>Carregar mais registros</button></div>
           <div id="audit-empty" class="ide-empty-state" hidden><strong>Nenhum registro encontrado</strong><span>Ajuste os filtros para ampliar a consulta.</span></div>
         </section>
       </div>
@@ -63,13 +71,15 @@
     if (scope.document.getElementById('audit-page-style')) return;
     const style = scope.document.createElement('style');
     style.id = 'audit-page-style';
-    style.textContent = `.ide-audit-root{display:grid;gap:1rem}.ide-audit-root h1{margin:.25rem 0}.ide-audit-root>p{margin:0;color:var(--text-secondary)}.ide-audit-filters{display:grid;grid-template-columns:2fr repeat(4,minmax(150px,1fr));gap:.75rem;align-items:end}.ide-audit-filters label{display:grid;gap:.35rem;font-weight:600}.ide-audit-filter-actions{display:flex;gap:.5rem;grid-column:1/-1}.ide-audit-status{color:var(--text-secondary)}.ide-table-wrap{overflow:auto}.ide-audit-table{min-width:980px}.ide-audit-table td{vertical-align:top}.ide-audit-user{display:grid;gap:.15rem}.ide-audit-user strong{font-weight:700}.ide-audit-user code{color:var(--text-secondary)}.ide-audit-table code{font-size:.82rem}.ide-audit-dialog{width:min(900px,calc(100vw - 2rem));max-height:90vh;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);color:var(--text-primary);padding:1.25rem}.ide-audit-dialog::backdrop{background:rgba(0,0,0,.5)}.ide-audit-dialog-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem}.ide-audit-detail-meta{display:grid;grid-template-columns:max-content 1fr;gap:.35rem .75rem}.ide-audit-detail-meta dt{font-weight:700}.ide-audit-diff{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.ide-audit-dialog pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--surface-secondary);padding:.75rem;border-radius:var(--radius-md);border:1px solid var(--border)}@media(max-width:900px){.ide-audit-filters{grid-template-columns:1fr 1fr}.ide-audit-diff{grid-template-columns:1fr}}@media(max-width:560px){.ide-audit-filters{grid-template-columns:1fr}.ide-audit-filter-actions{grid-column:auto;flex-direction:column}}`;
+    style.textContent = `.ide-audit-root{display:grid;gap:1rem}.ide-audit-root h1{margin:.25rem 0}.ide-audit-root>p{margin:0;color:var(--text-secondary)}.ide-audit-filters{display:grid;grid-template-columns:2fr repeat(4,minmax(150px,1fr));gap:.75rem;align-items:end}.ide-audit-filters label{display:grid;gap:.35rem;font-weight:600}.ide-audit-filter-actions{display:flex;gap:.5rem;grid-column:1/-1}.ide-audit-status{color:var(--text-secondary)}.ide-table-wrap{overflow:auto}.ide-audit-table{min-width:980px}.ide-audit-table td{vertical-align:top}.ide-audit-user{display:grid;gap:.15rem}.ide-audit-user strong{font-weight:700}.ide-audit-user code{color:var(--text-secondary)}.ide-audit-table code{font-size:.82rem}.ide-audit-more{display:flex;justify-content:center}.ide-audit-dialog{width:min(900px,calc(100vw - 2rem));max-height:90vh;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);color:var(--text-primary);padding:1.25rem}.ide-audit-dialog::backdrop{background:rgba(0,0,0,.5)}.ide-audit-dialog-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem}.ide-audit-detail-meta{display:grid;grid-template-columns:max-content 1fr;gap:.35rem .75rem}.ide-audit-detail-meta dt{font-weight:700}.ide-audit-diff{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.ide-audit-dialog pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--surface-secondary);padding:.75rem;border-radius:var(--radius-md);border:1px solid var(--border)}@media(max-width:900px){.ide-audit-filters{grid-template-columns:1fr 1fr}.ide-audit-diff{grid-template-columns:1fr}}@media(max-width:560px){.ide-audit-filters{grid-template-columns:1fr}.ide-audit-filter-actions{grid-column:auto;flex-direction:column}}`;
     scope.document.head.appendChild(style);
   }
 
   let repository;
   let database;
   let allLogs = [];
+  let visibleLogs = [];
+  let renderedCount = 0;
   const actorNames = new Map();
 
   function actorName(log) {
@@ -88,17 +98,20 @@
     if (!database) return;
     const ids = new Set(logs.map(log => String(log.actorUserId || '').trim()).filter(Boolean));
     if (!ids.size) return;
+    const unresolved = [...ids].filter(id => !actorNames.has(id));
+    if (!unresolved.length) return;
+    const wanted = new Set(unresolved);
     try {
       const snapshot = await database.collection('users').get();
       snapshot.forEach(doc => {
-        if (!ids.has(doc.id)) return;
+        if (!wanted.has(doc.id)) return;
         const data = doc.data() || {};
         actorNames.set(doc.id, data.name ? String(data.name).trim() : '');
       });
-      ids.forEach(id => { if (!actorNames.has(id)) actorNames.set(id, ''); });
+      unresolved.forEach(id => { if (!actorNames.has(id)) actorNames.set(id, ''); });
     } catch (error) {
       console.warn('Não foi possível resolver nomes dos usuários da auditoria em lote.', error);
-      ids.forEach(id => actorNames.set(id, ''));
+      unresolved.forEach(id => actorNames.set(id, ''));
     }
   }
 
@@ -126,18 +139,43 @@
     scope.document.getElementById('audit-detail').showModal();
   }
 
+  function createRow(log) {
+    const tr = scope.document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(formatDate(log.createdAt))}</td><td>${actorMarkup(log)}</td><td>${escapeHtml(log.action || '—')}</td><td>${escapeHtml(log.entityType || '—')}</td><td><code>${escapeHtml(log.entityId || '—')}</code></td><td><button class="ide-button ide-button--secondary ide-button--sm" type="button">Ver alteração</button></td>`;
+    tr.querySelector('button').addEventListener('click', () => openDetail(log));
+    return tr;
+  }
+
+  function updateRenderStatus() {
+    const total = visibleLogs.length;
+    const shown = Math.min(renderedCount, total);
+    scope.document.getElementById('audit-status').textContent = total === shown
+      ? `${total} registro(s) exibido(s). Consulta somente leitura.`
+      : `${shown} de ${total} registro(s) renderizado(s). Consulta somente leitura.`;
+    scope.document.getElementById('audit-load-more').hidden = shown >= total;
+  }
+
+  function appendNextChunk() {
+    if (renderedCount >= visibleLogs.length) return updateRenderStatus();
+    const startedAt = now();
+    const rows = scope.document.getElementById('audit-rows');
+    const fragment = scope.document.createDocumentFragment();
+    const end = Math.min(renderedCount + RENDER_CHUNK_SIZE, visibleLogs.length);
+    for (let index = renderedCount; index < end; index += 1) fragment.appendChild(createRow(visibleLogs[index]));
+    rows.appendChild(fragment);
+    renderedCount = end;
+    updateRenderStatus();
+    reportDuration('performance.audit.render', startedAt, { rendered: end, total: visibleLogs.length });
+  }
+
   function render(logs) {
     const rows = scope.document.getElementById('audit-rows');
     const empty = scope.document.getElementById('audit-empty');
     rows.textContent = '';
-    empty.hidden = logs.length > 0;
-    logs.forEach(log => {
-      const tr = scope.document.createElement('tr');
-      tr.innerHTML = `<td>${escapeHtml(formatDate(log.createdAt))}</td><td>${actorMarkup(log)}</td><td>${escapeHtml(log.action || '—')}</td><td>${escapeHtml(log.entityType || '—')}</td><td><code>${escapeHtml(log.entityId || '—')}</code></td><td><button class="ide-button ide-button--secondary ide-button--sm" type="button">Ver alteração</button></td>`;
-      tr.querySelector('button').addEventListener('click', () => openDetail(log));
-      rows.appendChild(tr);
-    });
-    scope.document.getElementById('audit-status').textContent = `${logs.length} registro(s) exibido(s). Consulta somente leitura.`;
+    visibleLogs = Array.isArray(logs) ? logs : [];
+    renderedCount = 0;
+    empty.hidden = visibleLogs.length > 0;
+    appendNextChunk();
   }
 
   function filters() {
@@ -151,12 +189,15 @@
   }
 
   async function load() {
+    const startedAt = now();
     try {
       scope.document.getElementById('audit-status').textContent = 'Carregando registros…';
       allLogs = await repository.listRecent(500);
       await resolveActorNames(allLogs);
       populateOptions(allLogs);
-      render(await repository.listFiltered(filters(), allLogs));
+      const filtered = await repository.listFiltered(filters(), allLogs);
+      render(filtered);
+      reportDuration('performance.audit.load', startedAt, { fetched: allLogs.length, filtered: filtered.length });
     } catch (error) {
       console.error('Erro ao consultar auditoria:', error);
       scope.document.getElementById('audit-status').textContent = 'Não foi possível consultar a auditoria. Verifique sua permissão de leitura.';
@@ -177,6 +218,7 @@
       scope.document.getElementById('audit-filter-panel').dispatchEvent(new CustomEvent('ideFiltersChanged'));
       render(allLogs);
     });
+    scope.document.getElementById('audit-load-more').addEventListener('click', appendNextChunk);
     scope.document.getElementById('audit-detail-close').addEventListener('click', () => scope.document.getElementById('audit-detail').close());
     await load();
   }
