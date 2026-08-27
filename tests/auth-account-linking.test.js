@@ -20,3 +20,12 @@ test('reconciliação preserva o UID canônico do perfil e remove somente duplic
   assert.match(script, /uid: expectedUid/);
   assert.match(script, /Não é seguro reconciliar/);
 });
+
+test('corrige e-mail canônico malformado antes da reconciliação geral', () => {
+  assert.match(script, /davi\.alves\.de\.sousa@gmail\.com2/);
+  assert.match(script, /davi\.alves\.de\.sousa@gmail\.com/);
+  assert.match(script, /repairKnownMalformedProfileEmails/);
+  assert.match(script, /conflictingProfile\.exists/);
+  assert.match(script, /auth\.deleteUser\(conflictingAuth\.uid\)/);
+  assert.match(script, /email: correctedEmail/);
+});
