@@ -13,6 +13,8 @@ Montar uma escala por evento, relacionando funções ministeriais e usuários at
 
 ## Regras e validações
 - Uma escala por evento; geração idempotente e identificador derivado do evento quando aplicável.
+- Novas escalas usam como template inicial: 4 Back Vocal, 2 Ministro, 1 Guitarra, 1 Violão, 1 Baixo, 1 Bateria e 1 Teclado, desde que as respectivas funções estejam ativas no catálogo.
+- O template inicial não é limite estrutural: qualquer posição pode ser removida pelo editor e novas posições/funções podem ser adicionadas conforme o evento.
 - Funções/posições são dinâmicas, podem repetir a mesma função e não possuem limite estrutural fixo.
 - Selecionar função antes do usuário.
 - Usuário elegível deve estar ativo, possuir a função e estar disponível.
@@ -56,6 +58,8 @@ Montar uma escala por evento, relacionando funções ministeriais e usuários at
 
 ## Testes
 - uma escala por evento e idempotência;
+- template inicial cria 4 Back Vocal, 2 Ministro, 1 Guitarra, 1 Violão, 1 Baixo, 1 Bateria e 1 Teclado;
+- posições do template permanecem removíveis e novas posições podem ser adicionadas;
 - elegibilidade por função/status/disponibilidade;
 - conflitos e exceções;
 - múltiplas funções quando permitido e bloqueio de duplicidade na mesma função;
