@@ -651,3 +651,80 @@
 - [ ] Sem senhas armazenadas.
 - [ ] Audit Log funcionando.
 - [ ] Fluxos críticos testados ponta a ponta.
+
+## P10 — Recursos sem backend adicional
+
+> Este épico deve permanecer implementável no navegador utilizando apenas a aplicação web e os serviços Firebase já existentes. Não introduzir Cloud Functions, servidor dedicado, container, SMTP, API key privada exposta no cliente ou outro serviço server-side como requisito destes itens.
+
+### 34. Exportação mensal de escalas em PDF no frontend
+- [ ] Criar submenu `Escalas > Exportar`.
+- [ ] Permitir selecionar mês e ano de referência.
+- [ ] Consultar no Firestore as escalas e eventos correspondentes ao mês selecionado.
+- [ ] Gerar o PDF diretamente no navegador, sem Cloud Function ou serviço externo de geração de PDF.
+- [ ] Exibir no PDF data, horário, evento, local e integrantes agrupados por função ministerial.
+- [ ] Exibir somente informações úteis ao usuário, sem IDs técnicos de documentos.
+- [ ] Ordenar os eventos cronologicamente.
+- [ ] Utilizar layout claro, legível e consistente com o Design System do IDE Music.
+- [ ] Suportar múltiplas páginas sem cortar cards, títulos ou integrantes.
+- [ ] Permitir baixar o arquivo localmente.
+- [ ] Definir nome de arquivo previsível, por exemplo `escala-2026-09.pdf`.
+- [ ] Validar exportação em desktop e mobile.
+- [ ] Validar meses sem eventos com Empty State adequado.
+- [ ] Criar testes para agrupamento, ordenação e conteúdo gerado.
+
+### 35. Agenda/calendário da escala via iCalendar (`.ics`)
+- [ ] Disponibilizar ação `Adicionar à agenda` na visualização da escala/evento.
+- [ ] Gerar arquivo `.ics` diretamente no navegador, sem backend.
+- [ ] Utilizar padrão iCalendar compatível com Google Calendar, Outlook, Apple Calendar e aplicativos equivalentes.
+- [ ] Preencher título do compromisso com nome do evento e identificação do IDE Music.
+- [ ] Preencher data e horário inicial/final quando disponíveis.
+- [ ] Preencher local do evento quando disponível.
+- [ ] Incluir na descrição a função ou funções em que o usuário está escalado.
+- [ ] Incluir link direto para a escala e/ou Setlist quando houver URL pública/autorizada aplicável.
+- [ ] Utilizar timezone correto do evento e evitar conversões incorretas de horário.
+- [ ] Gerar `UID` estável a partir do evento/escala para permitir identificação consistente do compromisso.
+- [ ] Não incluir IDs internos desnecessários no texto visível do compromisso.
+- [ ] Permitir baixar o `.ics` individual de um evento.
+- [ ] Permitir gerar um `.ics` contendo todas as escalas do usuário em um mês selecionado.
+- [ ] Considerar apenas escalas em que o usuário autenticado participa na exportação pessoal mensal.
+- [ ] Ordenar eventos cronologicamente no arquivo mensal.
+- [ ] Validar importação do arquivo no Google Calendar.
+- [ ] Validar importação do arquivo no Outlook.
+- [ ] Validar importação em calendário de dispositivo móvel quando possível.
+- [ ] Criar testes para datas, timezone, `UID`, caracteres especiais e múltiplos eventos.
+
+### 36. Compartilhamento client-side de escala e agenda
+- [ ] Disponibilizar ação `Compartilhar` quando a Web Share API estiver disponível no dispositivo.
+- [ ] Permitir compartilhar link da escala/setlist sem necessidade de backend adicional.
+- [ ] Permitir compartilhar o PDF ou `.ics` gerado localmente quando o navegador/dispositivo suportar compartilhamento de arquivos.
+- [ ] Implementar fallback para copiar link quando Web Share API não estiver disponível.
+- [ ] Não utilizar tokens privados, credenciais ou serviços server-side para o compartilhamento.
+- [ ] Manter comportamento consistente em desktop e mobile.
+
+### 37. Firebase App Check sem backend próprio
+- [ ] Avaliar e habilitar Firebase App Check nos serviços Firebase utilizados diretamente pelo frontend quando compatível.
+- [ ] Priorizar providers oficiais suportados diretamente pelo Firebase Web SDK e que não exijam Cloud Function própria.
+- [ ] Não utilizar provider customizado que dependa de backend como requisito deste épico.
+- [ ] Configurar modo de observação antes de enforcement quando aplicável.
+- [ ] Validar que autenticação, Firestore e funcionalidades existentes continuam operando após a ativação.
+- [ ] Documentar configuração de desenvolvimento/local para não bloquear testes automatizados.
+
+### 38. Limites explícitos do escopo sem backend
+- [ ] Não implementar envio automático de e-mail/SMTP neste épico.
+- [ ] Não implementar envio automático de convite `.ics` por e-mail neste épico; disponibilizar geração/download/compartilhamento local.
+- [ ] Não implementar push direcionado que exija armazenar secret/API key privilegiada no frontend.
+- [ ] Não expor REST API keys privadas, SMTP credentials ou secrets no bundle web.
+- [ ] Não adicionar Cloud Functions apenas para atender aos itens 34 a 37.
+- [ ] Caso uma evolução futura exija backend, registrar em épico separado antes da implementação.
+
+### 39. Definition of Done dos recursos sem backend
+- [ ] Nenhuma Cloud Function nova criada para estes recursos.
+- [ ] Nenhum serviço backend dedicado criado para estes recursos.
+- [ ] Nenhum secret privado presente no frontend.
+- [ ] PDF mensal validado com dados reais em produção.
+- [ ] `.ics` individual validado com dados reais em produção.
+- [ ] `.ics` mensal do usuário validado com dados reais em produção.
+- [ ] Compartilhamento/fallback validado em desktop e mobile.
+- [ ] Testes unitários e E2E relevantes passando.
+- [ ] GitHub Actions passando.
+- [ ] Funcionalidades validadas na aplicação publicada antes de marcar os itens como concluídos.
