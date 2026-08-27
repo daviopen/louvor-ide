@@ -8,5 +8,11 @@
     "email": "davitads@gmail.com",
     "role": "SUPER_ADMIN",
     "active": true
+  },
+  {
+    "email": "rogerb.farma@gmail.com",
+    "name": "Rogério Barbosa",
+    "role": "MEMBER",
+    "active": true
   }
 ]
