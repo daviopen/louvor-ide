@@ -27,14 +27,10 @@
   ]);
   const TRANSIENT_AUTHORIZATION_ERROR_CODES = new Set([
     'auth/network-request-failed',
-    'firestore/unavailable',
-    'unavailable',
-    'firestore/deadline-exceeded',
-    'deadline-exceeded',
-    'firestore/aborted',
-    'aborted',
-    'firestore/resource-exhausted',
-    'resource-exhausted',
+    'firestore/unavailable', 'unavailable',
+    'firestore/deadline-exceeded', 'deadline-exceeded',
+    'firestore/aborted', 'aborted',
+    'firestore/resource-exhausted', 'resource-exhausted',
     'app/firestore-unavailable'
   ]);
 
@@ -49,19 +45,13 @@
 
   function sanitizeReturnUrl(candidate, fallback = DEFAULT_RETURN_URL) {
     if (typeof candidate !== 'string' || !candidate.trim()) return fallback;
-
     const trimmed = candidate.trim();
     if (trimmed.startsWith('//') || trimmed.includes('\\')) return fallback;
-
     try {
       const base = new URL('https://music.ide/');
       const parsed = new URL(trimmed, base);
       const page = currentPageName(parsed.pathname);
-
-      if (parsed.origin !== base.origin || !/^[a-z0-9-]+\.html$/i.test(page)) {
-        return fallback;
-      }
-
+      if (parsed.origin !== base.origin || !/^[a-z0-9-]+\.html$/i.test(page)) return fallback;
       if (page === 'login.html') return fallback;
       return `${page}${parsed.search}${parsed.hash}`;
     } catch (error) {
@@ -71,10 +61,7 @@
 
   function buildCurrentReturnUrl(locationLike) {
     if (!locationLike) return DEFAULT_RETURN_URL;
-
-    return sanitizeReturnUrl(
-      `${currentPageName(locationLike.pathname)}${locationLike.search || ''}${locationLike.hash || ''}`
-    );
+    return sanitizeReturnUrl(`${currentPageName(locationLike.pathname)}${locationLike.search || ''}${locationLike.hash || ''}`);
   }
 
   function normalizeThemePreference(value) {
@@ -104,12 +91,10 @@
     const normalized = normalizeThemePreference(preference);
     const resolved = resolveTheme(normalized, systemPrefersDark(scope));
     const root = scope.document.documentElement;
-
     root.dataset = root.dataset || {};
     root.dataset.theme = resolved;
     root.dataset.themePreference = normalized;
     if (root.style) root.style.colorScheme = resolved;
-
     return resolved;
   }
 
@@ -117,14 +102,10 @@
     const normalized = normalizeThemePreference(preference);
     try {
       if (scope.localStorage) scope.localStorage.setItem(THEME_STORAGE_KEY, normalized);
-    } catch (error) {
-      // Storage can be unavailable in hardened/private browser contexts.
-    }
+    } catch (error) {}
     const resolved = applyTheme(scope, normalized);
     if (scope.dispatchEvent && scope.CustomEvent) {
-      scope.dispatchEvent(new scope.CustomEvent('musicIdeThemeChanged', {
-        detail: { preference: normalized, theme: resolved }
-      }));
+      scope.dispatchEvent(new scope.CustomEvent('musicIdeThemeChanged', { detail: { preference: normalized, theme: resolved } }));
     }
     return normalized;
   }
@@ -135,7 +116,6 @@
     const handleChange = () => {
       if (readThemePreference(scope) === 'system') applyTheme(scope, 'system');
     };
-
     if (typeof media.addEventListener === 'function') media.addEventListener('change', handleChange);
     else if (typeof media.addListener === 'function') media.addListener(handleChange);
     scope.__musicIdeThemeWatcher = { media, handleChange };
@@ -143,9 +123,7 @@
 
   function isAllowedUser(user) {
     if (!user || !Array.isArray(user.providerData)) return false;
-    return user.providerData.some(provider => provider && (
-      provider.providerId === 'google.com' || provider.providerId === 'password'
-    ));
+    return user.providerData.some(provider => provider && (provider.providerId === 'google.com' || provider.providerId === 'password'));
   }
 
   function isActiveProfile(profile) {
@@ -160,10 +138,7 @@
   async function withAuthorizationRetry(operation, options = {}) {
     const maxAttempts = Math.max(1, Number(options.maxAttempts) || 2);
     const delayMs = Math.max(0, Number(options.delayMs) || 350);
-    const sleep = typeof options.sleep === 'function'
-      ? options.sleep
-      : ms => new Promise(resolve => setTimeout(resolve, ms));
-
+    const sleep = typeof options.sleep === 'function' ? options.sleep : ms => new Promise(resolve => setTimeout(resolve, ms));
     let lastError;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
@@ -202,9 +177,7 @@
       'auth/weak-password': 'A senha informada não atende aos requisitos mínimos de segurança.',
       'auth/wrong-password': 'E-mail ou senha inválidos.'
     };
-
-    return messages[error && error.code]
-      || 'Não foi possível concluir a autenticação. Tente novamente.';
+    return messages[error && error.code] || 'Não foi possível concluir a autenticação. Tente novamente.';
   }
 
   function reportAuthError(scope, context, error) {
@@ -217,15 +190,10 @@
     const element = scope.document && scope.document.getElementById('auth-message');
     if (!element) {
       if (scope.document && scope.document.readyState === 'loading') {
-        scope.document.addEventListener(
-          'DOMContentLoaded',
-          () => setLoginMessage(scope, message, type),
-          { once: true }
-        );
+        scope.document.addEventListener('DOMContentLoaded', () => setLoginMessage(scope, message, type), { once: true });
       }
       return;
     }
-
     element.textContent = message;
     element.dataset.type = type;
     element.hidden = !message;
@@ -234,9 +202,7 @@
   function persistAuthMessage(scope, message) {
     try {
       if (scope.sessionStorage) scope.sessionStorage.setItem(AUTH_MESSAGE_KEY, message);
-    } catch (error) {
-      // A mensagem é apenas UX; a autorização não depende do storage.
-    }
+    } catch (error) {}
   }
 
   function consumeAuthMessage(scope) {
@@ -256,11 +222,9 @@
       scope.document.addEventListener('DOMContentLoaded', () => renderAuthenticatedUser(scope, user), { once: true });
       return;
     }
-
     const container = scope.document.createElement('div');
     container.id = 'music-ide-user';
     container.className = 'music-ide-user';
-
     let avatar;
     if (user.photoURL) {
       avatar = scope.document.createElement('img');
@@ -273,19 +237,15 @@
       avatar.setAttribute('aria-hidden', 'true');
       avatar.textContent = String(user.displayName || user.email || 'U').trim().charAt(0).toUpperCase();
     }
-
     const name = scope.document.createElement('span');
     name.className = 'music-ide-user-name';
     name.textContent = user.displayName || user.email || 'Conta Google';
-
     const themeLabel = scope.document.createElement('label');
     themeLabel.className = 'music-ide-theme-control';
     themeLabel.setAttribute('aria-label', 'Tema da interface');
-
     const themeIcon = scope.document.createElement('i');
     themeIcon.className = 'fa-solid fa-circle-half-stroke music-ide-theme-icon';
     themeIcon.setAttribute('aria-hidden', 'true');
-
     const themeSelect = scope.document.createElement('select');
     themeSelect.className = 'music-ide-theme-select';
     themeSelect.title = 'Tema da interface';
@@ -293,13 +253,11 @@
     themeSelect.value = readThemePreference(scope);
     themeSelect.addEventListener('change', event => setThemePreference(scope, event.target.value));
     themeLabel.append(themeIcon, themeSelect);
-
     const signOutButton = scope.document.createElement('button');
     signOutButton.type = 'button';
     signOutButton.className = 'music-ide-signout';
     signOutButton.innerHTML = '<i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i><span>Sair</span>';
     signOutButton.addEventListener('click', () => scope.MusicIdeAuth.signOut());
-
     container.append(avatar, name, themeLabel, signOutButton);
     scope.document.body.appendChild(container);
   }
@@ -319,10 +277,7 @@
   function bootstrapProfilePayload(scope, user) {
     const firestore = scope.firebase && scope.firebase.firestore;
     const fieldValue = firestore && firestore.FieldValue;
-    const timestamp = fieldValue && typeof fieldValue.serverTimestamp === 'function'
-      ? fieldValue.serverTimestamp()
-      : new Date();
-
+    const timestamp = fieldValue && typeof fieldValue.serverTimestamp === 'function' ? fieldValue.serverTimestamp() : new Date();
     return {
       uid: user.uid,
       name: user.displayName || user.email || 'Usuário IDE Music',
@@ -340,16 +295,11 @@
     if (!user || !user.uid || !scope.firebase || typeof scope.firebase.firestore !== 'function') return;
     const firestore = scope.firebase.firestore;
     const fieldValue = firestore.FieldValue;
-    const timestamp = fieldValue && typeof fieldValue.serverTimestamp === 'function'
-      ? fieldValue.serverTimestamp()
-      : new Date();
-
+    const timestamp = fieldValue && typeof fieldValue.serverTimestamp === 'function' ? fieldValue.serverTimestamp() : new Date();
     try {
       await firestore().collection('users').doc(user.uid).set({ lastAccessAt: timestamp }, { merge: true });
     } catch (error) {
-      if (scope.console && typeof scope.console.warn === 'function') {
-        scope.console.warn('Não foi possível registrar o último acesso do usuário.', error);
-      }
+      if (scope.console && typeof scope.console.warn === 'function') scope.console.warn('Não foi possível registrar o último acesso do usuário.', error);
     }
   }
 
@@ -365,7 +315,6 @@
       if (!['READ', 'EDIT'].includes(level)) return null;
       return [moduleName, level];
     }));
-
     return Object.fromEntries(entries.filter(Boolean));
   }
 
@@ -375,10 +324,8 @@
       error.code = 'app/firestore-unavailable';
       throw error;
     }
-
     const profileRef = scope.firebase.firestore().collection('users').doc(user.uid);
     let snapshot = await profileRef.get();
-
     if (!snapshot.exists) {
       try {
         await profileRef.set(bootstrapProfilePayload(scope, user));
@@ -390,33 +337,16 @@
         throw error;
       }
     }
-
     const profile = snapshot.data() || null;
-    if (!isActiveProfile(profile)) {
-      return { authorized: false, reason: 'inactive', profile };
-    }
-
-    const permissions = profile.role === 'SUPER_ADMIN'
-      ? {}
-      : await loadEffectivePermissions(scope, user.uid);
-
-    return {
-      authorized: true,
-      reason: null,
-      profile: { ...profile, permissions }
-    };
+    if (!isActiveProfile(profile)) return { authorized: false, reason: 'inactive', profile };
+    const permissions = profile.role === 'SUPER_ADMIN' ? {} : await loadEffectivePermissions(scope, user.uid);
+    return { authorized: true, reason: null, profile: { ...profile, permissions } };
   }
 
   function authorizationFailureMessage(reason) {
-    if (reason === 'inactive') {
-      return 'Esta conta está desativada. Procure a liderança do ministério.';
-    }
-    if (reason === 'not-provisioned') {
-      return 'Esta conta ainda não foi liberada pela liderança.';
-    }
-    if (reason === 'transient') {
-      return 'Não foi possível atualizar sua autorização agora. Verifique sua conexão e tente novamente.';
-    }
+    if (reason === 'inactive') return 'Esta conta está desativada. Procure a liderança do ministério.';
+    if (reason === 'not-provisioned') return 'Esta conta ainda não foi liberada pela liderança.';
+    if (reason === 'transient') return 'Não foi possível validar seu acesso agora. Verifique sua conexão e tente novamente.';
     return 'Não foi possível validar sua autorização. Tente novamente.';
   }
 
@@ -424,17 +354,12 @@
     if (!scope.document || !scope.location) return;
     if (scope.__musicIdeAuthBootstrapped) return;
     scope.__musicIdeAuthBootstrapped = true;
-
     applyTheme(scope, readThemePreference(scope));
     watchSystemTheme(scope);
-    if (scope.document.documentElement && scope.document.documentElement.classList) {
-      scope.document.documentElement.classList.add('auth-pending');
-    }
+    if (scope.document.documentElement && scope.document.documentElement.classList) scope.document.documentElement.classList.add('auth-pending');
 
     let resolveAuthReady;
-    scope.musicIdeAuthReady = new Promise(resolve => {
-      resolveAuthReady = resolve;
-    });
+    scope.musicIdeAuthReady = new Promise(resolve => { resolveAuthReady = resolve; });
 
     function failInitialization(message) {
       finishPageReveal(scope);
@@ -464,9 +389,7 @@
         const provider = new scope.firebase.auth.GoogleAuthProvider();
         provider.addScope('profile');
         provider.addScope('email');
-        if (typeof provider.setCustomParameters === 'function') {
-          provider.setCustomParameters({ prompt: 'select_account' });
-        }
+        if (typeof provider.setCustomParameters === 'function') provider.setCustomParameters({ prompt: 'select_account' });
         const result = await auth.signInWithPopup(provider);
         setLoginMessage(scope, 'Conta Google autenticada. Validando acesso...', 'info');
         return result;
@@ -559,22 +482,19 @@
 
       let authorization;
       try {
-        authorization = await withAuthorizationRetry(
-          () => resolveAuthorizedProfile(scope, user),
-          { maxAttempts: 2, delayMs: 350 }
-        );
+        authorization = await withAuthorizationRetry(() => resolveAuthorizedProfile(scope, user), { maxAttempts: 2, delayMs: 350 });
       } catch (error) {
         reportAuthError(scope, 'validação de autorização', error);
 
         if (isTransientAuthorizationError(error)) {
           const message = authorizationFailureMessage('transient');
-          // Falhas transitórias não invalidam a identidade Firebase. Preservamos
-          // a sessão para permitir recuperação automática ao estabilizar a rede.
-          exposeAuthState(scope, user, null);
-          resolveAuthReady(user);
+          // Mantém a identidade Firebase, mas nunca libera a aplicação sem um
+          // perfil validado. Assim a falha de rede não vira logout nem bypass.
+          resolveAuthReady(null);
+          if (!onLoginPage) persistAuthMessage(scope, message);
           finishPageReveal(scope);
           if (onLoginPage) setLoginMessage(scope, message);
-          else if (scope.console && typeof scope.console.warn === 'function') scope.console.warn(`[Auth] ${message}`);
+          else scope.location.replace('login.html');
           return;
         }
 
