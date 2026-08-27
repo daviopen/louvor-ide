@@ -60,17 +60,65 @@
       this.firebase = options.firebase || null;
       this.actorProvider = options.actorProvider || (() => null);
       this.passwordResetUrl = options.passwordResetUrl || DEFAULT_PASSWORD_RESET_URL;
+      this.directoryCacheTtlMs = Math.max(0, Number(options.directoryCacheTtlMs ?? 30000));
+      this.directoryCache = null;
+      this.directoryCacheAt = 0;
+      this.directoryLoadPromise = null;
     }
 
-    async list(filters = {}, page = 1, pageSize = PAGE_SIZE) {
-      const [users, functions] = await Promise.all([this.repository.listUsers(), this.repository.listMinistryFunctions()]);
-      const functionMap = new Map(functions.map(item => [item.id, item]));
-      const enriched = await Promise.all(users.map(async user => {
-        const functionIds = await this.repository.listUserFunctionIds(user.id);
-        return { ...user, functionIds, functions: functionIds.map(id => functionMap.get(id)).filter(Boolean) };
-      }));
-      enriched.sort((a, b) => normalize(a.name).localeCompare(normalize(b.name), 'pt-BR'));
-      return { ...paginate(filterUsers(enriched, filters), page, pageSize), functions };
+    invalidateDirectoryCache() {
+      this.directoryCache = null;
+      this.directoryCacheAt = 0;
+      this.directoryLoadPromise = null;
+    }
+
+    async loadDirectory(force = false) {
+      const now = Date.now();
+      if (!force && this.directoryCache && (now - this.directoryCacheAt) < this.directoryCacheTtlMs) return this.directoryCache;
+      if (!force && this.directoryLoadPromise) return this.directoryLoadPromise;
+
+      this.directoryLoadPromise = (async () => {
+        const supportsBulkRelations = typeof this.repository.listActiveUserFunctions === 'function';
+        const requests = [this.repository.listUsers(), this.repository.listMinistryFunctions()];
+        if (supportsBulkRelations) requests.push(this.repository.listActiveUserFunctions());
+        const [users, functions, relations = []] = await Promise.all(requests);
+        const functionMap = new Map(functions.map(item => [item.id, item]));
+        const relationsByUser = new Map();
+
+        if (supportsBulkRelations) {
+          for (const relation of relations) {
+            if (!relation || !relation.userId || !relation.functionId || relation.active === false) continue;
+            if (!relationsByUser.has(relation.userId)) relationsByUser.set(relation.userId, []);
+            relationsByUser.get(relation.userId).push(relation.functionId);
+          }
+        }
+
+        const enriched = supportsBulkRelations
+          ? users.map(user => {
+              const functionIds = relationsByUser.get(user.id) || [];
+              return { ...user, functionIds, functions: functionIds.map(id => functionMap.get(id)).filter(Boolean) };
+            })
+          : await Promise.all(users.map(async user => {
+              const functionIds = await this.repository.listUserFunctionIds(user.id);
+              return { ...user, functionIds, functions: functionIds.map(id => functionMap.get(id)).filter(Boolean) };
+            }));
+
+        enriched.sort((a, b) => normalize(a.name).localeCompare(normalize(b.name), 'pt-BR'));
+        this.directoryCache = { users: enriched, functions };
+        this.directoryCacheAt = Date.now();
+        return this.directoryCache;
+      })();
+
+      try {
+        return await this.directoryLoadPromise;
+      } finally {
+        this.directoryLoadPromise = null;
+      }
+    }
+
+    async list(filters = {}, page = 1, pageSize = PAGE_SIZE, options = {}) {
+      const directory = await this.loadDirectory(options.force === true);
+      return { ...paginate(filterUsers(directory.users, filters), page, pageSize), functions: directory.functions };
     }
 
     async create(input) {
@@ -101,6 +149,7 @@
           await this.repository.replaceInitialPermissions(user.id, permissions);
         }
         await this.audit('USER_CREATED', user.id, { functionIds, permissions, provisionedAuth: true });
+        this.invalidateDirectoryCache();
 
         let passwordEmailSent = false;
         let passwordEmailError = null;
@@ -127,12 +176,14 @@
       const user = await this.repository.updateUser(id, { name: input.name, email: input.email, photoURL: input.photoURL || null });
       await this.repository.replaceUserFunctions(id, input.functionIds || []);
       await this.audit('USER_UPDATED', id, { functionIds: input.functionIds || [] });
+      this.invalidateDirectoryCache();
       return user;
     }
 
     async setActive(id, active) {
       const user = await this.repository.updateUser(id, { active: Boolean(active) });
       await this.audit(active ? 'USER_REACTIVATED' : 'USER_DEACTIVATED', id, { active: Boolean(active) });
+      this.invalidateDirectoryCache();
       return user;
     }
 
