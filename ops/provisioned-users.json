@@ -1,17 +1,151 @@
 [
   {
     "email": "teste.firebase@gmail.com",
+    "name": "Usuário de Teste Firebase",
     "role": "MEMBER",
     "active": true
   },
   {
     "email": "davitads@gmail.com",
+    "name": "Davi Alves",
     "role": "SUPER_ADMIN",
+    "active": true
+  },
+  {
+    "email": "rlpetra@hotmail.com",
+    "name": "Ricardo Farias Nascimento",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "amandbs25@gmail.com",
+    "name": "Amanda Barbosa Assunção Araújo",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "altino.campeao2017@gmail.com",
+    "name": "Altino De Souza Assunção Araújo",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "aanabatista0@gmail.com",
+    "name": "Ana Batista",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "cruzrayane357@gmail.com",
+    "name": "Rayane Santos",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "marialaratrabalhos@gmail.com",
+    "name": "Maria Lara",
+    "role": "MEMBER",
     "active": true
   },
   {
     "email": "rogerb.farma@gmail.com",
     "name": "Rogério Barbosa",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "bbsbrayan95@gmail.com",
+    "name": "Brayan Barbosa Silva",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "camila.o.mattos02@gmail.com",
+    "name": "Camila Mattos",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "lukyanmelo11@gmail.com",
+    "name": "Lukyan Melo",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "kalytarebeccav@gmail.com",
+    "name": "Rebecca Veloso",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "iris.mattosms@gmail.com",
+    "name": "Íris Matos",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "abreuarthur96@gmail.com",
+    "name": "Arthur Abreu",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "palomaspcoelho@gmail.com",
+    "name": "Paloma Coelho",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "mariaclarafaria001@gmail.com",
+    "name": "Maria Clara Ribeiro",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "matheusrichard.adv@gmail.com",
+    "name": "Matheus Richard",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "isadora8530@gmail.com",
+    "name": "Isadora Abreu",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "joshuareidner@gmail.com",
+    "name": "Joshua Reidner",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "jessecarlosbarros@gmail.com",
+    "name": "Jessé Carlos Ribeiro Barros",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "thamiresribeiro002@gmail.com",
+    "name": "Thamires Ribeiro Barros",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "esdraswilliams@gmail.com",
+    "name": "Esdras Williams Leite",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "guilhermeicaro7@gmail.com",
+    "name": "Guilherme Ícaro",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
+    "email": "juliaflorencio@outlook.com",
+    "name": "Julia Florencio",
     "role": "MEMBER",
     "active": true
   }
