@@ -38,6 +38,16 @@ test('seleção normal usa somente elegíveis em seletor visual com nome e avata
   assert.doesNotMatch(page, /Exceção administrativa/);
 });
 
+test('funções repetidas recebem numeração e cada perfil possui marcador de cor', () => {
+  assert.match(page, /function slotFunctionLabel\(schedule, slot\)/);
+  assert.match(page, /matches\.length<=1/);
+  assert.match(page, /return `\$\{base\} \$\{position/);
+  assert.match(page, /functionColorIndex/);
+  assert.match(page, /schedule-function-dot/);
+  assert.match(css, /schedule-function-dot--1/);
+  assert.match(css, /schedule-function-dot--8/);
+});
+
 test('UI possui avatar, status de completude e filtros históricos na listagem', () => {
   assert.match(page, /schedule-avatar/);
   assert.match(page, /Completa/);
