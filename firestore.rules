@@ -172,7 +172,7 @@ service cloud.firestore {
 
     match /ministryFunctions/{documentId} {
       allow read: if activeUser();
-      allow write: if isSuperAdmin() || canEdit('users');
+      allow write: if isAdmin();
     }
     match /userFunctions/{documentId} {
       allow read: if canRead('users') || canRead('songs');
