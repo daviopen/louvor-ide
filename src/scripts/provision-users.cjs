@@ -93,10 +93,16 @@ function readProvisioningConfig() {
   if (!Array.isArray(items) || items.length === 0) throw new Error('ops/provisioned-users.json deve conter ao menos um usuário.');
   return items.map((item, index) => {
     if (!item || typeof item.email !== 'string' || !item.email.includes('@')) throw new Error(`Usuário #${index + 1} sem e-mail válido.`);
+    if (item.name != null && (typeof item.name !== 'string' || !item.name.trim())) throw new Error(`Nome inválido para ${item.email}.`);
     if (!allowedRoles.has(item.role)) throw new Error(`Papel inválido para ${item.email}: ${item.role}`);
     if (typeof item.active !== 'boolean') throw new Error(`Campo active inválido para ${item.email}.`);
     if ('password' in item || 'token' in item || 'credential' in item) throw new Error(`Credenciais não podem existir no arquivo de provisionamento (${item.email}).`);
-    return { email: item.email.trim().toLowerCase(), role: item.role, active: item.active };
+    return {
+      email: item.email.trim().toLowerCase(),
+      name: item.name ? item.name.trim() : null,
+      role: item.role,
+      active: item.active
+    };
   });
 }
 
@@ -218,6 +224,7 @@ async function main() {
   const auth = getAuth();
   const db = getFirestore();
   const users = readProvisioningConfig();
+  const pendingAuth = [];
 
   for (const config of users) {
     let userRecord;
@@ -225,17 +232,19 @@ async function main() {
       userRecord = await auth.getUserByEmail(config.email);
     } catch (error) {
       if (error && error.code === 'auth/user-not-found') {
-        throw new Error(`A conta ${config.email} não existe no Firebase Authentication. Crie a conta no Firebase antes de provisioná-la; nenhuma senha é criada por este script.`);
+        pendingAuth.push(config.email);
+        console.warn(`⚠️ ${config.email}: ainda não existe no Firebase Authentication; perfil será provisionado quando a conta existir.`);
+        continue;
       }
       throw error;
     }
 
-    if (userRecord.disabled && config.active) {
-      userRecord = await auth.updateUser(userRecord.uid, { disabled: false });
-      console.log(`✅ Firebase Authentication reativado para ${config.email}`);
-    } else if (!userRecord.disabled && !config.active) {
-      userRecord = await auth.updateUser(userRecord.uid, { disabled: true });
-      console.log(`✅ Firebase Authentication desativado para ${config.email}`);
+    const authPatch = {};
+    if (userRecord.disabled === config.active) authPatch.disabled = !config.active;
+    if (config.name && userRecord.displayName !== config.name) authPatch.displayName = config.name;
+    if (Object.keys(authPatch).length) {
+      userRecord = await auth.updateUser(userRecord.uid, authPatch);
+      console.log(`🔄 ${config.email}: dados do Firebase Authentication sincronizados`);
     }
 
     const profileRef = db.collection('users').doc(userRecord.uid);
@@ -243,7 +252,7 @@ async function main() {
     const payload = {
       uid: userRecord.uid,
       email: userRecord.email || config.email,
-      name: userRecord.displayName || userRecord.email || config.email,
+      name: config.name || userRecord.displayName || userRecord.email || config.email,
       photoURL: userRecord.photoURL || null,
       active: config.active,
       role: config.role,
@@ -255,8 +264,14 @@ async function main() {
     const verifiedAuth = await auth.getUser(userRecord.uid);
     const profile = (await profileRef.get()).data();
     if (verifiedAuth.disabled === config.active) throw new Error(`Estado do Firebase Authentication não corresponde ao esperado para ${config.email}.`);
-    if (!profile || profile.active !== config.active || profile.role !== config.role) throw new Error(`Perfil Firestore não corresponde ao provisionamento de ${config.email}.`);
-    console.log(`✅ ${config.email}: Auth ${verifiedAuth.disabled ? 'disabled' : 'enabled'}, perfil ${profile.role}/${profile.active ? 'ativo' : 'inativo'}`);
+    if (!profile || profile.active !== config.active || profile.role !== config.role || (config.name && profile.name !== config.name)) {
+      throw new Error(`Perfil Firestore não corresponde ao provisionamento de ${config.email}.`);
+    }
+    console.log(`✅ ${config.email}: Auth ${verifiedAuth.disabled ? 'disabled' : 'enabled'}, perfil ${profile.role}/${profile.active ? 'ativo' : 'inativo'} (${profile.name})`);
+  }
+
+  if (pendingAuth.length) {
+    console.warn(`⚠️ ${pendingAuth.length} usuário(s) da lista ainda não existem no Firebase Authentication: ${pendingAuth.join(', ')}`);
   }
 
   await reconcileMinistryFunctions(db);
