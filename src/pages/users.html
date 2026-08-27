@@ -10,12 +10,12 @@
   <script src="../config/firebase-config.js"></script>
   <script src="../models/data-model.js"></script>
   <script src="../repositories/domain-repositories.js"></script>
-  <script src="../repositories/user-repository.js"></script>
+  <script src="../repositories/user-repository.js?v=20260827-users-performance"></script>
   <script src="../services/ministry-functions-service.js?v=20260825-roles"></script>
-  <script src="../services/user-service.js?v=20260825-password-reset"></script>
+  <script src="../services/user-service.js?v=20260827-users-performance"></script>
   <script src="../js/modules/auth-service.js?v=20260825-auth-sync"></script>
   <script src="../js/modules/app-shell.js?v=20260825-auth-sync" defer></script>
-  <script src="../js/modules/users-page.js?v=20260825-password-reset" defer></script>
+  <script src="../js/modules/users-page.js?v=20260827-users-performance" defer></script>
   <script src="../js/modules/user-permissions-integration.js?v=20260825-user-permissions" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="../styles/tokens.css">
@@ -58,11 +58,10 @@
     </details>
 
     <section class="users-list-section" aria-labelledby="users-count">
-      <div class="users-summary"><strong id="users-count">0 usuários</strong><span><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Usuários com histórico são inativados, nunca excluídos fisicamente.</span></div>
+      <div class="users-summary"><strong id="users-count">0 usuários</strong><span><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Lista contínua: filtros e busca são aplicados sem trocar de página.</span></div>
       <div id="users-loading" class="users-loading" role="status">Carregando usuários...</div>
       <section id="users-table-wrap" class="ide-table-wrap users-table-wrap" hidden><table class="ide-table users-table"><thead><tr><th>Usuário</th><th>Funções</th><th>Status</th><th>Último acesso</th><th>Ações</th></tr></thead><tbody id="users-body"></tbody></table></section>
       <div id="users-empty" class="users-empty" hidden><i class="fa-solid fa-users" aria-hidden="true"></i><p>Nenhum usuário encontrado para os filtros informados.</p></div>
-      <nav class="users-pagination" aria-label="Paginação de usuários"><button id="page-prev" class="ide-button ide-button--ghost ide-button--sm" type="button"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i>Anterior</button><span id="page-label">Página 1 de 1</span><button id="page-next" class="ide-button ide-button--ghost ide-button--sm" type="button">Próxima<i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></nav>
     </section>
   </main>
 
