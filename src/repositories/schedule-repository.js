@@ -79,6 +79,11 @@
       return options.includeInactive ? items : items.filter(item => item.active !== false);
     }
 
+    async listAllMembers(options = {}) {
+      const items = entities(await this.members().get());
+      return options.includeInactive ? items : items.filter(item => item.active !== false);
+    }
+
     async createMember(data, actorUserId) {
       const now = this.clock();
       const document = { ...data, active: true, createdBy: actorUserId, updatedBy: actorUserId, createdAt: now, updatedAt: now };
