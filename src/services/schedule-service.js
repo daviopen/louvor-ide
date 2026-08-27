@@ -87,6 +87,30 @@
       return { access, schedules: result, users, functions, userFunctions, unavailability };
     }
 
+    async loadEditor(scheduleId, user, profile = null) {
+      const access = await this.resolveAccess(user, profile);
+      if (!access.canRead) throw new Error('Você não possui permissão para consultar escalas.');
+      const schedule = await this.repository.getSchedule(scheduleId);
+      if (!schedule) return { access, schedules: [], users: [], functions: [], userFunctions: [], unavailability: [] };
+
+      const [event, members, users, functions, userFunctions, unavailability] = await Promise.all([
+        this.repository.getEvent(schedule.eventId),
+        this.repository.listMembers(scheduleId),
+        this.repository.listActiveUsers(),
+        this.repository.listActiveFunctions(),
+        this.repository.listUserFunctions(),
+        this.repository.listUnavailability()
+      ]);
+      const activeMembers = members.filter(item => item.active !== false);
+      const item = {
+        ...schedule,
+        event: event || null,
+        members: activeMembers,
+        completeness: scheduleCompleteness(schedule, activeMembers)
+      };
+      return { access, schedules: [item], users, functions, userFunctions, unavailability };
+    }
+
     eligibleUsers(functionId, event, context) {
       const functionUsers = new Set((context.userFunctions || []).filter(item => item.active !== false && item.functionId === functionId).map(item => item.userId));
       return (context.users || []).filter(user => {
@@ -145,9 +169,6 @@
       const access = await this.resolveAccess(user, profile);
       if (!access.canEdit) throw new Error('Você não possui permissão para editar escalas.');
 
-      // A validação de edição é feita com leituras direcionadas ao registro que
-      // está sendo alterado. Evita recarregar todas as escalas e catálogos em
-      // cada troca de integrante, sem confiar em estado antigo da tela.
       const assignment = await this.loadAssignmentContext(scheduleId, userId);
       const { schedule, members, event, selectedUser, userFunctions, unavailability } = assignment;
       const slot = (schedule.slots || []).find(item => item.id === slotId);
