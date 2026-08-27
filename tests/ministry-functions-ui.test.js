@@ -11,7 +11,8 @@ const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 
 test('funções ministeriais são geridas como submenu administrativo de Configurações', () => {
   assert.match(shell, /id: 'settings'.*adminOnly: true/);
-  assert.match(settingsPage, /data-settings-tab="functions"/);
+  assert.match(shell, /id: 'settings-functions'.*href: 'module\.html\?section=settings&tab=functions'.*adminOnly: true/s);
+  assert.doesNotMatch(settingsPage, /data-settings-tab="functions"/);
   assert.match(settingsPage, /<h2 id="functions-title">Funções Ministeriais<\/h2>/);
   assert.match(settingsPage, /Gerencie nome, identificador, ícone, ordem e status das funções usadas no cadastro de pessoas, filtros e templates de escala/);
   assert.match(settingsPage, /MINISTRY_FUNCTION_CREATED/);

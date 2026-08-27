@@ -282,6 +282,17 @@ Audit logs devem registrar o necessário para rastreabilidade sem copiar dados s
 
 Toda alteração de UI deve ser validada em viewport desktop e mobile.
 
+### 16.1. Navegação, funcionalidades e submenus
+
+A árvore de navegação deve representar a arquitetura de informação do produto, e não apenas agrupar links visualmente.
+
+- Funcionalidades distintas pertencentes ao mesmo domínio devem ser expostas como **submenus reais** do item pai na navegação principal. Exemplo: `Configurações > Template de Escala` e `Configurações > Funções Ministeriais`.
+- Abas/tabs devem ser usadas apenas para diferentes visões, estados ou recortes da **mesma funcionalidade**, e não para esconder módulos funcionais independentes.
+- Cada submenu deve possuir destino/estado de rota identificável e indicação correta de item ativo.
+- Regras de autorização do item pai e dos filhos devem permanecer explícitas e coerentes; ocultar submenu não substitui guard, Rules ou backend.
+- A hierarquia deve funcionar em desktop, drawer mobile e sidebar recolhida, com navegação por teclado e sem duplicar a mesma navegação dentro do conteúdo da página sem necessidade.
+- Ao adicionar uma nova funcionalidade sob um domínio já existente, avaliar primeiro se ela deve ser um submenu antes de criar novo item de primeiro nível.
+
 Requisitos mínimos:
 
 - contraste compatível com WCAG para texto e controles;

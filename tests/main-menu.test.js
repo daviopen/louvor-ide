@@ -11,7 +11,8 @@ const helpPage = fs.readFileSync(path.join(root, 'src/pages/help.html'), 'utf8')
 
 const expectedLabels = [
   'Dashboard', 'Usuários', 'Permissões', 'Indisponibilidade', 'Eventos', 'Escalas',
-  'Próximos', 'Histórico', 'Consultar', 'Nova Música', 'Auditoria', 'Configurações', 'Ajuda'
+  'Próximos', 'Histórico', 'Consultar', 'Nova Música', 'Auditoria', 'Configurações',
+  'Template de Escala', 'Funções Ministeriais', 'Ajuda'
 ];
 
 test('menu principal contém toda a árvore prevista no ROADMAP 11 e a central de ajuda', () => {
@@ -25,6 +26,14 @@ test('menu principal usa ícones compatíveis nas funcionalidades visíveis', ()
   assert.match(shell, /id: 'schedules'.*icon: 'fa-calendar-check'/s);
   assert.match(shell, /id: 'help'.*icon: 'fa-circle-question'/s);
   assert.doesNotMatch(shell, /fa-shield-halved|fa-people-group/);
+});
+
+test('configurações organiza funcionalidades distintas como submenus reais', () => {
+  assert.match(shell, /id: 'settings'.*children:/s);
+  assert.match(shell, /id: 'settings-template'.*Template de Escala/s);
+  assert.match(shell, /id: 'settings-functions'.*Funções Ministeriais/s);
+  assert.match(shell, /createNavBranch/);
+  assert.match(css, /ide-sidebar-submenu/);
 });
 
 test('menu principal aplica rota ativa, permissão e recolhimento persistido', () => {
