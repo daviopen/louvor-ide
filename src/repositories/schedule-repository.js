@@ -7,6 +7,7 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (globalScope) globalScope.MusicIdeScheduleRepository = api;
 })(typeof window !== 'undefined' ? window : null, function createModule() {
+  const DEFAULT_SCHEDULE_TEMPLATE_VERSION = 1;
   const DEFAULT_SCHEDULE_TEMPLATE = Object.freeze([
     Object.freeze({ slug: 'back-vocal', quantity: 4 }),
     Object.freeze({ slug: 'ministro', quantity: 2 }),
@@ -29,15 +30,53 @@
     return `schedule_${String(eventId || '').trim()}`;
   }
 
+  function functionMapBySlug(functions) {
+    return new Map((functions || []).filter(item => item && item.active !== false && item.slug).map(item => [String(item.slug), item]));
+  }
+
+  function nextDefaultSlotId(slug, usedIds) {
+    let index = 1;
+    let candidate = `slot_${slug}_${index}`;
+    while (usedIds.has(candidate)) {
+      index += 1;
+      candidate = `slot_${slug}_${index}`;
+    }
+    usedIds.add(candidate);
+    return candidate;
+  }
+
   function buildDefaultSlots(functions) {
-    const bySlug = new Map((functions || []).filter(item => item && item.active !== false && item.slug).map(item => [String(item.slug), item]));
+    const bySlug = functionMapBySlug(functions);
     const slots = [];
+    const usedIds = new Set();
     DEFAULT_SCHEDULE_TEMPLATE.forEach(template => {
       const fn = bySlug.get(template.slug);
       if (!fn) return;
-      for (let index = 1; index <= template.quantity; index += 1) {
-        slots.push({ id: `slot_${template.slug}_${index}`, functionId: fn.id });
+      for (let index = 0; index < template.quantity; index += 1) {
+        slots.push({ id: nextDefaultSlotId(template.slug, usedIds), functionId: fn.id });
       }
+    });
+    return slots;
+  }
+
+  function mergeDefaultSlots(existingSlots, functions) {
+    const slots = Array.isArray(existingSlots) ? existingSlots.map(item => ({ ...item })) : [];
+    const bySlug = functionMapBySlug(functions);
+    const usedIds = new Set(slots.map(item => item?.id).filter(Boolean));
+    const counts = new Map();
+    slots.forEach(slot => {
+      if (!slot?.functionId) return;
+      counts.set(slot.functionId, (counts.get(slot.functionId) || 0) + 1);
+    });
+    DEFAULT_SCHEDULE_TEMPLATE.forEach(template => {
+      const fn = bySlug.get(template.slug);
+      if (!fn) return;
+      const current = counts.get(fn.id) || 0;
+      const missing = Math.max(0, template.quantity - current);
+      for (let index = 0; index < missing; index += 1) {
+        slots.push({ id: nextDefaultSlotId(template.slug, usedIds), functionId: fn.id });
+      }
+      counts.set(fn.id, current + missing);
     });
     return slots;
   }
@@ -81,6 +120,7 @@
         eventTime: event.time || null,
         status: ['CANCELLED', 'COMPLETED'].includes(event.status) ? event.status : 'DRAFT',
         slots: buildDefaultSlots(functions),
+        defaultTemplateVersion: DEFAULT_SCHEDULE_TEMPLATE_VERSION,
         createdBy: actorUserId,
         updatedBy: actorUserId,
         createdAt: now,
@@ -88,6 +128,27 @@
       };
       await this.schedules().doc(id).set(document);
       return { id, ...document, idempotent: false };
+    }
+
+    async ensureDefaultTemplate(scheduleId, actorUserId) {
+      const current = await this.getSchedule(scheduleId);
+      if (!current) throw new Error('Escala não encontrada.');
+      if (Number(current.defaultTemplateVersion || 0) >= DEFAULT_SCHEDULE_TEMPLATE_VERSION) return { ...current, templateApplied: false };
+      const functions = await this.listActiveFunctions();
+      const before = Array.isArray(current.slots) ? current.slots : [];
+      const slots = mergeDefaultSlots(before, functions);
+      const updated = await this.updateSchedule(scheduleId, {
+        slots,
+        defaultTemplateVersion: DEFAULT_SCHEDULE_TEMPLATE_VERSION,
+        status: current.status === 'COMPLETE' && slots.length > before.length ? 'DRAFT' : current.status
+      }, actorUserId);
+      await this.addAuditLog(actorUserId, 'SCHEDULE_DEFAULT_TEMPLATE_APPLIED', scheduleId, {
+        templateVersion: DEFAULT_SCHEDULE_TEMPLATE_VERSION,
+        previousSlots: before.length,
+        totalSlots: slots.length,
+        addedSlots: slots.length - before.length
+      });
+      return { ...updated, templateApplied: true };
     }
 
     async updateSchedule(id, patch, actorUserId) {
@@ -182,5 +243,5 @@
     }
   }
 
-  return Object.freeze({ ScheduleRepository, scheduleIdForEvent, buildDefaultSlots, DEFAULT_SCHEDULE_TEMPLATE });
+  return Object.freeze({ ScheduleRepository, scheduleIdForEvent, buildDefaultSlots, mergeDefaultSlots, DEFAULT_SCHEDULE_TEMPLATE, DEFAULT_SCHEDULE_TEMPLATE_VERSION });
 });
