@@ -114,19 +114,29 @@ jobs:
           )
           settings_path.write_text(settings, encoding='utf-8')
 
-          test_path = Path('tests/main-menu.test.js')
-          tests = test_path.read_text(encoding='utf-8')
-          tests = replace_once(
-              tests,
+          menu_test_path = Path('tests/main-menu.test.js')
+          menu_tests = menu_test_path.read_text(encoding='utf-8')
+          menu_tests = replace_once(
+              menu_tests,
               "  'Próximos', 'Histórico', 'Consultar', 'Nova Música', 'Auditoria', 'Configurações', 'Ajuda'",
               "  'Próximos', 'Histórico', 'Consultar', 'Nova Música', 'Auditoria', 'Configurações',\n  'Template de Escala', 'Funções Ministeriais', 'Ajuda'",
               'main menu expected labels'
           )
           marker = "test('menu principal aplica rota ativa, permissão e recolhimento persistido', () => {"
           addition = "test('configurações organiza funcionalidades distintas como submenus reais', () => {\n  assert.match(shell, /id: 'settings'.*children:/s);\n  assert.match(shell, /id: 'settings-template'.*Template de Escala/s);\n  assert.match(shell, /id: 'settings-functions'.*Funções Ministeriais/s);\n  assert.match(shell, /createNavBranch/);\n  assert.match(css, /ide-sidebar-submenu/);\n});\n\n"
-          if addition not in tests:
-              tests = replace_once(tests, marker, addition + marker, 'submenu regression test')
-          test_path.write_text(tests, encoding='utf-8')
+          if addition not in menu_tests:
+              menu_tests = replace_once(menu_tests, marker, addition + marker, 'submenu regression test')
+          menu_test_path.write_text(menu_tests, encoding='utf-8')
+
+          ministry_test_path = Path('tests/ministry-functions-ui.test.js')
+          ministry_tests = ministry_test_path.read_text(encoding='utf-8')
+          ministry_tests = replace_once(
+              ministry_tests,
+              '  assert.match(settingsPage, /data-settings-tab="functions"/);',
+              "  assert.match(shell, /id: 'settings-functions'.*href: 'module\\.html\\?section=settings&tab=functions'.*adminOnly: true/s);\n  assert.doesNotMatch(settingsPage, /data-settings-tab=\"functions\"/);",
+              'ministry settings submenu assertion'
+          )
+          ministry_test_path.write_text(ministry_tests, encoding='utf-8')
 
           agents_path = Path('AGENTS.md')
           agents = agents_path.read_text(encoding='utf-8')
@@ -144,6 +154,6 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           rm .github/workflows/apply-settings-submenus.yml
-          git add src/js/modules/app-shell.js src/js/modules/settings-page.js src/styles/main-menu.css tests/main-menu.test.js AGENTS.md .github/workflows/apply-settings-submenus.yml
+          git add src/js/modules/app-shell.js src/js/modules/settings-page.js src/styles/main-menu.css tests/main-menu.test.js tests/ministry-functions-ui.test.js AGENTS.md .github/workflows/apply-settings-submenus.yml
           git commit -m 'feat(nav): add settings submenus and document navigation rule'
           git push origin HEAD:main
