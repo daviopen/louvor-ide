@@ -1,6 +1,8 @@
 (function initScheduleMonthlyUi(scope) {
   if (!scope || !scope.document) return;
-  const section = new URLSearchParams(scope.location.search).get('section');
+  const params = new URLSearchParams(scope.location.search);
+  const section = params.get('section');
+  const view = params.get('view') || '';
   const supported = new Set(['schedules', 'schedules-export', 'schedules-participation', 'events', 'unavailability']);
   if (!supported.has(section)) return;
 
@@ -16,15 +18,15 @@
     const base = nav?.querySelector('[data-nav-id="schedules"]');
     if (!base || nav.querySelector('[data-nav-id="schedules-export"]')) return;
     const entries = [
-      ['schedules-export', 'Exportar', 'fa-file-pdf'],
-      ['schedules-participation', 'Participações', 'fa-chart-column']
+      ['schedules-export', 'Exportar', 'fa-file-pdf', 'export'],
+      ['schedules-participation', 'Participações', 'fa-chart-column', 'participation']
     ];
     let anchor = base;
-    entries.forEach(([id, label, icon]) => {
+    entries.forEach(([id, label, icon, targetView]) => {
       const link = scope.document.createElement('a');
       link.className = 'ide-sidebar-link';
-      if (section === id) { link.classList.add('active'); link.setAttribute('aria-current', 'page'); }
-      link.href = `module.html?section=${id}`;
+      if (section === 'schedules' && view === targetView) { link.classList.add('active'); link.setAttribute('aria-current', 'page'); base.classList.remove('active'); base.removeAttribute('aria-current'); }
+      link.href = `module.html?section=schedules&view=${targetView}`;
       link.dataset.navId = id;
       link.dataset.tooltip = label;
       link.innerHTML = `<i class="fa-solid ${icon}" aria-hidden="true"></i><span class="ide-sidebar-label">${label}</span>`;
@@ -68,9 +70,9 @@
 
   let editorTimer = null;
   function addEditorMonthlySummary() {
-    const scheduleId = new URLSearchParams(scope.location.search).get('scheduleId');
+    const scheduleId = params.get('scheduleId');
     const card = scope.document.querySelector('.schedule-editor-card');
-    if (!scheduleId || !card) return false;
+    if (!scheduleId || !card || view) return false;
     clearTimeout(editorTimer);
     editorTimer = setTimeout(async () => {
       try {
@@ -165,44 +167,81 @@
     render();
   }
 
-  function enhanceUnavailability() {
+  function rangeOverlapsRecord(record, from, to) {
+    const start = monthly().dateKey(record?.date);
+    const end = monthly().dateKey(record?.endAt || record?.date) || start;
+    if (!start) return false;
+    if (record?.recurrence?.frequency === 'WEEKLY' && record.recurrence.openEnded) return !to || start <= to;
+    return (!from || end >= from) && (!to || start <= to);
+  }
+
+  async function enhanceUnavailability() {
     const heading = scope.document.querySelector('.unavailability-list-card .unavailability-section-heading');
-    if (!heading || scope.document.getElementById('unavailability-month-filter')) return false;
+    const originalList = scope.document.getElementById('unavailability-list');
+    const empty = scope.document.getElementById('unavailability-empty');
+    if (!heading || !originalList || scope.document.getElementById('unavailability-month-filter')) return false;
+
     const controls = scope.document.createElement('div');
     controls.className = 'unavailability-filter';
-    controls.innerHTML = '<span>Filtrar período</span><input id="unavailability-month-filter" class="ide-field__control ide-field__input" type="month">';
+    controls.style.cssText = 'display:grid;grid-template-columns:repeat(3,minmax(130px,1fr));gap:.5rem;width:min(620px,100%)';
+    controls.innerHTML = '<label><span>Mês</span><input id="unavailability-month-filter" class="ide-field__control ide-field__input" type="month"></label><label><span>Data inicial</span><input id="unavailability-filter-from" class="ide-field__control ide-field__input" type="date"></label><label><span>Data final</span><input id="unavailability-filter-to" class="ide-field__control ide-field__input" type="date"></label>';
     heading.appendChild(controls);
-    const input = controls.querySelector('input');
-    input.addEventListener('change', () => {
-      if (!input.value) return;
-      const [year, month] = input.value.split('-').map(Number);
-      const label = scope.document.getElementById('calendar-label');
-      if (!label) return;
-      const target = new Date(year, month - 1, 1);
-      const currentText = label.textContent.trim();
-      const targetText = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(target);
-      if (currentText === targetText) return;
-      scope.location.hash = `month-${input.value}`;
-      scope.location.reload();
-    });
+    const monthInput = controls.querySelector('#unavailability-month-filter');
+    const fromInput = controls.querySelector('#unavailability-filter-from');
+    const toInput = controls.querySelector('#unavailability-filter-to');
+    connectMonthToRange(monthInput, fromInput, toInput);
+
+    const filtered = scope.document.createElement('div');
+    filtered.id = 'unavailability-filtered-list';
+    filtered.className = 'unavailability-list';
+    filtered.hidden = true;
+    originalList.insertAdjacentElement('afterend', filtered);
+
+    const repository = new scope.MusicIdeUnavailabilityRepository.UnavailabilityRepository(scope.firebase.firestore());
+    const role = String(scope.currentMusicIdeProfile?.role || '').toUpperCase();
+    const admin = scope.currentMusicIdeProfile?.isSuperAdmin === true || scope.currentMusicIdeProfile?.isAdmin === true || role === 'SUPER_ADMIN' || role === 'ADMIN';
+    const actor = scope.currentMusicIdeUser?.uid;
+    const users = admin ? await repository.listActiveUsers() : [];
+    const names = new Map(users.map(user => [userId(user), user.name || user.email || 'Usuário']));
+
+    const apply = async () => {
+      const from = fromInput.value;
+      const to = toInput.value;
+      const active = Boolean(from || to);
+      originalList.hidden = active;
+      filtered.hidden = !active;
+      if (empty) empty.hidden = active ? true : empty.hidden;
+      if (!active) return;
+      const records = admin ? await repository.listAll() : await repository.listByUser(actor);
+      const matches = records.filter(record => rangeOverlapsRecord(record, from, to)).sort((a,b) => monthly().dateKey(a.date).localeCompare(monthly().dateKey(b.date)));
+      filtered.innerHTML = matches.map(record => {
+        const start = monthly().dateKey(record.date);
+        const end = monthly().dateKey(record.endAt || record.date);
+        const person = admin ? (names.get(record.userId) || 'Usuário') : (scope.currentMusicIdeProfile?.name || scope.currentMusicIdeUser?.displayName || scope.currentMusicIdeUser?.email || 'Você');
+        return `<article class="unavailability-item"><div class="unavailability-item-main"><strong>${esc(person)}</strong><small>${esc(start)}${end && end !== start ? ` até ${esc(end)}` : ''}${record.recurrence?.frequency === 'WEEKLY' ? ' · recorrente semanal' : ''}</small><div class="unavailability-item-meta"><span class="ide-badge">${esc(record.period || 'Dia inteiro')}</span></div>${record.note ? `<small>${esc(record.note)}</small>` : ''}</div></article>`;
+      }).join('') || '<div class="ide-empty-state"><strong>Nenhuma indisponibilidade no período selecionado</strong></div>';
+    };
+    monthInput.addEventListener('change', apply);
+    fromInput.addEventListener('change', apply);
+    toInput.addEventListener('change', apply);
     return true;
   }
 
   async function bootstrap() {
     try { await scope.musicIdeAuthReady; } catch (_) {}
     injectNav();
-    if (section === 'schedules-export') return renderExportPage();
-    if (section === 'schedules-participation') return renderParticipationPage();
+    if ((section === 'schedules-export') || (section === 'schedules' && view === 'export')) return renderExportPage();
+    if ((section === 'schedules-participation') || (section === 'schedules' && view === 'participation')) return renderParticipationPage();
     let attempts = 0;
     const timer = setInterval(() => {
       attempts += 1;
       injectNav();
       if (section === 'events') addMonthFilter('events-month-filter', 'events-date-from', 'events-date-to');
-      if (section === 'schedules') { addMonthFilter('schedule-filter-month', 'schedule-filter-from', 'schedule-filter-to'); addEditorMonthlySummary(); }
-      if (section === 'unavailability') enhanceUnavailability();
+      if (section === 'schedules' && !view) { addMonthFilter('schedule-filter-month', 'schedule-filter-from', 'schedule-filter-to'); addEditorMonthlySummary(); }
+      if (section === 'unavailability') enhanceUnavailability().catch(error => console.error('Filtro de indisponibilidade indisponível.', error));
       if (attempts > 40) clearInterval(timer);
     }, 250);
-    if (section === 'schedules' && typeof MutationObserver === 'function') {
+    if (section === 'schedules' && !view && typeof MutationObserver === 'function') {
       const root = scope.document.getElementById('module-placeholder');
       if (root) new MutationObserver(() => { addMonthFilter('schedule-filter-month', 'schedule-filter-from', 'schedule-filter-to'); addEditorMonthlySummary(); }).observe(root, { childList: true, subtree: true });
     }
