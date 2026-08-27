@@ -42,6 +42,8 @@
   --ide-text-secondary: var(--ide-color-neutral-600);
   --ide-text-on-dark: var(--ide-color-white);
   --ide-text-on-dark-secondary: var(--ide-color-neutral-300);
+  --ide-avatar-fallback-bg: var(--ide-color-neutral-200);
+  --ide-avatar-fallback-ink: var(--ide-color-neutral-900);
   --ide-border: rgba(17, 20, 21, 0.14);
   --ide-border-strong: rgba(17, 20, 21, 0.28);
   --ide-border-on-dark: rgba(255, 255, 255, 0.16);
@@ -141,6 +143,8 @@
   --ide-text-secondary: var(--ide-color-neutral-300);
   --ide-text-on-dark: var(--ide-color-white);
   --ide-text-on-dark-secondary: var(--ide-color-neutral-300);
+  --ide-avatar-fallback-bg: var(--ide-color-neutral-700);
+  --ide-avatar-fallback-ink: var(--ide-color-neutral-50);
   --ide-border: rgba(255, 255, 255, 0.14);
   --ide-border-strong: rgba(255, 255, 255, 0.28);
   --ide-border-on-dark: rgba(255, 255, 255, 0.20);
