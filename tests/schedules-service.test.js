@@ -6,19 +6,25 @@ function fakeRepository() {
   const schedules = new Map([['schedule_event_1', { id: 'schedule_event_1', eventId: 'event_1', status: 'DRAFT', slots: [{ id: 'slot_a', functionId: 'fn_back' }] }]]);
   const members = [];
   const audit = [];
-  const calls = { listAllMembers: 0, listMembers: 0 };
+  const users = [{ id: 'u1', name: 'Ana', active: true }, { id: 'u2', name: 'Bia', active: true }];
+  const userFunctions = [{ userId: 'u1', functionId: 'fn_back', active: true }, { userId: 'u1', functionId: 'fn_keys', active: true }, { userId: 'u2', functionId: 'fn_back', active: true }];
+  const unavailability = [{ id: 'un1', userId: 'u2', date: '2026-09-01', period: 'EVENING' }];
+  const calls = { listSchedules: 0, listAllMembers: 0, listMembers: 0, getUser: 0, listUserFunctionsForUser: 0, listUnavailabilityForUser: 0 };
   return {
     schedules, members, audit, calls,
     async getPermissionLevel() { return 'EDIT'; },
-    async listSchedules() { return [{ ...schedules.get('schedule_event_1'), event: { id: 'event_1', name: 'Culto', date: '2026-09-01', time: '20:00' } }]; },
-    async listActiveUsers() { return [{ id: 'u1', name: 'Ana', active: true }, { id: 'u2', name: 'Bia', active: true }]; },
+    async listSchedules() { calls.listSchedules += 1; return [{ ...schedules.get('schedule_event_1'), event: { id: 'event_1', name: 'Culto', date: '2026-09-01', time: '20:00' } }]; },
+    async listActiveUsers() { return users.map(item => ({ ...item })); },
     async listActiveFunctions() { return [{ id: 'fn_back', name: 'Back Vocal', active: true, order: 10 }, { id: 'fn_keys', name: 'Teclado', active: true, order: 20 }]; },
-    async listUserFunctions() { return [{ userId: 'u1', functionId: 'fn_back', active: true }, { userId: 'u1', functionId: 'fn_keys', active: true }, { userId: 'u2', functionId: 'fn_back', active: true }]; },
-    async listUnavailability() { return [{ id: 'un1', userId: 'u2', date: '2026-09-01', period: 'EVENING' }]; },
+    async listUserFunctions() { return userFunctions.map(item => ({ ...item })); },
+    async listUserFunctionsForUser(userId) { calls.listUserFunctionsForUser += 1; return userFunctions.filter(item => item.userId === userId).map(item => ({ ...item })); },
+    async listUnavailability() { return unavailability.map(item => ({ ...item })); },
+    async listUnavailabilityForUser(userId) { calls.listUnavailabilityForUser += 1; return unavailability.filter(item => item.userId === userId).map(item => ({ ...item })); },
     async listAllMembers() { calls.listAllMembers += 1; return members.filter(item => item.active !== false); },
     async listMembers() { calls.listMembers += 1; return members.filter(item => item.active !== false); },
     async getSchedule(id) { return schedules.get(id) || null; },
     async getEvent() { return { id: 'event_1', name: 'Culto', date: '2026-09-01', time: '20:00' }; },
+    async getUser(id) { calls.getUser += 1; return users.find(item => item.id === id) || null; },
     async updateSchedule(id, patch) { const next = { ...schedules.get(id), ...patch }; schedules.set(id, next); return next; },
     async createMember(data) { const item = { id: `m${members.length + 1}`, ...data, active: true }; members.push(item); return item; },
     async removeMember(id) { const item = members.find(member => member.id === id); if (item) item.active = false; return item; },
@@ -62,6 +68,19 @@ test('lista elegíveis apenas ativos, com função e disponíveis', async () => 
   const data = await service.load({ uid: 'admin' }, { role: 'SUPER_ADMIN' });
   const eligible = service.eligibleUsers('fn_back', data.schedules[0].event, data);
   assert.deepEqual(eligible.map(item => item.id), ['u1']);
+});
+
+test('edição consulta somente a escala e os dados atuais da pessoa selecionada', async () => {
+  const repository = fakeRepository();
+  const service = new ScheduleService(repository);
+  await service.assign('schedule_event_1', 'slot_a', 'u1', { uid: 'admin' }, { role: 'SUPER_ADMIN' });
+
+  assert.equal(repository.calls.listSchedules, 0);
+  assert.equal(repository.calls.listAllMembers, 0);
+  assert.equal(repository.calls.listMembers, 1);
+  assert.equal(repository.calls.getUser, 1);
+  assert.equal(repository.calls.listUserFunctionsForUser, 1);
+  assert.equal(repository.calls.listUnavailabilityForUser, 1);
 });
 
 test('bloqueia indisponível sem exceção e audita exceção com motivo', async () => {
