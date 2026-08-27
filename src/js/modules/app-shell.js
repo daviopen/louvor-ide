@@ -28,7 +28,7 @@
     ] },
     { id: 'administration', label: 'Administração', items: [
       { id: 'audit', label: 'Auditoria', href: 'module.html?section=audit', icon: 'fa-clipboard-list', permission: 'audit' },
-      { id: 'settings', label: 'Configurações', href: 'module.html?section=settings', icon: 'fa-gear', permission: 'settings' }
+      { id: 'settings', label: 'Configurações', href: 'module.html?section=settings', icon: 'fa-gear', adminOnly: true }
     ] },
     { id: 'help', label: '', items: [
       { id: 'help', label: 'Ajuda', href: 'help.html', icon: 'fa-circle-question', public: true }
@@ -46,7 +46,20 @@
     scope.document.head.appendChild(script);
   }
 
+  function initializeSettingsPage() {
+    const page = currentPage(scope.location && scope.location.pathname);
+    const section = new URLSearchParams(scope.location && scope.location.search || '').get('section');
+    if (page !== 'module.html' || section !== 'settings') return;
+    if (scope.document.querySelector('script[data-ide-settings-page]')) return;
+    const script = scope.document.createElement('script');
+    script.src = '../js/modules/settings-page.js?v=20260827-schedule-template';
+    script.defer = true;
+    script.setAttribute('data-ide-settings-page', 'true');
+    scope.document.head.appendChild(script);
+  }
+
   initializeObservability();
+  initializeSettingsPage();
 
   function currentPage(pathname) {
     return String(pathname || '').split('/').filter(Boolean).pop() || 'index.html';
@@ -75,6 +88,11 @@
     return 'none';
   }
 
+  function isAdminProfile(profile) {
+    const role = String(profile?.role || '').toUpperCase();
+    return profile?.isSuperAdmin === true || profile?.isAdmin === true || role === 'SUPER_ADMIN' || role === 'ADMIN';
+  }
+
   function resolveAccessLevel(profile, permission) {
     if (!profile) return 'none';
     if (profile.role === 'SUPER_ADMIN' || profile.isSuperAdmin === true) return 'edit';
@@ -87,6 +105,7 @@
 
   function canViewItem(item, profile) {
     if (item && item.public === true) return true;
+    if (item && item.adminOnly === true) return isAdminProfile(profile);
     const level = resolveAccessLevel(profile, item.permission);
     return item.minLevel === 'edit' ? level === 'edit' : level === 'read' || level === 'edit';
   }
@@ -342,7 +361,7 @@
     scope.document.addEventListener('keydown', event => { if (event.key === 'Escape') setMenuOpen(false); });
   }
 
-  scope.MusicIdeNavigation = { navigationGroups, resolveAccessLevel, canViewItem, currentNavigationId, enforceCurrentRoute, mountAccountControls };
+  scope.MusicIdeNavigation = { navigationGroups, resolveAccessLevel, canViewItem, currentNavigationId, enforceCurrentRoute, mountAccountControls, isAdminProfile };
   if (scope.document.readyState === 'loading') scope.document.addEventListener('DOMContentLoaded', buildShell, { once: true });
   else buildShell();
 })(typeof window !== 'undefined' ? window : null);
