@@ -222,13 +222,6 @@
       }
       const current = await this.repository.getById(eventId);
       if (!current) throw new Error('Evento não encontrado.');
-      if (String(current.status).toUpperCase() !== 'PLANNED') {
-        throw new Error('Somente eventos ainda planejados podem ser excluídos. Use Cancelar para preservar o histórico.');
-      }
-      const dependencies = await this.repository.getDependencyCounts(current);
-      if ((dependencies.scheduleMembers || 0) > 0 || (dependencies.setlistSongs || 0) > 0) {
-        throw new Error('O evento já possui integrantes ou músicas vinculadas. Cancele o evento para preservar o histórico.');
-      }
       await this.repository.deleteEventBundle(current, id);
       return true;
     }
