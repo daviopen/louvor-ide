@@ -7,6 +7,16 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (globalScope) globalScope.MusicIdeScheduleRepository = api;
 })(typeof window !== 'undefined' ? window : null, function createModule() {
+  const DEFAULT_SCHEDULE_TEMPLATE = Object.freeze([
+    Object.freeze({ slug: 'back-vocal', quantity: 4 }),
+    Object.freeze({ slug: 'ministro', quantity: 2 }),
+    Object.freeze({ slug: 'guitarra', quantity: 1 }),
+    Object.freeze({ slug: 'violao', quantity: 1 }),
+    Object.freeze({ slug: 'baixo', quantity: 1 }),
+    Object.freeze({ slug: 'bateria', quantity: 1 }),
+    Object.freeze({ slug: 'teclado', quantity: 1 })
+  ]);
+
   function entity(snapshot) {
     return snapshot && snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null;
   }
@@ -17,6 +27,19 @@
 
   function scheduleIdForEvent(eventId) {
     return `schedule_${String(eventId || '').trim()}`;
+  }
+
+  function buildDefaultSlots(functions) {
+    const bySlug = new Map((functions || []).filter(item => item && item.active !== false && item.slug).map(item => [String(item.slug), item]));
+    const slots = [];
+    DEFAULT_SCHEDULE_TEMPLATE.forEach(template => {
+      const fn = bySlug.get(template.slug);
+      if (!fn) return;
+      for (let index = 1; index <= template.quantity; index += 1) {
+        slots.push({ id: `slot_${template.slug}_${index}`, functionId: fn.id });
+      }
+    });
+    return slots;
   }
 
   class ScheduleRepository {
@@ -51,12 +74,13 @@
       const current = await this.getSchedule(id);
       if (current) return { ...current, idempotent: true };
       const now = this.clock();
+      const functions = await this.listActiveFunctions();
       const document = {
         eventId: event.id,
         eventDate: event.date,
         eventTime: event.time || null,
         status: ['CANCELLED', 'COMPLETED'].includes(event.status) ? event.status : 'DRAFT',
-        slots: [],
+        slots: buildDefaultSlots(functions),
         createdBy: actorUserId,
         updatedBy: actorUserId,
         createdAt: now,
@@ -158,5 +182,5 @@
     }
   }
 
-  return Object.freeze({ ScheduleRepository, scheduleIdForEvent });
+  return Object.freeze({ ScheduleRepository, scheduleIdForEvent, buildDefaultSlots, DEFAULT_SCHEDULE_TEMPLATE });
 });
