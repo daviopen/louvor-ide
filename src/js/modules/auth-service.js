@@ -142,9 +142,16 @@
 
   function friendlyAuthError(error) {
     const messages = {
-      'auth/account-exists-with-different-credential': 'Este e-mail já está vinculado a outra forma de acesso.',
+      'auth/account-exists-with-different-credential': 'Este e-mail já está vinculado a outra forma de acesso. Entre com o provedor já associado ou redefina a senha.',
+      'auth/app-not-authorized': 'Este aplicativo não está autorizado a usar o Firebase Authentication.',
+      'auth/credential-already-in-use': 'Esta credencial já está vinculada a outra conta.',
+      'auth/email-already-in-use': 'Este e-mail já está vinculado a outra conta.',
+      'auth/internal-error': 'O Firebase Authentication retornou uma falha interna. Tente novamente em instantes.',
+      'auth/invalid-api-key': 'A configuração de autenticação da aplicação está inválida.',
       'auth/invalid-credential': 'E-mail ou senha inválidos.',
+      'auth/invalid-login-credentials': 'E-mail ou senha inválidos.',
       'auth/invalid-email': 'Informe um endereço de e-mail válido.',
+      'auth/missing-password': 'Informe sua senha.',
       'auth/network-request-failed': 'Não foi possível conectar. Verifique sua internet.',
       'auth/operation-not-allowed': 'Este método de acesso ainda não foi habilitado no Firebase.',
       'auth/popup-blocked': 'O navegador bloqueou a janela de login.',
@@ -153,12 +160,20 @@
       'auth/too-many-requests': 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.',
       'auth/unauthorized-domain': 'Este endereço ainda não foi autorizado no Firebase Authentication.',
       'auth/user-disabled': 'Esta conta está desativada. Procure a liderança do ministério.',
+      'auth/user-mismatch': 'A credencial informada pertence a outra conta.',
       'auth/user-not-found': 'E-mail ou senha inválidos.',
+      'auth/weak-password': 'A senha informada não atende aos requisitos mínimos de segurança.',
       'auth/wrong-password': 'E-mail ou senha inválidos.'
     };
 
     return messages[error && error.code]
       || 'Não foi possível concluir a autenticação. Tente novamente.';
+  }
+
+  function reportAuthError(scope, context, error) {
+    if (!scope || !scope.console || typeof scope.console.warn !== 'function') return;
+    const code = error && typeof error.code === 'string' ? error.code : 'auth/unknown';
+    scope.console.warn(`[Auth] ${context}: ${code}`);
   }
 
   function setLoginMessage(scope, message, type = 'error') {
@@ -401,6 +416,7 @@
     try {
       auth = scope.firebase.auth();
     } catch (error) {
+      reportAuthError(scope, 'inicialização', error);
       failInitialization(friendlyAuthError(error));
       return;
     }
@@ -421,6 +437,7 @@
         setLoginMessage(scope, 'Conta Google autenticada. Validando acesso...', 'info');
         return result;
       } catch (error) {
+        reportAuthError(scope, 'login Google', error);
         setLoginMessage(scope, friendlyAuthError(error));
         return null;
       }
@@ -440,6 +457,7 @@
         await auth.setPersistence(scope.firebase.auth.Auth.Persistence.LOCAL);
         return await auth.signInWithEmailAndPassword(normalizedEmail, password);
       } catch (error) {
+        reportAuthError(scope, 'login e-mail/senha', error);
         setLoginMessage(scope, friendlyAuthError(error));
         return null;
       }
@@ -458,6 +476,7 @@
         setLoginMessage(scope, 'Se houver uma conta cadastrada, enviaremos as instruções para esse e-mail.', 'info');
         return true;
       } catch (error) {
+        reportAuthError(scope, 'recuperação de senha', error);
         setLoginMessage(scope, friendlyAuthError(error));
         return false;
       }
@@ -475,12 +494,14 @@
         scope.location.replace('login.html');
         return true;
       } catch (error) {
+        reportAuthError(scope, 'logout', error);
         setLoginMessage(scope, 'Não foi possível encerrar a sessão. Tente novamente.');
         return false;
       }
     };
 
     auth.getRedirectResult().catch(error => {
+      reportAuthError(scope, 'retorno de autenticação', error);
       setLoginMessage(scope, friendlyAuthError(error));
     });
 
@@ -513,6 +534,7 @@
       try {
         authorization = await resolveAuthorizedProfile(scope, user);
       } catch (error) {
+        reportAuthError(scope, 'validação de autorização', error);
         const message = authorizationFailureMessage('validation-error');
         if (!onLoginPage) persistAuthMessage(scope, message);
         await auth.signOut().catch(() => null);
@@ -543,7 +565,10 @@
 
       renderAuthenticatedUser(scope, user);
       finishPageReveal(scope);
-    }, error => failInitialization(friendlyAuthError(error)));
+    }, error => {
+      reportAuthError(scope, 'observador de sessão', error);
+      failInitialization(friendlyAuthError(error));
+    });
   }
 
   return {
