@@ -24,11 +24,13 @@
     const placeholder = el('module-placeholder');
     placeholder.className = 'schedules-page';
     placeholder.innerHTML = `<div class="schedules-page__inner" id="schedules-root"></div>
-      <div id="schedule-person-backdrop" hidden role="presentation" style="position:fixed;inset:0;z-index:var(--ide-z-modal,10000);background:rgba(0,0,0,.68);padding:max(1rem,env(safe-area-inset-top)) max(.625rem,env(safe-area-inset-right)) max(1rem,env(safe-area-inset-bottom)) max(.625rem,env(safe-area-inset-left));display:grid;place-items:center;">
+      <div id="schedule-person-backdrop" hidden role="presentation" style="position:fixed;inset:0;z-index:var(--ide-z-modal,10000);background:rgba(0,0,0,.68);padding:max(1rem,env(safe-area-inset-top)) max(.625rem,env(safe-area-inset-right)) max(1rem,env(safe-area-inset-bottom)) max(.625rem,env(safe-area-inset-left));display:none;place-items:center;">
         <section id="schedule-person-dialog" class="schedule-person-options" role="dialog" aria-modal="true" aria-labelledby="schedule-person-dialog-title" style="position:relative;top:auto;left:auto;right:auto;bottom:auto;transform:none;width:min(480px,100%);max-height:min(76dvh,600px);box-shadow:var(--ide-shadow-overlay);overflow:auto;" tabindex="-1"></section>
       </div>
       <div id="schedules-toast" class="schedules-toast" role="status" aria-live="polite" hidden></div>`;
     const backdrop = el('schedule-person-backdrop');
+    backdrop.hidden = true;
+    backdrop.style.display = 'none';
     backdrop.addEventListener('click', event => { if (event.target === backdrop) closePersonPicker(); });
     scope.document.addEventListener('keydown', event => { if (event.key === 'Escape' && !backdrop.hidden) closePersonPicker(); });
   }
@@ -150,11 +152,14 @@
     dialog.onclick=handleModalClick;
     const backdrop=el('schedule-person-backdrop');
     backdrop.hidden=false;
+    backdrop.style.display='grid';
     scope.requestAnimationFrame(()=>dialog.focus());
   }
   function closePersonPicker() {
     const backdrop=el('schedule-person-backdrop');
-    if(backdrop)backdrop.hidden=true;
+    const dialog=el('schedule-person-dialog');
+    if(backdrop){backdrop.hidden=true;backdrop.style.display='none';}
+    if(dialog)dialog.innerHTML='';
     state.picker={scheduleId:null,slotId:null};
   }
 
