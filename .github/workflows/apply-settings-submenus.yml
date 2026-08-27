@@ -1,0 +1,149 @@
+name: Apply settings submenu navigation
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-settings-submenus.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !startsWith(github.event.head_commit.message, 'feat(nav):') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply navigation architecture
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'Pattern not found: {label}')
+              return text.replace(old, new, 1)
+
+          shell_path = Path('src/js/modules/app-shell.js')
+          shell = shell_path.read_text(encoding='utf-8')
+          shell = replace_once(
+              shell,
+              "      { id: 'settings', label: 'Configurações', href: 'module.html?section=settings', icon: 'fa-gear', adminOnly: true }",
+              "      { id: 'settings', label: 'Configurações', href: 'module.html?section=settings', icon: 'fa-gear', adminOnly: true, children: [\n        { id: 'settings-template', label: 'Template de Escala', href: 'module.html?section=settings', icon: 'fa-calendar-check', adminOnly: true },\n        { id: 'settings-functions', label: 'Funções Ministeriais', href: 'module.html?section=settings&tab=functions', icon: 'fa-layer-group', adminOnly: true }\n      ] }",
+              'settings navigation item'
+          )
+          shell = replace_once(
+              shell,
+              "    script.src = '../js/modules/settings-page.js?v=20260827-schedule-template';",
+              "    script.src = '../js/modules/settings-page.js?v=20260827-settings-submenus';",
+              'settings cache version'
+          )
+          shell = replace_once(
+              shell,
+              "      const section = params.get('section');\n      return moduleSections.has(section) ? section : 'dashboard';",
+              "      const section = params.get('section');\n      if (section === 'settings') return params.get('tab') === 'functions' ? 'settings-functions' : 'settings-template';\n      return moduleSections.has(section) ? section : 'dashboard';",
+              'settings active route'
+          )
+          shell = replace_once(
+              shell,
+              "  function currentItem() {\n    const id = currentNavigationId();\n    return navigationGroups.flatMap(group => group.items).find(item => item.id === id) || null;\n  }\n\n  function firstAllowedHref(profile) {\n    const item = navigationGroups.flatMap(group => group.items).find(candidate => canViewItem(candidate, profile));\n    return item && item.href;\n  }",
+              "  function navigationItems() {\n    return navigationGroups.flatMap(group => group.items.flatMap(item => [item, ...(item.children || [])]));\n  }\n\n  function currentItem() {\n    const id = currentNavigationId();\n    return navigationItems().find(item => item.id === id) || null;\n  }\n\n  function firstAllowedHref(profile) {\n    const item = navigationItems().find(candidate => canViewItem(candidate, profile));\n    return item && item.href;\n  }",
+              'navigation item flattening'
+          )
+          shell = replace_once(
+              shell,
+              "  function renderNavigation(profile) {",
+              "  function createNavBranch(item, activeId, profile) {\n    const visibleChildren = (item.children || []).filter(child => canViewItem(child, profile));\n    if (!visibleChildren.length) return createNavLink(item, activeId);\n    const branch = element('div', 'ide-sidebar-branch');\n    const parent = createNavLink(item, activeId);\n    parent.classList.add('ide-sidebar-link--parent');\n    const hasActiveChild = visibleChildren.some(child => child.id === activeId);\n    if (hasActiveChild) parent.classList.add('has-active-child');\n    parent.setAttribute('aria-expanded', String(hasActiveChild));\n    const submenu = element('div', 'ide-sidebar-submenu');\n    submenu.setAttribute('aria-label', `${item.label} — submenus`);\n    visibleChildren.forEach(child => {\n      const link = createNavLink(child, activeId);\n      link.classList.add('ide-sidebar-sublink');\n      submenu.appendChild(link);\n    });\n    branch.append(parent, submenu);\n    return branch;\n  }\n\n  function renderNavigation(profile) {",
+              'nav branch renderer'
+          )
+          shell = replace_once(
+              shell,
+              "      visible.forEach(item => section.appendChild(createNavLink(item, activeId)));",
+              "      visible.forEach(item => section.appendChild(createNavBranch(item, activeId, profile)));",
+              'nested nav render'
+          )
+          shell = replace_once(
+              shell,
+              "    ensureStylesheet('../styles/main-menu.css?v=20260825-account-menu', 'data-ide-main-menu');",
+              "    ensureStylesheet('../styles/main-menu.css?v=20260827-settings-submenus', 'data-ide-main-menu');",
+              'menu css cache version'
+          )
+          shell_path.write_text(shell, encoding='utf-8')
+
+          css_path = Path('src/styles/main-menu.css')
+          css = css_path.read_text(encoding='utf-8')
+          css = replace_once(
+              css,
+              ".ide-sidebar-link i { display:grid; width:28px; flex:0 0 28px; place-items:center; font-size:.94rem; }",
+              ".ide-sidebar-link i { display:grid; width:28px; flex:0 0 28px; place-items:center; font-size:.94rem; }\n.ide-sidebar-branch { display:grid; gap:2px; }\n.ide-sidebar-link--parent.has-active-child { color:var(--ide-primary); background:rgba(216,255,69,.09); }\n.ide-sidebar-submenu { display:grid; gap:2px; margin-left:18px; padding-left:10px; border-left:1px solid var(--ide-border-on-dark); }\n.ide-sidebar-sublink { min-height:36px; padding-block:7px; font-size:.9rem; }\n.ide-sidebar-sublink i { width:22px; flex-basis:22px; font-size:.82rem; }",
+              'submenu styles'
+          )
+          css = replace_once(
+              css,
+              ".ide-sidebar-collapsed .ide-sidebar-link i { width:32px; flex-basis:32px; }",
+              ".ide-sidebar-collapsed .ide-sidebar-link i { width:32px; flex-basis:32px; }\n.ide-sidebar-collapsed .ide-sidebar-submenu { display:none; }",
+              'collapsed submenu'
+          )
+          css = replace_once(
+              css,
+              "  .ide-sidebar-collapsed .ide-sidebar-link { justify-content:flex-start; padding-inline:12px; }",
+              "  .ide-sidebar-collapsed .ide-sidebar-link { justify-content:flex-start; padding-inline:12px; }\n  .ide-sidebar-collapsed .ide-sidebar-submenu { display:grid; }",
+              'mobile submenu'
+          )
+          css_path.write_text(css, encoding='utf-8')
+
+          settings_path = Path('src/js/modules/settings-page.js')
+          settings = settings_path.read_text(encoding='utf-8')
+          settings, count = re.subn(
+              r'<div class="settings-layout"><nav class="settings-submenu" aria-label="Submenu de configurações">.*?</nav><div id="settings-content"></div></div>',
+              '<div class="settings-layout"><div id="settings-content"></div></div>',
+              settings,
+              count=1
+          )
+          if count != 1:
+              raise SystemExit('Pattern not found: internal settings submenu')
+          settings = replace_once(
+              settings,
+              ".settings-layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:1rem;align-items:start}",
+              ".settings-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem;align-items:start}",
+              'settings layout columns'
+          )
+          settings_path.write_text(settings, encoding='utf-8')
+
+          test_path = Path('tests/main-menu.test.js')
+          tests = test_path.read_text(encoding='utf-8')
+          tests = replace_once(
+              tests,
+              "  'Próximos', 'Histórico', 'Consultar', 'Nova Música', 'Auditoria', 'Configurações', 'Ajuda'",
+              "  'Próximos', 'Histórico', 'Consultar', 'Nova Música', 'Auditoria', 'Configurações',\n  'Template de Escala', 'Funções Ministeriais', 'Ajuda'",
+              'main menu expected labels'
+          )
+          marker = "test('menu principal aplica rota ativa, permissão e recolhimento persistido', () => {"
+          addition = "test('configurações organiza funcionalidades distintas como submenus reais', () => {\n  assert.match(shell, /id: 'settings'.*children:/s);\n  assert.match(shell, /id: 'settings-template'.*Template de Escala/s);\n  assert.match(shell, /id: 'settings-functions'.*Funções Ministeriais/s);\n  assert.match(shell, /createNavBranch/);\n  assert.match(css, /ide-sidebar-submenu/);\n});\n\n"
+          if addition not in tests:
+              tests = replace_once(tests, marker, addition + marker, 'submenu regression test')
+          test_path.write_text(tests, encoding='utf-8')
+
+          agents_path = Path('AGENTS.md')
+          agents = agents_path.read_text(encoding='utf-8')
+          ux_marker = "Toda alteração de UI deve ser validada em viewport desktop e mobile.\n"
+          nav_rule = """\n### 16.1. Navegação, funcionalidades e submenus\n\nA árvore de navegação deve representar a arquitetura de informação do produto, e não apenas agrupar links visualmente.\n\n- Funcionalidades distintas pertencentes ao mesmo domínio devem ser expostas como **submenus reais** do item pai na navegação principal. Exemplo: `Configurações > Template de Escala` e `Configurações > Funções Ministeriais`.\n- Abas/tabs devem ser usadas apenas para diferentes visões, estados ou recortes da **mesma funcionalidade**, e não para esconder módulos funcionais independentes.\n- Cada submenu deve possuir destino/estado de rota identificável e indicação correta de item ativo.\n- Regras de autorização do item pai e dos filhos devem permanecer explícitas e coerentes; ocultar submenu não substitui guard, Rules ou backend.\n- A hierarquia deve funcionar em desktop, drawer mobile e sidebar recolhida, com navegação por teclado e sem duplicar a mesma navegação dentro do conteúdo da página sem necessidade.\n- Ao adicionar uma nova funcionalidade sob um domínio já existente, avaliar primeiro se ela deve ser um submenu antes de criar novo item de primeiro nível.\n"""
+          if '### 16.1. Navegação, funcionalidades e submenus' not in agents:
+              agents = replace_once(agents, ux_marker, ux_marker + nav_rule, 'AGENTS navigation rule')
+          agents_path.write_text(agents, encoding='utf-8')
+          PY
+      - name: Run tests
+        run: npm test
+      - name: Commit changes
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm .github/workflows/apply-settings-submenus.yml
+          git add src/js/modules/app-shell.js src/js/modules/settings-page.js src/styles/main-menu.css tests/main-menu.test.js AGENTS.md .github/workflows/apply-settings-submenus.yml
+          git commit -m 'feat(nav): add settings submenus and document navigation rule'
+          git push origin HEAD:main
