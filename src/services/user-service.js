@@ -8,6 +8,7 @@
 })(typeof window !== 'undefined' ? window : null, function createModule() {
   const PAGE_SIZE = 10;
   const DEFAULT_PASSWORD_RESET_URL = 'https://louvor-ide.web.app/login.html';
+  const DEFAULT_IDENTITY_UPDATE_URL = 'https://us-central1-louvor-ide.cloudfunctions.net/updateUserIdentity';
   const DEFAULT_MEMBER_PERMISSIONS = Object.freeze({
     dashboard: 'READ',
     users: 'NONE',
@@ -60,6 +61,9 @@
       this.firebase = options.firebase || null;
       this.actorProvider = options.actorProvider || (() => null);
       this.passwordResetUrl = options.passwordResetUrl || DEFAULT_PASSWORD_RESET_URL;
+      this.identityUpdateUrl = options.identityUpdateUrl || DEFAULT_IDENTITY_UPDATE_URL;
+      this.identityUpdater = options.identityUpdater || null;
+      this.fetcher = options.fetcher || (typeof fetch === 'function' ? fetch.bind(globalThis) : null);
       this.directoryCacheTtlMs = Math.max(0, Number(options.directoryCacheTtlMs ?? 30000));
       this.directoryCache = null;
       this.directoryCacheAt = 0;
@@ -172,12 +176,55 @@
       }
     }
 
+    async updateIdentity(id, input) {
+      const payload = {
+        userId: id,
+        name: String(input.name || '').trim(),
+        email: String(input.email || '').trim().toLowerCase(),
+        photoURL: input.photoURL || null
+      };
+      if (this.identityUpdater) return this.identityUpdater(payload);
+      if (!this.auth || !this.auth.currentUser || typeof this.auth.currentUser.getIdToken !== 'function') {
+        throw new Error('Sessão administrativa indisponível para sincronizar o e-mail de login.');
+      }
+      if (!this.fetcher) throw new Error('Serviço de sincronização de identidade indisponível.');
+
+      const token = await this.auth.currentUser.getIdToken();
+      const response = await this.fetcher(this.identityUpdateUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      let body = null;
+      try { body = await response.json(); } catch (_) { /* resposta sem JSON */ }
+      if (!response.ok || !body || body.ok !== true) {
+        throw new Error(body && body.error || 'Não foi possível sincronizar o e-mail de login no Firebase Authentication.');
+      }
+      return body;
+    }
+
     async update(id, input) {
-      const user = await this.repository.updateUser(id, { name: input.name, email: input.email, photoURL: input.photoURL || null });
+      const current = await this.repository.getUser(id);
+      if (!current) throw new Error('Usuário não encontrado.');
+      const email = String(input.email || '').trim().toLowerCase();
+      if (!email) throw new Error('E-mail é obrigatório.');
+      const emailChanged = normalize(current.email) !== normalize(email);
+      let user;
+
+      if (emailChanged) {
+        await this.updateIdentity(id, { ...input, email });
+        user = await this.repository.getUser(id);
+      } else {
+        user = await this.repository.updateUser(id, { name: input.name, email, photoURL: input.photoURL || null });
+      }
+
       await this.repository.replaceUserFunctions(id, input.functionIds || []);
-      await this.audit('USER_UPDATED', id, { functionIds: input.functionIds || [] });
+      await this.audit('USER_UPDATED', id, { functionIds: input.functionIds || [], emailChanged });
       this.invalidateDirectoryCache();
-      return user;
+      return { ...user, emailChanged };
     }
 
     async setActive(id, active) {
@@ -224,5 +271,5 @@
     return `${Date.now()}${Math.random().toString(36).slice(2)}`;
   }
 
-  return Object.freeze({ UserService, filterUsers, paginate, canManageUsers, PAGE_SIZE, DEFAULT_PASSWORD_RESET_URL, DEFAULT_MEMBER_PERMISSIONS });
+  return Object.freeze({ UserService, filterUsers, paginate, canManageUsers, PAGE_SIZE, DEFAULT_PASSWORD_RESET_URL, DEFAULT_IDENTITY_UPDATE_URL, DEFAULT_MEMBER_PERMISSIONS });
 });
