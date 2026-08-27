@@ -37,11 +37,32 @@
     const date = toDate(value);
     return date ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' }).format(date) : 'Data inválida';
   }
+  function isRecurring(record) {
+    return Boolean(record?.recurrence?.frequency === 'WEEKLY' && Array.isArray(record.recurrence.weekdays));
+  }
+  function weekdayNames(record, short = false) {
+    if (!isRecurring(record)) return '';
+    const labels = scope.MusicIdeUnavailabilityService.WEEKDAY_LABELS || [];
+    return record.recurrence.weekdays.map(day => {
+      const label = labels[day] || String(day);
+      return short ? label.slice(0, 3) : label;
+    }).join(', ');
+  }
   function formatDateRange(record) {
+    if (isRecurring(record)) {
+      const start = `A partir de ${formatDate(record.date)}`;
+      const end = record.recurrence.openEnded ? 'sem data para terminar' : `até ${formatDate(record.endAt)}`;
+      return `${start} · ${end}`;
+    }
     const startKey = dateKey(record?.date);
     const endKey = dateKey(record?.endAt || record?.date);
     if (!startKey || !endKey || startKey === endKey) return formatDate(record?.date);
     return `${formatDate(record?.date)} até ${formatDate(record?.endAt)}`;
+  }
+  function recurrenceTitle(record) {
+    if (!isRecurring(record)) return formatDateRange(record);
+    const days = weekdayNames(record);
+    return record.recurrence.weekdays.length === 1 ? `Toda ${days.toLowerCase()}` : `Toda semana · ${days}`;
   }
   function isEditable(record) {
     return scope.MusicIdeUnavailabilityService.isFutureRecord(record, new Date())
@@ -75,9 +96,61 @@
     const start = el('unavailability-date');
     const startLabel = start && start.closest('label');
     if (!startLabel) return;
+    const startLabelText = startLabel.querySelector('.ide-field__label');
+    if (startLabelText) startLabelText.innerHTML = 'Data de início <strong aria-hidden="true">*</strong>';
     const label = scope.document.createElement('label');
-    label.innerHTML = '<span class="ide-field__label">Data de fim</span><input id="unavailability-end-date" class="ide-field__control ide-field__input" type="date"><small>Opcional. Se ficar em branco, a indisponibilidade vale somente para a data de início.</small>';
+    label.innerHTML = '<span class="ide-field__label">Data de fim</span><input id="unavailability-end-date" class="ide-field__control ide-field__input" type="date"><small id="unavailability-end-date-help">Opcional. Se ficar em branco, a indisponibilidade vale somente para a data de início.</small>';
     startLabel.insertAdjacentElement('afterend', label);
+  }
+
+  function ensureRecurrenceFields() {
+    if (el('unavailability-type')) return;
+    const userWrap = el('unavailability-user-wrap');
+    const start = el('unavailability-date');
+    const startLabel = start && start.closest('label');
+    if (!startLabel) return;
+
+    const typeLabel = scope.document.createElement('label');
+    typeLabel.className = 'full';
+    typeLabel.innerHTML = '<span class="ide-field__label">Tipo de indisponibilidade</span><select id="unavailability-type" class="ide-field__control ide-select"><option value="DATE">Por data/período</option><option value="WEEKLY">Recorrente por dia da semana</option></select><small>Use recorrência para restrições fixas, como não poder servir às sextas-feiras.</small>';
+    (userWrap || startLabel).insertAdjacentElement(userWrap ? 'afterend' : 'beforebegin', typeLabel);
+
+    const weekdays = scope.document.createElement('fieldset');
+    weekdays.id = 'unavailability-weekdays-wrap';
+    weekdays.className = 'full unavailability-weekdays-picker';
+    weekdays.hidden = true;
+    const labels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    weekdays.innerHTML = `<legend class="ide-field__label">Repetir em</legend><div class="unavailability-weekday-options">${labels.map((label, index) => `<label class="unavailability-weekday-option"><input type="checkbox" name="unavailability-weekday" value="${index}"><span>${label}</span></label>`).join('')}</div><small>Selecione um ou mais dias da semana.</small>`;
+    const endLabel = el('unavailability-end-date')?.closest('label');
+    (endLabel || startLabel).insertAdjacentElement('afterend', weekdays);
+
+    if (!el('unavailability-recurrence-style')) {
+      const style = scope.document.createElement('style');
+      style.id = 'unavailability-recurrence-style';
+      style.textContent = '.unavailability-weekdays-picker{border:0;padding:0;margin:0;min-width:0}.unavailability-weekday-options{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.4rem;margin-top:.45rem}.unavailability-weekday-option{position:relative}.unavailability-weekday-option input{position:absolute;opacity:0;pointer-events:none}.unavailability-weekday-option span{display:flex;align-items:center;justify-content:center;min-height:42px;padding:.5rem;border:1px solid var(--ide-border,var(--border));border-radius:var(--radius-md);background:var(--ide-surface-secondary,var(--surface-secondary));color:var(--ide-text-primary,var(--text-primary));cursor:pointer;font-weight:600}.unavailability-weekday-option input:checked+span{border-color:var(--ide-primary,var(--primary));background:var(--ide-primary,var(--primary));color:var(--ide-primary-ink,#fff)}.unavailability-weekday-option input:focus-visible+span{outline:2px solid var(--ide-focus,var(--primary));outline-offset:2px}@media(max-width:700px){.unavailability-weekday-options{grid-template-columns:repeat(4,minmax(0,1fr))}}';
+      scope.document.head.appendChild(style);
+    }
+  }
+
+  function selectedWeekdays() {
+    return Array.from(scope.document.querySelectorAll('input[name="unavailability-weekday"]:checked')).map(input => Number(input.value));
+  }
+
+  function setSelectedWeekdays(days = []) {
+    const selected = new Set((days || []).map(Number));
+    scope.document.querySelectorAll('input[name="unavailability-weekday"]').forEach(input => { input.checked = selected.has(Number(input.value)); });
+  }
+
+  function syncRecurrenceUi() {
+    const recurring = el('unavailability-type')?.value === 'WEEKLY';
+    const wrap = el('unavailability-weekdays-wrap');
+    const end = el('unavailability-end-date');
+    const help = el('unavailability-end-date-help');
+    if (wrap) wrap.hidden = !recurring;
+    if (end) end.required = false;
+    if (help) help.textContent = recurring
+      ? 'Opcional. Se ficar em branco, a recorrência continuará sem data para terminar.'
+      : 'Opcional. Se ficar em branco, a indisponibilidade vale somente para a data de início.';
   }
 
   function renderList() {
@@ -85,11 +158,13 @@
     el('unavailability-empty').hidden = records.length !== 0;
     el('unavailability-list').innerHTML = records.map(record => {
       const date = toDate(record.date);
-      const day = date ? String(date.getDate()).padStart(2, '0') : '--';
-      const month = date ? new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(date).replace('.', '') : '';
+      const recurring = isRecurring(record);
+      const day = recurring ? 'REC' : (date ? String(date.getDate()).padStart(2, '0') : '--');
+      const month = recurring ? 'semanal' : (date ? new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(date).replace('.', '') : '');
+      const title = recurrenceTitle(record);
       const range = formatDateRange(record);
-      const administrativeLabel = state.access.canManageOthers ? `<strong>${escapeHtml(personName(record.userId))}</strong>` : `<strong>${escapeHtml(range)}</strong>`;
-      const dateDescription = state.access.canManageOthers ? escapeHtml(range) : '';
+      const administrativeLabel = state.access.canManageOthers ? `<strong>${escapeHtml(personName(record.userId))}</strong>` : `<strong>${escapeHtml(title)}</strong>`;
+      const dateDescription = state.access.canManageOthers ? escapeHtml(title) : (recurring ? escapeHtml(range) : '');
       const note = record.note ? `<small>${escapeHtml(record.note)}</small>` : '';
       const actions = isEditable(record) ? `<div class="unavailability-item-actions">
         <button class="ide-button ide-button--secondary ide-button--sm" type="button" data-unavailability-action="edit" data-id="${escapeHtml(record.id)}">Editar</button>
@@ -101,6 +176,7 @@
           ${administrativeLabel}
           ${dateDescription ? `<small>${dateDescription}</small>` : ''}
           <div class="unavailability-item-meta">
+            ${recurring ? '<span class="ide-badge ide-badge--neutral"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Recorrente</span>' : ''}
             <span class="ide-badge">${escapeHtml(periodName(record.period))}</span>
             <span class="ide-badge ide-badge--neutral">${escapeHtml(eventName(record.eventId))}</span>
           </div>
@@ -166,16 +242,20 @@
     el('unavailability-form-title').textContent = record ? 'Editar indisponibilidade' : 'Nova indisponibilidade';
     const startKey = record ? dateKey(record.date) : dateKey(new Date());
     const endKey = record ? dateKey(record.endAt || record.date) : '';
+    const recurring = isRecurring(record);
+    el('unavailability-type').value = recurring ? 'WEEKLY' : 'DATE';
     el('unavailability-date').min = dateKey(new Date());
     el('unavailability-date').value = startKey;
     el('unavailability-end-date').min = startKey;
-    el('unavailability-end-date').value = endKey && endKey !== startKey ? endKey : '';
+    el('unavailability-end-date').value = recurring && record?.recurrence?.openEnded ? '' : (endKey && endKey !== startKey ? endKey : '');
+    setSelectedWeekdays(recurring ? record.recurrence.weekdays : []);
     el('unavailability-period').value = record?.period || '';
     el('unavailability-event').value = record?.eventId || '';
     el('unavailability-note').value = record?.note || '';
     el('unavailability-note-count').textContent = String((record?.note || '').length);
     el('unavailability-user').value = state.access.canManageOthers ? (record?.userId || actorId()) : actorId();
     el('unavailability-user').disabled = !state.access.canManageOthers || Boolean(record);
+    syncRecurrenceUi();
     el('unavailability-dialog').showModal();
     el('unavailability-date').focus();
   }
@@ -183,10 +263,12 @@
   async function submitForm(event) {
     event.preventDefault();
     const targetUserId = state.access.canManageOthers ? el('unavailability-user').value : actorId();
+    const recurring = el('unavailability-type').value === 'WEEKLY';
     const payload = {
       userId: targetUserId,
       date: el('unavailability-date').value,
       endDate: el('unavailability-end-date').value,
+      recurrence: recurring ? { frequency: 'WEEKLY', weekdays: selectedWeekdays(), openEnded: !el('unavailability-end-date').value } : null,
       period: el('unavailability-period').value,
       eventId: el('unavailability-event').value || null,
       note: el('unavailability-note').value
@@ -270,6 +352,7 @@
     el('unavailability-cancel').addEventListener('click', () => el('unavailability-dialog').close());
     el('unavailability-list').addEventListener('click', handleListClick);
     el('unavailability-note').addEventListener('input', event => { el('unavailability-note-count').textContent = String(event.target.value.length); });
+    el('unavailability-type').addEventListener('change', syncRecurrenceUi);
     el('unavailability-date').addEventListener('change', event => {
       const endInput = el('unavailability-end-date');
       endInput.min = event.target.value;
@@ -288,7 +371,8 @@
     scope.document.title = 'IDE Music — Indisponibilidade';
 
     ensureEndDateField();
-    el('unavailability-event-help').textContent = 'Opcional. Sem evento selecionado, a indisponibilidade vale para qualquer escala compatível em qualquer data do intervalo.';
+    ensureRecurrenceFields();
+    el('unavailability-event-help').textContent = 'Opcional. Sem evento selecionado, a indisponibilidade vale para qualquer escala compatível no período informado.';
 
     const authUser = await scope.musicIdeAuthReady;
     if (!authUser) return;
