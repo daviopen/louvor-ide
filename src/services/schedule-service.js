@@ -6,12 +6,21 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (globalScope) globalScope.MusicIdeScheduleService = api;
 })(typeof window !== 'undefined' ? window : null, function createModule() {
+  function toDate(value) {
+    if (!value) return null;
+    if (value && typeof value.toDate === 'function') return toDate(value.toDate());
+    if (value instanceof Date) return new Date(value.getTime());
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [year, month, day] = value.split('-').map(Number);
+      return new Date(year, month - 1, day, 12, 0, 0, 0);
+    }
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
   function dateKey(value) {
-    if (!value) return '';
-    if (typeof value === 'string') return value.slice(0, 10);
-    if (value && typeof value.toDate === 'function') return dateKey(value.toDate());
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
+    const date = toDate(value);
+    if (!date) return '';
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
 
@@ -24,13 +33,29 @@
     return 'EVENING';
   }
 
+  function dateMatchesUnavailability(record, eventDate) {
+    const target = toDate(eventDate);
+    const start = toDate(record?.date);
+    const end = toDate(record?.endAt || record?.date);
+    if (!(target && start && end)) return false;
+
+    const targetKey = dateKey(target);
+    const startKey = dateKey(start);
+    const endKey = dateKey(end);
+    if (targetKey < startKey || targetKey > endKey) return false;
+
+    const recurrence = record?.recurrence;
+    if (!recurrence || String(recurrence.frequency || '').toUpperCase() !== 'WEEKLY') return true;
+    const weekdays = Array.isArray(recurrence.weekdays) ? recurrence.weekdays.map(Number) : [];
+    return weekdays.includes(target.getDay());
+  }
+
   function unavailabilityMatches(record, event) {
-    if (!record || !event) return false;
-    if (dateKey(record.date) !== dateKey(event.date)) return false;
-    if (record.eventId && record.eventId !== event.id) return false;
+    if (!record || !event || !dateMatchesUnavailability(record, event.date)) return false;
+    if (record.eventId && String(record.eventId) !== String(event.id)) return false;
     if (!record.period) return true;
     const eventPeriod = periodForTime(event.time);
-    return !eventPeriod || record.period === eventPeriod;
+    return !eventPeriod || String(record.period).toUpperCase() === eventPeriod;
   }
 
   function normalizeLevel(value) {
@@ -92,31 +117,25 @@
       if (!access.canRead) throw new Error('Você não possui permissão para consultar escalas.');
       const schedule = await this.repository.getSchedule(scheduleId);
       if (!schedule) return { access, schedules: [], users: [], functions: [], userFunctions: [], unavailability: [] };
-
       const [event, members, users, functions, userFunctions, unavailability] = await Promise.all([
-        this.repository.getEvent(schedule.eventId),
-        this.repository.listMembers(scheduleId),
-        this.repository.listActiveUsers(),
-        this.repository.listActiveFunctions(),
-        this.repository.listUserFunctions(),
-        this.repository.listUnavailability()
+        this.repository.getEvent(schedule.eventId), this.repository.listMembers(scheduleId),
+        this.repository.listActiveUsers(), this.repository.listActiveFunctions(),
+        this.repository.listUserFunctions(), this.repository.listUnavailability()
       ]);
       const activeMembers = members.filter(item => item.active !== false);
-      const item = {
-        ...schedule,
-        event: event || null,
-        members: activeMembers,
-        completeness: scheduleCompleteness(schedule, activeMembers)
+      return {
+        access,
+        schedules: [{ ...schedule, event: event || null, members: activeMembers, completeness: scheduleCompleteness(schedule, activeMembers) }],
+        users, functions, userFunctions, unavailability
       };
-      return { access, schedules: [item], users, functions, userFunctions, unavailability };
     }
 
     eligibleUsers(functionId, event, context) {
       const functionUsers = new Set((context.userFunctions || []).filter(item => item.active !== false && item.functionId === functionId).map(item => item.userId));
       return (context.users || []).filter(user => {
         if (user.active === false || !functionUsers.has(user.id || user.uid)) return false;
-        const userId = user.id || user.uid;
-        return !(context.unavailability || []).some(item => item.userId === userId && unavailabilityMatches(item, event));
+        const id = user.id || user.uid;
+        return !(context.unavailability || []).some(item => item.userId === id && unavailabilityMatches(item, event));
       });
     }
 
@@ -156,11 +175,8 @@
       const schedule = await this.repository.getSchedule(scheduleId);
       if (!schedule) throw new Error('Escala não encontrada.');
       const [members, event, selectedUser, userFunctions, unavailability] = await Promise.all([
-        this.repository.listMembers(scheduleId),
-        this.repository.getEvent(schedule.eventId),
-        this.repository.getUser(userId),
-        this.repository.listUserFunctionsForUser(userId),
-        this.repository.listUnavailabilityForUser(userId)
+        this.repository.listMembers(scheduleId), this.repository.getEvent(schedule.eventId), this.repository.getUser(userId),
+        this.repository.listUserFunctionsForUser(userId), this.repository.listUnavailabilityForUser(userId)
       ]);
       return { schedule, members, event, selectedUser, userFunctions, unavailability };
     }
@@ -168,31 +184,24 @@
     async assign(scheduleId, slotId, userId, user, profile = null, options = {}) {
       const access = await this.resolveAccess(user, profile);
       if (!access.canEdit) throw new Error('Você não possui permissão para editar escalas.');
-
-      const assignment = await this.loadAssignmentContext(scheduleId, userId);
-      const { schedule, members, event, selectedUser, userFunctions, unavailability } = assignment;
+      const { schedule, members, event, selectedUser, userFunctions, unavailability } = await this.loadAssignmentContext(scheduleId, userId);
       const slot = (schedule.slots || []).find(item => item.id === slotId);
       if (!slot) throw new Error('Função/posição não encontrada na escala.');
       if (!selectedUser || selectedUser.active === false) throw new Error('Usuário inativo ou inexistente.');
       const hasFunction = userFunctions.some(item => item.active !== false && item.functionId === slot.functionId && item.userId === userId);
       if (!hasFunction) throw new Error('O usuário selecionado não possui esta função ministerial.');
-
       const fullSchedule = { ...schedule, members };
       const conflict = this.userConflict(userId, slot.functionId, fullSchedule, event, { unavailability });
       if (conflict.duplicateFunction) throw new Error('Este usuário já está escalado nesta mesma função.');
       if (conflict.unavailable && !options.override) throw new Error('Usuário indisponível para este evento. Confirme uma exceção administrativa para continuar.');
       if (conflict.unavailable && options.override && !String(options.reason || '').trim()) throw new Error('Informe o motivo da exceção administrativa.');
-
       const existing = members.find(item => item.slotId === slotId && item.active !== false);
       if (existing) await this.repository.removeMember(existing.id, this.actorId(user));
       const member = await this.repository.createMember({
         scheduleId, slotId, userId, functionId: slot.functionId,
         exception: conflict.unavailable ? { override: true, reason: String(options.reason).trim() } : null
       }, this.actorId(user));
-
-      const nextMembers = members
-        .filter(item => item.active !== false && item.id !== existing?.id)
-        .concat(member);
+      const nextMembers = members.filter(item => item.active !== false && item.id !== existing?.id).concat(member);
       const completeness = scheduleCompleteness(schedule, nextMembers);
       await this.repository.updateSchedule(scheduleId, { status: completeness.complete ? 'COMPLETE' : 'DRAFT' }, this.actorId(user));
       await this.repository.addAuditLog(this.actorId(user), conflict.unavailable ? 'SCHEDULE_MEMBER_OVERRIDE_ASSIGNED' : 'SCHEDULE_MEMBER_ASSIGNED', scheduleId, {
@@ -214,5 +223,5 @@
     }
   }
 
-  return Object.freeze({ ScheduleService, dateKey, periodForTime, unavailabilityMatches, scheduleCompleteness });
+  return Object.freeze({ ScheduleService, dateKey, periodForTime, dateMatchesUnavailability, unavailabilityMatches, scheduleCompleteness });
 });
