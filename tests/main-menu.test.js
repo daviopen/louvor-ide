@@ -28,12 +28,12 @@ test('menu principal usa ícones compatíveis nas funcionalidades visíveis', ()
   assert.doesNotMatch(shell, /fa-shield-halved|fa-people-group/);
 });
 
-test('configurações organiza funcionalidades distintas como submenus reais', () => {
-  assert.match(shell, /id: 'settings'.*children:/s);
+test('configurações segue o mesmo padrão de grupo usado por Escalas e Setlist', () => {
+  assert.match(shell, /id: 'settings', label: 'Configurações', items:/);
   assert.match(shell, /id: 'settings-template'.*Template de Escala/s);
   assert.match(shell, /id: 'settings-functions'.*Funções Ministeriais/s);
-  assert.match(shell, /createNavBranch/);
-  assert.match(css, /ide-sidebar-submenu/);
+  assert.doesNotMatch(shell, /createNavBranch|children:/);
+  assert.doesNotMatch(css, /ide-sidebar-submenu|ide-sidebar-sublink/);
 });
 
 test('menu principal aplica rota ativa, permissão e recolhimento persistido', () => {
