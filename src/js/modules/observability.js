@@ -134,6 +134,16 @@
     };
   }
 
+  function loadPageEnhancement() {
+    const page = String(scope.location?.pathname || '').split('/').pop();
+    if (page !== 'login.html' || scope.document.querySelector('script[data-ide-pwa-install-guide]')) return;
+    const script = scope.document.createElement('script');
+    script.src = '../js/modules/pwa-install-guide.js?v=20260827-install-guide';
+    script.defer = true;
+    script.setAttribute('data-ide-pwa-install-guide', 'true');
+    scope.document.head.appendChild(script);
+  }
+
   const api = {
     createCorrelationId,
     sanitize,
@@ -149,5 +159,6 @@
 
   scope.MusicIdeObservability = api;
   installGlobalErrorMonitoring();
+  loadPageEnhancement();
   api.info('observability.ready', 'Observabilidade inicializada.', { page: scope.location && scope.location.pathname || null });
 })(typeof window !== 'undefined' ? window : null);
