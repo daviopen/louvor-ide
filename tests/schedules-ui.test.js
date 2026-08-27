@@ -47,6 +47,13 @@ test('modal pode ser cancelado por clique fora, botão fechar ou Esc', () => {
   assert.match(page, /function closePersonPicker\(\)/);
 });
 
+test('backdrop do seletor permanece fora do layout quando o modal está fechado', () => {
+  assert.match(page, /schedule-person-backdrop[^\n]+display:none/);
+  assert.match(page, /backdrop\.style\.display = 'none'/);
+  assert.match(page, /backdrop\.style\.display='grid'/);
+  assert.match(page, /backdrop\.hidden=true;backdrop\.style\.display='none'/);
+});
+
 test('seleção e adição atualizam a UI localmente sem reload completo', () => {
   assert.match(page, /assignOptimistic/);
   assert.match(page, /closePersonPicker\(\);\s*renderEditorView\(\)/);
