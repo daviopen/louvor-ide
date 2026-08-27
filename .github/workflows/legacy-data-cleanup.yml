@@ -1,9 +1,7 @@
 name: 🧹 Legacy Data Cleanup
 
+# Operação administrativa sobre dados reais. Execução exclusivamente manual.
 on:
-  workflow_run:
-    workflows: ["🚀 Deploy to Firebase Hosting"]
-    types: [completed]
   workflow_dispatch:
     inputs:
       mode:
@@ -22,17 +20,12 @@ concurrency:
 
 jobs:
   cleanup:
-    if: >-
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout main
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: main
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -50,16 +43,6 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
 
-      - name: Resolve cleanup mode
-        id: mode
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "value=apply" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Cleanup legacy data
         env:
           GOOGLE_CLOUD_PROJECT: louvor-ide
@@ -67,7 +50,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "${{ steps.mode.outputs.value }}" in
+          case "${{ inputs.mode }}" in
             apply) node src/scripts/cleanup-legacy-data.cjs --apply ;;
             restore) node src/scripts/cleanup-legacy-data.cjs --restore-musicas ;;
             dry-run) node src/scripts/cleanup-legacy-data.cjs ;;

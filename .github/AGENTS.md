@@ -22,7 +22,10 @@ Os workflows abaixo operam sobre a aplicação/banco reais ou fazem navegação 
 - `full-system-playwright-e2e.yml` — simulação completa Playwright;
 - `visual-audit.yml` — auditoria visual desktop/mobile e temas;
 - `auth-account-linking.yml` — reconciliação de identidades Firebase Auth;
-- `setlist-production-e2e.yml` — validação específica do Setlist publicado.
+- `setlist-production-e2e.yml` — validação específica do Setlist publicado;
+- `legacy-data-cleanup.yml` — limpeza/restauração de dados legados;
+- `data-migration.yml` — migração/verificação de dados;
+- `schedule-template-backfill.yml` — backfill de templates nas escalas.
 
 É proibido adicionar `push`, `pull_request`, `workflow_run` ou `schedule/cron` a esses workflows sem uma solicitação explícita do responsável pelo projeto.
 
@@ -52,7 +55,7 @@ O pós-deploy automático pode verificar disponibilidade do Hosting, mas não de
 - abrir todas as páginas com Playwright;
 - executar auditoria visual completa;
 - reconciliar identidades;
-- executar migrações/backfills.
+- executar migrações, limpezas ou backfills.
 
 Se uma dessas verificações for necessária, usar o workflow manual apropriado.
 

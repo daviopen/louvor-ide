@@ -1,12 +1,8 @@
 name: 🎼 Schedule Template Backfill
 
+# Backfill em produção: executar somente quando solicitado.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - src/scripts/backfill-schedule-template.cjs
 
 concurrency:
   group: schedule-template-backfill-production
