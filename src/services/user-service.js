@@ -8,6 +8,17 @@
 })(typeof window !== 'undefined' ? window : null, function createModule() {
   const PAGE_SIZE = 10;
   const DEFAULT_PASSWORD_RESET_URL = 'https://louvor-ide.web.app/login.html';
+  const DEFAULT_MEMBER_PERMISSIONS = Object.freeze({
+    dashboard: 'READ',
+    users: 'NONE',
+    permissions: 'NONE',
+    unavailability: 'EDIT',
+    events: 'NONE',
+    schedules: 'READ',
+    setlists: 'EDIT',
+    songs: 'EDIT',
+    audit: 'NONE'
+  });
 
   function normalize(value) { return String(value || '').trim().toLocaleLowerCase('pt-BR'); }
 
@@ -82,7 +93,9 @@
         const user = await this.repository.createUser({ ...input, uid, email });
         profileCreated = true;
         const functionIds = input.functionIds || [];
-        const permissions = input.permissions || {};
+        const permissions = input.permissions && typeof input.permissions === 'object'
+          ? input.permissions
+          : { ...DEFAULT_MEMBER_PERMISSIONS };
         await this.repository.replaceUserFunctions(user.id, functionIds);
         if (typeof this.repository.replaceInitialPermissions === 'function') {
           await this.repository.replaceInitialPermissions(user.id, permissions);
@@ -160,5 +173,5 @@
     return `${Date.now()}${Math.random().toString(36).slice(2)}`;
   }
 
-  return Object.freeze({ UserService, filterUsers, paginate, canManageUsers, PAGE_SIZE, DEFAULT_PASSWORD_RESET_URL });
+  return Object.freeze({ UserService, filterUsers, paginate, canManageUsers, PAGE_SIZE, DEFAULT_PASSWORD_RESET_URL, DEFAULT_MEMBER_PERMISSIONS });
 });
