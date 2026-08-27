@@ -1,7 +1,6 @@
 /**
  * Integra as permissões ao fluxo de Usuários sem duplicar regras de persistência.
- * SUPER_ADMIN pode editar acessos no mesmo formulário do usuário e abrir a
- * ficha dedicada de permissões a partir da lista.
+ * SUPER_ADMIN pode editar acessos no mesmo formulário do usuário.
  */
 (function initUserPermissionsIntegration(scope) {
   if (!scope || !scope.document) return;
@@ -77,21 +76,6 @@
     }
   }
 
-  function enhanceRows() {
-    if (!isSuperAdmin()) return;
-    scope.document.querySelectorAll('#users-body tr').forEach(row => {
-      const edit = row.querySelector('button[data-action="edit"][data-id]');
-      if (!edit || row.querySelector('[data-action="permissions"]')) return;
-      const button = scope.document.createElement('button');
-      button.type = 'button';
-      button.className = 'ide-button ide-button--secondary ide-button--sm';
-      button.dataset.action = 'permissions';
-      button.dataset.id = edit.dataset.id;
-      button.innerHTML = '<i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Permissões';
-      edit.insertAdjacentElement('afterend', button);
-    });
-  }
-
   function patchUserService() {
     const Service = scope.MusicIdeUserService && scope.MusicIdeUserService.UserService;
     if (!Service || Service.prototype.__permissionsIntegrated) return;
@@ -110,18 +94,9 @@
 
   function bootstrap() {
     patchUserService();
-    const body = scope.document.getElementById('users-body');
-    if (body) new MutationObserver(enhanceRows).observe(body, { childList: true, subtree: true });
-    enhanceRows();
 
     scope.document.addEventListener('click', event => {
       const button = event.target.closest('button[data-action]');
-      if (button && button.dataset.action === 'permissions') {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        scope.location.href = `module.html?section=permissions&userId=${encodeURIComponent(button.dataset.id)}`;
-        return;
-      }
       if (button && button.dataset.action === 'edit') {
         editingUserId = button.dataset.id || null;
         renderedUserId = null;
