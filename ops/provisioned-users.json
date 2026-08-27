@@ -6,6 +6,12 @@
     "active": true
   },
   {
+    "email": "davi.alves.de.sousa+teste2@gmail.com",
+    "name": "Teste 2",
+    "role": "MEMBER",
+    "active": true
+  },
+  {
     "email": "davitads@gmail.com",
     "name": "Davi Alves",
     "role": "SUPER_ADMIN",
