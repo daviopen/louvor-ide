@@ -25,9 +25,9 @@ test('mudanças de evento exigem vínculos consistentes via getAfter', () => {
   assert.match(rules, /getAfter\(setlistPath\)\.data\.eventTime == request\.resource\.data\.time/);
 });
 
-test('histórico final é imutável e exclusão só ocorre após remover vínculos', () => {
+test('histórico final permanece imutável para edição e exclusão explícita remove vínculos em qualquer status válido', () => {
   assert.match(rules, /resource\.data\.status in \['PLANNED', 'CONFIRMED'\]/);
-  assert.match(rules, /resource\.data\.status == 'PLANNED'/);
+  assert.match(rules, /resource\.data\.status in \['PLANNED', 'CONFIRMED', 'CANCELLED', 'COMPLETED'\]/);
   assert.match(rules, /!existsAfter\(schedulePath\)/);
   assert.match(rules, /!existsAfter\(setlistPath\)/);
 });
