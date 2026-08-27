@@ -4,6 +4,9 @@
   const PERMISSION_LABELS = Object.freeze({
     dashboard: 'Dashboard', users: 'Usuários', permissions: 'Permissões', unavailability: 'Indisponibilidade', events: 'Eventos', schedules: 'Escalas', setlists: 'Setlists', songs: 'Músicas', audit: 'Auditoria'
   });
+  const FALLBACK_DEFAULT_PERMISSIONS = Object.freeze({
+    dashboard: 'READ', users: 'NONE', permissions: 'NONE', unavailability: 'EDIT', events: 'NONE', schedules: 'READ', setlists: 'EDIT', songs: 'EDIT', audit: 'NONE'
+  });
   const state = { page: 1, pageSize: 10, filters: { search: '', status: 'ALL', functionId: 'ALL' }, editingId: null, editingFunctionId: null, functions: [] };
   let service;
   let ministryService;
@@ -15,6 +18,24 @@
   function canEditFunctions(profile) { return Boolean(scope.MusicIdeMinistryFunctions && scope.MusicIdeMinistryFunctions.canManageMinistryFunctions(profile)); }
   function toast(message, type = 'success') { const node = el('users-toast'); node.textContent = message; node.dataset.type = type; node.hidden = false; clearTimeout(toast.timer); toast.timer = setTimeout(() => { node.hidden = true; }, 6000); }
   function setBusy(busy) { el('users-loading').hidden = !busy; el('users-content').setAttribute('aria-busy', String(busy)); }
+  function defaultPermissions() { return scope.MusicIdeUserService?.DEFAULT_MEMBER_PERMISSIONS || FALLBACK_DEFAULT_PERMISSIONS; }
+  function clearUserFormFeedback() { const node = el('user-form-feedback'); if (node) node.remove(); }
+  function showUserFormFeedback(message, type = 'error') {
+    clearUserFormFeedback();
+    const node = scope.document.createElement('div');
+    node.id = 'user-form-feedback';
+    node.className = 'users-account-note full';
+    node.dataset.type = type;
+    node.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    const icon = scope.document.createElement('i');
+    icon.className = type === 'error' ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle-info';
+    icon.setAttribute('aria-hidden', 'true');
+    const text = scope.document.createElement('span');
+    text.textContent = message;
+    node.append(icon, text);
+    el('user-dialog').querySelector('.users-form-grid').appendChild(node);
+    node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
 
   async function load() {
     setBusy(true);
@@ -45,9 +66,16 @@
   }
 
   function renderPagination(result) { el('page-label').textContent = `Página ${result.page} de ${result.pages}`; el('page-prev').disabled = result.page <= 1; el('page-next').disabled = result.page >= result.pages; }
-  function renderInitialPermissions() { el('user-permissions').innerHTML = Object.entries(PERMISSION_LABELS).map(([moduleName, label]) => `<label class="users-permission-option"><span>${escapeHtml(label)}</span><select class="ide-field__control ide-select" data-permission-module="${escapeHtml(moduleName)}" aria-label="Permissão inicial para ${escapeHtml(label)}"><option value="NONE">Sem acesso</option><option value="READ">Leitura</option><option value="EDIT">Edição</option></select></label>`).join(''); }
+  function renderInitialPermissions() {
+    const defaults = defaultPermissions();
+    el('user-permissions').innerHTML = Object.entries(PERMISSION_LABELS).map(([moduleName, label]) => {
+      const selected = defaults[moduleName] || 'NONE';
+      return `<label class="users-permission-option"><span>${escapeHtml(label)}</span><select class="ide-field__control ide-select" data-permission-module="${escapeHtml(moduleName)}" aria-label="Permissão inicial para ${escapeHtml(label)}"><option value="NONE" ${selected === 'NONE' ? 'selected' : ''}>Sem acesso</option><option value="READ" ${selected === 'READ' ? 'selected' : ''}>Leitura</option><option value="EDIT" ${selected === 'EDIT' ? 'selected' : ''}>Edição</option></select></label>`;
+    }).join('');
+  }
 
   function openForm(user = null) {
+    clearUserFormFeedback();
     state.editingId = user && user.id || null;
     el('user-form-title').textContent = user ? 'Editar usuário' : 'Novo usuário';
     el('user-name').value = user?.name || ''; el('user-email').value = user?.email || ''; el('user-photo').value = user?.photoURL || '';
@@ -62,21 +90,40 @@
 
   async function submitForm(event) {
     event.preventDefault();
+    clearUserFormFeedback();
+    const submitButton = el('user-submit');
+    const originalButtonHtml = submitButton.innerHTML;
     const functionIds = Array.from(el('user-functions').querySelectorAll('input:checked')).map(input => input.value);
     const payload = { name: el('user-name').value.trim(), email: el('user-email').value.trim(), photoURL: el('user-photo').value.trim() || null, functionIds, permissions: state.editingId ? undefined : readInitialPermissions() };
-    el('user-submit').disabled = true;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>Salvando...';
     try {
+      let message;
+      let messageType = 'success';
       if (state.editingId) {
         await service.update(state.editingId, payload);
-        toast('Usuário atualizado com sucesso.');
+        message = 'Usuário atualizado com sucesso.';
       } else {
         const created = await service.create(payload);
-        if (created.passwordEmailSent) toast('Usuário criado. O Firebase confirmou a solicitação do e-mail para definição de senha.');
-        else toast(`Usuário criado, mas o e-mail de definição de senha não foi confirmado: ${created.passwordEmailError || 'erro não informado'}. Use “Redefinir senha” para tentar novamente.`, 'error');
+        if (created.passwordEmailSent) {
+          message = 'Usuário criado com sucesso. O Firebase enviou o e-mail para definição de senha.';
+        } else {
+          message = `Usuário criado, mas o e-mail de definição de senha não foi confirmado: ${created.passwordEmailError || 'erro não informado'}. Use “Redefinir senha” para tentar novamente.`;
+          messageType = 'error';
+        }
       }
-      el('user-dialog').close(); state.page = 1; await load();
-    } catch (error) { console.error(error); toast(error.message || 'Não foi possível salvar o usuário.', 'error'); }
-    finally { el('user-submit').disabled = false; }
+      el('user-dialog').close();
+      state.page = 1;
+      toast(message, messageType);
+      await load();
+    } catch (error) {
+      console.error(error);
+      const message = error.message || 'Não foi possível salvar o usuário.';
+      showUserFormFeedback(message, 'error');
+    } finally {
+      submitButton.disabled = false;
+      submitButton.innerHTML = originalButtonHtml;
+    }
   }
 
   async function handleTableClick(event) {
@@ -125,7 +172,7 @@
     const registry = scope.MusicIdeDomainRepositories.createRepositoryRegistry(database);
     ministryService = new scope.MusicIdeMinistryFunctions.MinistryFunctionsService({ ministryFunctionsRepository: registry.ministryFunctions, userFunctionsRepository: registry.userFunctions, auditRepository: registry.auditLogs, actorProvider: () => scope.currentMusicIdeUser });
     const editable = canEdit(scope.currentMusicIdeProfile); el('new-user').hidden = !editable; el('users-readonly').hidden = editable;
-    el('new-user').addEventListener('click', () => openForm()); el('manage-functions').addEventListener('click', openFunctionsDialog); el('user-form').addEventListener('submit', submitForm); el('user-cancel').addEventListener('click', () => el('user-dialog').close()); el('users-body').addEventListener('click', handleTableClick);
+    el('new-user').addEventListener('click', () => openForm()); el('manage-functions').addEventListener('click', openFunctionsDialog); el('user-form').addEventListener('submit', submitForm); el('user-cancel').addEventListener('click', () => { clearUserFormFeedback(); el('user-dialog').close(); }); el('users-body').addEventListener('click', handleTableClick);
     el('functions-close').addEventListener('click', () => el('functions-dialog').close()); el('function-cancel').addEventListener('click', resetFunctionForm); el('function-form').addEventListener('submit', submitFunction); el('functions-list').addEventListener('click', handleFunctionListClick);
     el('filter-search').addEventListener('input', event => { state.filters.search = event.target.value; state.page = 1; load(); }); el('filter-status').addEventListener('change', event => { state.filters.status = event.target.value; state.page = 1; load(); }); el('filter-function').addEventListener('change', event => { state.filters.functionId = event.target.value; state.page = 1; load(); }); el('clear-filters').addEventListener('click', () => { state.filters = { search: '', status: 'ALL', functionId: 'ALL' }; el('filter-search').value = ''; el('filter-status').value = 'ALL'; el('filter-function').value = 'ALL'; el('users-filter-panel').dispatchEvent(new CustomEvent('ideFiltersChanged')); state.page = 1; load(); }); el('page-prev').addEventListener('click', () => { state.page -= 1; load(); }); el('page-next').addEventListener('click', () => { state.page += 1; load(); });
     alignUsersNavigation(); setTimeout(alignUsersNavigation, 100); await load();
