@@ -1,8 +1,11 @@
 const { applicationDefault, initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore } = require('firebase-admin/firestore');
+const { FieldValue, getFirestore } = require('firebase-admin/firestore');
 
 const projectId = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'louvor-ide';
+const KNOWN_EMAIL_REPAIRS = new Map([
+  ['davi.alves.de.sousa@gmail.com2', 'davi.alves.de.sousa@gmail.com']
+]);
 
 async function listAllAuthUsers(auth) {
   const users = [];
@@ -28,7 +31,71 @@ async function getAuthUserOrNull(auth, uid) {
   }
 }
 
+async function getAuthUserByEmailOrNull(auth, email) {
+  try {
+    return await auth.getUserByEmail(email);
+  } catch (error) {
+    if (error && error.code === 'auth/user-not-found') return null;
+    throw error;
+  }
+}
+
+async function repairKnownMalformedProfileEmails(auth, db) {
+  const profilesSnapshot = await db.collection('users').get();
+  let repaired = 0;
+
+  for (const profileDoc of profilesSnapshot.docs) {
+    const profile = profileDoc.data() || {};
+    const currentEmail = normalizeEmail(profile.email);
+    const correctedEmail = KNOWN_EMAIL_REPAIRS.get(currentEmail);
+    if (!correctedEmail) continue;
+
+    const canonicalUid = profileDoc.id;
+    const conflictingAuth = await getAuthUserByEmailOrNull(auth, correctedEmail);
+    if (conflictingAuth && conflictingAuth.uid !== canonicalUid) {
+      const conflictingProfile = await db.collection('users').doc(conflictingAuth.uid).get();
+      if (conflictingProfile.exists) {
+        throw new Error(`Não é seguro reparar ${correctedEmail}: a identidade conflitante ${conflictingAuth.uid} possui perfil Firestore.`);
+      }
+      await auth.deleteUser(conflictingAuth.uid);
+      console.log(`🧹 ${correctedEmail}: identidade Auth conflitante sem perfil removida (${conflictingAuth.uid}).`);
+    }
+
+    let canonicalAuth = await getAuthUserOrNull(auth, canonicalUid);
+    if (canonicalAuth) {
+      canonicalAuth = await auth.updateUser(canonicalUid, {
+        email: correctedEmail,
+        displayName: profile.name || undefined,
+        photoURL: profile.photoURL || undefined,
+        disabled: profile.active === false
+      });
+    } else {
+      canonicalAuth = await auth.createUser({
+        uid: canonicalUid,
+        email: correctedEmail,
+        displayName: profile.name || undefined,
+        photoURL: profile.photoURL || undefined,
+        disabled: profile.active === false
+      });
+    }
+
+    await profileDoc.ref.set({
+      email: correctedEmail,
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    repaired += 1;
+    console.log(`✅ ${currentEmail} → ${correctedEmail}: perfil e identidade canônica reparados (${canonicalAuth.uid}).`);
+  }
+
+  if (repaired) {
+    console.log(`✅ Reparos conhecidos de e-mail concluídos: ${repaired} perfil(is) corrigido(s).`);
+  }
+}
+
 async function reconcileDuplicateIdentities(auth, db) {
+  await repairKnownMalformedProfileEmails(auth, db);
+
   const profilesSnapshot = await db.collection('users').get();
   const profilesByUid = new Map(profilesSnapshot.docs.map(doc => [doc.id, doc.data() || {}]));
   const expectedUidByEmail = new Map();
@@ -115,4 +182,12 @@ if (require.main === module) {
   });
 }
 
-module.exports = { getAuthUserOrNull, listAllAuthUsers, normalizeEmail, reconcileDuplicateIdentities };
+module.exports = {
+  KNOWN_EMAIL_REPAIRS,
+  getAuthUserByEmailOrNull,
+  getAuthUserOrNull,
+  listAllAuthUsers,
+  normalizeEmail,
+  reconcileDuplicateIdentities,
+  repairKnownMalformedProfileEmails
+};
