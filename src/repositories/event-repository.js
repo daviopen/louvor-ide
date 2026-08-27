@@ -271,7 +271,16 @@
       const scheduleId = event.scheduleId || scheduleDocumentId(eventId);
       const setlistId = event.setlistId || setlistDocumentId(eventId);
       const now = this.clock();
+      const [membersSnapshot, songsSnapshot] = await Promise.all([
+        this.db.collection('scheduleMembers').where('scheduleId', '==', scheduleId).get(),
+        this.db.collection('setlistSongs').where('setlistId', '==', setlistId).get()
+      ]);
+      const childCount = membersSnapshot.docs.length + songsSnapshot.docs.length;
+      if (childCount > 490) throw new Error('O evento possui vínculos demais para exclusão segura em uma única operação. Procure um administrador.');
+
       const batch = this.db.batch();
+      membersSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+      songsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
       batch.delete(this.events().doc(eventId));
       batch.delete(this.schedules().doc(scheduleId));
       batch.delete(this.setlists().doc(setlistId));
@@ -280,7 +289,14 @@
         action: 'EVENT_DELETED',
         entityType: 'event',
         entityId: eventId,
-        details: { name: event.name, scheduleId, setlistId, status: event.status },
+        details: {
+          name: event.name,
+          scheduleId,
+          setlistId,
+          status: event.status,
+          deletedScheduleMembers: membersSnapshot.docs.length,
+          deletedSetlistSongs: songsSnapshot.docs.length
+        },
         createdAt: now
       });
       await batch.commit();

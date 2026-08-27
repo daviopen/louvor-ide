@@ -6,14 +6,25 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const page = fs.readFileSync(path.join(root, 'src/js/modules/schedules-page.js'), 'utf8');
 const loader = fs.readFileSync(path.join(root, 'src/js/modules/events-page.js'), 'utf8');
+const monthlyUi = fs.readFileSync(path.join(root, 'src/js/modules/schedules-monthly-ui.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'src/styles/schedules.css'), 'utf8');
 
 test('módulo de escalas é carregado pela área do sistema sem quebrar Eventos', () => {
-  assert.match(loader, /section'\) !== 'schedules'/);
+  assert.match(loader, /scheduleSections = new Set/);
+  assert.match(loader, /monthlySections = new Set/);
   assert.match(loader, /schedule-repository\.js/);
   assert.match(loader, /schedule-service\.js/);
   assert.match(loader, /schedules-page\.js/);
+  assert.match(loader, /schedules-monthly-ui\.js/);
   assert.match(loader, /service\.create/);
+});
+
+test('ferramentas mensais permanecem sob a permissão de Escalas', () => {
+  assert.match(monthlyUi, /module\.html\?section=schedules&view=\$\{targetView\}/);
+  assert.match(monthlyUi, /schedules-export/);
+  assert.match(monthlyUi, /schedules-participation/);
+  assert.match(monthlyUi, /monthly-export-month/);
+  assert.match(monthlyUi, /monthly-participation-month/);
 });
 
 test('listagem e edição de escala ficam separadas por scheduleId', () => {
@@ -80,6 +91,7 @@ test('UI possui avatar, status de completude e filtros históricos na listagem',
   assert.match(page, /schedule-filter-function/);
   assert.match(page, /schedule-filter-from/);
   assert.match(page, /schedule-filter-to/);
+  assert.match(monthlyUi, /schedule-filter-month/);
 });
 
 test('editor possui hierarquia visual, seletor de pessoas e layout mobile', () => {
@@ -107,6 +119,7 @@ test('popup possui tratamento para viewport e safe-area mobile', () => {
 
 test('UI não acessa collections do Firestore diretamente', () => {
   assert.doesNotMatch(page, /\.collection\(/);
+  assert.doesNotMatch(monthlyUi, /\.collection\(/);
   assert.match(css, /schedule-summary-card/);
   assert.match(css, /schedule-slot/);
 });

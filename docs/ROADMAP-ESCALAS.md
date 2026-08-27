@@ -154,6 +154,27 @@ A opção recomendada para a primeira versão é login com Google, por ser simpl
 - Histórico de alterações.
 - Versão de impressão e compartilhamento para WhatsApp.
 
+### Etapa 6 — gestão mensal e PWA
+
+- [x] Excluir evento em cascata, incluindo escala, setlist, integrantes e músicas vinculadas, com confirmação e auditoria.
+- [x] Exibir na edição da escala o resumo mensal de participações de todos os usuários ativos, incluindo zero e contando a pessoa apenas uma vez por evento.
+- [x] Adicionar filtro por mês às telas de Eventos e Escalas, preservando filtros de data inicial e final.
+- [x] Adicionar filtro por mês, data inicial e data final à consulta de Indisponibilidades.
+- [x] Criar `Escalas > Exportar`, com seleção mensal, visualização para impressão/PDF e indisponibilidades ao final.
+- [x] Criar `Escalas > Participações`, com total mensal por usuário ativo e contagem distinta por evento.
+- [x] Documentar no login e na Central de Ajuda como instalar o IDE Music na tela inicial do iPhone/iPad e Android.
+
+### Etapa 7 — notificações direcionadas — futuro
+
+- [ ] Implementar notificações de nova escala apenas para as pessoas envolvidas.
+- [ ] Notificar inclusão, remoção ou alteração de função somente aos usuários afetados.
+- [ ] Notificar atualização de Setlist somente aos integrantes da escala vinculada.
+- [ ] Avaliar OneSignal como provedor de Web Push/PWA para reduzir a complexidade operacional.
+- [ ] Não expor chaves de envio ou credenciais privilegiadas no frontend.
+- [ ] Definir mecanismo seguro de disparo automático antes da implementação, considerando que a aplicação atualmente não possui backend próprio.
+- [ ] Avaliar custo e necessidade de componente server-side/serverless apenas quando a automação de notificações for priorizada.
+- [ ] Permitir ao usuário ativar/desativar categorias de notificação e registrar a permissão por dispositivo.
+
 ## Critérios de aceite da primeira versão de escalas
 
 - Uma indisponibilidade salva impede a pessoa de aparecer como opção válida no evento.

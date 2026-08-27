@@ -1,6 +1,9 @@
-(function loadSchedulesSection(scope) {
+(function loadScheduleAndMonthlyTools(scope) {
   if (!scope || !scope.document) return;
-  if (new URLSearchParams(scope.location.search).get('section') !== 'schedules') return;
+  const section = new URLSearchParams(scope.location.search).get('section');
+  const scheduleSections = new Set(['schedules', 'schedules-export', 'schedules-participation']);
+  const monthlySections = new Set(['events', 'unavailability', 'schedules', 'schedules-export', 'schedules-participation']);
+  if (!monthlySections.has(section)) return;
 
   function loadScript(src) {
     return new Promise((resolve, reject) => {
@@ -12,14 +15,21 @@
     });
   }
 
-  const link = scope.document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = '../styles/schedules.css?v=20260825-schedules';
-  scope.document.head.appendChild(link);
-  loadScript('../repositories/schedule-repository.js?v=20260825-schedules')
-    .then(() => loadScript('../services/schedule-service.js?v=20260825-schedules'))
-    .then(() => loadScript('../js/modules/schedules-page.js?v=20260825-schedules'))
-    .catch(error => console.error('Falha ao carregar Escalas.', error));
+  const tasks = [];
+  if (scheduleSections.has(section)) {
+    const link = scope.document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '../styles/schedules.css?v=20260825-schedules';
+    scope.document.head.appendChild(link);
+    tasks.push(loadScript('../repositories/schedule-repository.js?v=20260827-monthly'));
+  }
+
+  Promise.all(tasks)
+    .then(() => scheduleSections.has(section) ? loadScript('../services/schedule-service.js?v=20260827-monthly') : null)
+    .then(() => loadScript('../services/schedule-monthly-service.js?v=20260827-monthly'))
+    .then(() => section === 'schedules' ? loadScript('../js/modules/schedules-page.js?v=20260827-monthly') : null)
+    .then(() => loadScript('../js/modules/schedules-monthly-ui.js?v=20260827-monthly'))
+    .catch(error => console.error('Falha ao carregar ferramentas mensais de Escalas.', error));
 })(window);
 
 (function initEventsPage(scope) {
@@ -188,9 +198,9 @@
           actions.push(`<button class="ide-button ide-button--secondary ide-button--sm" type="button" data-event-action="complete" data-id="${escapeHtml(item.id)}">Concluir</button>`);
           actions.push(`<button class="ide-button ide-button--danger ide-button--sm" type="button" data-event-action="cancel" data-id="${escapeHtml(item.id)}">Cancelar evento</button>`);
         }
-        if (state.access.canManageLinked && item.status === 'PLANNED') {
-          actions.push(`<button class="ide-button ide-button--danger ide-button--sm" type="button" data-event-action="delete" data-id="${escapeHtml(item.id)}">Excluir rascunho</button>`);
-        }
+      }
+      if (state.access.canManageLinked) {
+        actions.push(`<button class="ide-button ide-button--danger ide-button--sm" type="button" data-event-action="delete" data-id="${escapeHtml(item.id)}"><i class="fa-solid fa-trash-can" aria-hidden="true"></i> Excluir evento</button>`);
       }
       return `<article class="events-item">
         <div class="events-item-date"><strong>${escapeHtml(formatDate(item.date))}</strong><span>${item.time ? escapeHtml(item.time) : 'Horário a definir'}</span></div>
@@ -265,9 +275,13 @@
   }
 
   async function removeEvent(record) {
-    if (!scope.confirm(`Excluir permanentemente o rascunho “${record.name}”? Isso só é permitido se ainda não houver integrantes ou músicas vinculados.`)) return;
-    try { await service.remove(record.id, scope.currentMusicIdeUser, scope.currentMusicIdeProfile, { access: state.access }); toast('Rascunho de evento excluído.'); await loadEvents(); }
-    catch (error) { console.error(error); toast(error.message || 'Não foi possível excluir o evento.', 'error'); }
+    const confirmed = scope.confirm(`Excluir permanentemente “${record.name}”? A escala, o Setlist, os integrantes da escala e as músicas vinculadas também serão excluídos. Esta ação não pode ser desfeita.`);
+    if (!confirmed) return;
+    try {
+      await service.remove(record.id, scope.currentMusicIdeUser, scope.currentMusicIdeProfile, { access: state.access });
+      toast('Evento, escala e Setlist excluídos com sucesso.');
+      await loadEvents();
+    } catch (error) { console.error(error); toast(error.message || 'Não foi possível excluir o evento.', 'error'); }
   }
 
   async function handleListClick(event) {
@@ -292,7 +306,7 @@
     el('events-status-filter').addEventListener('change', event => { state.status = event.target.value; renderList(); });
     el('events-date-from').addEventListener('change', event => { state.dateFrom = event.target.value; renderList(); });
     el('events-date-to').addEventListener('change', event => { state.dateTo = event.target.value; renderList(); });
-    el('events-clear-filters').addEventListener('click', () => { state.search = ''; state.status = 'ALL'; state.dateFrom = ''; state.dateTo = ''; el('events-search').value = ''; el('events-status-filter').value = 'ALL'; el('events-date-from').value = ''; el('events-date-to').value = ''; el('events-filter-panel').dispatchEvent(new CustomEvent('ideFiltersChanged')); renderList(); });
+    el('events-clear-filters').addEventListener('click', () => { state.search = ''; state.status = 'ALL'; state.dateFrom = ''; state.dateTo = ''; el('events-search').value = ''; el('events-status-filter').value = 'ALL'; el('events-date-from').value = ''; el('events-date-to').value = ''; const month=el('events-month-filter'); if(month) month.value=''; el('events-filter-panel').dispatchEvent(new CustomEvent('ideFiltersChanged')); renderList(); });
     el('event-description').addEventListener('input', event => { el('event-description-count').textContent = String(event.target.value.length); });
   }
 
