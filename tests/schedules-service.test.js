@@ -6,15 +6,17 @@ function fakeRepository() {
   const schedules = new Map([['schedule_event_1', { id: 'schedule_event_1', eventId: 'event_1', status: 'DRAFT', slots: [{ id: 'slot_a', functionId: 'fn_back' }] }]]);
   const members = [];
   const audit = [];
+  const calls = { listAllMembers: 0, listMembers: 0 };
   return {
-    schedules, members, audit,
+    schedules, members, audit, calls,
     async getPermissionLevel() { return 'EDIT'; },
     async listSchedules() { return [{ ...schedules.get('schedule_event_1'), event: { id: 'event_1', name: 'Culto', date: '2026-09-01', time: '20:00' } }]; },
     async listActiveUsers() { return [{ id: 'u1', name: 'Ana', active: true }, { id: 'u2', name: 'Bia', active: true }]; },
     async listActiveFunctions() { return [{ id: 'fn_back', name: 'Back Vocal', active: true, order: 10 }, { id: 'fn_keys', name: 'Teclado', active: true, order: 20 }]; },
     async listUserFunctions() { return [{ userId: 'u1', functionId: 'fn_back', active: true }, { userId: 'u1', functionId: 'fn_keys', active: true }, { userId: 'u2', functionId: 'fn_back', active: true }]; },
     async listUnavailability() { return [{ id: 'un1', userId: 'u2', date: '2026-09-01', period: 'EVENING' }]; },
-    async listMembers() { return members.filter(item => item.active !== false); },
+    async listAllMembers() { calls.listAllMembers += 1; return members.filter(item => item.active !== false); },
+    async listMembers() { calls.listMembers += 1; return members.filter(item => item.active !== false); },
     async getSchedule(id) { return schedules.get(id) || null; },
     async getEvent() { return { id: 'event_1', name: 'Culto', date: '2026-09-01', time: '20:00' }; },
     async updateSchedule(id, patch) { const next = { ...schedules.get(id), ...patch }; schedules.set(id, next); return next; },
@@ -41,6 +43,17 @@ test('completude depende de todos os slots possuírem integrante ativo', () => {
   const schedule = { slots: [{ id: 'a' }, { id: 'b' }] };
   assert.deepEqual(scheduleCompleteness(schedule, [{ slotId: 'a', active: true }]), { complete: false, filled: 1, total: 2, missingSlotIds: ['b'] });
   assert.equal(scheduleCompleteness(schedule, [{ slotId: 'a', active: true }, { slotId: 'b', active: true }]).complete, true);
+});
+
+test('carrega integrantes de todas as escalas em uma única leitura em lote', async () => {
+  const repository = fakeRepository();
+  repository.members.push({ id: 'm1', scheduleId: 'schedule_event_1', slotId: 'slot_a', userId: 'u1', functionId: 'fn_back', active: true });
+  const service = new ScheduleService(repository);
+  const data = await service.load({ uid: 'admin' }, { role: 'SUPER_ADMIN' });
+  assert.equal(repository.calls.listAllMembers, 1);
+  assert.equal(repository.calls.listMembers, 0);
+  assert.equal(data.schedules[0].members.length, 1);
+  assert.equal(data.schedules[0].completeness.complete, true);
 });
 
 test('lista elegíveis apenas ativos, com função e disponíveis', async () => {
