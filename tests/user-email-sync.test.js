@@ -27,63 +27,49 @@ function repositoryFixture(initialUser) {
   };
 }
 
-test('alteração de e-mail passa pelo backend de identidade e preserva o UID', async () => {
-  const repository = repositoryFixture({ id: 'uid-1', uid: 'uid-1', name: 'Pessoa', email: 'antigo@example.com', photoURL: null });
-  const identityCalls = [];
-  const service = new UserService(repository, {
-    actorProvider: () => ({ uid: 'admin-1' }),
-    identityUpdater: async payload => {
-      identityCalls.push(payload);
-      repository.updateUser = async () => { throw new Error('updateUser cliente não deve alterar perfil quando o e-mail muda'); };
-      repository.getUser = async () => ({ id: 'uid-1', uid: 'uid-1', name: payload.name, email: payload.email, photoURL: payload.photoURL });
-      return { ok: true, user: { id: payload.userId, uid: payload.userId, ...payload }, emailChanged: true };
-    }
-  });
+test('e-mail de usuário existente é imutável', async () => {
+  const repository = repositoryFixture({ id: 'uid-1', uid: 'uid-1', name: 'Pessoa', email: 'original@example.com', photoURL: null });
+  const service = new UserService(repository, { actorProvider: () => ({ uid: 'admin-1' }) });
 
-  const result = await service.update('uid-1', {
-    name: 'Pessoa Atualizada',
-    email: 'NOVO@example.com',
-    photoURL: null,
-    functionIds: ['fn-1']
-  });
+  await assert.rejects(
+    () => service.update('uid-1', {
+      name: 'Pessoa Atualizada',
+      email: 'outro@example.com',
+      photoURL: null,
+      functionIds: ['fn-1']
+    }),
+    /não pode ser alterado após a criação/
+  );
 
-  assert.equal(identityCalls.length, 1);
-  assert.equal(identityCalls[0].userId, 'uid-1');
-  assert.equal(identityCalls[0].email, 'novo@example.com');
-  assert.equal(result.uid, 'uid-1');
-  assert.equal(result.email, 'novo@example.com');
-  assert.equal(result.emailChanged, true);
-  assert.deepEqual(repository.calls.functions[0], { id: 'uid-1', functionIds: ['fn-1'] });
-  assert.equal(repository.calls.audits[0].details.emailChanged, true);
+  assert.equal(repository.calls.updateUser.length, 0);
+  assert.equal(repository.calls.functions.length, 0);
+  assert.equal(repository.calls.audits.length, 0);
 });
 
-test('edição sem mudança de e-mail permanece no repositório normal', async () => {
+test('edição preserva o e-mail original e atualiza os demais dados', async () => {
   const repository = repositoryFixture({ id: 'uid-2', uid: 'uid-2', name: 'Pessoa', email: 'mesmo@example.com', photoURL: null });
-  let identityCalled = false;
-  const service = new UserService(repository, {
-    actorProvider: () => ({ uid: 'admin-1' }),
-    identityUpdater: async () => { identityCalled = true; }
-  });
+  const service = new UserService(repository, { actorProvider: () => ({ uid: 'admin-1' }) });
 
   const result = await service.update('uid-2', {
     name: 'Novo Nome',
     email: 'MESMO@example.com',
     photoURL: 'https://example.com/foto.jpg',
-    functionIds: []
+    functionIds: ['fn-2']
   });
 
-  assert.equal(identityCalled, false);
-  assert.equal(repository.calls.updateUser.length, 1);
+  assert.equal(result.email, 'mesmo@example.com');
   assert.equal(result.emailChanged, false);
+  assert.deepEqual(repository.calls.updateUser[0], {
+    id: 'uid-2',
+    patch: { name: 'Novo Nome', email: 'mesmo@example.com', photoURL: 'https://example.com/foto.jpg' }
+  });
+  assert.deepEqual(repository.calls.functions[0], { id: 'uid-2', functionIds: ['fn-2'] });
+  assert.equal(repository.calls.audits[0].details.emailChanged, false);
 });
 
-test('backend de identidade exige token, autorização administrativa e atualiza Auth pelo mesmo UID', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
-  assert.match(source, /verifyIdToken\(token, true\)/);
-  assert.match(source, /actorSnapshot\.data\(\)\.active !== true/);
-  assert.match(source, /canManageUsers\(actorSnapshot\.data\(\)\)/);
-  assert.match(source, /auth\.getUser\(userId\)/);
-  assert.match(source, /auth\.updateUser\(userId, \{ email, displayName: name, photoURL \}\)/);
-  assert.match(source, /USER_EMAIL_AND_IDENTITY_UPDATED/);
-  assert.doesNotMatch(source, /password\s*:/i);
+test('tela desabilita o campo de e-mail durante a edição e preserva o e-mail cadastrado no payload', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'modules', 'users-page.js'), 'utf8');
+  assert.match(source, /emailField\.disabled = Boolean\(user\)/);
+  assert.match(source, /O e-mail de login é definido no cadastro e não pode ser alterado/);
+  assert.match(source, /editingUser\?\.email \|\| el\('user-email'\)\.value\.trim\(\)/);
 });
