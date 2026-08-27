@@ -3,7 +3,12 @@
   const params = new URLSearchParams(scope.location.search);
   if (params.get('section') !== 'schedules') return;
 
-  const state = { data: null, scheduleId: params.get('scheduleId') || null, filters: { term: '', person: 'ALL', functionId: 'ALL', from: '', to: '', sort: 'DATE_ASC' } };
+  const state = {
+    data: null,
+    scheduleId: params.get('scheduleId') || null,
+    filters: { term: '', person: 'ALL', functionId: 'ALL', from: '', to: '', sort: 'DATE_ASC' },
+    picker: { scheduleId: null, slotId: null }
+  };
   let repository;
   let service;
   const el = id => scope.document.getElementById(id);
@@ -18,11 +23,24 @@
   function injectShell() {
     const placeholder = el('module-placeholder');
     placeholder.className = 'schedules-page';
-    placeholder.innerHTML = `<div class="schedules-page__inner" id="schedules-root"></div><div id="schedules-toast" class="schedules-toast" role="status" aria-live="polite" hidden></div>`;
+    placeholder.innerHTML = `<div class="schedules-page__inner" id="schedules-root"></div>
+      <div id="schedule-person-backdrop" hidden role="presentation" style="position:fixed;inset:0;z-index:var(--ide-z-modal,10000);background:rgba(0,0,0,.68);padding:max(1rem,env(safe-area-inset-top)) max(.625rem,env(safe-area-inset-right)) max(1rem,env(safe-area-inset-bottom)) max(.625rem,env(safe-area-inset-left));display:grid;place-items:center;">
+        <section id="schedule-person-dialog" class="schedule-person-options" role="dialog" aria-modal="true" aria-labelledby="schedule-person-dialog-title" style="position:relative;top:auto;left:auto;right:auto;bottom:auto;transform:none;width:min(480px,100%);max-height:min(76dvh,600px);box-shadow:var(--ide-shadow-overlay);overflow:auto;" tabindex="-1"></section>
+      </div>
+      <div id="schedules-toast" class="schedules-toast" role="status" aria-live="polite" hidden></div>`;
+    const backdrop = el('schedule-person-backdrop');
+    backdrop.addEventListener('click', event => { if (event.target === backdrop) closePersonPicker(); });
+    scope.document.addEventListener('keydown', event => { if (event.key === 'Escape' && !backdrop.hidden) closePersonPicker(); });
   }
-  function toast(message, type='success') { const node = el('schedules-toast'); if (!node) return; node.textContent=message; node.dataset.type=type; node.hidden=false; clearTimeout(toast.timer); toast.timer=setTimeout(()=>{node.hidden=true;},4500); }
+
+  function toast(message, type='success') {
+    const node = el('schedules-toast'); if (!node) return;
+    node.textContent=message; node.dataset.type=type; node.hidden=false;
+    clearTimeout(toast.timer); toast.timer=setTimeout(()=>{node.hidden=true;},4500);
+  }
   function userName(id) { const user=state.data.users.find(item=>userId(item)===id); return user?.name||user?.email||'Usuário'; }
   function functionName(id) { return state.data.functions.find(item=>item.id===id)?.name||'Função'; }
+  function currentSchedule() { return state.data?.schedules?.find(item=>item.id===state.scheduleId) || null; }
   function memberForSlot(schedule, slotId) { return schedule.members.find(item=>item.active!==false&&item.slotId===slotId); }
   function userPhoto(user) { return user && (user.photoURL || user.photoUrl || user.avatarUrl || user.avatarURL || user.profileImage || user.imageUrl || user.imageURL) || ''; }
   function userInitials(user) {
@@ -50,6 +68,15 @@
   function renderFunctionDot(functionId) {
     return `<span class="schedule-function-dot schedule-function-dot--${functionColorIndex(functionId)}" aria-hidden="true"></span>`;
   }
+  function recomputeSchedule(schedule) {
+    schedule.completeness = scope.MusicIdeScheduleService.scheduleCompleteness(schedule, schedule.members || []);
+    schedule.status = schedule.completeness.complete ? 'COMPLETE' : 'DRAFT';
+  }
+  function orderScheduleSlots(schedule) {
+    if (typeof scope.MusicIdeScheduleService.sortSlotsByFunction === 'function') {
+      schedule.slots = scope.MusicIdeScheduleService.sortSlotsByFunction(schedule.slots || [], state.data.functions || []);
+    }
+  }
 
   function matchesFilters(schedule) {
     const event=scheduleEvent(schedule), f=state.filters, term=f.term.trim().toLocaleLowerCase('pt-BR');
@@ -60,7 +87,6 @@
     if (f.functionId!=='ALL'&&!schedule.members.some(item=>item.active!==false&&item.functionId===f.functionId)) return false;
     return true;
   }
-
   function compareSchedules(a,b) {
     const eventA=scheduleEvent(a), eventB=scheduleEvent(b);
     const dateA=dateKey(eventA.date||a.eventDate), dateB=dateKey(eventB.date||b.eventDate);
@@ -86,53 +112,130 @@
   }
 
   function renderPersonOption(user, currentUserId) {
-    return `<button class="schedule-person-option${currentUserId===userId(user)?' is-selected':''}" type="button" data-action="select-person" data-user-id="${esc(userId(user))}">${renderAvatar(user,'schedule-person-option__avatar')}<span>${esc(user.name||user.email||'Usuário')}</span>${currentUserId===userId(user)?'<i class="fa-solid fa-check" aria-hidden="true"></i>':''}</button>`;
+    return `<button class="schedule-person-option${currentUserId===userId(user)?' is-selected':''}" type="button" data-modal-action="select-person" data-user-id="${esc(userId(user))}">${renderAvatar(user,'schedule-person-option__avatar')}<span>${esc(user.name||user.email||'Usuário')}</span>${currentUserId===userId(user)?'<i class="fa-solid fa-check" aria-hidden="true"></i>':''}</button>`;
   }
 
   function renderSlot(schedule, slot) {
-    const member=memberForSlot(schedule,slot.id), event=scheduleEvent(schedule);
-    const eligible=service.eligibleUsers(slot.functionId,event,state.data);
+    const member=memberForSlot(schedule,slot.id);
     const current=member?state.data.users.find(user=>userId(user)===member.userId):null;
-    const currentEligible=current&&eligible.some(user=>userId(user)===member.userId);
-    const options=current&&!currentEligible?[current,...eligible]:eligible;
-    const uniqueOptions=[...new Map(options.map(user=>[userId(user),user])).values()];
     const roleLabel=slotFunctionLabel(schedule,slot);
     const roleDot=renderFunctionDot(slot.functionId);
     const avatar=current?renderAvatar(current):'<span class="schedule-avatar schedule-avatar--empty" aria-hidden="true"><i class="fa-solid fa-user-plus"></i></span>';
-    const personControl=state.data.access.canEdit?`<div class="schedule-person-picker"><button class="schedule-person-trigger" type="button" data-action="toggle-person" aria-expanded="false"><span class="schedule-person-trigger__content">${current?renderAvatar(current,'schedule-person-trigger__avatar'):'<span class="schedule-person-trigger__avatar schedule-avatar--empty" aria-hidden="true"><i class="fa-solid fa-user-plus"></i></span>'}<span><small>${member?'Pessoa escalada':'Selecionar pessoa'}</small><strong>${current?esc(current.name||current.email):'Escolher integrante'}</strong></span></span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button><div class="schedule-person-options" data-person-options hidden><div class="schedule-person-options__header"><strong><span class="schedule-function-name">${roleDot}${esc(roleLabel)}</span></strong><small>${uniqueOptions.length} pessoa${uniqueOptions.length===1?'':'s'} disponível${uniqueOptions.length===1?'':'is'}</small></div>${uniqueOptions.length?uniqueOptions.map(user=>renderPersonOption(user,member?.userId)).join(''):'<div class="schedule-person-options__empty">Nenhuma pessoa disponível para esta função.</div>'}</div></div>`:`<div class="schedule-person-readonly">${current?renderAvatar(current,'schedule-person-trigger__avatar'):''}<strong>${current?esc(current.name||current.email):'Nenhuma pessoa definida'}</strong></div>`;
+    const personControl=state.data.access.canEdit?`<button class="schedule-person-trigger" type="button" data-action="open-person-picker" aria-haspopup="dialog"><span class="schedule-person-trigger__content">${current?renderAvatar(current,'schedule-person-trigger__avatar'):'<span class="schedule-person-trigger__avatar schedule-avatar--empty" aria-hidden="true"><i class="fa-solid fa-user-plus"></i></span>'}<span><small>${member?'Pessoa escalada':'Selecionar pessoa'}</small><strong>${current?esc(current.name||current.email):'Escolher integrante'}</strong></span></span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>`:`<div class="schedule-person-readonly">${current?renderAvatar(current,'schedule-person-trigger__avatar'):''}<strong>${current?esc(current.name||current.email):'Nenhuma pessoa definida'}</strong></div>`;
     return `<article class="schedule-slot" data-slot-id="${esc(slot.id)}"><div class="schedule-slot__identity">${avatar}<div><span class="schedule-slot__label">Função</span><strong class="schedule-function-name">${roleDot}${esc(roleLabel)}</strong><span>${member?'Posição preenchida':'Aguardando pessoa'}</span></div></div><div class="schedule-slot__controls">${personControl}<div class="schedule-slot__actions">${member&&state.data.access.canEdit?`<button class="ide-button ide-button--secondary ide-button--sm" data-action="remove-member" data-member-id="${esc(member.id)}" type="button"><i class="fa-solid fa-user-minus" aria-hidden="true"></i> Remover pessoa</button>`:''}${state.data.access.canEdit?'<button class="ide-button ide-button--ghost ide-button--sm schedule-remove-slot" data-action="remove-slot" type="button" aria-label="Remover função"><i class="fa-solid fa-trash-can" aria-hidden="true"></i><span>Remover função</span></button>':''}</div></div></article>`;
   }
 
   function renderEditorView() {
-    const schedule=state.data.schedules.find(item=>item.id===state.scheduleId), root=el('schedules-root');
+    const schedule=currentSchedule(), root=el('schedules-root');
     if (!schedule) { root.innerHTML=`<div class="ide-empty-state"><strong>Escala não encontrada</strong><a class="ide-button ide-button--secondary" href="${listUrl()}">Voltar para Escalas</a></div>`; return; }
+    orderScheduleSlots(schedule);
     const event=scheduleEvent(schedule), slots=Array.isArray(schedule.slots)?schedule.slots:[], complete=schedule.completeness.complete;
     const addOptions=state.data.functions.map(fn=>`<option value="${esc(fn.id)}">${esc(fn.name)}</option>`).join('');
     scope.document.title=`IDE Music — ${event.name||'Editar escala'}`;
     root.innerHTML=`<nav class="schedule-breadcrumb" aria-label="Breadcrumb"><a href="${listUrl()}">Escalas</a><span>/</span><span>${esc(event.name||'Evento')}</span></nav><header class="schedule-editor-header"><div><a class="schedule-back" href="${listUrl()}"><i class="fa-solid fa-arrow-left"></i> Voltar para escalas</a><span class="schedule-card__date">${esc(formatDate(event.date||schedule.eventDate))}${event.time||schedule.eventTime?` · ${esc(event.time||schedule.eventTime)}`:''}</span><h1>${esc(event.name||'Evento')}</h1>${event.location?`<p>${esc(event.location)}</p>`:''}</div><div class="schedule-card__status"><span class="${complete?'ide-badge ide-badge--success':'ide-badge ide-badge--warning'}">${complete?'Completa':'Incompleta'}</span><small>${schedule.completeness.filled}/${schedule.completeness.total} posições preenchidas</small></div></header><section class="schedule-editor-card" data-schedule-id="${esc(schedule.id)}"><div class="schedule-editor-card__heading"><div><span class="ide-module-kicker">Equipe do evento</span><h2>Monte a escala</h2><p>Selecione somente pessoas disponíveis para cada função.</p></div><strong>${slots.length} posições</strong></div><div class="schedule-slots">${slots.length?slots.map(slot=>renderSlot(schedule,slot)).join(''):'<div class="ide-empty-state schedule-empty"><strong>Nenhuma função adicionada</strong><span>Adicione as funções necessárias para este evento.</span></div>'}</div>${state.data.access.canEdit?`<footer class="schedule-card__footer"><div><span>Precisa de outra posição?</span><small>Adicione apenas para este evento.</small></div><div class="schedule-card__footer-actions"><select class="ide-field__control ide-select" data-new-function><option value="">Adicionar função...</option>${addOptions}</select><button class="ide-button ide-button--primary ide-button--sm" data-action="add-slot" type="button"><i class="fa-solid fa-plus" aria-hidden="true"></i> Adicionar função</button></div></footer>`:''}</section>`;
-    root.addEventListener('click',handleEditorClick);
+    root.onclick=handleEditorClick;
   }
 
-  async function reload() { try { state.data=state.scheduleId?await service.loadEditor(state.scheduleId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile):await service.load(scope.currentMusicIdeUser,scope.currentMusicIdeProfile); state.scheduleId?renderEditorView():renderListView(); } catch(error){console.error(error);toast(error.message||'Não foi possível carregar escalas.','error');} }
+  function openPersonPicker(schedule, slot) {
+    const event=scheduleEvent(schedule);
+    const eligible=service.eligibleUsers(slot.functionId,event,state.data);
+    const member=memberForSlot(schedule,slot.id);
+    const current=member?state.data.users.find(user=>userId(user)===member.userId):null;
+    const currentEligible=current&&eligible.some(user=>userId(user)===member.userId);
+    const options=current&&!currentEligible?[current,...eligible]:eligible;
+    const uniqueOptions=[...new Map(options.map(user=>[userId(user),user])).values()];
+    const dialog=el('schedule-person-dialog');
+    state.picker={scheduleId:schedule.id,slotId:slot.id};
+    dialog.innerHTML=`<div class="schedule-person-options__header"><div><strong id="schedule-person-dialog-title"><span class="schedule-function-name">${renderFunctionDot(slot.functionId)}${esc(slotFunctionLabel(schedule,slot))}</span></strong><small>${uniqueOptions.length} pessoa${uniqueOptions.length===1?'':'s'} disponível${uniqueOptions.length===1?'':'is'}</small></div><button class="ide-button ide-button--ghost ide-button--sm" type="button" data-modal-action="close" aria-label="Fechar seleção"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>${uniqueOptions.length?uniqueOptions.map(user=>renderPersonOption(user,member?.userId)).join(''):'<div class="schedule-person-options__empty">Nenhuma pessoa disponível para esta função.</div>'}`;
+    dialog.onclick=handleModalClick;
+    const backdrop=el('schedule-person-backdrop');
+    backdrop.hidden=false;
+    scope.requestAnimationFrame(()=>dialog.focus());
+  }
+  function closePersonPicker() {
+    const backdrop=el('schedule-person-backdrop');
+    if(backdrop)backdrop.hidden=true;
+    state.picker={scheduleId:null,slotId:null};
+  }
 
-  async function assign(schedule,slot,selectedUserId) { if(!selectedUserId)return; const conflict=service.userConflict(selectedUserId,slot.functionId,schedule,scheduleEvent(schedule),state.data); if(conflict.unavailable)throw new Error('Esta pessoa está indisponível para este evento.'); if(conflict.otherRole&&!scope.confirm(`${userName(selectedUserId)} já está em ${functionName(conflict.otherRole.functionId)}. Deseja manter a pessoa em múltiplas funções?`))return; await service.assign(schedule.id,slot.id,selectedUserId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile); toast('Escala atualizada.'); await reload(); }
+  async function reload() {
+    try {
+      state.data=state.scheduleId?await service.loadEditor(state.scheduleId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile):await service.load(scope.currentMusicIdeUser,scope.currentMusicIdeProfile);
+      state.scheduleId?renderEditorView():renderListView();
+    } catch(error){console.error(error);toast(error.message||'Não foi possível carregar escalas.','error');}
+  }
 
-  function closePersonPickers(except=null) {
-    el('schedules-root')?.querySelectorAll('[data-person-options]').forEach(panel=>{if(panel!==except)panel.hidden=true;});
-    el('schedules-root')?.querySelectorAll('[data-action="toggle-person"]').forEach(button=>{const panel=button.parentElement?.querySelector('[data-person-options]');button.setAttribute('aria-expanded',String(panel?!panel.hidden:false));});
+  async function assignOptimistic(schedule,slot,selectedUserId) {
+    if(!selectedUserId)return;
+    const conflict=service.userConflict(selectedUserId,slot.functionId,schedule,scheduleEvent(schedule),state.data);
+    if(conflict.unavailable)throw new Error('Esta pessoa está indisponível para este evento.');
+    if(conflict.otherRole&&!scope.confirm(`${userName(selectedUserId)} já está em ${functionName(conflict.otherRole.functionId)}. Deseja manter a pessoa em múltiplas funções?`))return;
+    const beforeMembers=[...(schedule.members||[])];
+    const existing=memberForSlot(schedule,slot.id);
+    const optimistic={id:`pending_${Date.now()}`,scheduleId:schedule.id,slotId:slot.id,userId:selectedUserId,functionId:slot.functionId,active:true};
+    schedule.members=beforeMembers.filter(item=>item.id!==existing?.id).concat(optimistic);
+    recomputeSchedule(schedule);
+    closePersonPicker();
+    renderEditorView();
+    try {
+      const result=await service.assign(schedule.id,slot.id,selectedUserId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile);
+      schedule.members=schedule.members.filter(item=>item.id!==optimistic.id).concat(result.member);
+      schedule.completeness=result.completeness;
+      schedule.status=result.completeness.complete?'COMPLETE':'DRAFT';
+      renderEditorView();
+      toast('Escala atualizada.');
+    } catch(error) {
+      schedule.members=beforeMembers;
+      recomputeSchedule(schedule);
+      renderEditorView();
+      throw error;
+    }
+  }
+
+  async function handleModalClick(event) {
+    const button=event.target.closest('[data-modal-action]');
+    if(!button)return;
+    if(button.dataset.modalAction==='close'){closePersonPicker();return;}
+    if(button.dataset.modalAction==='select-person'){
+      const schedule=currentSchedule();
+      const slot=schedule?.slots?.find(item=>item.id===state.picker.slotId);
+      if(!schedule||!slot)return closePersonPicker();
+      button.disabled=true;
+      try{await assignOptimistic(schedule,slot,button.dataset.userId);}catch(error){console.error(error);toast(error.message||'Não foi possível atualizar a escala.','error');closePersonPicker();}
+    }
   }
 
   async function handleEditorClick(event) {
     const button=event.target.closest('button[data-action]');
-    if(!button){if(!event.target.closest('.schedule-person-picker'))closePersonPickers();return;}
-    const schedule=state.data.schedules.find(item=>item.id===state.scheduleId); if(!schedule)return;
+    if(!button)return;
+    const schedule=currentSchedule(); if(!schedule)return;
     const slotNode=button.closest('[data-slot-id]'), slot=schedule.slots?.find(item=>item.id===slotNode?.dataset.slotId);
     try{
-      if(button.dataset.action==='toggle-person'){const panel=button.parentElement.querySelector('[data-person-options]');const willOpen=panel.hidden;closePersonPickers(panel);panel.hidden=!willOpen;button.setAttribute('aria-expanded',String(willOpen));return;}
-      if(button.dataset.action==='select-person'){if(!slot)return;button.disabled=true;return assign(schedule,slot,button.dataset.userId);}
-      if(button.dataset.action==='add-slot'){const functionId=el('schedules-root').querySelector('[data-new-function]').value;if(!functionId)return toast('Selecione uma função.','error');await service.addSlot(schedule.id,functionId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile);toast('Função adicionada.');return reload();}
-      if(button.dataset.action==='remove-slot'){if(!scope.confirm('Remover esta função da escala? A pessoa vinculada, se houver, será removida preservando o histórico.'))return;await service.removeSlot(schedule.id,slotNode.dataset.slotId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile);toast('Função removida.');return reload();}
-      if(button.dataset.action==='remove-member'){await service.removeMember(schedule.id,button.dataset.memberId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile);toast('Pessoa removida.');return reload();}
+      if(button.dataset.action==='open-person-picker'){if(slot)openPersonPicker(schedule,slot);return;}
+      if(button.dataset.action==='add-slot'){
+        const functionId=el('schedules-root').querySelector('[data-new-function]').value;
+        if(!functionId)return toast('Selecione uma função.','error');
+        button.disabled=true;
+        const optimistic={id:`pending_slot_${Date.now()}`,functionId};
+        schedule.slots=[...(schedule.slots||[]),optimistic]; orderScheduleSlots(schedule); recomputeSchedule(schedule); renderEditorView();
+        try{
+          const created=await service.addSlot(schedule.id,functionId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile);
+          schedule.slots=schedule.slots.map(item=>item.id===optimistic.id?created:item); orderScheduleSlots(schedule); recomputeSchedule(schedule); renderEditorView(); toast('Função adicionada.');
+        }catch(error){schedule.slots=schedule.slots.filter(item=>item.id!==optimistic.id);recomputeSchedule(schedule);renderEditorView();throw error;}
+        return;
+      }
+      if(button.dataset.action==='remove-slot'){
+        if(!scope.confirm('Remover esta função da escala? A pessoa vinculada, se houver, será removida preservando o histórico.'))return;
+        await service.removeSlot(schedule.id,slotNode.dataset.slotId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile);
+        schedule.slots=schedule.slots.filter(item=>item.id!==slotNode.dataset.slotId);
+        schedule.members=schedule.members.filter(item=>item.slotId!==slotNode.dataset.slotId);
+        recomputeSchedule(schedule); renderEditorView(); toast('Função removida.'); return;
+      }
+      if(button.dataset.action==='remove-member'){
+        await service.removeMember(schedule.id,button.dataset.memberId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile);
+        schedule.members=schedule.members.filter(item=>item.id!==button.dataset.memberId);
+        recomputeSchedule(schedule); renderEditorView(); toast('Pessoa removida.'); return;
+      }
     }catch(error){console.error(error);toast(error.message||'Não foi possível atualizar a escala.','error');if(button)button.disabled=false;}
   }
 
@@ -141,6 +244,13 @@
     el('schedule-clear-filters').addEventListener('click',()=>{state.filters={term:'',person:'ALL',functionId:'ALL',from:'',to:'',sort:'DATE_ASC'};renderListView();});
   }
 
-  async function bootstrap(){injectShell();const authUser=await scope.musicIdeAuthReady;if(!authUser)return;if(!scope.firebase?.firestore||!scope.MusicIdeScheduleRepository||!scope.MusicIdeScheduleService)return toast('Módulo de escalas indisponível.','error');repository=new scope.MusicIdeScheduleRepository.ScheduleRepository(scope.firebase.firestore());service=new scope.MusicIdeScheduleService.ScheduleService(repository);await reload();}
+  async function bootstrap(){
+    injectShell();
+    const authUser=await scope.musicIdeAuthReady;if(!authUser)return;
+    if(!scope.firebase?.firestore||!scope.MusicIdeScheduleRepository||!scope.MusicIdeScheduleService)return toast('Módulo de escalas indisponível.','error');
+    repository=new scope.MusicIdeScheduleRepository.ScheduleRepository(scope.firebase.firestore());
+    service=new scope.MusicIdeScheduleService.ScheduleService(repository);
+    await reload();
+  }
   if(scope.document.readyState==='loading')scope.document.addEventListener('DOMContentLoaded',bootstrap,{once:true});else bootstrap();
 })(window);
