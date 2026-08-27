@@ -25,6 +25,18 @@
     'dashboard', 'users', 'permissions', 'unavailability', 'events',
     'schedules', 'setlists', 'songs', 'audit'
   ]);
+  const TRANSIENT_AUTHORIZATION_ERROR_CODES = new Set([
+    'auth/network-request-failed',
+    'firestore/unavailable',
+    'unavailable',
+    'firestore/deadline-exceeded',
+    'deadline-exceeded',
+    'firestore/aborted',
+    'aborted',
+    'firestore/resource-exhausted',
+    'resource-exhausted',
+    'app/firestore-unavailable'
+  ]);
 
   function currentPageName(pathname) {
     if (typeof pathname !== 'string') return '';
@@ -138,6 +150,31 @@
 
   function isActiveProfile(profile) {
     return Boolean(profile && profile.active === true);
+  }
+
+  function isTransientAuthorizationError(error) {
+    const code = String(error && error.code || '').trim().toLowerCase();
+    return TRANSIENT_AUTHORIZATION_ERROR_CODES.has(code);
+  }
+
+  async function withAuthorizationRetry(operation, options = {}) {
+    const maxAttempts = Math.max(1, Number(options.maxAttempts) || 2);
+    const delayMs = Math.max(0, Number(options.delayMs) || 350);
+    const sleep = typeof options.sleep === 'function'
+      ? options.sleep
+      : ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    let lastError;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        return await operation(attempt);
+      } catch (error) {
+        lastError = error;
+        if (!isTransientAuthorizationError(error) || attempt >= maxAttempts) throw error;
+        await sleep(delayMs);
+      }
+    }
+    throw lastError;
   }
 
   function friendlyAuthError(error) {
@@ -310,7 +347,6 @@
     try {
       await firestore().collection('users').doc(user.uid).set({ lastAccessAt: timestamp }, { merge: true });
     } catch (error) {
-      // O registro de atividade é auxiliar e nunca deve impedir um login válido.
       if (scope.console && typeof scope.console.warn === 'function') {
         scope.console.warn('Não foi possível registrar o último acesso do usuário.', error);
       }
@@ -345,10 +381,6 @@
 
     if (!snapshot.exists) {
       try {
-        // O cliente tenta o bootstrap sem conhecer o e-mail privilegiado. As
-        // Firestore Rules permitem esta criação somente para a identidade
-        // inicial de SUPER_ADMIN (ou claim equivalente); para qualquer outra
-        // conta a escrita é negada e o acesso permanece bloqueado.
         await profileRef.set(bootstrapProfilePayload(scope, user));
         snapshot = await profileRef.get();
       } catch (error) {
@@ -381,6 +413,9 @@
     }
     if (reason === 'not-provisioned') {
       return 'Esta conta ainda não foi liberada pela liderança.';
+    }
+    if (reason === 'transient') {
+      return 'Não foi possível atualizar sua autorização agora. Verifique sua conexão e tente novamente.';
     }
     return 'Não foi possível validar sua autorização. Tente novamente.';
   }
@@ -424,7 +459,6 @@
 
     scope.MusicIdeAuth.signInWithGoogle = async function signInWithGoogle() {
       setLoginMessage(scope, 'Abrindo o Google...', 'info');
-
       try {
         await auth.setPersistence(scope.firebase.auth.Auth.Persistence.LOCAL);
         const provider = new scope.firebase.auth.GoogleAuthProvider();
@@ -445,14 +479,11 @@
 
     scope.MusicIdeAuth.signInWithEmail = async function signInWithEmail(email, password) {
       const normalizedEmail = typeof email === 'string' ? email.trim() : '';
-
       if (!normalizedEmail || typeof password !== 'string' || !password) {
         setLoginMessage(scope, 'Informe seu e-mail e sua senha.');
         return null;
       }
-
       setLoginMessage(scope, 'Entrando...', 'info');
-
       try {
         await auth.setPersistence(scope.firebase.auth.Auth.Persistence.LOCAL);
         return await auth.signInWithEmailAndPassword(normalizedEmail, password);
@@ -465,12 +496,10 @@
 
     scope.MusicIdeAuth.sendPasswordReset = async function sendPasswordReset(email) {
       const normalizedEmail = typeof email === 'string' ? email.trim() : '';
-
       if (!normalizedEmail) {
         setLoginMessage(scope, 'Informe seu e-mail para recuperar a senha.');
         return false;
       }
-
       try {
         await auth.sendPasswordResetEmail(normalizedEmail);
         setLoginMessage(scope, 'Se houver uma conta cadastrada, enviaremos as instruções para esse e-mail.', 'info');
@@ -516,7 +545,6 @@
 
       if (!user) {
         resolveAuthReady(null);
-
         if (onLoginPage) {
           finishPageReveal(scope);
           exposeAuthState(scope, null, null);
@@ -524,17 +552,32 @@
           if (pendingMessage) setLoginMessage(scope, pendingMessage);
           return;
         }
-
-        scope.sessionStorage.setItem(RETURN_URL_KEY, buildCurrentReturnUrl(scope.location));
+        if (scope.sessionStorage) scope.sessionStorage.setItem(RETURN_URL_KEY, buildCurrentReturnUrl(scope.location));
         scope.location.replace('login.html');
         return;
       }
 
       let authorization;
       try {
-        authorization = await resolveAuthorizedProfile(scope, user);
+        authorization = await withAuthorizationRetry(
+          () => resolveAuthorizedProfile(scope, user),
+          { maxAttempts: 2, delayMs: 350 }
+        );
       } catch (error) {
         reportAuthError(scope, 'validação de autorização', error);
+
+        if (isTransientAuthorizationError(error)) {
+          const message = authorizationFailureMessage('transient');
+          // Falhas transitórias não invalidam a identidade Firebase. Preservamos
+          // a sessão para permitir recuperação automática ao estabilizar a rede.
+          exposeAuthState(scope, user, null);
+          resolveAuthReady(user);
+          finishPageReveal(scope);
+          if (onLoginPage) setLoginMessage(scope, message);
+          else if (scope.console && typeof scope.console.warn === 'function') scope.console.warn(`[Auth] ${message}`);
+          return;
+        }
+
         const message = authorizationFailureMessage('validation-error');
         if (!onLoginPage) persistAuthMessage(scope, message);
         await auth.signOut().catch(() => null);
@@ -557,8 +600,8 @@
       exposeAuthState(scope, user, authorization.profile);
 
       if (onLoginPage) {
-        const destination = sanitizeReturnUrl(scope.sessionStorage.getItem(RETURN_URL_KEY));
-        scope.sessionStorage.removeItem(RETURN_URL_KEY);
+        const destination = sanitizeReturnUrl(scope.sessionStorage && scope.sessionStorage.getItem(RETURN_URL_KEY));
+        if (scope.sessionStorage) scope.sessionStorage.removeItem(RETURN_URL_KEY);
         scope.location.replace(destination);
         return;
       }
@@ -582,6 +625,7 @@
     isActiveProfile,
     isAllowedUser,
     isLoginPage,
+    isTransientAuthorizationError,
     loadEffectivePermissions,
     normalizeThemePreference,
     readThemePreference,
@@ -589,6 +633,7 @@
     resolveAuthorizedProfile,
     resolveTheme,
     sanitizeReturnUrl,
-    setThemePreference
+    setThemePreference,
+    withAuthorizationRetry
   };
 });
