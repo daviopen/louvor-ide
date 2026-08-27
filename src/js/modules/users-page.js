@@ -7,7 +7,15 @@
   const FALLBACK_DEFAULT_PERMISSIONS = Object.freeze({
     dashboard: 'READ', users: 'NONE', permissions: 'NONE', unavailability: 'EDIT', events: 'NONE', schedules: 'READ', setlists: 'EDIT', songs: 'EDIT', audit: 'NONE'
   });
-  const state = { page: 1, pageSize: 10, filters: { search: '', status: 'ALL', functionId: 'ALL' }, editingId: null, editingFunctionId: null, functions: [] };
+  const state = {
+    pageSize: 1000,
+    filters: { search: '', status: 'ALL', functionId: 'ALL' },
+    editingId: null,
+    editingFunctionId: null,
+    functions: [],
+    users: [],
+    searchTimer: null
+  };
   let service;
   let ministryService;
 
@@ -37,16 +45,23 @@
     node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
-  async function load() {
-    setBusy(true);
+  async function load({ busy = true, force = false } = {}) {
+    if (busy) setBusy(true);
     try {
-      const result = await service.list(state.filters, state.page, state.pageSize);
-      state.page = result.page; state.functions = result.functions;
-      renderFilters(result.functions); renderRows(result.items); renderPagination(result);
+      const result = await service.list(state.filters, 1, state.pageSize, { force });
+      state.functions = result.functions;
+      state.users = result.items;
+      renderFilters(result.functions);
+      renderRows(result.items);
       el('users-count').textContent = `${result.total} usuário${result.total === 1 ? '' : 's'}`;
-      el('users-empty').hidden = result.total !== 0; el('users-table-wrap').hidden = result.total === 0;
-    } catch (error) { console.error(error); toast(error.message || 'Não foi possível carregar os usuários.', 'error'); }
-    finally { setBusy(false); }
+      el('users-empty').hidden = result.total !== 0;
+      el('users-table-wrap').hidden = result.total === 0;
+    } catch (error) {
+      console.error(error);
+      toast(error.message || 'Não foi possível carregar os usuários.', 'error');
+    } finally {
+      if (busy) setBusy(false);
+    }
   }
 
   function renderFilters(functions) {
@@ -60,12 +75,11 @@
     el('users-body').innerHTML = users.map(user => {
       const initials = escapeHtml((user.name || user.email || '?').trim().slice(0, 1).toUpperCase());
       const functions = (user.functions || []).map(fn => `<span class="ide-badge">${escapeHtml(fn.name)}</span>`).join('') || '<span class="users-muted">Sem função</span>';
-      const avatar = user.photoURL ? `<img src="${escapeHtml(user.photoURL)}" alt="" referrerpolicy="no-referrer">` : `<span>${initials}</span>`;
+      const avatar = user.photoURL ? `<img src="${escapeHtml(user.photoURL)}" alt="" referrerpolicy="no-referrer" loading="lazy">` : `<span>${initials}</span>`;
       return `<tr><td><div class="users-person"><div class="users-avatar">${avatar}</div><div><strong>${escapeHtml(user.name)}</strong><small>${escapeHtml(user.email)}</small></div></div></td><td><div class="users-chips">${functions}</div></td><td><span class="ide-badge ${user.active === false ? 'ide-badge--neutral' : 'ide-badge--success'}">${user.active === false ? 'Inativo' : 'Ativo'}</span></td><td>${dateText(user.lastAccessAt)}</td><td class="users-actions">${editable ? `<button class="ide-button ide-button--secondary ide-button--sm" data-action="edit" data-id="${escapeHtml(user.id)}">Editar</button><button class="ide-button ide-button--secondary ide-button--sm" data-action="password" data-id="${escapeHtml(user.id)}" data-email="${escapeHtml(user.email)}">Redefinir senha</button><button class="ide-button ${user.active === false ? 'ide-button--primary' : 'ide-button--danger'} ide-button--sm" data-action="status" data-id="${escapeHtml(user.id)}" data-active="${user.active === false ? 'true' : 'false'}">${user.active === false ? 'Reativar' : 'Inativar'}</button>` : '<span class="users-muted">Somente leitura</span>'}</td></tr>`;
     }).join('');
   }
 
-  function renderPagination(result) { el('page-label').textContent = `Página ${result.page} de ${result.pages}`; el('page-prev').disabled = result.page <= 1; el('page-next').disabled = result.page >= result.pages; }
   function renderInitialPermissions() {
     const defaults = defaultPermissions();
     el('user-permissions').innerHTML = Object.entries(PERMISSION_LABELS).map(([moduleName, label]) => {
@@ -85,7 +99,7 @@
     el('user-dialog').showModal(); el('user-name').focus();
   }
 
-  async function findUser(id) { const result = await service.list({}, 1, 1000); return result.items.find(item => item.id === id) || null; }
+  function findUser(id) { return state.users.find(item => item.id === id) || null; }
   function readInitialPermissions() { const permissions = {}; el('user-permissions').querySelectorAll('[data-permission-module]').forEach(select => { permissions[select.dataset.permissionModule] = select.value; }); return permissions; }
 
   async function submitForm(event) {
@@ -113,9 +127,8 @@
         }
       }
       el('user-dialog').close();
-      state.page = 1;
       toast(message, messageType);
-      await load();
+      await load({ force: true });
     } catch (error) {
       console.error(error);
       const message = error.message || 'Não foi possível salvar o usuário.';
@@ -130,7 +143,7 @@
     const button = event.target.closest('button[data-action]'); if (!button) return;
     try {
       if (button.dataset.action === 'edit') {
-        const user = await findUser(button.dataset.id); if (user) openForm(user);
+        const user = findUser(button.dataset.id); if (user) openForm(user);
       } else if (button.dataset.action === 'password') {
         if (!scope.confirm(`Solicitar ao Firebase um e-mail de redefinição de senha para ${button.dataset.email}?`)) return;
         button.disabled = true;
@@ -145,7 +158,7 @@
         if (!scope.confirm(`${active ? 'Reativar' : 'Inativar'} este usuário? O histórico será preservado.`)) return;
         await service.setActive(button.dataset.id, active);
         toast(active ? 'Usuário reativado.' : 'Usuário inativado sem exclusão de histórico.');
-        await load();
+        await load({ force: true });
       }
     } catch (error) { console.error(error); toast(error.message || 'A operação não pôde ser concluída.', 'error'); }
   }
@@ -159,8 +172,8 @@
   async function loadFunctions({ seedDefaults = false } = {}) { el('functions-loading').hidden = false; try { if (seedDefaults && canEditFunctions(scope.currentMusicIdeProfile)) await ministryService.ensureDefaultFunctions(); state.functions = await ministryService.listFunctions(); renderFunctions(state.functions); renderFilters(state.functions); } finally { el('functions-loading').hidden = true; } }
   async function openFunctionsDialog() { const editable = canEditFunctions(scope.currentMusicIdeProfile); el('function-form').hidden = !editable; resetFunctionForm(); el('functions-dialog').showModal(); try { await loadFunctions({ seedDefaults: true }); if (editable) el('function-name').focus(); } catch (error) { console.error(error); toast(error.message || 'Não foi possível carregar as funções ministeriais.', 'error'); } }
   function beginFunctionEdit(functionId) { const fn = state.functions.find(item => item.id === functionId); if (!fn) return; state.editingFunctionId = fn.id; el('function-id').value = fn.id; el('function-name').value = fn.name; el('function-slug').value = fn.slug; el('function-submit').textContent = 'Salvar alterações'; el('function-cancel').hidden = false; el('function-name').focus(); }
-  async function submitFunction(event) { event.preventDefault(); if (!canEditFunctions(scope.currentMusicIdeProfile)) return; const name = el('function-name').value.trim(); const slug = el('function-slug').value.trim(); el('function-submit').disabled = true; try { if (state.editingFunctionId) { await ministryService.updateFunction(state.editingFunctionId, { name, ...(slug ? { slug } : {}) }); toast('Função ministerial atualizada.'); } else { const maxOrder = state.functions.reduce((max, item) => Math.max(max, Number(item.order) || 0), 0); await ministryService.createFunction({ name, ...(slug ? { slug } : {}), order: maxOrder + 10, active: true }); toast('Função ministerial adicionada.'); } resetFunctionForm(); await loadFunctions(); await load(); } catch (error) { console.error(error); toast(error.message || 'Não foi possível salvar a função ministerial.', 'error'); } finally { el('function-submit').disabled = false; } }
-  async function handleFunctionListClick(event) { const button = event.target.closest('button[data-function-action]'); if (!button || !canEditFunctions(scope.currentMusicIdeProfile)) return; const action = button.dataset.functionAction; const id = button.dataset.id; const index = state.functions.findIndex(item => item.id === id); if (index < 0) return; try { if (action === 'edit') return beginFunctionEdit(id); if (action === 'status') { const active = button.dataset.active === 'true'; const fn = state.functions[index]; if (!scope.confirm(`${active ? 'Reativar' : 'Inativar'} a função ${fn.name}? Os vínculos históricos serão preservados.`)) return; await ministryService.setFunctionActive(id, active); toast(active ? 'Função reativada.' : 'Função inativada sem apagar o histórico.'); } else if (action === 'up' || action === 'down') { const targetIndex = action === 'up' ? index - 1 : index + 1; if (targetIndex < 0 || targetIndex >= state.functions.length) return; const reordered = [...state.functions]; [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]]; await ministryService.reorder(reordered.map(item => ({ functionId: item.id }))); toast('Ordem das funções atualizada.'); } await loadFunctions(); await load(); } catch (error) { console.error(error); toast(error.message || 'Não foi possível alterar a função ministerial.', 'error'); } }
+  async function submitFunction(event) { event.preventDefault(); if (!canEditFunctions(scope.currentMusicIdeProfile)) return; const name = el('function-name').value.trim(); const slug = el('function-slug').value.trim(); el('function-submit').disabled = true; try { if (state.editingFunctionId) { await ministryService.updateFunction(state.editingFunctionId, { name, ...(slug ? { slug } : {}) }); toast('Função ministerial atualizada.'); } else { const maxOrder = state.functions.reduce((max, item) => Math.max(max, Number(item.order) || 0), 0); await ministryService.createFunction({ name, ...(slug ? { slug } : {}), order: maxOrder + 10, active: true }); toast('Função ministerial adicionada.'); } resetFunctionForm(); await loadFunctions(); service.invalidateDirectoryCache(); await load({ force: true }); } catch (error) { console.error(error); toast(error.message || 'Não foi possível salvar a função ministerial.', 'error'); } finally { el('function-submit').disabled = false; } }
+  async function handleFunctionListClick(event) { const button = event.target.closest('button[data-function-action]'); if (!button || !canEditFunctions(scope.currentMusicIdeProfile)) return; const action = button.dataset.functionAction; const id = button.dataset.id; const index = state.functions.findIndex(item => item.id === id); if (index < 0) return; try { if (action === 'edit') return beginFunctionEdit(id); if (action === 'status') { const active = button.dataset.active === 'true'; const fn = state.functions[index]; if (!scope.confirm(`${active ? 'Reativar' : 'Inativar'} a função ${fn.name}? Os vínculos históricos serão preservados.`)) return; await ministryService.setFunctionActive(id, active); toast(active ? 'Função reativada.' : 'Função inativada sem apagar o histórico.'); } else if (action === 'up' || action === 'down') { const targetIndex = action === 'up' ? index - 1 : index + 1; if (targetIndex < 0 || targetIndex >= state.functions.length) return; const reordered = [...state.functions]; [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]]; await ministryService.reorder(reordered.map(item => ({ functionId: item.id }))); toast('Ordem das funções atualizada.'); } await loadFunctions(); service.invalidateDirectoryCache(); await load({ force: true }); } catch (error) { console.error(error); toast(error.message || 'Não foi possível alterar a função ministerial.', 'error'); } }
 
   function alignUsersNavigation() { const link = scope.document.querySelector('[data-nav-id="users"]'); if (!link) return false; scope.document.querySelectorAll('.ide-sidebar-link.active').forEach(item => { item.classList.remove('active'); item.removeAttribute('aria-current'); }); link.href = 'users.html'; link.classList.add('active'); link.setAttribute('aria-current', 'page'); return true; }
 
@@ -174,7 +187,14 @@
     const editable = canEdit(scope.currentMusicIdeProfile); el('new-user').hidden = !editable; el('users-readonly').hidden = editable;
     el('new-user').addEventListener('click', () => openForm()); el('manage-functions').addEventListener('click', openFunctionsDialog); el('user-form').addEventListener('submit', submitForm); el('user-cancel').addEventListener('click', () => { clearUserFormFeedback(); el('user-dialog').close(); }); el('users-body').addEventListener('click', handleTableClick);
     el('functions-close').addEventListener('click', () => el('functions-dialog').close()); el('function-cancel').addEventListener('click', resetFunctionForm); el('function-form').addEventListener('submit', submitFunction); el('functions-list').addEventListener('click', handleFunctionListClick);
-    el('filter-search').addEventListener('input', event => { state.filters.search = event.target.value; state.page = 1; load(); }); el('filter-status').addEventListener('change', event => { state.filters.status = event.target.value; state.page = 1; load(); }); el('filter-function').addEventListener('change', event => { state.filters.functionId = event.target.value; state.page = 1; load(); }); el('clear-filters').addEventListener('click', () => { state.filters = { search: '', status: 'ALL', functionId: 'ALL' }; el('filter-search').value = ''; el('filter-status').value = 'ALL'; el('filter-function').value = 'ALL'; el('users-filter-panel').dispatchEvent(new CustomEvent('ideFiltersChanged')); state.page = 1; load(); }); el('page-prev').addEventListener('click', () => { state.page -= 1; load(); }); el('page-next').addEventListener('click', () => { state.page += 1; load(); });
+    el('filter-search').addEventListener('input', event => {
+      state.filters.search = event.target.value;
+      clearTimeout(state.searchTimer);
+      state.searchTimer = setTimeout(() => load({ busy: false }), 160);
+    });
+    el('filter-status').addEventListener('change', event => { state.filters.status = event.target.value; load({ busy: false }); });
+    el('filter-function').addEventListener('change', event => { state.filters.functionId = event.target.value; load({ busy: false }); });
+    el('clear-filters').addEventListener('click', () => { state.filters = { search: '', status: 'ALL', functionId: 'ALL' }; el('filter-search').value = ''; el('filter-status').value = 'ALL'; el('filter-function').value = 'ALL'; el('users-filter-panel').dispatchEvent(new CustomEvent('ideFiltersChanged')); load({ busy: false }); });
     alignUsersNavigation(); setTimeout(alignUsersNavigation, 100); await load();
   }
 
