@@ -31,12 +31,14 @@ test('limpeza só apaga legado depois de verificar cobertura e arquivar', () => 
   assert.match(script, /--restore-musicas/);
 });
 
-test('workflow automático de limpeza depende de deploy produtivo bem-sucedido', () => {
-  assert.match(workflow, /workflow_run:/);
-  assert.match(workflow, /Deploy to Firebase Hosting/);
-  assert.match(workflow, /workflow_run\.conclusion == 'success'/);
-  assert.match(workflow, /workflow_run\.head_branch == 'main'/);
+test('workflow de limpeza em produção é exclusivamente manual', () => {
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /workflow_run:/);
+  assert.doesNotMatch(workflow, /\bpush:/);
+  assert.doesNotMatch(workflow, /\bschedule:/);
+  assert.match(workflow, /dry-run/);
   assert.match(workflow, /cleanup-legacy-data\.cjs --apply/);
+  assert.match(workflow, /cleanup-legacy-data\.cjs --restore-musicas/);
 });
 
 test('utilitário de chunks respeita limite operacional de batch', () => {
