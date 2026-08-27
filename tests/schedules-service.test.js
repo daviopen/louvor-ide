@@ -45,6 +45,25 @@ test('indisponibilidade considera data, período e evento específico', () => {
   assert.equal(unavailabilityMatches({ date: '2026-09-01', eventId: 'e2' }, event), false);
 });
 
+test('indisponibilidade por intervalo bloqueia todos os dias do período', () => {
+  const record = { date: '2026-09-05', endAt: '2026-09-06', period: null };
+  assert.equal(unavailabilityMatches(record, { id: 'e1', date: '2026-09-05', time: '10:00' }), true);
+  assert.equal(unavailabilityMatches(record, { id: 'e2', date: '2026-09-06', time: '10:00' }), true);
+  assert.equal(unavailabilityMatches(record, { id: 'e3', date: '2026-09-07', time: '10:00' }), false);
+});
+
+test('indisponibilidade semanal bloqueia apenas o dia recorrente dentro da vigência', () => {
+  const record = {
+    date: '2026-09-01',
+    endAt: '2099-12-31',
+    recurrence: { frequency: 'WEEKLY', weekdays: [5], openEnded: true },
+    period: null
+  };
+  assert.equal(unavailabilityMatches(record, { id: 'sexta', date: '2026-09-04', time: '20:00' }), true);
+  assert.equal(unavailabilityMatches(record, { id: 'domingo', date: '2026-09-06', time: '10:00' }), false);
+  assert.equal(unavailabilityMatches(record, { id: 'outra-sexta', date: '2026-09-11', time: '20:00' }), true);
+});
+
 test('completude depende de todos os slots possuírem integrante ativo', () => {
   const schedule = { slots: [{ id: 'a' }, { id: 'b' }] };
   assert.deepEqual(scheduleCompleteness(schedule, [{ slotId: 'a', active: true }]), { complete: false, filled: 1, total: 2, missingSlotIds: ['b'] });
@@ -74,7 +93,6 @@ test('edição consulta somente a escala e os dados atuais da pessoa selecionada
   const repository = fakeRepository();
   const service = new ScheduleService(repository);
   await service.assign('schedule_event_1', 'slot_a', 'u1', { uid: 'admin' }, { role: 'SUPER_ADMIN' });
-
   assert.equal(repository.calls.listSchedules, 0);
   assert.equal(repository.calls.listAllMembers, 0);
   assert.equal(repository.calls.listMembers, 1);
