@@ -27,11 +27,11 @@
       { id: 'new-song', label: 'Nova Música', href: 'nova-musica.html', icon: 'fa-circle-plus', permission: 'songs', minLevel: 'edit' }
     ] },
     { id: 'administration', label: 'Administração', items: [
-      { id: 'audit', label: 'Auditoria', href: 'module.html?section=audit', icon: 'fa-clipboard-list', permission: 'audit' },
-      { id: 'settings', label: 'Configurações', href: 'module.html?section=settings', icon: 'fa-gear', adminOnly: true, children: [
-        { id: 'settings-template', label: 'Template de Escala', href: 'module.html?section=settings', icon: 'fa-calendar-check', adminOnly: true },
-        { id: 'settings-functions', label: 'Funções Ministeriais', href: 'module.html?section=settings&tab=functions', icon: 'fa-layer-group', adminOnly: true }
-      ] }
+      { id: 'audit', label: 'Auditoria', href: 'module.html?section=audit', icon: 'fa-clipboard-list', permission: 'audit' }
+    ] },
+    { id: 'settings', label: 'Configurações', items: [
+      { id: 'settings-template', label: 'Template de Escala', href: 'module.html?section=settings', icon: 'fa-calendar-check', adminOnly: true },
+      { id: 'settings-functions', label: 'Funções Ministeriais', href: 'module.html?section=settings&tab=functions', icon: 'fa-layer-group', adminOnly: true }
     ] },
     { id: 'help', label: '', items: [
       { id: 'help', label: 'Ajuda', href: 'help.html', icon: 'fa-circle-question', public: true }
@@ -115,7 +115,7 @@
   }
 
   function navigationItems() {
-    return navigationGroups.flatMap(group => group.items.flatMap(item => [item, ...(item.children || [])]));
+    return navigationGroups.flatMap(group => group.items);
   }
 
   function currentItem() {
@@ -164,7 +164,7 @@
     ensureStylesheet('../styles/input.css', 'data-ide-inputs');
     ensureStylesheet('../styles/filter-panel.css', 'data-ide-filter-panel');
     ensureStylesheet('../styles/legacy-migration.css', 'data-ide-legacy-migration');
-    ensureStylesheet('../styles/main-menu.css?v=20260827-settings-submenus', 'data-ide-main-menu');
+    ensureStylesheet('../styles/main-menu.css?v=20260827-settings-menu-standard', 'data-ide-main-menu');
     ensureStylesheet('../styles/ui-consistency.css?v=20260826-ui-consistency', 'data-ide-ui-consistency');
   }
 
@@ -261,26 +261,6 @@
     return link;
   }
 
-  function createNavBranch(item, activeId, profile) {
-    const visibleChildren = (item.children || []).filter(child => canViewItem(child, profile));
-    if (!visibleChildren.length) return createNavLink(item, activeId);
-    const branch = element('div', 'ide-sidebar-branch');
-    const parent = createNavLink(item, activeId);
-    parent.classList.add('ide-sidebar-link--parent');
-    const hasActiveChild = visibleChildren.some(child => child.id === activeId);
-    if (hasActiveChild) parent.classList.add('has-active-child');
-    parent.setAttribute('aria-expanded', String(hasActiveChild));
-    const submenu = element('div', 'ide-sidebar-submenu');
-    submenu.setAttribute('aria-label', `${item.label} — submenus`);
-    visibleChildren.forEach(child => {
-      const link = createNavLink(child, activeId);
-      link.classList.add('ide-sidebar-sublink');
-      submenu.appendChild(link);
-    });
-    branch.append(parent, submenu);
-    return branch;
-  }
-
   function renderNavigation(profile) {
     const nav = scope.document.getElementById('ide-sidebar-nav');
     if (!nav) return;
@@ -291,7 +271,7 @@
       if (!visible.length) return;
       const section = element('section', 'ide-sidebar-section');
       if (group.label) section.appendChild(element('div', 'ide-sidebar-section-title', group.label));
-      visible.forEach(item => section.appendChild(createNavBranch(item, activeId, profile)));
+      visible.forEach(item => section.appendChild(createNavLink(item, activeId)));
       nav.appendChild(section);
     });
     const mobile = scope.document.getElementById('ide-mobile-navigation');
