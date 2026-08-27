@@ -13,7 +13,9 @@ Montar uma escala por evento, relacionando funções ministeriais e usuários at
 
 ## Regras e validações
 - Uma escala por evento; geração idempotente e identificador derivado do evento quando aplicável.
-- Novas escalas usam como template inicial: 4 Back Vocal, 2 Ministro, 1 Guitarra, 1 Violão, 1 Baixo, 1 Bateria e 1 Teclado, desde que as respectivas funções estejam ativas no catálogo.
+- Novas escalas usam o template administrativo definido em Configurações, com funções ministeriais e quantidades parametrizáveis.
+- Na ausência de configuração persistida, manter fallback compatível: 4 Back Vocal, 2 Ministro, 1 Guitarra, 1 Violão, 1 Baixo, 1 Bateria e 1 Teclado, desde que as respectivas funções estejam ativas no catálogo.
+- Alterações no template administrativo valem para novas escalas e não devem modificar retroativamente escalas já existentes.
 - O template inicial não é limite estrutural: qualquer posição pode ser removida pelo editor e novas posições/funções podem ser adicionadas conforme o evento.
 - Funções/posições são dinâmicas, podem repetir a mesma função e não possuem limite estrutural fixo.
 - Selecionar função antes do usuário.
@@ -28,12 +30,13 @@ Montar uma escala por evento, relacionando funções ministeriais e usuários at
 ## Permissões e rotas
 - Leitura/edição seguem módulo Escalas.
 - Exceções administrativas exigem privilégio de edição.
+- A tela de Configurações e a edição do template padrão de escala são exclusivas de `ADMIN`/`SUPER_ADMIN` e devem ser protegidas também pelas Firestore Rules.
 - `module.html?section=schedules` é a listagem/consulta das escalas.
 - A edição deve abrir uma única escala por vez em `module.html?section=schedules&scheduleId=<id>`; não renderizar vários editores na mesma tela.
 
 ## Services / Repositories / Components
 - Service coordena usuários, funções, indisponibilidade, conflitos, completude e membros.
-- Repositories: `schedules`, `scheduleMembers`; não consultar Firestore diretamente na UI.
+- Repositories: `schedules`, `scheduleMembers`; não consultar Firestore diretamente na UI de Escalas.
 - Listagem: um card resumido por evento, status de completude, integrantes e ação `Editar escala`, mantendo filtros históricos.
 - Editor: uma escala por tela, breadcrumb/voltar, posições por função, avatar, troca/remoção e adição de função.
 - A seleção normal de pessoa deve usar um único campo pesquisável/autocomplete por função; não duplicar input de busca + select para a mesma ação.
@@ -48,6 +51,7 @@ Montar uma escala por evento, relacionando funções ministeriais e usuários at
 - `userFunctions`
 - `ministryFunctions`
 - `unavailability`
+- `settings`
 - `auditLogs`
 
 ## Segurança e LGPD
@@ -58,7 +62,9 @@ Montar uma escala por evento, relacionando funções ministeriais e usuários at
 
 ## Testes
 - uma escala por evento e idempotência;
-- template inicial cria 4 Back Vocal, 2 Ministro, 1 Guitarra, 1 Violão, 1 Baixo, 1 Bateria e 1 Teclado;
+- template administrativo cria exatamente as funções e quantidades configuradas;
+- fallback sem configuração cria 4 Back Vocal, 2 Ministro, 1 Guitarra, 1 Violão, 1 Baixo, 1 Bateria e 1 Teclado;
+- alteração do template não modifica retroativamente escalas existentes;
 - posições do template permanecem removíveis e novas posições podem ser adicionadas;
 - elegibilidade por função/status/disponibilidade;
 - conflitos e exceções;
@@ -67,6 +73,7 @@ Montar uma escala por evento, relacionando funções ministeriais e usuários at
 - listagem separada do editor individual por `scheduleId`;
 - histórico/filtros não alteram dados;
 - usuário sem edição não modifica escala;
+- usuário não administrador não acessa nem altera Configurações;
 - seleção normal usa um único combobox pesquisável e não expõe indisponíveis;
 - fluxo de exceção exige confirmação/motivo;
 - regressão de Eventos ao integrar a área de Escalas.
