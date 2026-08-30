@@ -1,0 +1,123 @@
+name: 🎼 Song Catalog Migration
+
+on:
+  push:
+    branches:
+      - chore/song-catalog-migration-final
+    paths:
+      - 'src/scripts/migrate-song-catalog.cjs'
+      - '.github/workflows/song-catalog-migration.yml'
+
+concurrency:
+  group: song-catalog-production-migration-v1
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      GOOGLE_CLOUD_PROJECT: louvor-ide
+      GCLOUD_PROJECT: louvor-ide
+      MIGRATION_RUN_ID: song-catalog-production-v1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install --no-save firebase-admin@13.4.0
+
+      - name: Authenticate Firebase service account
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
+
+      - name: Export pre-migration snapshot
+        run: node src/scripts/export-song-catalog.cjs > song-catalog-before.json
+
+      - name: Dry-run against production
+        run: node src/scripts/migrate-song-catalog.cjs --run-id=${MIGRATION_RUN_ID} --report=dry-run.json
+
+      - name: Validate expected migration plan
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('dry-run.json', 'utf8'));
+          const s = report.summary || {};
+          const expected = {
+            sourceSongs: 124,
+            canonicalSongs: 95,
+            duplicateSongsDeleted: 24,
+            testSongsDeleted: 5,
+            originalKeysPubliclyVerified: 81
+          };
+          const mismatches = Object.entries(expected)
+            .filter(([key, value]) => s[key] !== value)
+            .map(([key, value]) => `${key}: expected ${value}, got ${s[key]}`);
+          if (mismatches.length) {
+            console.error('Migration plan changed since the audited snapshot:');
+            mismatches.forEach(item => console.error(`- ${item}`));
+            process.exit(1);
+          }
+          if (s.originalKeysReferencePreserved !== 14 || s.chordSheetsCompacted !== 95) {
+            console.error('Unexpected canonicalization/compaction counts.', s);
+            process.exit(1);
+          }
+          console.log('Guard checks passed:', s);
+          NODE
+
+      - name: Upload recovery snapshot before writes
+        uses: actions/upload-artifact@v4
+        with:
+          name: song-catalog-before-migration
+          path: |
+            song-catalog-before.json
+            dry-run.json
+          retention-days: 30
+
+      - name: Apply migration with Firestore backup
+        run: node src/scripts/migrate-song-catalog.cjs --apply --run-id=${MIGRATION_RUN_ID} --report=apply.json
+
+      - name: Verify migrated production catalog
+        run: node src/scripts/migrate-song-catalog.cjs --verify --report=verify.json
+
+      - name: Audit production after migration
+        run: node src/scripts/audit-song-catalog.cjs > post-audit.json
+
+      - name: Validate post-migration catalog
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const verify = JSON.parse(fs.readFileSync('verify.json', 'utf8'));
+          const audit = JSON.parse(fs.readFileSync('post-audit.json', 'utf8'));
+          if (!verify.verification?.ok) throw new Error(`Verification failed: ${JSON.stringify(verify.verification)}`);
+          if (verify.verification.activeSongs !== 95) throw new Error(`Expected 95 active canonical songs, got ${verify.verification.activeSongs}`);
+          if (audit.totalSongs !== 95) throw new Error(`Expected 95 song documents after cleanup, got ${audit.totalSongs}`);
+          if (audit.duplicateGroups !== 0) throw new Error(`Expected zero duplicate groups, got ${audit.duplicateGroups}`);
+          if (audit.suspiciousVoiceTitles !== 0) throw new Error(`Expected zero voice-qualified titles, got ${audit.suspiciousVoiceTitles}`);
+          if (audit.missingChord !== 0 || audit.missingOriginalKey !== 0) throw new Error('Missing chord sheets or original keys after migration.');
+          console.log('Post-migration validation passed.');
+          NODE
+
+      - name: Upload migration reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: song-catalog-migration-reports
+          path: |
+            dry-run.json
+            apply.json
+            verify.json
+            post-audit.json
+          if-no-files-found: ignore
+          retention-days: 30
