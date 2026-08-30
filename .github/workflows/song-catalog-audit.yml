@@ -1,5 +1,6 @@
 name: 🎵 Song Catalog Audit
 
+# Read-only production audit for the canonical song catalog.
 on:
   push:
     branches:
