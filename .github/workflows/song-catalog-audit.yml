@@ -7,9 +7,15 @@ on:
     paths:
       - 'src/scripts/audit-song-catalog.cjs'
       - '.github/workflows/song-catalog-audit.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/scripts/audit-song-catalog.cjs'
+      - '.github/workflows/song-catalog-audit.yml'
 
 concurrency:
-  group: song-catalog-audit
+  group: song-catalog-audit-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
