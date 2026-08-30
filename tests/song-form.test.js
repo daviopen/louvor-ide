@@ -27,11 +27,14 @@ test('ministros são filtrados pela função Ministro e aceitam vários tons pre
   assert.match(controller, /replaceMinisterKeys/);
 });
 
-test('criação e edição validam obrigatórios, auditam e protegem alterações não salvas', () => {
+test('criação e edição validam obrigatórios, mantêm letra opcional, auditam e protegem alterações não salvas', () => {
   assert.match(controller, /Informe o artista/);
   assert.match(controller, /Informe o tom original/);
   assert.match(controller, /Informe a cifra/);
-  assert.match(controller, /Informe a letra/);
+  assert.doesNotMatch(controller, /Informe a letra/);
+  assert.match(controller, /configureOptionalLyrics/);
+  assert.match(controller, /removeAttribute\('required'\)/);
+  assert.match(controller, /aria-required', 'false'/);
   assert.match(controller, /SONG_CREATED/);
   assert.match(controller, /SONG_UPDATED/);
   assert.match(controller, /addAuditLog/);
