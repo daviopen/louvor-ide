@@ -47,4 +47,11 @@ jobs:
         env:
           GOOGLE_CLOUD_PROJECT: louvor-ide
           GCLOUD_PROJECT: louvor-ide
-        run: node src/scripts/audit-song-catalog.cjs
+        run: node src/scripts/audit-song-catalog.cjs > song-catalog-audit.json
+
+      - name: Upload audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: song-catalog-audit
+          path: song-catalog-audit.json
+          retention-days: 7
