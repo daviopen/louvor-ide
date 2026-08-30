@@ -6,12 +6,14 @@ on:
       - chore/song-catalog-migration-final
     paths:
       - 'src/scripts/audit-song-catalog.cjs'
+      - 'src/scripts/export-song-catalog.cjs'
       - '.github/workflows/song-catalog-audit.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'src/scripts/audit-song-catalog.cjs'
+      - 'src/scripts/export-song-catalog.cjs'
       - '.github/workflows/song-catalog-audit.yml'
 
 concurrency:
@@ -49,9 +51,22 @@ jobs:
           GCLOUD_PROJECT: louvor-ide
         run: node src/scripts/audit-song-catalog.cjs > song-catalog-audit.json
 
+      - name: Export migration snapshot
+        env:
+          GOOGLE_CLOUD_PROJECT: louvor-ide
+          GCLOUD_PROJECT: louvor-ide
+        run: node src/scripts/export-song-catalog.cjs > song-catalog-snapshot.json
+
       - name: Upload audit artifact
         uses: actions/upload-artifact@v4
         with:
           name: song-catalog-audit
           path: song-catalog-audit.json
           retention-days: 7
+
+      - name: Upload migration snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: song-catalog-snapshot
+          path: song-catalog-snapshot.json
+          retention-days: 1
