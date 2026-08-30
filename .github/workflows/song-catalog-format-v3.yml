@@ -1,0 +1,103 @@
+name: 🎶 Song Catalog Format v3
+
+on:
+  push:
+    branches:
+      - chore/song-catalog-migration-final
+    paths:
+      - 'src/scripts/reformat-song-catalog-v3.cjs'
+      - '.github/workflows/song-catalog-format-v3.yml'
+
+concurrency:
+  group: song-catalog-format-v3-production
+  cancel-in-progress: false
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      GOOGLE_CLOUD_PROJECT: louvor-ide
+      GCLOUD_PROJECT: louvor-ide
+      FORMAT_RUN_ID: song-catalog-format-v3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install --no-save firebase-admin@13.4.0
+
+      - name: Authenticate Firebase service account
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
+
+      - name: Export production snapshot before formatting
+        run: node src/scripts/export-song-catalog.cjs > song-catalog-before-v3.json
+
+      - name: Dry-run formatting
+        run: node src/scripts/reformat-song-catalog-v3.cjs --run-id=${FORMAT_RUN_ID} --report=dry-run-v3.json
+
+      - name: Validate dry-run scope
+        run: |
+          node - <<'NODE'
+          const report = require('./dry-run-v3.json');
+          const summary = report.summary || {};
+          if (summary.totalSongs !== 95) throw new Error(`Expected 95 songs, got ${summary.totalSongs}`);
+          if (summary.changedSongs < 70) throw new Error(`Expected broad formatting update, got ${summary.changedSongs}`);
+          if (summary.formatVersion !== 2) throw new Error(`Unexpected format version ${summary.formatVersion}`);
+          console.log('Dry-run guard passed:', summary);
+          NODE
+
+      - name: Upload recovery snapshot before writes
+        uses: actions/upload-artifact@v4
+        with:
+          name: song-catalog-before-format-v3
+          path: |
+            song-catalog-before-v3.json
+            dry-run-v3.json
+          retention-days: 30
+
+      - name: Apply formatting with backup and automatic rollback
+        run: node src/scripts/reformat-song-catalog-v3.cjs --apply --run-id=${FORMAT_RUN_ID} --report=apply-v3.json
+
+      - name: Verify production formatting
+        run: node src/scripts/reformat-song-catalog-v3.cjs --verify --run-id=${FORMAT_RUN_ID} --report=verify-v3.json
+
+      - name: Export production after formatting
+        run: node src/scripts/export-song-catalog.cjs > song-catalog-after-v3.json
+
+      - name: Validate final catalog count
+        run: |
+          node - <<'NODE'
+          const snapshot = require('./song-catalog-after-v3.json');
+          if ((snapshot.songs || []).length !== 95) throw new Error(`Expected 95 songs after v3, got ${(snapshot.songs || []).length}`);
+          const target = (snapshot.songs || []).find(song => song.id === 'GGW7yj2tNTm5EtAjDN09');
+          if (!target) throw new Error('Reference song GGW7yj2tNTm5EtAjDN09 not found');
+          if (!String(target.cifra || '').includes('Meu Jesus - C G') || !String(target.cifra || '').includes('Medley:')) {
+            throw new Error('Reference song was not formatted as expected');
+          }
+          console.log('Final v3 validation passed.');
+          NODE
+
+      - name: Upload formatting reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: song-catalog-format-v3-reports
+          path: |
+            apply-v3.json
+            verify-v3.json
+            song-catalog-after-v3.json
+          if-no-files-found: ignore
+          retention-days: 30
