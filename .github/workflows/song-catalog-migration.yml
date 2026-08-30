@@ -6,10 +6,11 @@ on:
       - chore/song-catalog-migration-final
     paths:
       - 'src/scripts/migrate-song-catalog.cjs'
+      - 'src/scripts/migrate-song-catalog-v2.cjs'
       - '.github/workflows/song-catalog-migration.yml'
 
 concurrency:
-  group: song-catalog-production-migration-v1
+  group: song-catalog-production-migration-v2
   cancel-in-progress: false
 
 jobs:
@@ -20,7 +21,8 @@ jobs:
     env:
       GOOGLE_CLOUD_PROJECT: louvor-ide
       GCLOUD_PROJECT: louvor-ide
-      MIGRATION_RUN_ID: song-catalog-production-v1
+      FAILED_MIGRATION_RUN_ID: song-catalog-production-v1
+      MIGRATION_RUN_ID: song-catalog-production-v2
 
     steps:
       - name: Checkout
@@ -42,82 +44,100 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
 
-      - name: Export pre-migration snapshot
-        run: node src/scripts/export-song-catalog.cjs > song-catalog-before.json
+      - name: Export partial v1 state before recovery
+        run: node src/scripts/export-song-catalog.cjs > song-catalog-partial-v1.json
 
-      - name: Dry-run against production
-        run: node src/scripts/migrate-song-catalog.cjs --run-id=${MIGRATION_RUN_ID} --report=dry-run.json
+      - name: Roll back failed v1 from Firestore backup
+        run: node src/scripts/migrate-song-catalog.cjs --rollback=${FAILED_MIGRATION_RUN_ID} > rollback-v1.json
 
-      - name: Validate expected migration plan
+      - name: Export restored production snapshot
+        run: node src/scripts/export-song-catalog.cjs > song-catalog-restored.json
+
+      - name: Dry-run corrected v2 against restored production
+        run: node src/scripts/migrate-song-catalog-v2.cjs --run-id=${MIGRATION_RUN_ID} --report=dry-run-v2.json
+
+      - name: Validate restored state and expected v2 plan
         run: |
           node - <<'NODE'
           const fs = require('fs');
-          const report = JSON.parse(fs.readFileSync('dry-run.json', 'utf8'));
+          const report = JSON.parse(fs.readFileSync('dry-run-v2.json', 'utf8'));
           const s = report.summary || {};
           const expected = {
             sourceSongs: 124,
             canonicalSongs: 95,
+            duplicateGroupsMerged: 23,
             duplicateSongsDeleted: 24,
             testSongsDeleted: 5,
-            originalKeysPubliclyVerified: 81
+            normalizedTitles: 41,
+            originalKeysChanged: 50,
+            originalKeysPubliclyVerified: 81,
+            originalKeysReferencePreserved: 14,
+            chordSheetsCompacted: 95
           };
           const mismatches = Object.entries(expected)
             .filter(([key, value]) => s[key] !== value)
             .map(([key, value]) => `${key}: expected ${value}, got ${s[key]}`);
           if (mismatches.length) {
-            console.error('Migration plan changed since the audited snapshot:');
+            console.error('Restored catalog or v2 plan differs from the audited baseline:');
             mismatches.forEach(item => console.error(`- ${item}`));
             process.exit(1);
           }
-          if (s.originalKeysReferencePreserved !== 14 || s.chordSheetsCompacted !== 95) {
-            console.error('Unexpected canonicalization/compaction counts.', s);
-            process.exit(1);
-          }
-          console.log('Guard checks passed:', s);
+          console.log('Restored baseline and v2 guard checks passed:', s);
           NODE
 
-      - name: Upload recovery snapshot before writes
+      - name: Upload recovery snapshot before v2 writes
         uses: actions/upload-artifact@v4
         with:
-          name: song-catalog-before-migration
+          name: song-catalog-v2-recovery
           path: |
-            song-catalog-before.json
-            dry-run.json
+            song-catalog-partial-v1.json
+            rollback-v1.json
+            song-catalog-restored.json
+            dry-run-v2.json
           retention-days: 30
 
-      - name: Apply migration with Firestore backup
-        run: node src/scripts/migrate-song-catalog.cjs --apply --run-id=${MIGRATION_RUN_ID} --report=apply.json
+      - name: Apply corrected v2 with Firestore backup
+        run: node src/scripts/migrate-song-catalog-v2.cjs --apply --run-id=${MIGRATION_RUN_ID} --report=apply-v2.json
 
       - name: Verify migrated production catalog
-        run: node src/scripts/migrate-song-catalog.cjs --verify --report=verify.json
+        run: node src/scripts/migrate-song-catalog-v2.cjs --verify --report=verify-v2.json
 
-      - name: Audit production after migration
-        run: node src/scripts/audit-song-catalog.cjs > post-audit.json
+      - name: Audit production after v2
+        run: node src/scripts/audit-song-catalog.cjs > post-audit-v2.json
 
       - name: Validate post-migration catalog
         run: |
           node - <<'NODE'
           const fs = require('fs');
-          const verify = JSON.parse(fs.readFileSync('verify.json', 'utf8'));
-          const audit = JSON.parse(fs.readFileSync('post-audit.json', 'utf8'));
+          const verify = JSON.parse(fs.readFileSync('verify-v2.json', 'utf8'));
+          const audit = JSON.parse(fs.readFileSync('post-audit-v2.json', 'utf8'));
           if (!verify.verification?.ok) throw new Error(`Verification failed: ${JSON.stringify(verify.verification)}`);
           if (verify.verification.activeSongs !== 95) throw new Error(`Expected 95 active canonical songs, got ${verify.verification.activeSongs}`);
+          if (verify.verification.totalDocuments !== 95) throw new Error(`Expected exactly 95 song documents, got ${verify.verification.totalDocuments}`);
           if (audit.totalSongs !== 95) throw new Error(`Expected 95 song documents after cleanup, got ${audit.totalSongs}`);
           if (audit.duplicateGroups !== 0) throw new Error(`Expected zero duplicate groups, got ${audit.duplicateGroups}`);
           if (audit.suspiciousVoiceTitles !== 0) throw new Error(`Expected zero voice-qualified titles, got ${audit.suspiciousVoiceTitles}`);
           if (audit.missingChord !== 0 || audit.missingOriginalKey !== 0) throw new Error('Missing chord sheets or original keys after migration.');
-          console.log('Post-migration validation passed.');
+          console.log('Post-migration v2 validation passed.');
           NODE
+
+      - name: Emergency rollback v2 if any migration validation fails
+        if: failure()
+        continue-on-error: true
+        run: |
+          node src/scripts/migrate-song-catalog-v2.cjs --rollback=${MIGRATION_RUN_ID} > emergency-rollback-v2.json 2>&1 || true
 
       - name: Upload migration reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: song-catalog-migration-reports
+          name: song-catalog-migration-v2-reports
           path: |
-            dry-run.json
-            apply.json
-            verify.json
-            post-audit.json
+            rollback-v1.json
+            dry-run-v2.json
+            apply-v2.json
+            verify-v2.json
+            post-audit-v2.json
+            emergency-rollback-v2.json
           if-no-files-found: ignore
           retention-days: 30
