@@ -28,6 +28,18 @@ function clearStatus() {
   statusEl.textContent = '';
 }
 
+function configureOptionalLyrics() {
+  const lyrics = document.getElementById('letra');
+  const label = document.querySelector('label[for="letra"]');
+  if (lyrics) {
+    lyrics.required = false;
+    lyrics.removeAttribute('required');
+    lyrics.setAttribute('aria-required', 'false');
+    lyrics.placeholder = 'Opcional — digite a letra da música, se disponível...';
+  }
+  label?.classList.remove('required');
+}
+
 async function loadMinisters() {
   ministers = await musicRepository.listEligibleMinisters();
   renderMinisters();
@@ -126,7 +138,6 @@ function validate(data) {
   if (!data.artista) errors.push('Informe o artista.');
   if (!data.tom) errors.push('Informe o tom original.');
   if (!data.cifra) errors.push('Informe a cifra.');
-  if (!data.letra) errors.push('Informe a letra.');
   if (data.link) {
     try { new URL(data.link); } catch { errors.push('Informe um link de referência válido.'); }
   }
@@ -247,6 +258,7 @@ function leavePage() {
 
 async function init() {
   try {
+    configureOptionalLyrics();
     await loadMinisters();
     await loadEdit();
     updatePreview();
