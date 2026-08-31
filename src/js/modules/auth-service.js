@@ -582,7 +582,7 @@
         return;
       }
 
-      const sessionWasHydrated = Boolean(cachedProfile && authorization.permissionsFromCache);
+      const sessionWasHydrated = Boolean(cachedProfile);
       writeAuthorizationCache(scope, user.uid, authorization.profile);
       if (!sessionWasHydrated) void recordLastAccess(scope, user);
 
