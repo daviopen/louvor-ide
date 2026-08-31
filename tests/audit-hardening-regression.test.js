@@ -41,12 +41,13 @@ test('Runtime de qualidade cobre ARIA dinâmico, scroll por teclado e login touc
   assert.match(source, /forgot\.style\.minHeight = '44px'/);
 });
 
-test('Build injeta runtime de qualidade e limita normalização de cor a CSS', () => {
+test('Build injeta runtime de qualidade e limita normalização de cor a contextos CSS', () => {
   const source = read('src/scripts/normalize-built-html-colors.js');
   assert.match(source, /data-ide-ui-quality-runtime/);
   assert.match(source, /styleBlockPattern/);
   assert.match(source, /inlineStylePattern/);
-  assert.doesNotMatch(source, /return content\.replace\(hexPattern/);
+  assert.match(source, /normalizedBlocks = validThemeColor\.replace\(styleBlockPattern/);
+  assert.match(source, /return normalizedBlocks\.replace\(inlineStylePattern/);
 });
 
 test('AGENTS transforma achados da auditoria em critérios bloqueantes', () => {
