@@ -3,17 +3,18 @@
   const params = new URLSearchParams(scope.location.search);
   if (params.get('section') !== 'schedules') return;
 
+  const DEFAULT_FILTERS = { term: '', person: 'ALL', functionId: 'ALL', from: '', to: '', sort: 'DATE_ASC' };
   const validSorts = new Set(['DATE_ASC', 'DATE_DESC', 'EVENT_ASC', 'EVENT_DESC']);
-  const initialSort = validSorts.has(params.get('sort')) ? params.get('sort') : 'DATE_ASC';
+  const initialSort = validSorts.has(params.get('sort')) ? params.get('sort') : DEFAULT_FILTERS.sort;
   const state = {
     data: null,
     scheduleId: params.get('scheduleId') || null,
     filters: {
-      term: params.get('q') || '',
-      person: params.get('person') || 'ALL',
-      functionId: params.get('function') || 'ALL',
-      from: params.get('from') || '',
-      to: params.get('to') || '',
+      term: params.get('q') || DEFAULT_FILTERS.term,
+      person: params.get('person') || DEFAULT_FILTERS.person,
+      functionId: params.get('function') || DEFAULT_FILTERS.functionId,
+      from: params.get('from') || DEFAULT_FILTERS.from,
+      to: params.get('to') || DEFAULT_FILTERS.to,
       sort: initialSort
     },
     picker: { scheduleId: null, slotId: null }
@@ -38,7 +39,7 @@
         from: state.filters.from,
         to: state.filters.to,
         sort: state.filters.sort
-      }, { person: 'ALL', function: 'ALL', sort: 'DATE_ASC' });
+      }, { person: DEFAULT_FILTERS.person, function: DEFAULT_FILTERS.functionId, sort: DEFAULT_FILTERS.sort });
       navigation.remember('schedules', href);
       return href;
     }
@@ -283,7 +284,7 @@
 
   function wireListFilters(){
     [['schedule-filter-term','term','input'],['schedule-filter-person','person','change'],['schedule-filter-function','functionId','change'],['schedule-filter-from','from','change'],['schedule-filter-to','to','change'],['schedule-sort','sort','change']].forEach(([id,key,type])=>el(id).addEventListener(type,event=>{state.filters[key]=event.target.value;renderListView();if(key==='term')el('schedule-filter-term').focus();}));
-    el('schedule-clear-filters').addEventListener('click',()=>{state.filters={term:'',person:'ALL',functionId:'ALL',from:'',to:'',sort:'DATE_ASC'};renderListView();});
+    el('schedule-clear-filters').addEventListener('click',()=>{state.filters={...DEFAULT_FILTERS};renderListView();});
   }
 
   async function bootstrap(){
