@@ -100,7 +100,7 @@ test('setlists preserve combined filters and history pagination', () => {
   assert.match(setlistsSource, /initialParams\.get\('page'\)/);
   assert.match(setlistsSource, /restoreState\(\)/);
   assert.match(setlistsSource, /page:state\.view==='history'\?state\.page:1/);
-  assert.match(setlistsSource, /navigation\.remember\('setlists',href\)/);
+  assert.match(setlistsSource, /nav\.remember\('setlists',href\)/);
   assert.match(setlistsSource, /nav\?nav\.withReturnTo\(editTarget\):editTarget/);
 });
 
