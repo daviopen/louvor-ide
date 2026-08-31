@@ -18,6 +18,8 @@
 })(typeof window !== 'undefined' ? window : null, function createAuthModule() {
   const RETURN_URL_KEY = 'musicIdeReturnUrl';
   const AUTH_MESSAGE_KEY = 'musicIdeAuthMessage';
+  const AUTHORIZATION_CACHE_KEY = 'musicIdeAuthorizationSession';
+  const AUTHORIZATION_CACHE_VERSION = 1;
   const DEFAULT_RETURN_URL = 'index.html';
   const THEME_STORAGE_KEY = 'musicIdeTheme';
   const THEME_MODES = Object.freeze(['light', 'dark', 'system']);
@@ -128,6 +130,41 @@
 
   function isActiveProfile(profile) {
     return Boolean(profile && profile.active === true);
+  }
+
+  function readAuthorizationCache(scope, userId) {
+    try {
+      if (!scope || !scope.sessionStorage || !userId) return null;
+      const raw = scope.sessionStorage.getItem(AUTHORIZATION_CACHE_KEY);
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      if (!cached || cached.version !== AUTHORIZATION_CACHE_VERSION || cached.userId !== userId) return null;
+      if (!isActiveProfile(cached.profile)) return null;
+      if (!cached.profile.permissions || typeof cached.profile.permissions !== 'object') cached.profile.permissions = {};
+      return cached.profile;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeAuthorizationCache(scope, userId, profile) {
+    try {
+      if (!scope || !scope.sessionStorage || !userId || !isActiveProfile(profile)) return false;
+      scope.sessionStorage.setItem(AUTHORIZATION_CACHE_KEY, JSON.stringify({
+        version: AUTHORIZATION_CACHE_VERSION,
+        userId,
+        profile
+      }));
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function clearAuthorizationCache(scope) {
+    try {
+      if (scope && scope.sessionStorage) scope.sessionStorage.removeItem(AUTHORIZATION_CACHE_KEY);
+    } catch (error) {}
   }
 
   function isTransientAuthorizationError(error) {
@@ -318,7 +355,7 @@
     return Object.fromEntries(entries.filter(Boolean));
   }
 
-  async function resolveAuthorizedProfile(scope, user) {
+  async function resolveAuthorizedProfile(scope, user, options = {}) {
     if (!scope.firebase || typeof scope.firebase.firestore !== 'function') {
       const error = new Error('Firestore indisponível para validar autorização.');
       error.code = 'app/firestore-unavailable';
@@ -332,15 +369,34 @@
         snapshot = await profileRef.get();
       } catch (error) {
         if (error && ['permission-denied', 'firestore/permission-denied'].includes(error.code)) {
-          return { authorized: false, reason: 'not-provisioned', profile: null };
+          return { authorized: false, reason: 'not-provisioned', profile: null, permissionsFromCache: false };
         }
         throw error;
       }
     }
     const profile = snapshot.data() || null;
-    if (!isActiveProfile(profile)) return { authorized: false, reason: 'inactive', profile };
-    const permissions = profile.role === 'SUPER_ADMIN' ? {} : await loadEffectivePermissions(scope, user.uid);
-    return { authorized: true, reason: null, profile: { ...profile, permissions } };
+    if (!isActiveProfile(profile)) return { authorized: false, reason: 'inactive', profile, permissionsFromCache: false };
+
+    const cachedProfile = options.cachedProfile;
+    const canReusePermissions = Boolean(
+      cachedProfile
+      && isActiveProfile(cachedProfile)
+      && String(cachedProfile.role || '') === String(profile.role || '')
+      && cachedProfile.permissions
+      && typeof cachedProfile.permissions === 'object'
+    );
+    const permissions = profile.role === 'SUPER_ADMIN'
+      ? {}
+      : canReusePermissions
+        ? cachedProfile.permissions
+        : await loadEffectivePermissions(scope, user.uid);
+
+    return {
+      authorized: true,
+      reason: null,
+      permissionsFromCache: profile.role !== 'SUPER_ADMIN' && canReusePermissions,
+      profile: { ...profile, permissions }
+    };
   }
 
   function authorizationFailureMessage(reason) {
@@ -391,7 +447,7 @@
         provider.addScope('email');
         if (typeof provider.setCustomParameters === 'function') provider.setCustomParameters({ prompt: 'select_account' });
         const result = await auth.signInWithPopup(provider);
-        setLoginMessage(scope, 'Conta Google autenticada. Validando acesso...', 'info');
+        setLoginMessage(scope, 'Conta Google autenticada. Carregando seu acesso...', 'info');
         return result;
       } catch (error) {
         reportAuthError(scope, 'login Google', error);
@@ -439,6 +495,7 @@
         await auth.signOut();
         scope.currentMusicIdeUser = null;
         scope.currentMusicIdeProfile = null;
+        clearAuthorizationCache(scope);
         if (scope.sessionStorage) {
           scope.sessionStorage.removeItem(RETURN_URL_KEY);
           scope.sessionStorage.removeItem(AUTH_MESSAGE_KEY);
@@ -461,12 +518,14 @@
       const onLoginPage = isLoginPage(scope.location.pathname);
 
       if (user && !isAllowedUser(user)) {
+        clearAuthorizationCache(scope);
         await auth.signOut();
         failInitialization('Use uma conta Google ou uma conta cadastrada pela liderança.');
         return;
       }
 
       if (!user) {
+        clearAuthorizationCache(scope);
         resolveAuthReady(null);
         if (onLoginPage) {
           finishPageReveal(scope);
@@ -480,16 +539,22 @@
         return;
       }
 
+      // As permissões são hidratadas no login/bootstrap da sessão e ficam em
+      // sessionStorage somente como cache de UX. Em cada página o perfil ainda
+      // é relido para confirmar active=true; as Firestore Rules seguem como
+      // autoridade definitiva para qualquer leitura/escrita protegida.
+      const cachedProfile = onLoginPage ? null : readAuthorizationCache(scope, user.uid);
       let authorization;
       try {
-        authorization = await withAuthorizationRetry(() => resolveAuthorizedProfile(scope, user), { maxAttempts: 2, delayMs: 350 });
+        authorization = await withAuthorizationRetry(
+          () => resolveAuthorizedProfile(scope, user, { cachedProfile }),
+          { maxAttempts: 2, delayMs: 350 }
+        );
       } catch (error) {
         reportAuthError(scope, 'validação de autorização', error);
 
         if (isTransientAuthorizationError(error)) {
           const message = authorizationFailureMessage('transient');
-          // Mantém a identidade Firebase, mas nunca libera a aplicação sem um
-          // perfil validado. Assim a falha de rede não vira logout nem bypass.
           resolveAuthReady(null);
           if (!onLoginPage) persistAuthMessage(scope, message);
           finishPageReveal(scope);
@@ -498,6 +563,7 @@
           return;
         }
 
+        clearAuthorizationCache(scope);
         const message = authorizationFailureMessage('validation-error');
         if (!onLoginPage) persistAuthMessage(scope, message);
         await auth.signOut().catch(() => null);
@@ -507,6 +573,7 @@
       }
 
       if (!authorization.authorized) {
+        clearAuthorizationCache(scope);
         const message = authorizationFailureMessage(authorization.reason);
         if (!onLoginPage) persistAuthMessage(scope, message);
         await auth.signOut().catch(() => null);
@@ -515,7 +582,10 @@
         return;
       }
 
-      await recordLastAccess(scope, user);
+      const sessionWasHydrated = Boolean(cachedProfile);
+      writeAuthorizationCache(scope, user.uid, authorization.profile);
+      if (!sessionWasHydrated) void recordLastAccess(scope, user);
+
       resolveAuthReady(user);
       exposeAuthState(scope, user, authorization.profile);
 
@@ -535,12 +605,14 @@
   }
 
   return {
+    AUTHORIZATION_CACHE_KEY,
     THEME_MODES,
     THEME_STORAGE_KEY,
     applyTheme,
     authorizationFailureMessage,
     buildCurrentReturnUrl,
     bootstrap,
+    clearAuthorizationCache,
     friendlyAuthError,
     isActiveProfile,
     isAllowedUser,
@@ -548,12 +620,14 @@
     isTransientAuthorizationError,
     loadEffectivePermissions,
     normalizeThemePreference,
+    readAuthorizationCache,
     readThemePreference,
     recordLastAccess,
     resolveAuthorizedProfile,
     resolveTheme,
     sanitizeReturnUrl,
     setThemePreference,
-    withAuthorizationRetry
+    withAuthorizationRetry,
+    writeAuthorizationCache
   };
 });

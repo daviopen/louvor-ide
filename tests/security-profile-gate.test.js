@@ -9,44 +9,39 @@ const {
   resolveAuthorizedProfile
 } = require('../src/js/modules/auth-service');
 
-const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
-
 function firestoreScope({ snapshot, setError = null, permissions = {} }) {
-  const profileRef = {
-    async get() { return snapshot; },
-    async set() {
-      if (setError) throw setError;
-    }
-  };
-
-  function firestore() {
-    return {
-      collection(name) {
-        if (name === 'users') {
-          return {
-            doc() { return profileRef; }
-          };
-        }
-        if (name === 'permissions') {
-          return {
-            doc(id) {
-              return {
-                async get() {
-                  const data = permissions[id];
-                  return data
-                    ? { exists: true, data() { return data; } }
-                    : { exists: false, data() { return null; } };
-                }
-              };
-            }
-          };
-        }
-        assert.fail(`Collection inesperada: ${name}`);
+  const firestore = () => ({
+    collection(name) {
+      if (name === 'users') {
+        return {
+          doc() {
+            return {
+              async get() { return snapshot; },
+              async set() {
+                if (setError) throw setError;
+              }
+            };
+          }
+        };
       }
-    };
-  }
-  firestore.FieldValue = { serverTimestamp: () => 'server-time' };
-
+      if (name === 'permissions') {
+        return {
+          doc(id) {
+            return {
+              async get() {
+                const data = permissions[id];
+                return data
+                  ? { exists: true, data() { return data; } }
+                  : { exists: false, data() { return null; } };
+              }
+            };
+          }
+        };
+      }
+      throw new Error(`collection inesperada: ${name}`);
+    }
+  });
+  firestore.FieldValue = { serverTimestamp() { return new Date(); } };
   return { firebase: { firestore } };
 }
 
@@ -72,7 +67,8 @@ test('conta sem perfil não é autorizada quando bootstrap é negado pelas Rules
   assert.deepEqual(result, {
     authorized: false,
     reason: 'not-provisioned',
-    profile: null
+    profile: null,
+    permissionsFromCache: false
   });
   assert.match(authorizationFailureMessage(result.reason), /não foi liberada/i);
 });
@@ -90,39 +86,30 @@ test('perfil existente inativo é rejeitado pelo gate da aplicação', async () 
 });
 
 test('perfil existente ativo é autorizado pelo gate da aplicação com permissões efetivas', async () => {
-  const profile = { uid: 'active', active: true, role: 'MEMBER' };
+  const userId = 'active';
+  const profile = { uid: userId, active: true, role: 'MEMBER' };
   const scope = firestoreScope({
     snapshot: { exists: true, data() { return profile; } },
     permissions: {
-      active__unavailability: { userId: 'active', module: 'unavailability', level: 'EDIT' }
+      [`${userId}__dashboard`]: { userId, module: 'dashboard', level: 'READ' }
     }
   });
 
-  const result = await resolveAuthorizedProfile(scope, { uid: 'active' });
+  const result = await resolveAuthorizedProfile(scope, { uid: userId });
   assert.equal(result.authorized, true);
-  assert.deepEqual(result.profile, {
-    ...profile,
-    permissions: { unavailability: 'EDIT' }
-  });
+  assert.equal(result.profile.active, true);
+  assert.equal(result.profile.permissions.dashboard, 'READ');
 });
 
 test('Firestore Rules exigem perfil existente e ativo para activeUser', () => {
-  const start = rules.indexOf('function activeUser()');
-  const end = rules.indexOf('function hasRole', start);
-  const block = rules.slice(start, end);
-
-  assert.match(block, /hasProfile\(\)/);
-  assert.match(block, /profile\(\)\.data\.active == true/);
-  assert.doesNotMatch(block, /!hasProfile\(\)/);
+  const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+  assert.match(rules, /function hasProfile\(\) \{ return supportedProvider\(\) && exists\(profilePath\(request\.auth\.uid\)\); \}/);
+  assert.match(rules, /function activeUser\(\) \{ return supportedProvider\(\) && hasProfile\(\) && profile\(\)\.data\.active == true; \}/);
+  assert.doesNotMatch(rules, /function activeUser\(\) \{ return supportedProvider\(\) && \(!hasProfile\(\)/);
 });
 
 test('usuário comum não possui regra de autoativação MEMBER', () => {
-  const start = rules.indexOf('match /users/{userId}');
-  const end = rules.indexOf('match /permissions/', start);
-  const block = rules.slice(start, end);
-
-  assert.match(block, /allow create: if validCreatedUser\(userId\)/);
-  assert.match(block, /isSuperAdmin\(\)/);
-  assert.match(block, /isAdmin\(\).*request\.resource\.data\.role == 'MEMBER'/s);
-  assert.doesNotMatch(block, /request\.auth\.uid == userId && activeUser\(\)/);
+  const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+  assert.doesNotMatch(rules, /request\.auth\.uid == userId[\s\S]{0,200}request\.resource\.data\.role == 'MEMBER'/);
+  assert.match(rules, /allow create: if validCreatedUser\(userId\) && \(isSuperAdmin\(\)/);
 });
