@@ -39,7 +39,7 @@
   --ide-surface-secondary: var(--ide-color-neutral-100);
   --ide-surface-dark: var(--ide-color-neutral-800);
   --ide-text-primary: var(--ide-color-neutral-900);
-  --ide-text-secondary: var(--ide-color-neutral-600);
+  --ide-text-secondary: var(--ide-color-neutral-700);
   --ide-text-on-dark: var(--ide-color-white);
   --ide-text-on-dark-secondary: var(--ide-color-neutral-300);
   --ide-avatar-fallback-bg: var(--ide-color-neutral-200);
