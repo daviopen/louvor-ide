@@ -30,6 +30,50 @@ export class MusicRepository extends BaseRepository {
     return database.collection(name);
   }
 
+  async listCatalogMinisterAssignments() {
+    const [ministerKeys, users] = await Promise.all([
+      this.getCollection(COLLECTIONS.SONG_MINISTER_KEYS),
+      this.getCollection(COLLECTIONS.USERS)
+    ]);
+    const [ministerKeysSnap, usersSnap] = await Promise.all([ministerKeys.get(), users.get()]);
+    const displayName = user => String(
+      user?.name || user?.nome || user?.displayName || user?.fullName || user?.email || ''
+    ).trim();
+    const usersById = new Map(usersSnap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(user => user.active !== false)
+      .map(user => [user.id, displayName(user)])
+      .filter(([, name]) => Boolean(name)));
+    const assignmentsBySong = new Map();
+
+    ministerKeysSnap.docs.forEach(doc => {
+      const data = doc.data() || {};
+      const name = usersById.get(data.userId);
+      if (!data.songId || !name) return;
+      const assignments = assignmentsBySong.get(data.songId) || [];
+      assignments.push({
+        name,
+        preferredKey: String(data.preferredKey || '').trim() || null
+      });
+      assignmentsBySong.set(data.songId, assignments);
+    });
+
+    assignmentsBySong.forEach((assignments, songId) => {
+      const seen = new Set();
+      const unique = assignments
+        .filter(item => {
+          const key = item.name.toLocaleLowerCase('pt-BR');
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
+      assignmentsBySong.set(songId, unique);
+    });
+
+    return assignmentsBySong;
+  }
+
   async subscribeAllOrderedByTitle(callback, onError = null) {
     const canonical = await this.getCollection(COLLECTIONS.SONGS);
 
@@ -45,10 +89,37 @@ export class MusicRepository extends BaseRepository {
 
     // A ordenação permanece no cliente para aceitar documentos históricos
     // migrados que não possuam `titulo`, mas tenham `title`/`nome`.
-    return canonical.onSnapshot(snapshot => {
-      const docs = [...snapshot.docs]
-        .sort((a, b) => titleOf(a).localeCompare(titleOf(b), 'pt-BR', { sensitivity: 'base' }));
-      callback({ forEach(handler) { docs.forEach(handler); } });
+    // Na consulta, os nomes de ministros são derivados dos vínculos canônicos
+    // songMinisterKeys + users. Campos legados por nome ficam somente como
+    // compatibilidade de dados e não voltam a aparecer nos filtros do catálogo.
+    return canonical.onSnapshot(async snapshot => {
+      try {
+        const assignmentsBySong = await this.listCatalogMinisterAssignments();
+        const docs = [...snapshot.docs]
+          .sort((a, b) => titleOf(a).localeCompare(titleOf(b), 'pt-BR', { sensitivity: 'base' }))
+          .map(doc => {
+            const data = doc.data() || {};
+            const assignments = assignmentsBySong.get(doc.id) || [];
+            const ministros = assignments.map(item => item.name);
+            const tomMinistro = {};
+            assignments.forEach(item => {
+              if (item.preferredKey) tomMinistro[item.name] = item.preferredKey;
+            });
+            const catalogData = {
+              ...data,
+              ministro: ministros.length ? ministros.join(', ') : null,
+              ministros: ministros.length ? ministros : null,
+              tomMinistro: Object.keys(tomMinistro).length ? tomMinistro : null
+            };
+            return {
+              id: doc.id,
+              data() { return catalogData; }
+            };
+          });
+        callback({ forEach(handler) { docs.forEach(handler); } });
+      } catch (error) {
+        handleError(error);
+      }
     }, handleError);
   }
 
