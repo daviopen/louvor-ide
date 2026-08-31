@@ -26,6 +26,23 @@
     return ({READY:'Pronto',DRAFT:'Rascunho',COMPLETED:'Concluído',CANCELLED:'Cancelado'})[normalized]||status||'Rascunho';
   }
 
+  function setSelectOptions(id,values,emptyLabel){
+    const select=$(id);
+    const previous=select.value;
+    const unique=[...new Set(values.map(value=>String(value||'').trim()).filter(Boolean))]
+      .sort((a,b)=>a.localeCompare(b,'pt-BR',{sensitivity:'base'}));
+    select.innerHTML=`<option value="">${esc(emptyLabel)}</option>${unique.map(value=>`<option value="${esc(value)}">${esc(value)}</option>`).join('')}`;
+    if(unique.includes(previous)) select.value=previous;
+  }
+
+  function populateFilterOptions(){
+    const source=state.view==='history'?state.items.history:state.items.upcoming;
+    setSelectOptions('filter-event',source.map(item=>item.name||item.event?.name||''),'Todos os eventos');
+    setSelectOptions('filter-minister',source.flatMap(item=>item.ministerNames||[]),'Todos os ministros');
+    setSelectOptions('filter-participant',source.flatMap(item=>item.participantNames||[]),'Todos os participantes');
+    $('setlists-filter-panel')?.dispatchEvent(new CustomEvent('ideFiltersChanged'));
+  }
+
   function actions(item){
     const id=encodeURIComponent(item.id);
     const hasSongs=Number(item.totalSongs||0)>0;
@@ -125,7 +142,9 @@
           participantNames:participantsBySchedule.get(scheduleId)||[]
         });
       });
-      state.items=MusicIdeSetlistHistory.split(normalized,new Date()); render();
+      state.items=MusicIdeSetlistHistory.split(normalized,new Date());
+      populateFilterOptions();
+      render();
     }catch(error){console.error(error);$('loading').innerHTML=`<p style="color:var(--error,#a63f3f)">${esc(error.message||'Erro ao carregar Setlists.')}</p>`;$('result-count').textContent='Não foi possível carregar os Setlists';}
   }
   document.addEventListener('DOMContentLoaded',init);
