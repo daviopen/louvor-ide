@@ -125,11 +125,11 @@
 
 .weekly-export-sheet .weekly-export-date-badge,
 .weekly-export-sheet .weekly-export-absence-content th {
-  color: #090b0c !important;
+  color: var(--ide-color-neutral-950) !important;
 }
 
 .weekly-export-sheet .weekly-export-event-card {
-  border-color: #343938;
+  border-color: var(--ide-color-neutral-700);
   background: rgba(255,255,255,.58);
   box-shadow: 0 10px 26px rgba(9,11,12,.045);
 }
@@ -147,7 +147,7 @@
   justify-content: center;
   gap: 5px;
   padding-top: 10px;
-  color: #101213;
+  color: var(--ide-color-neutral-900);
   border-top: 1px solid rgba(16,18,19,.18);
   font-size: 14px;
   font-weight: 900;
@@ -165,7 +165,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #101213;
+  color: var(--ide-color-neutral-900);
   letter-spacing: .06em;
 }
 
@@ -174,11 +174,11 @@
   width: 22px;
   height: 4px;
   border-radius: 999px;
-  background: #d8ff45;
+  background: var(--ide-primary);
 }
 
 .weekly-export-sheet .weekly-export-footer strong {
-  color: #6f63ee;
+  color: var(--ide-color-violet-600);
 }
 
 #monthly-export-preview .weekly-export-sheet .weekly-export-footer::after,
@@ -186,7 +186,7 @@
   content: 'PÁG. ' counter(ide-export-page) ' • COMUNIDADE IDE';
   position: absolute;
   right: 0;
-  color: #69716f;
+  color: var(--ide-color-neutral-600);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: .08em;
