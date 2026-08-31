@@ -4,6 +4,7 @@ const admin = require('firebase-admin');
 
 const baseUrl = process.env.E2E_BASE_URL || 'https://louvor-ide.web.app';
 const projectId = process.env.FIREBASE_PROJECT_ID || 'louvor-ide';
+const expectedAuthDomain = new URL(baseUrl).hostname;
 const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const email = `ide-music-mobile-e2e-${runId}@example.com`;
 const password = `Aa1!${Math.random().toString(36).slice(2)}${Date.now()}`;
@@ -14,6 +15,11 @@ async function waitForAuthCompat(page) {
     && window.MusicIdeAuth.__mobileCompatInstalled
     && typeof window.MusicIdeAuth.googleAuthStrategy === 'function'
   ), null, { timeout: 15000 });
+}
+
+async function assertFirstPartyAuthDomain(page, label) {
+  const authDomain = await page.evaluate(() => window.firebase && window.firebase.app().options.authDomain);
+  assert.equal(authDomain, expectedAuthDomain, `${label}: authDomain deve ser first-party`);
 }
 
 async function waitForAuthenticatedPage(page, timeout = 20000) {
@@ -36,6 +42,7 @@ async function validateMobileLogin(browserType, deviceName, expectedEngine) {
   try {
     await page.goto(`${baseUrl}/login.html`, { waitUntil: 'domcontentloaded' });
     await waitForAuthCompat(page);
+    await assertFirstPartyAuthDomain(page, `${deviceName}/${expectedEngine}`);
 
     const strategy = await page.evaluate(() => window.MusicIdeAuth.googleAuthStrategy());
     assert.equal(strategy, 'redirect', `${deviceName}/${expectedEngine}: Google deveria usar redirect`);
@@ -77,6 +84,7 @@ async function validateEmbeddedBrowserGuard() {
   try {
     await page.goto(`${baseUrl}/login.html`, { waitUntil: 'domcontentloaded' });
     await waitForAuthCompat(page);
+    await assertFirstPartyAuthDomain(page, 'navegador interno Android');
     assert.equal(await page.evaluate(() => window.MusicIdeAuth.googleAuthStrategy()), 'external-browser');
 
     await page.getByRole('button', { name: /Google/i }).click();
@@ -100,6 +108,7 @@ async function validateDesktopStrategy() {
   try {
     await page.goto(`${baseUrl}/login.html`, { waitUntil: 'domcontentloaded' });
     await waitForAuthCompat(page);
+    await assertFirstPartyAuthDomain(page, 'desktop Chromium');
     assert.equal(await page.evaluate(() => window.MusicIdeAuth.googleAuthStrategy()), 'popup');
     console.log('✅ desktop Chromium: popup mantido');
   } finally {
