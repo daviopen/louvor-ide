@@ -32,6 +32,13 @@ test('setlist status labels are localized', () => {
   assert.match(js, /CANCELLED:'Cancelado'/);
 });
 
+test('setlist views are navigated from the application menu without duplicate top tabs', () => {
+  assert.doesNotMatch(html, /class="view-tabs"/);
+  assert.doesNotMatch(html, /id="tab-upcoming"/);
+  assert.doesNotMatch(html, /id="tab-history"/);
+  assert.doesNotMatch(js, /tab-upcoming|tab-history/);
+});
+
 test('actions remain responsive on mobile', () => {
   assert.match(html, /\.setlist-card__actions\{[^}]*gap:10px/);
   assert.match(html, /@media\(max-width:560px\)[\s\S]*\.setlist-card__actions\{display:grid;grid-template-columns:1fr\}/);
