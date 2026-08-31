@@ -20,8 +20,10 @@ test('não existe fallback global permitindo usuário autenticado', () => {
   assert.doesNotMatch(rules, /allow read, write: if isAllowedUser\(\)/);
 });
 
-test('SUPER_ADMIN possui bootstrap apenas nas Rules e suporta Custom Claims', () => {
-  assert.match(rules, /davitads@gmail\.com/);
+test('SUPER_ADMIN exige perfil ativo ou Custom Claim e não usa identidade hardcoded', () => {
+  assert.doesNotMatch(rules, /davitads@gmail\.com/);
+  assert.doesNotMatch(rules, /bootstrapSuperAdminIdentity|initialSuperAdmin/);
+  assert.match(rules, /function isSuperAdmin\(\) \{[\s\S]*return activeUser\(\)/);
   assert.match(rules, /hasClaim\('superAdmin'\)/);
   assert.match(rules, /request\.auth\.token\.role == 'SUPER_ADMIN'/);
 });
@@ -35,6 +37,8 @@ test('permissões usam níveis READ e EDIT e documento por usuário/módulo', ()
   assert.match(rules, /permissions\/\$\(request\.auth\.uid \+ '__' \+ moduleName\)/);
   assert.match(rules, /\['READ', 'EDIT'\]/);
   assert.match(rules, /\['EDIT'\]/);
+  assert.match(rules, /function canRead\(moduleName\) \{ return isSuperAdmin\(\) \|\| explicitPermission\(moduleName, \['READ', 'EDIT'\]\); \}/);
+  assert.doesNotMatch(rules, /activeUser\(\) && moduleName in \['setlists', 'songs'\]/);
 });
 
 test('operações administrativas impedem exclusão física de usuário', () => {
@@ -50,9 +54,15 @@ test('indisponibilidade de terceiros exige perfil ADMIN além da permissão do m
   assert.match(unavailability, /isAdmin\(\) && canEdit\('unavailability'\)/);
 });
 
-test('audit log é append-only e exige ator autenticado', () => {
+test('audit log é append-only, possui schema limitado e timestamp do servidor', () => {
   const audit = extractMatch('auditLogs/{documentId}');
-  assert.match(audit, /actorUserId == request\.auth\.uid/);
+  assert.match(rules, /function validAuditLogDocument\(\)/);
+  assert.match(rules, /keys\(\)\.hasAll\(\['actorUserId', 'action', 'entityType', 'entityId', 'createdAt'\]\)/);
+  assert.match(rules, /keys\(\)\.hasOnly\(/);
+  assert.match(rules, /actorUserId == request\.auth\.uid/);
+  assert.match(rules, /createdAt == request\.time/);
+  assert.match(rules, /action\.matches\('\^\[A-Z0-9_\]\+\$'\)/);
+  assert.match(audit, /allow create: if validAuditLogDocument\(\);/);
   assert.match(audit, /allow update, delete: if false;/);
 });
 
@@ -96,7 +106,7 @@ test('collections sensíveis possuem regra explícita', () => {
   ].forEach(extractMatch);
 });
 
-test('e-mail de bootstrap não é fonte de autorização no JavaScript do frontend', () => {
+test('identidade administrativa hardcoded não é fonte de autorização no código', () => {
   const srcRoot = path.join(__dirname, '..', 'src');
   const stack = [srcRoot];
   const jsFiles = [];
@@ -112,4 +122,5 @@ test('e-mail de bootstrap não é fonte de autorização no JavaScript do fronte
 
   const occurrences = jsFiles.filter(file => fs.readFileSync(file, 'utf8').includes('davitads@gmail.com'));
   assert.deepEqual(occurrences, []);
+  assert.doesNotMatch(rules, /davitads@gmail\.com/);
 });
