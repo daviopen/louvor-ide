@@ -23,10 +23,12 @@
   <script src="../js/modules/unavailability-page.js?v=20260825-unavailability" defer></script>
   <script src="../js/modules/events-page.js?v=20260825-events" defer></script>
   <script src="../js/modules/schedule-export-polish.js?v=20260831-export-polish" defer></script>
+  <script src="../features/unavailability/filter-panel-standard.js?v=20260831-standard-filters" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
   <link rel="stylesheet" href="../styles/unavailability.css?v=20260825-unavailability">
+  <link rel="stylesheet" href="../styles/unavailability-filter-panel.css?v=20260831-standard-filters">
   <link rel="stylesheet" href="../styles/events.css?v=20260825-events">
   <link rel="stylesheet" href="../css/music-ide-theme.css">
   <style>
@@ -147,11 +149,24 @@
       <article class="ide-section-card unavailability-list-card" aria-labelledby="future-title">
         <div class="unavailability-section-heading">
           <div><span class="ide-module-kicker">Próximos registros</span><h2 id="future-title">Indisponibilidades futuras</h2></div>
-          <label id="admin-user-filter-wrap" class="unavailability-filter" hidden>
-            <span>Pessoa</span>
-            <select id="admin-user-filter" class="ide-field__control ide-select"><option value="ALL">Todas</option></select>
-          </label>
         </div>
+
+        <details id="unavailability-filter-panel" class="ide-filter-panel" data-filter-panel="unavailability">
+          <summary class="ide-filter-panel__summary">
+            <span class="ide-filter-panel__summary-main"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filtros <span class="ide-filter-panel__badge">0</span></span>
+            <span class="ide-filter-panel__summary-meta"><span class="ide-filter-panel__state">Mostrar</span></span>
+          </summary>
+          <div class="ide-filter-panel__body">
+            <div id="unavailability-filter-grid" class="unavailability-filter-grid">
+              <label id="admin-user-filter-wrap" class="unavailability-filter" hidden>
+                <span>Pessoa</span>
+                <select id="admin-user-filter" class="ide-field__control ide-select" data-filter-neutral="ALL"><option value="ALL">Todas</option></select>
+              </label>
+              <button id="unavailability-clear-filters" class="ide-button ide-button--ghost unavailability-clear-filters" type="button"><i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i> Limpar filtros</button>
+            </div>
+          </div>
+        </details>
+
         <div id="unavailability-loading" class="unavailability-loading" role="status">Carregando indisponibilidades...</div>
         <div id="unavailability-empty" class="ide-empty-state" hidden>
           <i class="fa-solid fa-calendar-check" aria-hidden="true"></i><strong>Nenhuma indisponibilidade futura</strong><span>Quando houver necessidade, registre uma nova data.</span>
