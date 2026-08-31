@@ -59,5 +59,5 @@ test('weekly schedule export keeps dark ink on lime badges and table headers', (
   assert.match(source, /\.weekly-export-date-badge\{[^}]*background:#d8ff45;[^}]*color:#090b0c/s);
   assert.match(source, /\.weekly-export-absence-content th\{[^}]*font-weight:900;[^}]*background:rgba\(216,255,69,/s);
   const guard = fs.readFileSync(path.join(root, 'src/styles/ui-consistency.css'), 'utf8');
-  assert.match(guard, /\.weekly-export-sheet \.weekly-export-date-badge,[\s\S]*\.weekly-export-sheet \.weekly-export-absence-content th[\s\S]*color:\s*#090b0c\s*!important/);
+  assert.match(guard, /\.weekly-export-sheet \.weekly-export-date-badge,[\s\S]*\.weekly-export-sheet \.weekly-export-absence-content th[\s\S]*color:\s*var\(--ide-color-neutral-950\)\s*!important/);
 });
