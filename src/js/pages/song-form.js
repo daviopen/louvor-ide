@@ -14,6 +14,11 @@ let initialSnapshot = '';
 let ministers = [];
 let activePreview = 'cifra';
 
+function returnUrl() {
+  const navigation = window.MusicIdeNavigationState;
+  return navigation ? navigation.resolveReturnUrl('consultar.html', 'songs') : 'consultar.html';
+}
+
 function currentUser() {
   return window.firebase?.auth?.().currentUser || null;
 }
@@ -258,7 +263,7 @@ async function save(event) {
     initialSnapshot = snapshot();
     dirty = false;
     setStatus(editId ? 'Música atualizada com sucesso.' : 'Música criada com sucesso.', 'success');
-    setTimeout(() => { location.href = 'consultar.html'; }, 700);
+    setTimeout(() => { location.href = returnUrl(); }, 700);
   } catch (error) {
     console.error(error);
     setStatus(error?.message || 'Não foi possível salvar a música.', 'error');
@@ -271,7 +276,7 @@ async function save(event) {
 
 function leavePage() {
   if (!dirty || confirm('Há alterações não salvas. Deseja sair sem salvar?')) {
-    location.href = 'consultar.html';
+    location.href = returnUrl();
   }
 }
 
