@@ -151,8 +151,10 @@ service cloud.firestore {
     function validAuditLogDocument() {
       return activeUser()
         && request.resource.data.keys().hasAll(['actorUserId', 'action', 'entityType', 'entityId', 'createdAt'])
-        && request.resource.data.keys().hasOnly(['actorUserId', 'action', 'entityType', 'entityId', 'createdAt', 'details', 'before', 'after', 'reason'])
+        && request.resource.data.keys().hasOnly(['actorUserId', 'actorUserEmail', 'actorUserName', 'action', 'entityType', 'entityId', 'createdAt', 'details', 'before', 'after', 'reason'])
         && request.resource.data.actorUserId == request.auth.uid
+        && (!('actorUserEmail' in request.resource.data) || request.resource.data.actorUserEmail == null || (request.resource.data.actorUserEmail is string && request.resource.data.actorUserEmail.size() <= 320))
+        && (!('actorUserName' in request.resource.data) || request.resource.data.actorUserName == null || (request.resource.data.actorUserName is string && request.resource.data.actorUserName.size() <= 160))
         && request.resource.data.action is string
         && request.resource.data.action.size() >= 3
         && request.resource.data.action.size() <= 80
