@@ -335,6 +335,24 @@ Funcionalidades distintas do mesmo domínio devem ser submenus reais quando isso
 
 Submenus devem funcionar em desktop, sidebar recolhida, drawer mobile e teclado, com rota/estado ativo correto.
 
+### 16.4. Preservação de contexto de listagens
+
+Ao sair de uma listagem para abrir consulta, detalhe, cadastro ou edição e depois retornar, a aplicação deve preservar o contexto anterior sempre que esse contexto ainda for válido.
+
+Obrigatório:
+
+- preservar filtros ativos, busca, ordenação, paginação e seleção relevante da listagem;
+- usar a URL/query string como fonte principal do estado navegável quando o estado precisar sobreviver à troca de página;
+- atualizar esse estado com `history.replaceState` quando possível, sem reload;
+- usar `sessionStorage` somente como fallback local de curta duração, nunca como única fonte quando o estado deva ser reproduzível por URL;
+- validar qualquer `returnTo`/destino de retorno e aceitar somente URLs internas da própria aplicação;
+- não criar leituras adicionais no Firestore apenas para reconstruir filtros, paginação ou contexto visual;
+- parâmetros neutros/default devem ser omitidos da URL quando possível;
+- fluxos que permanecem na mesma página por modal/dialog não devem introduzir navegação artificial apenas para cumprir esta regra;
+- qualquer correção de regressão relacionada à perda de contexto deve incluir teste automatizado cobrindo restauração e segurança do retorno.
+
+Regra de UX: o fluxo esperado é **filtrar -> abrir/editar -> voltar -> continuar de onde estava**, sem perda de contexto e sem custo de rede desnecessário.
+
 ## 17. Erros, loading, empty states e confirmações
 
 Erros devem preservar contexto técnico sem expor detalhe sensível e apresentar mensagem amigável.
