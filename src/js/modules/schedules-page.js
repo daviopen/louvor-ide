@@ -1,7 +1,8 @@
 (function initSchedulesPage(scope) {
   if (!scope || !scope.document) return;
   const params = new URLSearchParams(scope.location.search);
-  if (params.get('section') !== 'schedules') return;
+  const view = params.get('view') || '';
+  if (params.get('section') !== 'schedules' || view) return;
 
   const DEFAULT_FILTERS = { term: '', person: 'ALL', functionId: 'ALL', from: '', to: '', sort: 'DATE_ASC' };
   const validSorts = new Set(['DATE_ASC', 'DATE_DESC', 'EVENT_ASC', 'EVENT_DESC']);
@@ -22,7 +23,7 @@
   let repository;
   let service;
   const el = id => scope.document.getElementById(id);
-  const esc = value => String(value == null ? '' : value).replace(/[&<>'\"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;' }[c]));
+  const esc = value => String(value == null ? '' : value).replace(/[&<>'\"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt',"'":'&#39;','\"':'&quot;' }[c]));
   const dateKey = value => scope.MusicIdeScheduleService.dateKey(value);
   const formatDate = value => { const key = dateKey(value); return key ? new Intl.DateTimeFormat('pt-BR').format(new Date(`${key}T12:00:00`)) : 'Data a definir'; };
   const userId = user => user.id || user.uid;
@@ -59,6 +60,7 @@
 
   function injectShell() {
     const placeholder = el('module-placeholder');
+    if (!placeholder) return false;
     placeholder.className = 'schedules-page';
     placeholder.innerHTML = `<div class="schedules-page__inner" id="schedules-root"></div>
       <div id="schedule-person-backdrop" hidden role="presentation" style="position:fixed;inset:0;z-index:var(--ide-z-modal,10000);background:rgba(0,0,0,.68);padding:max(1rem,env(safe-area-inset-top)) max(.625rem,env(safe-area-inset-right)) max(1rem,env(safe-area-inset-bottom)) max(.625rem,env(safe-area-inset-left));display:none;place-items:center;">
@@ -66,10 +68,12 @@
       </div>
       <div id="schedules-toast" class="schedules-toast" role="status" aria-live="polite" hidden></div>`;
     const backdrop = el('schedule-person-backdrop');
+    if (!backdrop) return false;
     backdrop.hidden = true;
     backdrop.style.display = 'none';
     backdrop.addEventListener('click', event => { if (event.target === backdrop) closePersonPicker(); });
     scope.document.addEventListener('keydown', event => { if (event.key === 'Escape' && !backdrop.hidden) closePersonPicker(); });
+    return true;
   }
 
   function toast(message, type='success') {
@@ -143,10 +147,12 @@
   }
 
   function renderListView() {
+    const root = el('schedules-root');
+    if (!root) return;
     syncListState();
     scope.document.title='IDE Music — Escalas';
     const items=state.data.schedules.filter(matchesFilters).sort(compareSchedules);
-    el('schedules-root').innerHTML=`<header class="schedules-header"><div><div class="ide-module-kicker">Escalas · Operação</div><h1>Escalas</h1><p>Consulte as escalas por evento e abra uma por vez para edição.</p></div></header><details id="schedules-filter-panel" class="ide-filter-panel" data-filter-panel="schedules"><summary class="ide-filter-panel__summary"><span class="ide-filter-panel__summary-main"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filtros <span class="ide-filter-panel__badge">0</span></span><span class="ide-filter-panel__summary-meta"><span class="ide-filter-panel__state">Mostrar</span></span></summary><div class="ide-filter-panel__body"><section class="schedules-filters" aria-label="Filtros de escalas"><label><span>Buscar evento</span><input id="schedule-filter-term" class="ide-field__control ide-field__input" type="search" placeholder="Evento ou local" value="${esc(state.filters.term)}"></label><label><span>Pessoa</span><select id="schedule-filter-person" class="ide-field__control ide-select" data-filter-neutral="ALL"><option value="ALL">Todas</option>${state.data.users.map(u=>`<option value="${esc(userId(u))}" ${state.filters.person===userId(u)?'selected':''}>${esc(u.name||u.email)}</option>`).join('')}</select></label><label><span>Função</span><select id="schedule-filter-function" class="ide-field__control ide-select" data-filter-neutral="ALL"><option value="ALL">Todas</option>${state.data.functions.map(fn=>`<option value="${esc(fn.id)}" ${state.filters.functionId===fn.id?'selected':''}>${esc(fn.name)}</option>`).join('')}</select></label><label><span>De</span><input id="schedule-filter-from" class="ide-field__control ide-field__input" type="date" value="${esc(state.filters.from)}"></label><label><span>Até</span><input id="schedule-filter-to" class="ide-field__control ide-field__input" type="date" value="${esc(state.filters.to)}"></label><label><span>Ordenar por</span><select id="schedule-sort" class="ide-field__control ide-select" data-filter-neutral="DATE_ASC"><option value="DATE_ASC" ${state.filters.sort==='DATE_ASC'?'selected':''}>Data · mais próxima primeiro</option><option value="DATE_DESC" ${state.filters.sort==='DATE_DESC'?'selected':''}>Data · mais distante primeiro</option><option value="EVENT_ASC" ${state.filters.sort==='EVENT_ASC'?'selected':''}>Evento · A–Z</option><option value="EVENT_DESC" ${state.filters.sort==='EVENT_DESC'?'selected':''}>Evento · Z–A</option></select></label><button id="schedule-clear-filters" class="ide-button ide-button--ghost" type="button"><i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i> Limpar filtros</button></section></div></details><div class="ide-empty-state" ${items.length?'hidden':''}><strong>Nenhuma escala encontrada</strong><span>Ajuste os filtros ou crie um evento primeiro.</span></div><section class="schedule-summary-list" aria-live="polite">${items.map(renderSummaryCard).join('')}</section>`;
+    root.innerHTML=`<header class="schedules-header"><div><div class="ide-module-kicker">Escalas · Operação</div><h1>Escalas</h1><p>Consulte as escalas por evento e abra uma por vez para edição.</p></div></header><details id="schedules-filter-panel" class="ide-filter-panel" data-filter-panel="schedules"><summary class="ide-filter-panel__summary"><span class="ide-filter-panel__summary-main"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filtros <span class="ide-filter-panel__badge">0</span></span><span class="ide-filter-panel__summary-meta"><span class="ide-filter-panel__state">Mostrar</span></span></summary><div class="ide-filter-panel__body"><section class="schedules-filters" aria-label="Filtros de escalas"><label><span>Buscar evento</span><input id="schedule-filter-term" class="ide-field__control ide-field__input" type="search" placeholder="Evento ou local" value="${esc(state.filters.term)}"></label><label><span>Pessoa</span><select id="schedule-filter-person" class="ide-field__control ide-select" data-filter-neutral="ALL"><option value="ALL">Todas</option>${state.data.users.map(u=>`<option value="${esc(userId(u))}" ${state.filters.person===userId(u)?'selected':''}>${esc(u.name||u.email)}</option>`).join('')}</select></label><label><span>Função</span><select id="schedule-filter-function" class="ide-field__control ide-select" data-filter-neutral="ALL"><option value="ALL">Todas</option>${state.data.functions.map(fn=>`<option value="${esc(fn.id)}" ${state.filters.functionId===fn.id?'selected':''}>${esc(fn.name)}</option>`).join('')}</select></label><label><span>De</span><input id="schedule-filter-from" class="ide-field__control ide-field__input" type="date" value="${esc(state.filters.from)}"></label><label><span>Até</span><input id="schedule-filter-to" class="ide-field__control ide-field__input" type="date" value="${esc(state.filters.to)}"></label><label><span>Ordenar por</span><select id="schedule-sort" class="ide-field__control ide-select" data-filter-neutral="DATE_ASC"><option value="DATE_ASC" ${state.filters.sort==='DATE_ASC'?'selected':''}>Data · mais próxima primeiro</option><option value="DATE_DESC" ${state.filters.sort==='DATE_DESC'?'selected':''}>Data · mais distante primeiro</option><option value="EVENT_ASC" ${state.filters.sort==='EVENT_ASC'?'selected':''}>Evento · A–Z</option><option value="EVENT_DESC" ${state.filters.sort==='EVENT_DESC'?'selected':''}>Evento · Z–A</option></select></label><button id="schedule-clear-filters" class="ide-button ide-button--ghost" type="button"><i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i> Limpar filtros</button></section></div></details><div class="ide-empty-state" ${items.length?'hidden':''}><strong>Nenhuma escala encontrada</strong><span>Ajuste os filtros ou crie um evento primeiro.</span></div><section class="schedule-summary-list" aria-live="polite">${items.map(renderSummaryCard).join('')}</section>`;
     if (scope.MusicIdeFilterPanels) scope.MusicIdeFilterPanels.bootstrap();
     wireListFilters();
   }
@@ -167,12 +173,13 @@
 
   function renderEditorView() {
     const schedule=currentSchedule(), root=el('schedules-root');
+    if (!root) return;
     if (!schedule) { root.innerHTML=`<div class="ide-empty-state"><strong>Escala não encontrada</strong><a class="ide-button ide-button--secondary" href="${listUrl()}">Voltar para Escalas</a></div>`; return; }
     orderScheduleSlots(schedule);
     const event=scheduleEvent(schedule), slots=Array.isArray(schedule.slots)?schedule.slots:[], complete=schedule.completeness.complete;
     const addOptions=state.data.functions.map(fn=>`<option value="${esc(fn.id)}">${esc(fn.name)}</option>`).join('');
     scope.document.title=`IDE Music — ${event.name||'Editar escala'}`;
-    root.innerHTML=`<nav class="schedule-breadcrumb" aria-label="Breadcrumb"><a href="${listUrl()}">Escalas</a><span>/</span><span>${esc(event.name||'Evento')}</span></nav><header class="schedule-editor-header"><div><a class="schedule-back" href="${listUrl()}"><i class="fa-solid fa-arrow-left"></i> Voltar para escalas</a><span class="schedule-card__date">${esc(formatDate(event.date||schedule.eventDate))}${event.time||schedule.eventTime?` · ${esc(event.time||schedule.eventTime)}`:''}</span><h1>${esc(event.name||'Evento')}</h1>${event.location?`<p>${esc(event.location)}</p>`:''}</div><div class="schedule-card__status"><span class="${complete?'ide-badge ide-badge--success':'ide-badge ide-badge--warning'}">${complete?'Completa':'Incompleta'}</span><small>${schedule.completeness.filled}/${schedule.completeness.total} posições preenchidas</small></div></header><section class="schedule-editor-card" data-schedule-id="${esc(schedule.id)}"><div class="schedule-editor-card__heading"><div><span class="ide-module-kicker">Equipe do evento</span><h2>Monte a escala</h2><p>Selecione somente pessoas disponíveis para cada função.</p></div><strong>${slots.length} posições</strong></div><div class="schedule-slots">${slots.length?slots.map(slot=>renderSlot(schedule,slot)).join(''):'<div class="ide-empty-state schedule-empty"><strong>Nenhuma função adicionada</strong><span>Adicione as funções necessárias para este evento.</span></div>'}</div>${state.data.access.canEdit?`<footer class="schedule-card__footer"><div><span>Precisa de outra posição?</span><small>Adicione apenas para este evento.</small></div><div class="schedule-card__footer-actions"><select class="ide-field__control ide-select" data-new-function><option value="">Adicionar função...</option>${addOptions}</select><button class="ide-button ide-button--primary ide-button--sm" data-action="add-slot" type="button"><i class="fa-solid fa-plus" aria-hidden="true"></i> Adicionar função</button></div></footer>`:''}</section>`;
+    root.innerHTML=`<nav class="schedule-breadcrumb" aria-label="Breadcrumb"><a href="${listUrl()}">Escalas</a><span>/</span><span>${esc(event.name||'Evento')}</span></nav><header class="schedule-editor-header"><div><a class="schedule-back" href="${listUrl()}"><i class="fa-solid fa-arrow-left"></i> Voltar para escalas</a><span class="schedule-card__date">${esc(formatDate(event.date||schedule.eventDate))}${event.time||schedule.eventTime?` · ${esc(event.time||schedule.eventTime)}`:''}</span><h1>${esc(event.name||'Evento')}</h1>${event.location?`<p>${esc(event.location)}</p>`:''}</div><div class="schedule-card__status"><span class="${complete?'ide-badge ide-badge--success':'ide-badge ide-badge--warning'}">${complete?'Completa':'Incompleta'}</span><small>${schedule.completeness.filled}/${schedule.completeness.total} posições preenchidas</small></div></header><section class="schedule-editor-card" data-schedule-id="${esc(schedule.id)}"><div class="schedule-editor-card__heading"><div><span class="ide-module-kicker">Equipe do evento</span><h2>Monte a escala</h2><p>Selecione somente pessoas disponíveis para cada função.</p></div><strong>${slots.length} posições</strong></div><div class="schedule-slots">${slots.length?slots.map(slot=>renderSlot(schedule,slot)).join(''):'<div class="ide-empty-state schedule-empty"><strong>Nenhuma função adicionada</strong><span>Adicione as funções necessárias para este evento.</span></div>'}</div>${state.data.access.canEdit?`<footer class="schedule-card__footer"><div><span>Precisa de outra posição?</span><small>Adicione apenas para este evento.</small></div><div class="schedule-card__footer-actions"><select class="ide-field__control ide-select" data-new-function aria-label="Função para adicionar à escala"><option value="">Adicionar função...</option>${addOptions}</select><button class="ide-button ide-button--primary ide-button--sm" data-action="add-slot" type="button"><i class="fa-solid fa-plus" aria-hidden="true"></i> Adicionar função</button></div></footer>`:''}</section>`;
     root.onclick=handleEditorClick;
   }
 
@@ -185,10 +192,12 @@
     const options=current&&!currentEligible?[current,...eligible]:eligible;
     const uniqueOptions=[...new Map(options.map(user=>[userId(user),user])).values()];
     const dialog=el('schedule-person-dialog');
+    if (!dialog) return;
     state.picker={scheduleId:schedule.id,slotId:slot.id};
     dialog.innerHTML=`<div class="schedule-person-options__header"><div><strong id="schedule-person-dialog-title"><span class="schedule-function-name">${renderFunctionDot(slot.functionId)}${esc(slotFunctionLabel(schedule,slot))}</span></strong><small>${uniqueOptions.length} pessoa${uniqueOptions.length===1?'':'s'} disponível${uniqueOptions.length===1?'':'is'}</small></div><button class="ide-button ide-button--ghost ide-button--sm" type="button" data-modal-action="close" aria-label="Fechar seleção"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>${uniqueOptions.length?uniqueOptions.map(user=>renderPersonOption(user,member?.userId)).join(''):'<div class="schedule-person-options__empty">Nenhuma pessoa disponível para esta função.</div>'}`;
     dialog.onclick=handleModalClick;
     const backdrop=el('schedule-person-backdrop');
+    if (!backdrop) return;
     backdrop.hidden=false;
     backdrop.style.display='grid';
     scope.requestAnimationFrame(()=>dialog.focus());
@@ -256,7 +265,8 @@
     try{
       if(button.dataset.action==='open-person-picker'){if(slot)openPersonPicker(schedule,slot);return;}
       if(button.dataset.action==='add-slot'){
-        const functionId=el('schedules-root').querySelector('[data-new-function]').value;
+        const root = el('schedules-root');
+        const functionId=root?.querySelector('[data-new-function]')?.value || '';
         if(!functionId)return toast('Selecione uma função.','error');
         button.disabled=true;
         const optimistic={id:`pending_slot_${Date.now()}`,functionId};
@@ -283,12 +293,12 @@
   }
 
   function wireListFilters(){
-    [['schedule-filter-term','term','input'],['schedule-filter-person','person','change'],['schedule-filter-function','functionId','change'],['schedule-filter-from','from','change'],['schedule-filter-to','to','change'],['schedule-sort','sort','change']].forEach(([id,key,type])=>el(id).addEventListener(type,event=>{state.filters[key]=event.target.value;renderListView();if(key==='term')el('schedule-filter-term').focus();}));
-    el('schedule-clear-filters').addEventListener('click',()=>{state.filters={...DEFAULT_FILTERS};renderListView();});
+    [['schedule-filter-term','term','input'],['schedule-filter-person','person','change'],['schedule-filter-function','functionId','change'],['schedule-filter-from','from','change'],['schedule-filter-to','to','change'],['schedule-sort','sort','change']].forEach(([id,key,type])=>el(id)?.addEventListener(type,event=>{state.filters[key]=event.target.value;renderListView();if(key==='term')el('schedule-filter-term')?.focus();}));
+    el('schedule-clear-filters')?.addEventListener('click',()=>{state.filters={...DEFAULT_FILTERS};renderListView();});
   }
 
   async function bootstrap(){
-    injectShell();
+    if (!injectShell()) return;
     const authUser=await scope.musicIdeAuthReady;if(!authUser)return;
     if(!scope.firebase?.firestore||!scope.MusicIdeScheduleRepository||!scope.MusicIdeScheduleService)return toast('Módulo de escalas indisponível.','error');
     repository=new scope.MusicIdeScheduleRepository.ScheduleRepository(scope.firebase.firestore());
