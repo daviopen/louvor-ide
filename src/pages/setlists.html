@@ -43,10 +43,10 @@
         <section id="filters" class="filters" aria-label="Filtros de Setlists">
           <div class="field"><label for="filter-from">Data inicial</label><input id="filter-from" type="date" data-filter-neutral=""></div>
           <div class="field"><label for="filter-to">Data final</label><input id="filter-to" type="date" data-filter-neutral=""></div>
-          <div class="field"><label for="filter-event">Evento</label><input id="filter-event" type="search" placeholder="Nome do evento" data-filter-neutral=""></div>
-          <div class="field"><label for="filter-minister">Ministro</label><input id="filter-minister" type="search" placeholder="Nome do ministro" data-filter-neutral=""></div>
+          <div class="field"><label for="filter-event">Evento</label><select id="filter-event" data-filter-neutral=""><option value="">Todos os eventos</option></select></div>
+          <div class="field"><label for="filter-minister">Ministro</label><select id="filter-minister" data-filter-neutral=""><option value="">Todos os ministros</option></select></div>
           <div class="field"><label for="filter-status">Status</label><select id="filter-status" data-filter-neutral=""><option value="">Todos</option><option value="DRAFT">Rascunho</option><option value="READY">Pronto</option><option value="COMPLETED">Concluído</option><option value="CANCELLED">Cancelado</option></select></div>
-          <div class="field"><label for="filter-participant">Participante</label><input id="filter-participant" type="search" placeholder="Nome do participante" data-filter-neutral=""></div>
+          <div class="field"><label for="filter-participant">Participante</label><select id="filter-participant" data-filter-neutral=""><option value="">Todos os participantes</option></select></div>
           <div class="field"><label for="filter-song">Música</label><input id="filter-song" type="search" placeholder="Título da música" data-filter-neutral=""></div>
           <div class="field"><label for="filter-theme">Tema</label><input id="filter-theme" type="search" placeholder="Tema do evento" data-filter-neutral=""></div>
           <div class="filter-actions"><button id="clear-filters" class="ide-button ide-button--ghost" type="button"><i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i> Limpar filtros</button></div>
@@ -66,6 +66,6 @@
   </main>
 
   <script src="../services/setlist-history-service.js?v=20260831-upcoming-filters"></script>
-  <script src="../js/pages/setlists-simple.js?v=20260831-upcoming-filters"></script>
+  <script src="../js/pages/setlists-simple.js?v=20260831-filter-selects"></script>
 </body>
 </html>
