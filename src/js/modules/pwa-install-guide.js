@@ -1,6 +1,15 @@
 (function initPwaInstallGuide(scope) {
   if (!scope || !scope.document) return;
 
+  function loadMobileAuthCompat() {
+    if (scope.document.querySelector('script[data-ide-mobile-auth-compat]')) return;
+    const script = scope.document.createElement('script');
+    script.src = '../js/modules/mobile-auth-compat.js?v=20260831-mobile-auth';
+    script.async = false;
+    script.setAttribute('data-ide-mobile-auth-compat', 'true');
+    scope.document.head.appendChild(script);
+  }
+
   function mountLoginHint() {
     const panel = scope.document.querySelector('.access-panel');
     if (!panel || scope.document.getElementById('login-install-hint')) return;
@@ -13,6 +22,8 @@
 
   const page = String(scope.location?.pathname || '').split('/').pop();
   if (page !== 'login.html') return;
+
+  loadMobileAuthCompat();
   if (scope.document.readyState === 'loading') scope.document.addEventListener('DOMContentLoaded', mountLoginHint, { once: true });
   else mountLoginHint();
 })(window);
