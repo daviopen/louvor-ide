@@ -1,0 +1,61 @@
+name: 🎤 Song Minister Keys Pilot
+
+on:
+  push:
+    branches:
+      - chore/song-catalog-migration-final
+    paths:
+      - 'src/scripts/migrate-song-minister-keys.cjs'
+      - '.github/workflows/song-minister-keys-pilot.yml'
+
+concurrency:
+  group: song-minister-keys-pilot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install --no-save firebase-admin@13.4.0
+
+      - name: Authenticate Firebase service account
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
+
+      - name: Plan legacy minister-key migration (read only)
+        env:
+          GOOGLE_CLOUD_PROJECT: louvor-ide
+          GCLOUD_PROJECT: louvor-ide
+        run: node src/scripts/migrate-song-minister-keys.cjs --mode=plan > minister-keys-plan.json
+
+      - name: Validate plan has safe pilot candidates
+        run: |
+          node - <<'NODE'
+          const p=require('./minister-keys-plan.json');
+          if(!p.summary) throw new Error('Plano inválido.');
+          if(p.summary.ambiguous > 0) console.log(`Atenção: ${p.summary.ambiguous} vínculo(s) ambíguo(s) no catálogo; eles não serão escritos.`);
+          if(!p.pilotCandidates?.length) throw new Error('Nenhum piloto seguro com 2+ ministros foi encontrado.');
+          console.log(JSON.stringify({summary:p.summary,pilotCandidates:p.pilotCandidates},null,2));
+          NODE
+
+      - name: Upload plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: song-minister-keys-plan
+          path: minister-keys-plan.json
+          retention-days: 30
