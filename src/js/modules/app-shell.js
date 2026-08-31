@@ -16,7 +16,9 @@
     { id: 'schedules', label: 'Escalas', items: [
       { id: 'unavailability', label: 'Indisponibilidade', href: 'module.html?section=unavailability', icon: 'fa-calendar-xmark', permission: 'unavailability' },
       { id: 'events', label: 'Eventos', href: 'module.html?section=events', icon: 'fa-calendar-days', permission: 'events' },
-      { id: 'schedules', label: 'Escalas', href: 'module.html?section=schedules', icon: 'fa-calendar-check', permission: 'schedules' }
+      { id: 'schedules', label: 'Escalas', href: 'module.html?section=schedules', icon: 'fa-calendar-check', permission: 'schedules' },
+      { id: 'schedules-export', label: 'Exportar', href: 'module.html?section=schedules&view=export', icon: 'fa-file-pdf', permission: 'schedules' },
+      { id: 'schedules-participation', label: 'Participações', href: 'module.html?section=schedules&view=participation', icon: 'fa-chart-column', permission: 'schedules' }
     ] },
     { id: 'setlists', label: 'Setlist', items: [
       { id: 'setlists-upcoming', label: 'Próximos', href: 'setlists.html?view=upcoming', icon: 'fa-list-check', permission: 'setlists' },
@@ -76,6 +78,11 @@
     if (page === 'module.html') {
       const section = params.get('section');
       if (section === 'settings') return params.get('tab') === 'functions' ? 'settings-functions' : 'settings-template';
+      if (section === 'schedules') {
+        const scheduleView = params.get('view');
+        if (scheduleView === 'export') return 'schedules-export';
+        if (scheduleView === 'participation') return 'schedules-participation';
+      }
       return moduleSections.has(section) ? section : 'dashboard';
     }
     if (page === 'setlists.html') return params.get('view') === 'history' ? 'setlists-history' : 'setlists-upcoming';
