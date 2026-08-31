@@ -20,8 +20,8 @@ function normalized(value) {
 }
 
 test('primary lime surfaces never declare white/on-dark text in the same CSS rule', () => {
-  const primaryBackground = /background(?:-color)?\s*:\s*(?:var\(--ide-primary\)|var\(--ide-color-lime-500\)|#d8ff45)\b/i;
-  const forbiddenText = /color\s*:\s*(?:white|#fff(?:fff)?|var\(--ide-color-white\)|var\(--ide-text-on-dark\))\b/i;
+  const primaryBackground = /background(?:-color)?\s*:\s*(?:var\(--ide-primary\)|var\(--ide-color-lime-500\)|#d8ff45)/i;
+  const forbiddenText = /color\s*:\s*(?:white|#fff(?:fff)?|var\(--ide-color-white\)|var\(--ide-text-on-dark\))/i;
   const violations = [];
 
   for (const file of cssFiles(path.join(root, 'src'))) {
