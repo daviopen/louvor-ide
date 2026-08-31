@@ -7,18 +7,19 @@
   const getView=()=>new URLSearchParams(location.search).get('view')==='history'?'history':'upcoming';
   async function user(){return new Promise((resolve,reject)=>firebase.auth().onAuthStateChanged(u=>u?resolve(u):reject(new Error('Faça login para consultar Setlists.'))));}
   const docs=snap=>snap.docs.map(d=>({id:d.id,...d.data()}));
+  const filterIds=['filter-from','filter-to','filter-event','filter-minister','filter-status','filter-participant','filter-song','filter-theme'];
 
   function configureView(){
     state.view=getView();
     const history=state.view==='history';
     $('page-title').textContent=history?'Histórico de Setlists':'Próximos Setlists';
-    $('page-subtitle').textContent=history?'Consulte repertórios anteriores com filtros por evento, ministro, música e tema.':'Repertórios dos próximos eventos e escalas.';
-    $('setlists-filter-panel').hidden=!history;
+    $('page-subtitle').textContent=history?'Consulte repertórios anteriores com filtros por evento, ministro, música, tema, status e participantes.':'Repertórios dos próximos eventos e escalas. Use os filtros para localizar rapidamente por data, ministro, status ou participante.';
+    $('setlists-filter-panel').hidden=false;
     $('filters').hidden=false;
     $('view-hint').textContent=history?'Setlists históricos são abertos em modo somente leitura.':'Edite a montagem ou abra o repertório para usar cifras, letras e modo palco.';
   }
 
-  function filters(){return {from:$('filter-from').value,to:$('filter-to').value,event:$('filter-event').value,minister:$('filter-minister').value,song:$('filter-song').value,theme:$('filter-theme').value};}
+  function filters(){return {from:$('filter-from').value,to:$('filter-to').value,event:$('filter-event').value,minister:$('filter-minister').value,status:$('filter-status').value,participant:$('filter-participant').value,song:$('filter-song').value,theme:$('filter-theme').value};}
 
   function statusLabel(status){
     const normalized=String(status||'DRAFT').trim().toUpperCase();
@@ -61,19 +62,26 @@
   }
 
   function render(){
-    const selected=state.view==='history'?state.items.history:state.items.upcoming;
-    state.filtered=state.view==='history'?MusicIdeSetlistHistory.filter(selected,filters()):selected;
-    const page=MusicIdeSetlistHistory.paginate(state.filtered,state.page,state.pageSize); state.page=page.page;
+    const history=state.view==='history';
+    const selected=history?state.items.history:state.items.upcoming;
+    state.filtered=MusicIdeSetlistHistory.filter(selected,filters());
+    const page=history
+      ? MusicIdeSetlistHistory.paginate(state.filtered,state.page,state.pageSize)
+      : {items:state.filtered,page:1,pageSize:state.filtered.length,total:state.filtered.length,totalPages:1};
+    state.page=page.page;
     $('result-count').textContent=`${page.total} Setlist${page.total===1?'':'s'} encontrado${page.total===1?'':'s'}`;
     $('loading').hidden=true; $('setlists-list').hidden=!page.items.length; $('empty-state').hidden=Boolean(page.items.length);
     $('setlists-list').innerHTML=page.items.map(card).join('');
-    $('pagination').hidden=page.totalPages<=1; $('page-info').textContent=`Página ${page.page} de ${page.totalPages}`; $('prev-page').disabled=page.page<=1; $('next-page').disabled=page.page>=page.totalPages;
+    $('pagination').hidden=!history||page.totalPages<=1;
+    $('page-info').textContent=`Página ${page.page} de ${page.totalPages}`;
+    $('prev-page').disabled=page.page<=1;
+    $('next-page').disabled=page.page>=page.totalPages;
     $('setlists-filter-panel')?.dispatchEvent(new CustomEvent('ideFiltersChanged'));
   }
 
   function bind(){
-    ['filter-from','filter-to','filter-event','filter-minister','filter-song','filter-theme'].forEach(id=>$(id).addEventListener('input',()=>{state.page=1;render();}));
-    $('clear-filters').addEventListener('click',()=>{['filter-from','filter-to','filter-event','filter-minister','filter-song','filter-theme'].forEach(id=>$(id).value='');state.page=1;render();});
+    filterIds.forEach(id=>$(id).addEventListener('input',()=>{state.page=1;render();}));
+    $('clear-filters').addEventListener('click',()=>{filterIds.forEach(id=>$(id).value='');state.page=1;render();});
     $('prev-page').addEventListener('click',()=>{state.page--;render();window.scrollTo({top:0,behavior:'smooth'});});
     $('next-page').addEventListener('click',()=>{state.page++;render();window.scrollTo({top:0,behavior:'smooth'});});
   }
@@ -81,11 +89,42 @@
   async function init(){
     try{
       if(!firebase.apps.length) firebase.initializeApp(firebaseConfig); const db=firebase.firestore(); await user(); configureView(); bind();
-      const [setlistSnap,eventSnap,setlistSongSnap,userSnap,songSnap]=await Promise.all([db.collection('setlists').get(),db.collection('events').get(),db.collection('setlistSongs').get(),db.collection('users').get(),db.collection('songs').get()]);
-      const events=new Map(docs(eventSnap).map(item=>[item.id,item])); const users=new Map(docs(userSnap).map(item=>[item.id,item]));
+      const [setlistSnap,eventSnap,setlistSongSnap,userSnap,songSnap,scheduleMemberSnap]=await Promise.all([
+        db.collection('setlists').get(),
+        db.collection('events').get(),
+        db.collection('setlistSongs').get(),
+        db.collection('users').get(),
+        db.collection('songs').get(),
+        db.collection('scheduleMembers').get()
+      ]);
+      const events=new Map(docs(eventSnap).map(item=>[item.id,item]));
+      const users=new Map(docs(userSnap).map(item=>[item.id,item]));
       let library=docs(songSnap); if(!library.length){try{library=docs(await db.collection('musicas').get());}catch(_){library=[];}}
-      const libraryMap=new Map(library.map(item=>[item.id,item])); const grouped=new Map(); docs(setlistSongSnap).filter(item=>item.active!==false).forEach(song=>{const list=grouped.get(song.setlistId)||[];list.push(song);grouped.set(song.setlistId,list);});
-      const normalized=docs(setlistSnap).map(item=>MusicIdeSetlistHistory.normalizeItem(item,{event:events.get(item.eventId)||{},songs:(grouped.get(item.id)||[]).sort((a,b)=>Number(a.order||0)-Number(b.order||0)),users,library:libraryMap}));
+      const libraryMap=new Map(library.map(item=>[item.id,item]));
+      const grouped=new Map();
+      docs(setlistSongSnap).filter(item=>item.active!==false).forEach(song=>{const list=grouped.get(song.setlistId)||[];list.push(song);grouped.set(song.setlistId,list);});
+      const participantsBySchedule=new Map();
+      docs(scheduleMemberSnap).filter(item=>item.active!==false).forEach(member=>{
+        const scheduleId=String(member.scheduleId||'').trim();
+        if(!scheduleId) return;
+        const linkedUser=users.get(member.userId)||{};
+        const participantName=member.userName||member.name||linkedUser.name||linkedUser.displayName||linkedUser.email||'';
+        if(!participantName) return;
+        const names=participantsBySchedule.get(scheduleId)||[];
+        names.push(participantName);
+        participantsBySchedule.set(scheduleId,names);
+      });
+      const normalized=docs(setlistSnap).map(item=>{
+        const event=events.get(item.eventId)||{};
+        const scheduleId=item.scheduleId||event.scheduleId||(item.eventId?`schedule_${item.eventId}`:'');
+        return MusicIdeSetlistHistory.normalizeItem(item,{
+          event,
+          songs:(grouped.get(item.id)||[]).sort((a,b)=>Number(a.order||0)-Number(b.order||0)),
+          users,
+          library:libraryMap,
+          participantNames:participantsBySchedule.get(scheduleId)||[]
+        });
+      });
       state.items=MusicIdeSetlistHistory.split(normalized,new Date()); render();
     }catch(error){console.error(error);$('loading').innerHTML=`<p style="color:var(--error,#a63f3f)">${esc(error.message||'Erro ao carregar Setlists.')}</p>`;$('result-count').textContent='Não foi possível carregar os Setlists';}
   }
