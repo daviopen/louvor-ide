@@ -46,6 +46,11 @@ jobs:
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
         run: npm run build
 
+      - name: 🔐 Usar domínio de autenticação first-party
+        env:
+          FIREBASE_HOSTING_AUTH_DOMAIN: louvor-ide.web.app
+        run: node src/scripts/normalize-auth-domain.js js/env-config.js "$FIREBASE_HOSTING_AUTH_DOMAIN"
+
       - name: 🎨 Normalizar cores legadas do artefato
         run: node src/scripts/normalize-built-html-colors.js .
 
@@ -112,10 +117,15 @@ jobs:
             https://louvor-ide.web.app/ \
             https://louvor-ide.web.app/login.html \
             https://louvor-ide.web.app/styles/tokens.css \
-            https://louvor-ide.web.app/js/modules/auth-service.js
+            https://louvor-ide.web.app/js/modules/auth-service.js \
+            https://louvor-ide.web.app/js/modules/mobile-auth-compat.js
           do
             status="$(curl -sS -o /dev/null -w '%{http_code}' "$url")"
             test "$status" = "200" || { echo "❌ $url retornou HTTP $status"; exit 1; }
             echo "✅ $url"
           done
+          curl --fail-with-body -sS https://louvor-ide.web.app/js/env-config.js -o /tmp/env-config.js
+          grep -q "VITE_FIREBASE_AUTH_DOMAIN: 'louvor-ide.web.app'" /tmp/env-config.js || { echo '❌ authDomain first-party não foi publicado'; exit 1; }
+          curl --fail-with-body -sS https://louvor-ide.web.app/__/firebase/init.json -o /tmp/firebase-init.json
+          jq -e '.projectId == "louvor-ide"' /tmp/firebase-init.json >/dev/null || { echo '❌ Firebase Hosting auth helper aponta para projeto incorreto'; exit 1; }
           echo "✅ Smoke test concluído sem autenticação, navegação E2E ou acesso ao Firestore"
