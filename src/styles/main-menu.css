@@ -93,3 +93,28 @@ body.ide-shell-enabled.ide-sidebar-collapsed { padding-left: var(--ide-sidebar-c
 @media (min-width:901px) {
   .ide-sidebar-toggle,.ide-sidebar-overlay { display:none!important; }
 }
+
+/* QA hardening — regras globais derivadas da auditoria visual de produção. */
+.ide-sidebar-brand{min-height:44px;align-items:center}
+.ide-sidebar-collapse{width:44px;height:44px;flex-basis:44px}
+.ide-sidebar-link{min-height:44px}
+.ide-sidebar-legal a{display:inline-flex;align-items:center;min-height:44px}
+.ide-sidebar-account .music-ide-signout,.ide-sidebar-account .music-ide-theme-select{min-height:44px}
+.ide-module-kicker{color:var(--music-accent-text)}
+.ide-button.ide-button--sm{min-height:44px}
+.ide-button--icon.ide-button--sm{width:44px;min-width:44px}
+.ide-search-select__option,.ide-pagination__button{min-height:44px}
+.ide-pagination__button{min-width:44px}
+.ide-chip__remove{width:44px;height:44px}
+.ide-field--sm .ide-field__control{min-height:44px}
+body.ide-shell-enabled :where(.unavailability-page,.schedules-page__inner,.ide-help){box-sizing:border-box;width:100%;min-width:0}
+body.ide-shell-enabled .unavailability-page{max-width:1500px}
+body.ide-shell-enabled .schedules-page__inner{max-width:1180px}
+body.ide-shell-enabled .ide-help{max-width:1500px}
+body.ide-shell-enabled .unavailability-day--outside{opacity:1;color:var(--ide-text-secondary)}
+.unavailability-calendar-row{display:contents}
+body.ide-shell-enabled .songs-header h1{color:var(--ide-text-on-dark)!important}
+body.ide-shell-enabled .songs-header p{color:var(--ide-text-on-dark-secondary)!important}
+body.ide-shell-enabled .songs-clear{color:var(--music-accent-text)!important}
+body.ide-shell-enabled .songs-pagination button{min-height:44px!important}
+body.ide-shell-enabled .song-cifra:focus-visible{outline:3px solid var(--ide-focus-ring);outline-offset:2px}
