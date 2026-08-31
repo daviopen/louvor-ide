@@ -13,8 +13,6 @@
     const history=state.view==='history';
     $('page-title').textContent=history?'Histórico de Setlists':'Próximos Setlists';
     $('page-subtitle').textContent=history?'Consulte repertórios anteriores com filtros por evento, ministro, música e tema.':'Repertórios dos próximos eventos e escalas.';
-    $('tab-upcoming').classList.toggle('active',!history); $('tab-history').classList.toggle('active',history);
-    $('tab-upcoming').setAttribute('aria-current',history?'false':'page'); $('tab-history').setAttribute('aria-current',history?'page':'false');
     $('setlists-filter-panel').hidden=!history;
     $('filters').hidden=false;
     $('view-hint').textContent=history?'Setlists históricos são abertos em modo somente leitura.':'Edite a montagem ou abra o repertório para usar cifras, letras e modo palco.';
