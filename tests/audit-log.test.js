@@ -44,7 +44,8 @@ test('authentication audits successful login and logout without credentials', ()
     /AUTH_LOGOUT/,
     /entityType: 'auth'/,
     /entityId: user\.uid/,
-    /createdAt: timestamp\(\)/,
+    /function auditPayload\(user, action, createdAt = timestamp\(\)\)/,
+    /createdAt/,
     /await record\(user, 'AUTH_LOGOUT'\)/
   ]);
   assert.doesNotMatch(authAudit, /user\.email/);

@@ -1,11 +1,6 @@
 name: 👤 User Last Access Backfill
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/user-last-access-backfill.yml'
   workflow_dispatch:
 
 concurrency:
