@@ -108,13 +108,14 @@
     if (scope.MusicIdeAuth.__mobileCompatInstalled) return true;
 
     const auth = scope.firebase.auth();
+    const initialStrategy = googleAuthStrategy(scope.navigator);
 
     scope.MusicIdeAuth.signInWithGoogle = async function signInWithGoogleResponsive() {
       const strategy = googleAuthStrategy(scope.navigator);
       report(scope, 'auth.google.strategy', { strategy, mobile: isMobileBrowser(scope.navigator), embedded: isEmbeddedBrowser(scope.navigator) });
 
       if (strategy === 'external-browser') {
-        setLoginMessage(scope, embeddedBrowserMessage(scope.navigator));
+        setLoginMessage(scope, embeddedBrowserMessage(scope.navigator), 'info');
         return null;
       }
 
@@ -147,6 +148,9 @@
 
     scope.MusicIdeAuth.__mobileCompatInstalled = true;
     scope.MusicIdeAuth.googleAuthStrategy = () => googleAuthStrategy(scope.navigator);
+    if (initialStrategy === 'external-browser') {
+      setLoginMessage(scope, embeddedBrowserMessage(scope.navigator), 'info');
+    }
     return true;
   }
 
