@@ -45,6 +45,20 @@ async function loadMinisters() {
   renderMinisters();
 }
 
+async function ensureLinkedMinistersVisible(userIds = []) {
+  const knownIds = new Set(ministers.map(minister => minister.id));
+  const missingIds = [...new Set(userIds.filter(Boolean))].filter(userId => !knownIds.has(userId));
+  if (!missingIds.length) return;
+
+  const linkedUsers = await musicRepository.listUsersByIds(missingIds);
+  linkedUsers.forEach(user => {
+    if (knownIds.has(user.id)) return;
+    ministers.push({ ...user, linkedOutsideMinisterRole: true });
+    knownIds.add(user.id);
+  });
+  ministers.sort((a, b) => String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'pt-BR'));
+}
+
 function renderMinisters(selected = new Map()) {
   ministerList.replaceChildren();
 
@@ -67,14 +81,18 @@ function renderMinisters(selected = new Map()) {
     checkbox.dataset.userName = minister.name || minister.email || 'Ministro';
 
     const name = document.createElement('span');
-    name.textContent = minister.name || minister.email || 'Ministro';
+    const displayName = minister.name || minister.email || 'Ministro';
+    name.textContent = minister.linkedOutsideMinisterRole ? `${displayName} (vínculo existente)` : displayName;
+    if (minister.linkedOutsideMinisterRole) {
+      row.title = 'Este usuário já está vinculado à música, mas não possui a função Ministro ativa no momento.';
+    }
 
     const key = document.createElement('input');
     key.type = 'text';
     key.className = 'minister-key';
     key.maxLength = 12;
     key.placeholder = 'Tom';
-    key.setAttribute('aria-label', `Tom preferido de ${name.textContent}`);
+    key.setAttribute('aria-label', `Tom preferido de ${displayName}`);
 
     if (selected.has(minister.id)) {
       checkbox.checked = true;
@@ -192,6 +210,7 @@ async function loadEdit() {
   if (!keys.size && Array.isArray(song.ministerUserIds)) {
     song.ministerUserIds.forEach(userId => keys.set(userId, ''));
   }
+  await ensureLinkedMinistersVisible([...keys.keys()]);
   renderMinisters(keys);
   clearStatus();
   return song;
