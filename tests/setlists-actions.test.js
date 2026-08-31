@@ -65,6 +65,7 @@ test('event, minister and participant filters list available names', () => {
 test('upcoming setlists render all filtered results without pagination', () => {
   assert.match(js, /const page=history[\s\S]*MusicIdeSetlistHistory\.paginate\(state\.filtered,state\.page,state\.pageSize\)[\s\S]*items:state\.filtered/);
   assert.match(js, /\$\('pagination'\)\.hidden=!history\|\|page\.totalPages<=1/);
+  assert.match(html, /\.pagination\[hidden\]\{display:none!important\}/);
 });
 
 test('actions remain responsive on mobile', () => {
