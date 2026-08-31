@@ -5,12 +5,15 @@
 .unavailability-page[hidden]{display:none!important}
 .unavailability-header{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--ide-space-5);flex-wrap:wrap}
 .unavailability-header h1,.unavailability-section-heading h2,.unavailability-dialog h2{margin:var(--ide-space-1) 0 var(--ide-space-2)}
-.unavailability-header p{margin:0;max-width:760px;color:var(--ide-text-secondary);line-height:var(--ide-line-height-relaxed)}
+.unavailability-header h1{color:var(--ide-text-on-dark)}
+.unavailability-header p{margin:0;max-width:760px;color:var(--ide-text-on-dark-secondary);line-height:var(--ide-line-height-relaxed)}
+.unavailability-header .ide-module-kicker{color:var(--ide-primary)}
 .unavailability-admin-note{display:flex;gap:var(--ide-space-3);align-items:flex-start;padding:var(--ide-space-4);border:1px solid var(--ide-border);border-radius:var(--ide-radius-md);background:var(--ide-surface-secondary);color:var(--ide-text-secondary)}
 .unavailability-layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);gap:var(--ide-space-5);align-items:start}
 .unavailability-calendar-card,.unavailability-list-card{min-width:0}
 .unavailability-section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--ide-space-4);margin-bottom:var(--ide-space-4)}
 .unavailability-calendar-nav{display:flex;align-items:center;gap:var(--ide-space-2)}
+.unavailability-calendar-nav .ide-button{width:44px;min-width:44px;height:44px;min-height:44px;padding:0}
 .unavailability-calendar-nav strong{min-width:145px;text-align:center;text-transform:capitalize}
 .unavailability-weekdays,.unavailability-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:var(--ide-space-1)}
 .unavailability-weekdays{margin-bottom:var(--ide-space-1);color:var(--ide-text-secondary);font-size:var(--ide-font-size-xs);font-weight:var(--ide-font-weight-semibold);text-align:center}
@@ -55,4 +58,4 @@
 .unavailability-toast{position:fixed;right:var(--ide-space-5);bottom:calc(var(--ide-space-8) + 64px);z-index:var(--ide-z-modal);max-width:min(420px,calc(100vw - 2rem));padding:var(--ide-space-4);border:1px solid var(--ide-border);border-radius:var(--ide-radius-md);background:var(--ide-surface);box-shadow:var(--ide-shadow-md)}
 .unavailability-toast[data-type="error"]{border-color:var(--ide-error)}
 @media(max-width:1050px){.unavailability-layout{grid-template-columns:1fr}}
-@media(max-width:700px){.unavailability-page{padding:var(--ide-space-4) var(--ide-space-3) calc(var(--ide-space-16) + var(--ide-space-8))}.unavailability-header .ide-button{width:100%}.unavailability-section-heading{align-items:stretch;flex-direction:column}.unavailability-calendar-nav{justify-content:space-between}.unavailability-calendar-nav strong{min-width:0}.unavailability-day{min-height:54px;padding:var(--ide-space-1)}.unavailability-day-count{right:var(--ide-space-1);bottom:var(--ide-space-1)}.unavailability-item{grid-template-columns:auto 1fr}.unavailability-item-actions{grid-column:1/-1;justify-content:stretch}.unavailability-item-actions .ide-button{flex:1}.unavailability-form{padding:var(--ide-space-4)}.unavailability-form-grid{grid-template-columns:1fr}.unavailability-dialog-actions{flex-direction:column-reverse}.unavailability-dialog-actions .ide-button{width:100%}}
+@media(max-width:700px){.unavailability-page{padding:var(--ide-space-4) var(--ide-space-3) calc(var(--ide-space-16) + var(--ide-space-8))}.unavailability-header .ide-button{width:100%}.unavailability-section-heading{align-items:stretch;flex-direction:column}.unavailability-calendar-nav{justify-content:space-between}.unavailability-calendar-nav .ide-button{width:44px;min-width:44px}.unavailability-calendar-nav strong{min-width:0}.unavailability-day{min-height:54px;padding:var(--ide-space-1)}.unavailability-day-count{right:var(--ide-space-1);bottom:var(--ide-space-1)}.unavailability-item{grid-template-columns:auto 1fr}.unavailability-item-actions{grid-column:1/-1;justify-content:stretch}.unavailability-item-actions .ide-button{flex:1}.unavailability-form{padding:var(--ide-space-4)}.unavailability-form-grid{grid-template-columns:1fr}.unavailability-dialog-actions{flex-direction:column-reverse}.unavailability-dialog-actions .ide-button{width:100%}}
