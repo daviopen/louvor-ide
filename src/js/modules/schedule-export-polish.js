@@ -7,7 +7,7 @@
   const exportRoute = section === 'schedules-export' || (section === 'schedules' && view === 'export');
   if (!exportRoute) return;
 
-  const ABSENCE_PEOPLE_PER_PAGE = 7;
+  const ABSENCE_PEOPLE_PER_PAGE = 10;
   const STYLE_ID = 'schedule-export-polish-style';
 
   function esc(value) {
@@ -65,35 +65,47 @@
           text-transform:uppercase!important;
         }
 
-        .weekly-export-absence-sheet .weekly-export-sheet-header{align-items:flex-end!important}
-        .weekly-export-absence-sheet .weekly-export-week-label{max-width:210px;line-height:1.25}
+        .weekly-export-absence-sheet .weekly-export-sheet-header{
+          min-height:96px!important;
+          align-items:flex-end!important;
+          padding-bottom:12px!important;
+        }
+        .weekly-export-absence-sheet .weekly-export-heading--absence span{font-size:clamp(24px,4.2vw,40px)!important}
+        .weekly-export-absence-sheet .weekly-export-heading--absence strong{font-size:clamp(36px,6vw,60px)!important}
+        .weekly-export-absence-sheet .weekly-export-week-label{
+          max-width:none!important;
+          padding-bottom:3px!important;
+          font-size:10px!important;
+          line-height:1.2!important;
+          white-space:nowrap;
+        }
         .weekly-export-absence-content{
           flex:1!important;
           display:grid!important;
           grid-template-columns:repeat(2,minmax(0,1fr))!important;
           align-content:start!important;
-          gap:12px 14px!important;
+          gap:10px 12px!important;
           min-height:0!important;
-          padding:16px 2px 62px!important;
+          padding:10px 2px 58px!important;
           overflow:visible!important;
         }
         .weekly-export-absence-person{
           break-inside:avoid;
           min-width:0;
-          padding:12px 14px 13px;
+          padding:10px 12px 11px;
           border:1px solid rgba(16,18,19,.16);
-          border-radius:16px;
+          border-radius:15px;
           background:rgba(255,255,255,.72);
-          box-shadow:0 5px 14px rgba(9,11,12,.035);
+          box-shadow:0 4px 12px rgba(9,11,12,.03);
         }
         .weekly-export-absence-person h3{
           position:relative;
-          margin:0 0 8px;
-          padding-left:11px;
+          margin:0 0 6px;
+          padding-left:10px;
           color:var(--ide-color-neutral-950,#090b0c)!important;
-          font-size:13px;
+          font-size:12.5px;
           font-weight:950;
-          line-height:1.12;
+          line-height:1.1;
           letter-spacing:-.02em;
         }
         .weekly-export-absence-person h3::before{
@@ -106,17 +118,18 @@
           border-radius:999px;
           background:var(--ide-primary,#d8ff45);
         }
-        .weekly-export-absence-person ul{display:grid;gap:7px;margin:0;padding:0;list-style:none}
-        .weekly-export-absence-person li{display:grid;gap:3px;padding-top:7px;border-top:1px solid rgba(16,18,19,.09)}
+        .weekly-export-absence-person ul{display:grid;gap:5px;margin:0;padding:0;list-style:none}
+        .weekly-export-absence-person li{display:grid;gap:2px;padding-top:5px;border-top:1px solid rgba(16,18,19,.09)}
         .weekly-export-absence-person li:first-child{padding-top:0;border-top:0}
-        .weekly-export-absence-period{color:var(--ide-color-neutral-900,#151717)!important;font-size:10.5px;font-weight:720;line-height:1.3}
-        .weekly-export-absence-note{color:var(--ide-color-neutral-650,#555d5b)!important;font-size:9.5px;font-weight:650;line-height:1.25}
+        .weekly-export-absence-period{color:var(--ide-color-neutral-900,#151717)!important;font-size:10px;font-weight:720;line-height:1.24}
+        .weekly-export-absence-note{color:var(--ide-color-neutral-650,#555d5b)!important;font-size:9px;font-weight:650;line-height:1.2}
         .weekly-export-absence-note::before{content:'Obs.: ';font-weight:850}
         .weekly-export-absence-empty{grid-column:1/-1;padding:24px;border:1px dashed rgba(16,18,19,.22);border-radius:16px;text-align:center;color:var(--ide-color-neutral-650,#555d5b)}
 
         @media(max-width:720px){
+          .weekly-export-absence-sheet .weekly-export-sheet-header{min-height:82px!important;padding-bottom:8px!important}
           .weekly-export-absence-content{grid-template-columns:1fr!important;padding-bottom:54px!important}
-          .weekly-export-absence-sheet .weekly-export-week-label{max-width:none}
+          .weekly-export-absence-sheet .weekly-export-week-label{white-space:normal}
         }
 
         @media print{
@@ -132,23 +145,31 @@
           }
           #schedule-print-report .weekly-export-footer span::before{width:1.7mm!important;height:1.7mm!important}
           #schedule-print-report .weekly-export-footer::after{font-size:2.05mm!important}
+          #schedule-print-report .weekly-export-absence-sheet .weekly-export-sheet-header{
+            height:34mm!important;
+            min-height:34mm!important;
+            padding:0 1mm 2.5mm!important;
+          }
+          #schedule-print-report .weekly-export-absence-sheet .weekly-export-heading--absence span{font-size:7.4mm!important}
+          #schedule-print-report .weekly-export-absence-sheet .weekly-export-heading--absence strong{font-size:13.2mm!important}
+          #schedule-print-report .weekly-export-absence-sheet .weekly-export-week-label{font-size:2.5mm!important;padding-bottom:1mm!important}
           #schedule-print-report .weekly-export-absence-content{
             grid-template-columns:repeat(2,minmax(0,1fr))!important;
-            gap:3.2mm 3.6mm!important;
-            padding:3.5mm .5mm 16mm!important;
+            gap:2.5mm 3mm!important;
+            padding:2.2mm .5mm 15mm!important;
           }
           #schedule-print-report .weekly-export-absence-person{
-            padding:3mm 3.4mm 3.2mm!important;
+            padding:2.4mm 3mm 2.6mm!important;
             border-width:.25mm!important;
-            border-radius:4mm!important;
+            border-radius:3.6mm!important;
             box-shadow:none!important;
           }
-          #schedule-print-report .weekly-export-absence-person h3{margin-bottom:2mm!important;padding-left:2.8mm!important;font-size:3.35mm!important}
-          #schedule-print-report .weekly-export-absence-person h3::before{width:1mm!important}
-          #schedule-print-report .weekly-export-absence-person ul{gap:1.6mm!important}
-          #schedule-print-report .weekly-export-absence-person li{gap:.7mm!important;padding-top:1.6mm!important}
-          #schedule-print-report .weekly-export-absence-period{font-size:2.65mm!important;line-height:1.25!important}
-          #schedule-print-report .weekly-export-absence-note{font-size:2.35mm!important;line-height:1.2!important}
+          #schedule-print-report .weekly-export-absence-person h3{margin-bottom:1.45mm!important;padding-left:2.5mm!important;font-size:3.1mm!important}
+          #schedule-print-report .weekly-export-absence-person h3::before{width:.9mm!important}
+          #schedule-print-report .weekly-export-absence-person ul{gap:1.15mm!important}
+          #schedule-print-report .weekly-export-absence-person li{gap:.45mm!important;padding-top:1.15mm!important}
+          #schedule-print-report .weekly-export-absence-period{font-size:2.4mm!important;line-height:1.2!important}
+          #schedule-print-report .weekly-export-absence-note{font-size:2.15mm!important;line-height:1.18!important}
         }
       `;
       scope.document.head.appendChild(style);
@@ -179,8 +200,68 @@
     sheet.dataset.exportPolished = 'true';
   }
 
+  function monthBounds(month) {
+    if (!/^\d{4}-\d{2}$/.test(String(month || ''))) return null;
+    const [year, monthNumber] = month.split('-').map(Number);
+    const lastDay = new Date(year, monthNumber, 0).getDate();
+    return {
+      from: `${year}-${String(monthNumber).padStart(2, '0')}-01`,
+      to: `${year}-${String(monthNumber).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    };
+  }
+
+  function brDateToKey(value) {
+    const match = String(value || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+  }
+
+  function keyToBrDate(value) {
+    const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return match ? `${match[3]}/${match[2]}/${match[1]}` : '';
+  }
+
+  function selectedExportMonth() {
+    return scope.document.getElementById('monthly-export-month')?.value || '';
+  }
+
+  function clampKey(value, from, to) {
+    if (!value) return '';
+    if (value < from) return from;
+    if (value > to) return to;
+    return value;
+  }
+
+  function normalizeAbsencePeriod(period, month) {
+    const text = String(period || '').trim();
+    const bounds = monthBounds(month);
+    if (!text || !bounds) return text;
+
+    const dateMatches = Array.from(text.matchAll(/\b\d{2}\/\d{2}\/\d{4}\b/g)).map(match => match[0]);
+    const dateKeys = dateMatches.map(brDateToKey).filter(Boolean);
+    const recurrenceMatch = text.match(/^(Recorrente semanal|Tod[oa]\b.*?|Toda semana:.*?)(?:\s*·|\s+a partir de\b)/i);
+    const isRecurring = Boolean(recurrenceMatch) || /^Tod[oa]\b|^Toda semana:|^Recorrente semanal/i.test(text);
+
+    if (isRecurring) {
+      const prefix = recurrenceMatch?.[1]?.trim() || text.split('·')[0].trim();
+      const originalStart = dateKeys[0] || bounds.from;
+      const originalEnd = dateKeys.length > 1 ? dateKeys[dateKeys.length - 1] : bounds.to;
+      const start = clampKey(originalStart, bounds.from, bounds.to);
+      const end = clampKey(originalEnd, bounds.from, bounds.to);
+      return `${prefix} · ${keyToBrDate(start)} a ${keyToBrDate(end)}`;
+    }
+
+    if (dateKeys.length >= 2) {
+      const start = clampKey(dateKeys[0], bounds.from, bounds.to);
+      const end = clampKey(dateKeys[dateKeys.length - 1], bounds.from, bounds.to);
+      return `${keyToBrDate(start)} a ${keyToBrDate(end)}`;
+    }
+
+    return text;
+  }
+
   function collectAbsenceGroups(sheet) {
     const groups = new Map();
+    const month = selectedExportMonth();
     sheet.querySelectorAll('.weekly-export-absence-content tbody tr').forEach(row => {
       const cells = row.querySelectorAll('td');
       if (cells.length < 2) return;
@@ -188,7 +269,7 @@
       if (!name || /^nenhuma indisponibilidade/i.test(name)) return;
       if (!groups.has(name)) groups.set(name, []);
       groups.get(name).push({
-        period: cells[1].textContent.trim() || 'Período não informado',
+        period: normalizeAbsencePeriod(cells[1].textContent.trim() || 'Período não informado', month),
         note: cells[2] ? cells[2].textContent.trim() : ''
       });
     });
@@ -279,6 +360,8 @@
     ABSENCE_PEOPLE_PER_PAGE,
     collectAbsenceGroups,
     groupChunks,
+    monthBounds,
+    normalizeAbsencePeriod,
     polishRoot
   };
 
