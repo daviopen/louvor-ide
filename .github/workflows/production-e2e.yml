@@ -26,11 +26,17 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
 
-      - name: 🌐 Instalar navegador E2E
+      - name: 🌐 Instalar navegadores E2E
         run: |
           set -e
           npm install --no-save playwright@1.55.0 firebase-admin@13.4.0
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
+
+      - name: 📱 Validar autenticação real em Android e iPhone
+        env:
+          E2E_BASE_URL: https://louvor-ide.web.app
+          FIREBASE_PROJECT_ID: louvor-ide
+        run: node tests/production-mobile-auth.e2e.cjs
 
       - name: ♿ Validar acessibilidade e responsividade em navegador real
         env:
