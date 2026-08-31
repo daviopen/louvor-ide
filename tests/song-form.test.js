@@ -27,6 +27,14 @@ test('ministros são filtrados pela função Ministro e aceitam vários tons pre
   assert.match(controller, /replaceMinisterKeys/);
 });
 
+test('edição preserva vínculos existentes mesmo quando o usuário não possui mais função Ministro', () => {
+  assert.match(repository, /listUsersByIds/);
+  assert.match(controller, /ensureLinkedMinistersVisible/);
+  assert.match(controller, /linkedOutsideMinisterRole/);
+  assert.match(controller, /vínculo existente/);
+  assert.match(controller, /ensureLinkedMinistersVisible\(\[\.\.\.keys\.keys\(\)\]\)/);
+});
+
 test('criação e edição validam obrigatórios, mantêm letra opcional, auditam e protegem alterações não salvas', () => {
   assert.match(controller, /Informe o artista/);
   assert.match(controller, /Informe o tom original/);
