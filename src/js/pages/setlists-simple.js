@@ -1,6 +1,8 @@
 (function bootstrapSetlists(scope){
   'use strict';
-  const state={items:[],filtered:[],view:'upcoming',page:1,pageSize:8};
+  const initialParams=new URLSearchParams(location.search);
+  const initialPage=Math.max(1,Number.parseInt(initialParams.get('page')||'1',10)||1);
+  const state={items:[],filtered:[],view:'upcoming',page:initialPage,pageSize:8};
   const $=id=>document.getElementById(id);
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const formatDate=v=>{const d=MusicIdeSetlistHistory.toDate(v);return d?d.toLocaleDateString('pt-BR'):'Data não informada';};
@@ -8,6 +10,12 @@
   async function user(){return new Promise((resolve,reject)=>firebase.auth().onAuthStateChanged(u=>u?resolve(u):reject(new Error('Faça login para consultar Setlists.'))));}
   const docs=snap=>snap.docs.map(d=>({id:d.id,...d.data()}));
   const filterIds=['filter-from','filter-to','filter-event','filter-minister','filter-status','filter-participant','filter-song','filter-theme'];
+  const filterParams={
+    'filter-from':'from','filter-to':'to','filter-event':'event','filter-minister':'minister',
+    'filter-status':'status','filter-participant':'participant','filter-song':'song','filter-theme':'theme'
+  };
+
+  function navigation(){return scope.MusicIdeNavigationState||null;}
 
   function configureView(){
     state.view=getView();
@@ -20,6 +28,27 @@
   }
 
   function filters(){return {from:$('filter-from').value,to:$('filter-to').value,event:$('filter-event').value,minister:$('filter-minister').value,status:$('filter-status').value,participant:$('filter-participant').value,song:$('filter-song').value,theme:$('filter-theme').value};}
+
+  function restoreState(){
+    filterIds.forEach(id=>{
+      const control=$(id);
+      const value=initialParams.get(filterParams[id])||'';
+      if(!control||!value)return;
+      if(control.tagName==='SELECT'&&![...control.options].some(option=>option.value===value))return;
+      control.value=value;
+    });
+  }
+
+  function syncState(){
+    const nav=navigation();
+    if(!nav)return;
+    const current=filters();
+    const href=nav.replaceQuery({
+      from:current.from,to:current.to,event:current.event,minister:current.minister,status:current.status,
+      participant:current.participant,song:current.song,theme:current.theme,page:state.view==='history'?state.page:1
+    },{page:'1'});
+    nav.remember('setlists',href);
+  }
 
   function statusLabel(status){
     const normalized=String(status||'DRAFT').trim().toUpperCase();
@@ -47,8 +76,11 @@
     const id=encodeURIComponent(item.id);
     const hasSongs=Number(item.totalSongs||0)>0;
     const ready=String(item.status||'').trim().toUpperCase()==='READY';
-    const editHref=`setlist.html?id=${id}`;
-    const repertoireHref=`setlist-view.html?id=${id}`;
+    const nav=navigation();
+    const editTarget=`setlist.html?id=${id}`;
+    const repertoireTarget=`setlist-view.html?id=${id}`;
+    const editHref=nav?nav.withReturnTo(editTarget):editTarget;
+    const repertoireHref=nav?nav.withReturnTo(repertoireTarget):repertoireTarget;
 
     if(state.view==='history'){
       return `<a class="ide-button ide-button--secondary" href="${repertoireHref}"><i class="fa-solid fa-eye" aria-hidden="true"></i> Abrir repertório</a>`;
@@ -86,6 +118,7 @@
       ? MusicIdeSetlistHistory.paginate(state.filtered,state.page,state.pageSize)
       : {items:state.filtered,page:1,pageSize:state.filtered.length,total:state.filtered.length,totalPages:1};
     state.page=page.page;
+    syncState();
     $('result-count').textContent=`${page.total} Setlist${page.total===1?'':'s'} encontrado${page.total===1?'':'s'}`;
     $('loading').hidden=true; $('setlists-list').hidden=!page.items.length; $('empty-state').hidden=Boolean(page.items.length);
     $('setlists-list').innerHTML=page.items.map(card).join('');
@@ -144,6 +177,7 @@
       });
       state.items=MusicIdeSetlistHistory.split(normalized,new Date());
       populateFilterOptions();
+      restoreState();
       render();
     }catch(error){console.error(error);$('loading').innerHTML=`<p style="color:var(--error,#a63f3f)">${esc(error.message||'Erro ao carregar Setlists.')}</p>`;$('result-count').textContent='Não foi possível carregar os Setlists';}
   }
