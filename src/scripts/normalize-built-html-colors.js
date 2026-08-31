@@ -35,17 +35,33 @@ const replacements = new Map([
 
 const hexPattern = /#[0-9a-fA-F]{3,8}\b/g;
 const themeColorPattern = /(<meta\s+name=["']theme-color["']\s+content=["'])#[0-9a-fA-F]{3,8}(["'][^>]*>)/gi;
+const styleBlockPattern = /(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi;
+const inlineStylePattern = /(\sstyle=)(["'])([\s\S]*?)(\2)/gi;
 const auditRuntimeTag = '<script src="js/modules/audit-auth-runtime.js" data-ide-audit-runtime></script>';
+const uiQualityRuntimeTag = '<script src="js/modules/ui-quality-runtime.js" data-ide-ui-quality-runtime></script>';
 
 function injectAuditRuntime(content) {
-  if (content.includes('data-ide-audit-runtime')) return content;
-  if (/<\/body>/i.test(content)) return content.replace(/<\/body>/i, `  ${auditRuntimeTag}\n</body>`);
-  return `${content}\n${auditRuntimeTag}\n`;
+  let output = content;
+  const tags = [
+    ['data-ide-audit-runtime', auditRuntimeTag],
+    ['data-ide-ui-quality-runtime', uiQualityRuntimeTag]
+  ];
+  for (const [marker, tag] of tags) {
+    if (output.includes(marker)) continue;
+    if (/<\/body>/i.test(output)) output = output.replace(/<\/body>/i, `  ${tag}\n</body>`);
+    else output = `${output}\n${tag}\n`;
+  }
+  return output;
+}
+
+function normalizeCssColors(content) {
+  return content.replace(hexPattern, value => replacements.get(value.toLowerCase()) || 'var(--ide-text-primary)');
 }
 
 function normalizeHtml(content) {
   const validThemeColor = content.replace(themeColorPattern, '$1black$2');
-  return validThemeColor.replace(hexPattern, value => replacements.get(value.toLowerCase()) || 'var(--ide-text-primary)');
+  const normalizedBlocks = validThemeColor.replace(styleBlockPattern, (_, open, css, close) => `${open}${normalizeCssColors(css)}${close}`);
+  return normalizedBlocks.replace(inlineStylePattern, (_, prefix, quote, css) => `${prefix}${quote}${normalizeCssColors(css)}${quote}`);
 }
 
 function normalizeDirectory(directory = '.') {
@@ -66,7 +82,7 @@ function normalizeDirectory(directory = '.') {
 
 if (require.main === module) {
   const changed = normalizeDirectory(process.argv[2] || '.');
-  console.log(`Normalized legacy colors and audit runtime in ${changed} built HTML files.`);
+  console.log(`Normalized legacy colors and runtime hardening in ${changed} built HTML files.`);
 }
 
-module.exports = { replacements, hexPattern, auditRuntimeTag, injectAuditRuntime, normalizeHtml, normalizeDirectory };
+module.exports = { replacements, hexPattern, auditRuntimeTag, uiQualityRuntimeTag, injectAuditRuntime, normalizeCssColors, normalizeHtml, normalizeDirectory };

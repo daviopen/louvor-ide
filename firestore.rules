@@ -11,14 +11,10 @@ service cloud.firestore {
     function hasRole(role) { return activeUser() && profile().data.role == role; }
     function hasClaim(claimName) { return signedIn() && claimName in request.auth.token && request.auth.token[claimName] == true; }
 
-    function bootstrapSuperAdminIdentity() {
-      return supportedProvider() && 'email' in request.auth.token && request.auth.token.email == 'davitads@gmail.com';
-    }
-    function initialSuperAdmin() { return bootstrapSuperAdminIdentity() && (!hasProfile() || profile().data.active == true); }
     function isSuperAdmin() {
-      return initialSuperAdmin() || (activeUser() && (
+      return activeUser() && (
         hasClaim('superAdmin') || ('role' in request.auth.token && request.auth.token.role == 'SUPER_ADMIN') || hasRole('SUPER_ADMIN')
-      ));
+      );
     }
     function isAdmin() {
       return isSuperAdmin() || (activeUser() && (
@@ -49,11 +45,7 @@ service cloud.firestore {
         && get(permissionPath(moduleName)).data.module == moduleName
         && get(permissionPath(moduleName)).data.level in acceptedLevels;
     }
-    function canRead(moduleName) {
-      return isSuperAdmin()
-        || (activeUser() && moduleName in ['setlists', 'songs'])
-        || explicitPermission(moduleName, ['READ', 'EDIT']);
-    }
+    function canRead(moduleName) { return isSuperAdmin() || explicitPermission(moduleName, ['READ', 'EDIT']); }
     function canEdit(moduleName) { return isSuperAdmin() || explicitPermission(moduleName, ['EDIT']); }
     function ownsUserDocument(userId) { return activeUser() && request.auth.uid == userId; }
     function unchangedAuthorizationFields() {
@@ -156,6 +148,25 @@ service cloud.firestore {
         && resource.data.endAt >= request.time
         && request.resource.data.endAt >= request.time;
     }
+    function validAuditLogDocument() {
+      return activeUser()
+        && request.resource.data.keys().hasAll(['actorUserId', 'action', 'entityType', 'entityId', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['actorUserId', 'actorUserEmail', 'actorUserName', 'action', 'entityType', 'entityId', 'createdAt', 'details', 'before', 'after', 'reason'])
+        && request.resource.data.actorUserId == request.auth.uid
+        && (!('actorUserEmail' in request.resource.data) || request.resource.data.actorUserEmail == null || (request.resource.data.actorUserEmail is string && request.resource.data.actorUserEmail.size() <= 320))
+        && (!('actorUserName' in request.resource.data) || request.resource.data.actorUserName == null || (request.resource.data.actorUserName is string && request.resource.data.actorUserName.size() <= 160))
+        && request.resource.data.action is string
+        && request.resource.data.action.size() >= 3
+        && request.resource.data.action.size() <= 80
+        && request.resource.data.action.matches('^[A-Z0-9_]+$')
+        && request.resource.data.entityType is string
+        && request.resource.data.entityType.size() > 0
+        && request.resource.data.entityType.size() <= 80
+        && request.resource.data.entityId is string
+        && request.resource.data.entityId.size() > 0
+        && request.resource.data.entityId.size() <= 256
+        && request.resource.data.createdAt == request.time;
+    }
 
     match /users/{userId} {
       allow get: if (supportedProvider() && request.auth.uid == userId) || canRead('users') || canRead('permissions') || (isAdmin() && canEdit('unavailability')) || canRead('setlists') || canRead('songs');
@@ -219,7 +230,7 @@ service cloud.firestore {
     }
     match /auditLogs/{documentId} {
       allow read: if canRead('audit');
-      allow create: if activeUser() && request.resource.data.actorUserId == request.auth.uid;
+      allow create: if validAuditLogDocument();
       allow update, delete: if false;
     }
     match /lgpdConsents/{documentId} {

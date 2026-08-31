@@ -50,9 +50,9 @@ test('semantic colors provide explicit text contrast tokens and textual status l
 });
 
 test('project guidance requires WCAG contrast, keyboard operation and non-color-only communication', () => {
-  assert.match(agents, /contraste compatível com WCAG/);
+  assert.match(agents, /WCAG/);
   assert.match(agents, /foco visível/);
   assert.match(agents, /navegação por teclado/);
-  assert.match(agents, /labels associados aos campos/);
-  assert.match(agents, /nenhuma informação relevante comunicada somente por cor/);
+  assert.match(agents, /accessible name|label/i);
+  assert.match(agents, /somente por cor/);
 });

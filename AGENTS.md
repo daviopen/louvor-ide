@@ -1,26 +1,25 @@
 # AGENTS.md — IDE Music
 
-Este arquivo define as regras de engenharia, arquitetura, segurança e qualidade para qualquer alteração no repositório `louvor-ide`.
+Este arquivo define as regras obrigatórias de engenharia, arquitetura, segurança, UX, acessibilidade e qualidade para qualquer alteração no repositório `louvor-ide`.
 
-O objetivo é permitir evolução incremental do IDE Music sem voltar a concentrar regras de negócio na interface, sem criar acessos inseguros ao Firebase e sem quebrar a experiência existente em desktop ou mobile.
+O objetivo é permitir evolução incremental do IDE Music sem voltar a concentrar regras de negócio na interface, sem criar acessos inseguros ao Firebase, sem regressões de desktop/mobile e sem reintroduzir falhas já encontradas em auditorias de produção.
 
 ## 1. Propósito do produto
 
 O IDE Music é a aplicação de apoio ao ministério de música para gerenciamento de usuários, funções ministeriais, indisponibilidades, eventos, escalas, setlists e biblioteca de músicas/cifras.
 
-A aplicação deve evoluir de forma modular, preservando compatibilidade com o sistema atual enquanto os domínios do roadmap são implementados.
-
 Princípios obrigatórios:
 
-- UX deve funcionar bem em desktop e mobile.
+- UX deve funcionar bem em desktop, tablet e mobile.
 - Acessibilidade e contraste não são opcionais.
 - Firebase Authentication é a fonte de identidade.
 - Autorização não pode existir somente no frontend.
+- A matriz exibida na UI deve ser coerente com Firestore Security Rules.
 - Função ministerial e permissão do sistema são conceitos independentes.
-- Senhas nunca devem ser armazenadas no Firestore ou `localStorage`.
-- Secrets nunca devem ser versionados.
+- Senhas, tokens e secrets nunca devem ser persistidos ou versionados.
 - Regras de negócio não devem ficar espalhadas em componentes ou páginas.
 - Dados pessoais devem seguir minimização, necessidade e rastreabilidade compatíveis com LGPD.
+- Erro silencioso de console, overflow acidental e quebra em um breakpoint intermediário são bugs, não detalhes cosméticos.
 
 ## 2. Stack atual
 
@@ -33,13 +32,12 @@ Princípios obrigatórios:
 - Firebase CLI.
 - Node.js >= 18.
 - Testes automatizados com `node --test`.
-- Makefile como interface preferencial para tarefas locais de desenvolvimento, build, teste e deploy.
+- Playwright para validações E2E/produção quando aplicável.
+- Makefile como interface preferencial para tarefas locais.
 
 Não introduzir framework, bundler ou migração ampla de tecnologia sem decisão arquitetural explícita.
 
 ## 3. Arquitetura
-
-O código novo deve seguir arquitetura modular por domínio/feature.
 
 Fluxo preferencial:
 
@@ -48,109 +46,106 @@ Fluxo preferencial:
 Responsabilidades:
 
 - **Pages/Components**: renderização, interação, acessibilidade e estado estritamente visual.
-- **Features**: composição de uma funcionalidade de negócio.
+- **Features**: composição de funcionalidades.
 - **Services**: regras de negócio, casos de uso, coordenação e validações de domínio.
 - **Repositories**: acesso e persistência de dados.
-- **DTOs**: contratos de entrada/saída entre camadas e fronteiras externas.
-- **Models**: representação e invariantes das entidades de domínio.
+- **DTOs**: contratos entre camadas e fronteiras externas.
+- **Models**: representação e invariantes do domínio.
 - **Routes**: definição e proteção de navegação.
 - **Core**: infraestrutura compartilhada, autenticação, erros e abstrações centrais.
-- **Utils**: funções puras e genéricas sem regra de negócio específica.
-- **Constants**: constantes estáveis e enumerações compartilhadas.
-- **Styles**: tokens, temas e estilos globais/reutilizáveis.
+- **Utils**: funções puras/genéricas sem regra de negócio específica.
+- **Constants**: constantes estáveis e enumerações.
+- **Styles**: tokens, temas e componentes visuais compartilhados.
 
-É proibido criar novo acesso direto ao Firestore dentro de componentes/páginas quando houver ou puder existir um Repository apropriado.
+É proibido criar novo acesso direto ao Firestore dentro de componente/página quando houver ou puder existir Repository apropriado.
 
 ## 4. Estrutura de diretórios
 
-Estrutura de referência:
-
 ```text
 src/
-├── components/     # componentes de UI reutilizáveis
-├── config/         # configuração da aplicação e integrações
-├── constants/      # constantes e enumerações
-├── core/           # infraestrutura transversal
-├── css/            # legado CSS em migração
-├── dtos/           # contratos de transporte
-├── features/       # módulos por domínio/feature
-├── js/             # legado JavaScript em migração
-├── models/         # entidades/modelos
-├── pages/          # páginas HTML e composição de tela
-├── repositories/   # persistência e consultas
-├── routes/         # navegação e guards
-├── scripts/        # scripts específicos da aplicação
-├── services/       # regras de negócio/casos de uso
-├── styles/         # design system/tokens/temas
-├── tests/          # testes próximos da arquitetura nova
-└── utils/          # utilitários puros
+├── components/
+├── config/
+├── constants/
+├── core/
+├── css/            # legado em migração
+├── dtos/
+├── features/
+├── js/             # legado em migração
+├── models/
+├── pages/
+├── repositories/
+├── routes/
+├── scripts/
+├── services/
+├── styles/
+├── tests/
+└── utils/
 
 tests/              # suíte automatizada executada por npm test
 ```
 
-Código legado em `src/js` e `src/css` pode permanecer durante a migração, mas novas funcionalidades devem preferir os diretórios arquiteturais novos.
+Código legado pode permanecer durante a migração, mas novas funcionalidades devem preferir a arquitetura modular.
 
-## 5. Padrões de componentes
+## 5. Pages e componentes
 
 Componentes devem:
 
 - possuir responsabilidade única;
-- receber dados e callbacks por contratos claros;
+- receber dados/callbacks por contratos claros;
 - evitar acesso direto ao Firebase;
-- evitar regras de autorização espalhadas;
-- possuir estados de loading, erro e vazio quando aplicável;
+- evitar autorização espalhada;
+- possuir loading, erro, vazio e sucesso quando aplicável;
 - ser navegáveis por teclado quando interativos;
-- usar elementos semânticos e atributos ARIA somente quando necessários;
-- preservar foco em modais/drawers e devolver o foco ao elemento de origem ao fechar;
+- usar HTML semântico e ARIA somente quando necessário;
+- preservar/devolver foco em modais e drawers;
 - ser responsivos por padrão.
 
-Não duplicar componentes visualmente equivalentes. Antes de criar um novo componente, verificar `src/components`.
+### 5.1. Ownership de rota/view e DOM
+
+Cada bootstrap de página deve possuir **uma rota/view explícita e exclusiva**.
+
+Obrigatório:
+
+- validar `pathname`, `section`, `view`, `tab` ou demais discriminadores antes de inicializar um módulo;
+- quando duas views compartilham o mesmo `section`, seus bootstraps devem ser mutuamente exclusivos;
+- um módulo não pode assumir que seu root existe apenas porque o `section` coincide;
+- antes de escrever em `innerHTML`, anexar listeners ou consultar descendentes, validar a existência do elemento que o módulo realmente possui;
+- não reaproveitar um bootstrap de lista em `view=export`, `view=participation` ou outra view especializada sem contrato explícito;
+- listeners globais só devem ser instalados quando o módulo realmente estiver ativo.
+
+Regra de regressão: toda correção causada por `null.innerHTML`, root ausente ou bootstrap concorrente deve ganhar teste que prove a exclusividade de view.
 
 ## 6. Services
 
-Services representam casos de uso e regras de negócio.
-
-Devem:
+Services devem:
 
 - receber dependências explicitamente sempre que possível;
 - validar pré-condições de negócio;
 - retornar resultados previsíveis;
 - lançar/retornar erros padronizados;
-- não depender de detalhes visuais da UI;
+- não depender de detalhes visuais;
 - não manipular DOM;
 - coordenar mais de um Repository quando necessário.
 
-Exemplos de regras que pertencem a Services:
-
-- validar disponibilidade antes de escalar uma pessoa;
-- garantir uma escala por evento;
-- impedir ministro duplicado na mesma música;
-- resolver permissões efetivas;
-- aplicar regras para setlists e tons preferidos.
+Exemplos: disponibilidade antes de escalar, uma escala por evento, ministro duplicado, permissões efetivas, regras de setlist/tom.
 
 ## 7. Repositories
 
-Repositories encapsulam Firestore e demais mecanismos de persistência.
+Repositories devem:
 
-Devem:
-
-- centralizar nomes de collections e queries;
+- centralizar collections e queries;
 - converter documentos para Models/DTOs;
-- esconder detalhes do SDK Firebase das camadas superiores;
-- evitar duplicação de consultas;
-- documentar operações que dependam de índice;
-- preservar IDs e timestamps relevantes;
-- evitar gravações parciais que deixem entidades inconsistentes.
+- esconder SDK Firebase das camadas superiores;
+- evitar consultas duplicadas;
+- documentar operações dependentes de índice;
+- preservar IDs/timestamps relevantes;
+- evitar gravações parciais inconsistentes.
 
-Transações ou batch writes devem ser usados quando a consistência entre múltiplos documentos exigir atomicidade.
+Usar transação/batch quando consistência entre documentos exigir atomicidade.
 
 ## 8. DTOs e Models
 
-Como o projeto permanece em JavaScript, contratos novos relevantes devem utilizar JSDoc.
-
-DTOs devem descrever formato de entrada/saída, inclusive campos opcionais e nulabilidade.
-
-Models devem representar entidades do domínio e não objetos brutos do Firebase.
+Como o projeto permanece em JavaScript, contratos relevantes devem utilizar JSDoc.
 
 Evitar objetos sem contrato atravessando várias camadas.
 
@@ -159,49 +154,57 @@ Evitar objetos sem contrato atravessando várias camadas.
 Toda rota protegida deve considerar:
 
 1. usuário autenticado;
-2. usuário ativo;
-3. permissão necessária para leitura ou edição;
-4. estado de carregamento da sessão;
-5. comportamento seguro para acesso negado.
+2. perfil provisionado;
+3. usuário ativo;
+4. permissão necessária (`READ`/`EDIT`);
+5. estado de carregamento da sessão;
+6. comportamento seguro para acesso negado.
 
-Ocultar um item de menu não é mecanismo de segurança.
+Ocultar item de menu **não é segurança**.
 
-A mesma operação deve ser protegida também por Firestore Security Rules e/ou backend quando aplicável.
+A mesma operação deve ser protegida por Firestore Security Rules e/ou backend.
 
-## 10. Autenticação
+### 9.1. Paridade UI x Rules
 
-Provedores previstos:
+A matriz de permissões da UI é contrato de segurança.
 
-- Google;
-- e-mail/senha.
+- Se a UI permite `Sem acesso`, as Rules não podem conceder leitura implícita para aquele módulo.
+- Não criar exceções do tipo “todo usuário ativo pode ler X” sem requisito explícito e representação correspondente na UI.
+- Dependências operacionais (ex.: Setlist precisa ler músicas/usuários) devem derivar da permissão efetiva do módulo solicitante, não de um bypass global.
+- Toda alteração na matriz deve atualizar UI, guards, Rules e testes na mesma mudança.
+
+## 10. Autenticação e provisionamento
+
+Provedores previstos: Google e e-mail/senha.
 
 Regras:
 
-- usar Firebase Authentication como identidade canônica;
-- nunca salvar senha, hash de senha ou credencial equivalente no Firestore;
-- nunca salvar tokens de autenticação manualmente em `localStorage`;
-- logout deve encerrar a sessão Firebase e limpar somente dados locais de sessão da aplicação;
+- Firebase Authentication é a identidade canônica;
+- nunca salvar senha/hash/credencial no Firestore;
+- nunca salvar token de autenticação manualmente em `localStorage`;
+- logout encerra Firebase Auth e limpa somente dados locais da aplicação;
 - sessão expirada e usuário desativado devem ter tratamento explícito;
-- recuperação de senha deve usar o fluxo do Firebase Authentication.
+- recuperação de senha usa Firebase Authentication;
+- conta autenticada sem documento `users/{uid}` deve ser tratada como **não provisionada**, não como oportunidade de autoelevação;
+- cliente/browser jamais deve se autoatribuir `ADMIN` ou `SUPER_ADMIN`;
+- provisionamento administrativo deve ocorrer por fluxo confiável (Admin SDK/backend/admin já autorizado), com trilha auditável.
 
-## 11. Permissões
+## 11. Permissões e privilégio administrativo
 
-Permissão do sistema deve ser separada das funções ministeriais.
+Função ministerial é independente de permissão do sistema.
 
-Exemplo:
+`SUPER_ADMIN` deve ser reconhecido apenas por fonte de autorização confiável e perfil ativo/claim apropriado.
 
-- função ministerial: Ministro, Back Vocal, Bateria, Baixo, Guitarra, Violão, Teclado, Sax, DM;
-- permissão: Sem acesso, Leitura, Edição por módulo.
+É proibido:
 
-Nunca inferir privilégio administrativo apenas por uma função ministerial.
-
-`SUPER_ADMIN` deve ser tratado como autorização do sistema, preferencialmente suportada por mecanismo confiável como Custom Claims/backend quando essa etapa for implementada.
-
-Não introduzir e-mail administrativo hardcoded como controle definitivo de autorização no frontend.
+- e-mail administrativo hardcoded como fonte de autorização no frontend;
+- e-mail hardcoded de bootstrap nas Firestore Rules;
+- permitir criação de primeiro SUPER_ADMIN pelo navegador;
+- confiar em `localStorage`, query string ou estado visual para elevar privilégio.
 
 ## 12. Collections e nomenclatura
 
-Modelo alvo definido pelo roadmap:
+Collections alvo:
 
 - `users`
 - `ministryFunctions`
@@ -220,104 +223,125 @@ Modelo alvo definido pelo roadmap:
 
 Convenções:
 
-- collections em `camelCase` e no plural;
-- IDs do Firebase não devem carregar significado de negócio desnecessário;
+- collections em `camelCase` e plural;
 - campos em `camelCase`;
-- booleanos com nomes afirmativos (`active`, `enabled`, `confirmed`);
-- datas persistidas como Timestamp quando forem datas/horas de domínio;
-- `createdAt` e `updatedAt` devem ser consistentes;
-- referências lógicas devem usar nomes explícitos, por exemplo `eventId`, `scheduleId`, `userId`.
-
-Antes de alterar collection existente ou migrar estrutura, prever compatibilidade/migração e atualizar Rules e testes.
+- booleanos afirmativos (`active`, `enabled`, `confirmed`);
+- datas de domínio como Timestamp;
+- `createdAt`/`updatedAt` consistentes;
+- referências explícitas (`eventId`, `scheduleId`, `userId`).
 
 ## 13. Firestore Security Rules
 
-As Rules são parte da aplicação e devem ser revisadas junto com qualquer alteração de dados/permissão.
+As Rules são código de produção e devem ser revisadas junto com qualquer mudança de dados/permissão.
 
-Estado atual: as regras permitem leitura/escrita para usuários autenticados pelos provedores aceitos. Isso é uma etapa transitória e não deve ser tratado como modelo final de autorização.
+Estado esperado:
 
-Toda nova funcionalidade sensível deve prever:
+- acesso somente a perfis provisionados e ativos, salvo endpoints estritamente necessários ao próprio bootstrap autenticado;
+- leitura/escrita por permissão explícita ou SUPER_ADMIN confiável;
+- sem fallback global autenticado;
+- prevenção de elevação de privilégio;
+- operações administrativas com campos sensíveis protegidos;
+- regras testadas automaticamente.
 
-- quem pode ler;
-- quem pode criar;
-- quem pode editar;
-- quem pode excluir/inativar;
-- quais campos podem ser modificados;
-- prevenção de elevação de privilégios;
-- testes automatizados das Rules quando a infraestrutura correspondente for adicionada.
+### 13.1. Audit logs
 
-Frontend nunca substitui Rule/backend.
+`auditLogs` deve ser append-only.
 
-## 14. Segurança
+No cliente, quando a escrita ainda for necessária:
+
+- `actorUserId` deve ser o próprio usuário autenticado;
+- schema deve usar `hasAll`/`hasOnly` ou validação equivalente;
+- `createdAt` deve usar timestamp do servidor (`request.time`/server timestamp);
+- ação/tipo/id precisam de limites/formato válidos;
+- update/delete devem permanecer proibidos.
+
+Para trilha com valor probatório forte, ações críticas devem migrar para escrita por backend privilegiado, pois o cliente não deve ser considerado testemunha confiável do próprio evento.
+
+## 14. Segurança e sanitização
 
 Obrigatório:
 
-- não versionar `.env` real, chaves privadas, service accounts ou secrets;
-- não logar tokens, senhas ou payloads sensíveis;
-- validar dados vindos da UI antes de persistir;
-- escapar/tratar conteúdo fornecido pelo usuário antes de renderizar HTML;
+- não versionar `.env` real, private keys, service accounts ou secrets;
+- não logar tokens, senhas, Authorization, cookies ou credenciais;
+- validar dados da UI antes de persistir;
+- escapar conteúdo do usuário antes de renderizar HTML;
 - evitar `innerHTML` com conteúdo não confiável;
 - aplicar menor privilégio;
-- não usar `localStorage` como fonte confiável de autorização;
-- revisar operações administrativas quanto a abuso e escalonamento de privilégio.
+- revisar operações administrativas contra abuso.
 
-A configuração pública do Firebase Web não deve ser confundida com autorização. Segurança depende de Authentication, Rules e backend adequado.
+### 14.1. Logs, URLs e artefatos de QA
+
+Nunca persistir em screenshots metadata, JSON, ZIP, trace, console dump ou artifact CI:
+
+- header `Authorization`;
+- bearer token;
+- cookie/session;
+- URL completa quando query string puder carregar credencial;
+- payload de request que possa conter token.
+
+Antes de salvar evidência automática:
+
+- sanitizar/redigir dados sensíveis;
+- preferir `origin + pathname` e uma whitelist de query params seguros;
+- classificar `requestfailed`: aborto de listener Firestore durante navegação não deve ser contado como falha de backend por padrão;
+- nunca publicar artifact bruto sem revisar se contém credenciais.
 
 ## 15. LGPD
 
-Aplicar:
+Aplicar minimização, finalidade, consentimento quando aplicável, versionamento de termos, retenção proporcional e não replicar dados pessoais desnecessariamente.
 
-- minimização de dados;
-- finalidade explícita;
-- coleta apenas do necessário;
-- consentimento quando juridicamente/aplicacionalmente exigido;
-- registro de versão de termos e data/hora do aceite;
-- política para retenção, inativação e exclusão;
-- preservação apenas do histórico necessário para auditoria/operação;
-- evitar replicar dados pessoais desnecessariamente entre documentos.
+Audit logs registram o mínimo necessário para rastreabilidade.
 
-Audit logs devem registrar o necessário para rastreabilidade sem copiar dados sensíveis sem necessidade.
+## 16. UX, responsividade e acessibilidade
 
-## 16. UX e acessibilidade
+Toda alteração visual deve ser validada, no mínimo, nesta matriz:
 
-Toda alteração de UI deve ser validada em viewport desktop e mobile.
+- desktop: **1440 × 900**;
+- breakpoint intermediário/tablet: **820–834 px** de largura;
+- mobile: **390 × 844**;
+- tema claro;
+- tema escuro.
 
-### 16.1. Navegação, funcionalidades e submenus
+Se o componente tem breakpoint próprio, validar imediatamente antes e depois dele.
 
-A árvore de navegação deve representar a arquitetura de informação do produto, e não apenas agrupar links visualmente.
+### 16.1. Requisitos bloqueantes
 
-- Funcionalidades distintas pertencentes ao mesmo domínio devem ser expostas como **submenus reais** do item pai na navegação principal. Exemplo: `Configurações > Template de Escala` e `Configurações > Funções Ministeriais`.
-- Abas/tabs devem ser usadas apenas para diferentes visões, estados ou recortes da **mesma funcionalidade**, e não para esconder módulos funcionais independentes.
-- Cada submenu deve possuir destino/estado de rota identificável e indicação correta de item ativo.
-- Regras de autorização do item pai e dos filhos devem permanecer explícitas e coerentes; ocultar submenu não substitui guard, Rules ou backend.
-- A hierarquia deve funcionar em desktop, drawer mobile e sidebar recolhida, com navegação por teclado e sem duplicar a mesma navegação dentro do conteúdo da página sem necessidade.
-- Ao adicionar uma nova funcionalidade sob um domínio já existente, avaliar primeiro se ela deve ser um submenu antes de criar novo item de primeiro nível.
-
-Requisitos mínimos:
-
-- contraste compatível com WCAG para texto e controles;
+- zero overflow horizontal acidental no `document`;
+- regiões que precisam de scroll horizontal devem conter o scroll localmente e ser acessíveis por teclado;
+- touch target interativo em mobile/coarse pointer: **mínimo 44 × 44 px**;
+- texto normal: contraste WCAG AA **>= 4.5:1**;
+- texto grande e componentes gráficos/controles: **>= 3:1** quando aplicável;
 - foco visível;
-- navegação por teclado;
-- labels associados aos campos;
-- mensagens de erro compreensíveis;
-- áreas de toque adequadas no mobile;
-- nenhuma informação relevante comunicada somente por cor;
-- layouts sem overflow horizontal acidental;
-- estados de loading, erro, vazio e sucesso consistentes.
+- todo controle de formulário possui accessible name (`label`, `aria-label` ou `aria-labelledby`);
+- cada view possui um `h1` coerente;
+- nenhuma informação relevante é comunicada somente por cor;
+- loading/erro/vazio/sucesso são consistentes;
+- modais/drawers preservam foco e não deixam conteúdo inacessível.
 
-Não introduzir texto em verde claro ou outra cor de baixo contraste sobre fundo branco.
+Não usar verde-lima/brand accent como texto sobre fundo claro sem cálculo explícito de contraste. Para texto de destaque no tema claro, usar token escuro próprio (`--music-accent-text` ou equivalente aprovado).
+
+### 16.2. ARIA
+
+Preferir HTML nativo. Quando ARIA for realmente necessário:
+
+- respeitar a hierarquia de roles exigida;
+- `grid` deve possuir `row`, e `row` deve possuir `gridcell`/células apropriadas;
+- não usar ARIA para “consertar” semântica visual que poderia ser HTML nativo;
+- testar com Axe e navegação por teclado.
+
+### 16.3. Navegação e submenus
+
+Funcionalidades distintas do mesmo domínio devem ser submenus reais quando isso representar a arquitetura de informação.
+
+Submenus devem funcionar em desktop, sidebar recolhida, drawer mobile e teclado, com rota/estado ativo correto.
 
 ## 17. Erros, loading, empty states e confirmações
 
-Usar o padrão compartilhado do projeto em vez de soluções locais incompatíveis.
+Erros devem preservar contexto técnico sem expor detalhe sensível e apresentar mensagem amigável.
 
-Erros devem:
+Operações destrutivas/administrativas relevantes exigem confirmação explícita.
 
-- ter código/tipo quando útil;
-- preservar contexto técnico para diagnóstico sem expor detalhes sensíveis ao usuário;
-- apresentar mensagem amigável na UI.
-
-Operações destrutivas ou administrativas relevantes devem solicitar confirmação explícita.
+Texto de status normal (“75 de 500 registros”) não deve usar classe/semântica que o QA confunda com loading infinito; loading deve desaparecer ou mudar semanticamente quando concluído.
 
 ## 18. Testes
 
@@ -333,161 +357,168 @@ ou:
 make test
 ```
 
-Toda alteração deve incluir ou atualizar testes quando houver lógica verificável automaticamente.
+Toda correção de bug relevante deve adicionar teste de regressão.
 
-Prioridades de teste:
+Prioridades:
 
-- Services e regras de negócio;
-- utilitários puros;
-- mapeamentos de Repository/DTO;
-- autorização e guards;
-- regressões identificadas;
-- Firestore Security Rules quando o ambiente de testes das Rules estiver disponível.
+- Services/regras de negócio;
+- Repository/DTO;
+- autorização/guards;
+- Firestore Rules;
+- route/view ownership;
+- transformações de build;
+- acessibilidade/responsividade;
+- regressões já observadas em produção.
 
-Testes não devem depender de produção nem alterar dados reais.
+### 18.1. Transformações de build
 
-## 19. Logs e auditoria
+Scripts de build nunca podem fazer substituição regex global indiscriminada em HTML.
+
+Exemplo proibido: converter todo `#RRGGBB` do arquivo em CSS variable, pois isso pode corromper `value` de `<input type="color">`, `data-*`, SVG ou atributos nativos.
+
+Obrigatório:
+
+- transformação de cor deve ser limitada a contexto CSS (`<style>` e `style="..."`) quando esta for a intenção;
+- valores nativos de HTML devem permanecer no formato exigido pelo browser;
+- CSS custom property (`var(--token)`) não pode substituir valor que exige hexadecimal literal;
+- toda normalização de build deve ter teste com casos positivos e negativos.
+
+## 19. Logs, observabilidade e auditoria
 
 Logs técnicos:
 
-- não incluir secrets ou credenciais;
-- usar níveis coerentes;
-- evitar `console.log` permanente sem finalidade operacional.
+- não incluem secrets;
+- usam níveis coerentes;
+- não deixam `console.log` permanente sem finalidade;
+- `console.error` em fluxo nominal é bug.
 
-Audit Log de negócio deve registrar, quando aplicável:
-
-- ator (`actorUserId`);
-- ação;
-- entidade/tipo;
-- ID da entidade;
-- data/hora;
-- resumo mínimo da mudança;
-- motivo/contexto quando exigido por exceções administrativas.
-
-Alterações administrativas críticas devem ser auditáveis.
+Auditoria de negócio deve registrar ator, ação, entidade/tipo, ID, horário do servidor e resumo mínimo.
 
 ## 20. Design System e estilos
 
-Novos estilos reutilizáveis devem convergir para `src/styles` e componentes compartilhados.
+Novos estilos reutilizáveis convergem para `src/styles`.
 
 Evitar:
 
-- hexadecimais repetidos e espalhados;
-- valores de spacing/radius arbitrários duplicados;
-- CSS específico duplicando componente existente;
-- estilos inline sem necessidade.
+- cores hex repetidas;
+- spacing/radius arbitrário;
+- CSS duplicando componente existente;
+- estilo inline sem necessidade;
+- breakpoint conflitante entre shell e conteúdo.
 
-Tokens oficiais do IDE Music deverão ser usados assim que forem definidos no roadmap.
+### 20.1. Breakpoints
+
+O shell usa 900 px como transição desktop/mobile. Componentes críticos não devem permanecer em layout desktop incompatível dentro da faixa em que o shell já virou mobile.
+
+Ao definir breakpoint diferente, justificar e validar a faixa intermediária, especialmente **769–900 px**.
 
 ## 21. Compatibilidade e legado
 
-A evolução é incremental.
+Ao tocar legado:
 
-Ao tocar código legado:
+- não fazer refatoração ampla sem necessidade;
+- extrair regra de negócio para Service quando modificada;
+- mover acesso Firebase para Repository quando alterado;
+- preservar comportamento público salvo mudança intencional;
+- adicionar teste de regressão.
 
-- não fazer refatoração ampla sem necessidade do item atual;
-- extrair regra de negócio para Service quando ela estiver sendo modificada;
-- mover acesso Firebase para Repository quando ele estiver sendo alterado;
-- preservar comportamento público salvo quando a mudança for intencional;
-- adicionar teste de regressão quando corrigir bug relevante.
+Runtime de compatibilidade/acessibilidade pode existir como safety net, mas **não substitui corrigir a fonte** quando o componente for novamente alterado.
 
 ## 22. Definition of Ready (DoR)
 
-Um item está pronto para desenvolvimento quando:
-
-- objetivo está claro;
-- critérios de aceitação são identificáveis;
-- entidades e permissões envolvidas são conhecidas;
-- impacto em dados/Rules é entendido;
-- dependências relevantes estão disponíveis;
-- comportamento desktop/mobile foi considerado;
-- riscos de segurança/LGPD foram avaliados quando aplicável.
-
-Itens pequenos de refatoração ou correção podem usar uma versão proporcional desses critérios.
+Um item está pronto quando objetivo, critérios, entidades/permissões, impacto em dados/Rules, dependências, comportamento responsivo e riscos de segurança/LGPD são conhecidos proporcionalmente ao tamanho da tarefa.
 
 ## 23. Definition of Done (DoD)
 
-Um item só pode ser marcado como concluído no `ROADMAP.md` quando:
+Um item com UI só está concluído quando:
 
-- implementação está completa;
-- arquitetura deste documento foi respeitada;
-- não há novo acesso inseguro ao Firebase;
-- testes relevantes foram adicionados/atualizados e estão passando;
-- fluxo principal foi validado;
-- desktop e mobile foram considerados quando houver UI;
-- acessibilidade/contraste foram verificados quando houver UI;
-- Firestore Rules foram atualizadas quando necessário;
-- documentação afetada foi atualizada;
-- não foram adicionados secrets;
-- não há regressão conhecida introduzida pela mudança.
+- implementação completa e arquitetura respeitada;
+- testes relevantes passam;
+- fluxo principal validado;
+- desktop 1440, intermediário 820/834 e mobile 390 considerados quando afetados;
+- tema claro e escuro considerados;
+- nenhum overflow horizontal acidental conhecido;
+- touch targets >=44 px em controles relevantes no mobile;
+- Axe/contraste sem regressão relevante;
+- `console.error` e `pageerror` em fluxo nominal = **0**;
+- nenhum HTTP 5xx inesperado;
+- Rules atualizadas e coerentes com a UI quando necessário;
+- artifacts/logs sanitizados;
+- documentação afetada atualizada;
+- nenhum secret adicionado;
+- nenhuma regressão conhecida introduzida.
 
 ## 24. Convenções de arquivos e código
 
-- nomes de arquivos JavaScript: preferir `kebab-case.js` ou manter padrão consistente já adotado no módulo;
-- classes/models: `PascalCase` quando representarem construtores/classes;
-- funções e variáveis: `camelCase`;
+- JS: `kebab-case.js` ou padrão consistente do módulo;
+- classes/models: `PascalCase`;
+- funções/variáveis: `camelCase`;
 - constantes globais: `UPPER_SNAKE_CASE` quando realmente constantes;
 - evitar abreviações ambíguas;
-- preferir funções pequenas com responsabilidade única;
-- usar `async/await` de forma consistente em código assíncrono novo;
-- documentar contratos públicos e estruturas não triviais com JSDoc.
-
-Não renomear arquivos em massa apenas para adequação estética.
+- funções pequenas/responsabilidade única;
+- `async/await` consistente;
+- JSDoc em contratos públicos/não triviais.
 
 ## 25. Branches, commits e Pull Requests
 
-Branches sugeridas:
+Branches: `feat/`, `fix/`, `refactor/`, `docs/`, `test/`.
 
-- `feat/<descricao-curta>`
-- `fix/<descricao-curta>`
-- `refactor/<descricao-curta>`
-- `docs/<descricao-curta>`
-- `test/<descricao-curta>`
+Commits preferencialmente Conventional Commits.
 
-Commits devem ser pequenos, objetivos e preferencialmente seguir Conventional Commits:
+PR deve informar: problema, solução, impacto em dados/Rules, testes, evidência visual, riscos/migrações.
 
-- `feat: ...`
-- `fix: ...`
-- `refactor: ...`
-- `docs: ...`
-- `test: ...`
-- `chore: ...`
+Não misturar refatoração ampla não relacionada.
 
-Pull Requests devem informar:
+## 26. Checklist obrigatório para qualquer alteração
 
-- problema/objetivo;
-- solução adotada;
-- impacto em dados e Rules;
-- testes executados;
-- evidência visual quando houver UI;
-- riscos e migrações quando aplicável.
+Antes de concluir, responder objetivamente:
 
-Não misturar refatoração ampla não relacionada com funcionalidade de negócio na mesma PR.
-
-## 26. Checklist para qualquer alteração
-
-Antes de concluir:
-
-1. A mudança respeita a separação UI -> Service -> Repository?
-2. Há alguma regra de negócio nova dentro da UI que deveria estar em Service?
-3. Há algum acesso Firebase novo fora de Repository/core apropriado?
+1. A separação UI -> Service -> Repository foi preservada?
+2. O bootstrap pertence exclusivamente à rota/view atual?
+3. Todo root DOM manipulado é validado antes do uso?
 4. Autenticação e autorização estão separadas?
-5. As Firestore Rules precisam mudar?
-6. Há risco de armazenar ou expor dados sensíveis?
-7. Desktop e mobile continuam utilizáveis?
-8. Contraste, foco e labels estão adequados?
-9. Testes relevantes passam?
-10. A documentação e o `ROADMAP.md` devem ser atualizados?
+5. UI, guard e Firestore Rules concedem exatamente o mesmo nível de acesso?
+6. Existe identidade administrativa hardcoded ou caminho de autoelevação? Se sim, bloquear.
+7. Há risco de secrets em logs, URLs, traces ou artifacts?
+8. Desktop 1440, intermediário 820/834 e mobile 390 foram considerados?
+9. Tema claro/escuro mantêm contraste adequado?
+10. Existe overflow horizontal acidental?
+11. Controles touch possuem 44 × 44 px?
+12. Form controls têm accessible name e ARIA possui hierarquia válida?
+13. Console nominal está sem `console.error`/`pageerror`?
+14. Transformações de build preservam atributos nativos?
+15. Um teste de regressão cobre o bug corrigido?
+16. Documentação/ROADMAP precisam ser atualizados?
 
-## 27. Prioridade de instruções
+## 27. QA de produção
 
-Ao trabalhar em uma funcionalidade que possuir seu próprio `AGENTS.md`, as regras específicas daquele diretório complementam este documento.
+Auditoria de produção deve ser **não destrutiva** por padrão.
+
+Pode abrir consulta, filtros, detalhe, cadastro e edição sem salvar. Fluxos destrutivos só com fixture isolada e cleanup garantido.
+
+Uma auditoria considerada completa deve, quando aplicável:
+
+- percorrer todas as rotas expostas ao perfil testado;
+- capturar desktop/mobile e claro/escuro;
+- abrir filtros, menus, create/edit/detail seguros;
+- observar `console.error`, `console.warn`, `pageerror`, requests e HTTP 5xx;
+- executar Axe;
+- medir overflow do documento;
+- medir touch targets;
+- distinguir falso positivo de defeito real antes de classificar severidade;
+- sanitizar toda evidência antes de upload.
+
+Não classificar `net::ERR_ABORTED` de listener Firestore cancelado por navegação como indisponibilidade de backend sem evidência adicional.
+
+## 28. Prioridade de instruções
+
+Ao trabalhar em funcionalidade com `AGENTS.md` próprio, as regras específicas complementam este documento.
 
 Em caso de conflito:
 
-1. requisitos explícitos da tarefa atual;
-2. `AGENTS.md` mais específico do diretório/feature;
+1. requisito explícito da tarefa atual;
+2. `AGENTS.md` mais específico;
 3. este `AGENTS.md` raiz;
-4. convenções inferidas de código legado.
+4. convenções do legado.
 
-Nunca usar uma convenção de legado como justificativa para reduzir segurança, autorização ou proteção de dados.
+Nunca usar legado como justificativa para reduzir segurança, autorização, acessibilidade ou proteção de dados.

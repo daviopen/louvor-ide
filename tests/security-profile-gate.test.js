@@ -9,7 +9,8 @@ const {
   resolveAuthorizedProfile
 } = require('../src/js/modules/auth-service');
 
-function firestoreScope({ snapshot, setError = null, permissions = {} }) {
+function firestoreScope({ snapshot, permissions = {} }) {
+  let setCalls = 0;
   const firestore = () => ({
     collection(name) {
       if (name === 'users') {
@@ -17,9 +18,7 @@ function firestoreScope({ snapshot, setError = null, permissions = {} }) {
           doc() {
             return {
               async get() { return snapshot; },
-              async set() {
-                if (setError) throw setError;
-              }
+              async set() { setCalls += 1; }
             };
           }
         };
@@ -42,7 +41,7 @@ function firestoreScope({ snapshot, setError = null, permissions = {} }) {
     }
   });
   firestore.FieldValue = { serverTimestamp() { return new Date(); } };
-  return { firebase: { firestore } };
+  return { firebase: { firestore }, setCalls: () => setCalls };
 }
 
 test('perfil só é ativo com active=true explícito', () => {
@@ -52,10 +51,9 @@ test('perfil só é ativo com active=true explícito', () => {
   assert.equal(isActiveProfile(null), false);
 });
 
-test('conta sem perfil não é autorizada quando bootstrap é negado pelas Rules', async () => {
+test('conta sem perfil não é autorizada e o navegador não tenta provisioná-la', async () => {
   const scope = firestoreScope({
-    snapshot: { exists: false, data() { return null; } },
-    setError: { code: 'permission-denied' }
+    snapshot: { exists: false, data() { return null; } }
   });
 
   const result = await resolveAuthorizedProfile(scope, {
@@ -70,6 +68,7 @@ test('conta sem perfil não é autorizada quando bootstrap é negado pelas Rules
     profile: null,
     permissionsFromCache: false
   });
+  assert.equal(scope.setCalls(), 0, 'browser não pode criar perfil administrativo durante login');
   assert.match(authorizationFailureMessage(result.reason), /não foi liberada/i);
 });
 
@@ -112,4 +111,10 @@ test('usuário comum não possui regra de autoativação MEMBER', () => {
   const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
   assert.doesNotMatch(rules, /request\.auth\.uid == userId[\s\S]{0,200}request\.resource\.data\.role == 'MEMBER'/);
   assert.match(rules, /allow create: if validCreatedUser\(userId\) && \(isSuperAdmin\(\)/);
+});
+
+test('auth-service não contém payload de bootstrap SUPER_ADMIN', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src/js/modules/auth-service.js'), 'utf8');
+  assert.doesNotMatch(source, /bootstrapProfilePayload/);
+  assert.doesNotMatch(source, /role:\s*'SUPER_ADMIN'/);
 });
