@@ -39,6 +39,22 @@ test('setlist views are navigated from the application menu without duplicate to
   assert.doesNotMatch(js, /tab-upcoming|tab-history/);
 });
 
+test('upcoming setlists expose date, minister, status and participant filters', () => {
+  assert.match(html, /id="filter-from"/);
+  assert.match(html, /id="filter-to"/);
+  assert.match(html, /id="filter-minister"/);
+  assert.match(html, /id="filter-status"/);
+  assert.match(html, /id="filter-participant"/);
+  assert.match(js, /participant:\$\('filter-participant'\)\.value/);
+  assert.match(js, /status:\$\('filter-status'\)\.value/);
+  assert.match(js, /scheduleMembers/);
+});
+
+test('upcoming setlists render all filtered results without pagination', () => {
+  assert.match(js, /const page=history[\s\S]*MusicIdeSetlistHistory\.paginate\(state\.filtered,state\.page,state\.pageSize\)[\s\S]*items:state\.filtered/);
+  assert.match(js, /\$\('pagination'\)\.hidden=!history\|\|page\.totalPages<=1/);
+});
+
 test('actions remain responsive on mobile', () => {
   assert.match(html, /\.setlist-card__actions\{[^}]*gap:10px/);
   assert.match(html, /@media\(max-width:560px\)[\s\S]*\.setlist-card__actions\{display:grid;grid-template-columns:1fr\}/);
