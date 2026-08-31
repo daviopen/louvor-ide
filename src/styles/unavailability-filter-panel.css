@@ -1,0 +1,48 @@
+.unavailability-list-card > .ide-filter-panel {
+  margin-bottom: var(--ide-space-4);
+}
+
+.unavailability-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--ide-space-3);
+  align-items: end;
+}
+
+.unavailability-filter-grid .unavailability-filter,
+.unavailability-filter-grid label {
+  display: grid;
+  gap: var(--ide-space-1);
+  min-width: 0;
+  font-size: var(--ide-font-size-sm);
+}
+
+.unavailability-filter-grid .unavailability-filter {
+  min-width: 0;
+}
+
+.unavailability-date-filter-group {
+  display: contents;
+}
+
+.unavailability-filter-grid .ide-field__control {
+  width: 100%;
+  min-width: 0;
+}
+
+.unavailability-clear-filters {
+  align-self: end;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .unavailability-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .unavailability-clear-filters {
+    width: 100%;
+    justify-self: stretch;
+  }
+}
