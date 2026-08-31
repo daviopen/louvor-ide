@@ -122,7 +122,7 @@
     const songId = setlistSong?.id || setlistSong?.songId;
     let currentSong = {};
     if (songId) {
-      const snapshot = await state.db.collection('musicas').doc(songId).get();
+      const snapshot = await state.db.collection('songs').doc(songId).get();
       if (snapshot.exists) currentSong = snapshot.data() || {};
     }
 
@@ -151,7 +151,7 @@
 
     if (state.songId) {
       if (!isValidDocumentId(state.songId)) throw new Error('Música inválida. Volte ao catálogo e abra a música novamente.');
-      const snapshot = await state.db.collection('musicas').doc(state.songId).get();
+      const snapshot = await state.db.collection('songs').doc(state.songId).get();
       if (!snapshot.exists) throw new Error('Música não encontrada ou sem permissão de leitura.');
       const data = snapshot.data() || {};
       state.setlist = { name: safeText(data.titulo || data.nome || data.title, 'Música') };
