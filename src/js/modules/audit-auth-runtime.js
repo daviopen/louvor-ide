@@ -22,16 +22,33 @@
       : new Date();
   }
 
-  async function record(user, action) {
-    if (!user || !user.uid || !scope.firebase || typeof scope.firebase.firestore !== 'function') return null;
-    return scope.firebase.firestore().collection('auditLogs').add({
+  function auditPayload(user, action, createdAt = timestamp()) {
+    return {
       actorUserId: user.uid,
       action,
       entityType: 'auth',
       entityId: user.uid,
       details: { providers: providerIds(user) },
-      createdAt: timestamp()
-    });
+      createdAt
+    };
+  }
+
+  async function record(user, action) {
+    if (!user || !user.uid || !scope.firebase || typeof scope.firebase.firestore !== 'function') return null;
+    return scope.firebase.firestore().collection('auditLogs').add(auditPayload(user, action));
+  }
+
+  async function recordLoginAccess(user) {
+    if (!user || !user.uid || !scope.firebase || typeof scope.firebase.firestore !== 'function') return null;
+    const db = scope.firebase.firestore();
+    const loginAt = timestamp();
+    const batch = db.batch();
+    const auditRef = db.collection('auditLogs').doc();
+    const userRef = db.collection('users').doc(user.uid);
+
+    batch.set(auditRef, auditPayload(user, 'AUTH_LOGIN', loginAt));
+    batch.update(userRef, { lastAccessAt: loginAt });
+    return batch.commit();
   }
 
   function readLoggedUid() {
@@ -49,10 +66,10 @@
   async function recordLogin(user) {
     if (!user || !user.uid || readLoggedUid() === user.uid) return;
     try {
-      await record(user, 'AUTH_LOGIN');
+      await recordLoginAccess(user);
       writeLoggedUid(user.uid);
     } catch (error) {
-      console.warn('Não foi possível registrar auditoria de login:', error);
+      console.warn('Não foi possível registrar auditoria/último acesso de login:', error);
     }
   }
 
