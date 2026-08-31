@@ -100,6 +100,99 @@
   white-space: nowrap;
 }
 
+/*
+ * Regra de contraste da marca: verde-lima é sempre uma superfície clara.
+ * Nenhum componente canônico pode usar texto branco sobre --ide-primary.
+ */
+.ide-ds-migrated :is(
+  .ide-button--primary,
+  .ide-badge--primary,
+  .ide-module-card__status,
+  .ide-pagination__button[aria-current='page'],
+  .ide-ds-sidebar__link.is-active,
+  .ide-sidebar-link.active,
+  .music-ide-signout,
+  .music-ide-user-placeholder
+) {
+  color: var(--ide-primary-ink) !important;
+}
+
+/* Exportação semanal: reforça contraste e cria um rodapé editorial mais legível. */
+#monthly-export-preview { counter-reset: ide-export-page; }
+#monthly-export-preview .weekly-export-sheet { counter-increment: ide-export-page; }
+#schedule-print-report { counter-reset: ide-export-page; }
+#schedule-print-report .weekly-export-sheet { counter-increment: ide-export-page; }
+
+.weekly-export-sheet .weekly-export-date-badge,
+.weekly-export-sheet .weekly-export-absence-content th {
+  color: #090b0c !important;
+}
+
+.weekly-export-sheet .weekly-export-event-card {
+  border-color: #343938;
+  background: rgba(255,255,255,.58);
+  box-shadow: 0 10px 26px rgba(9,11,12,.045);
+}
+
+.weekly-export-sheet .weekly-export-absence-content tbody tr:nth-child(even) td {
+  background: rgba(9,11,12,.025);
+}
+
+.weekly-export-sheet .weekly-export-footer {
+  left: clamp(16px,4vw,42px);
+  right: clamp(16px,4vw,42px);
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding-top: 10px;
+  color: #101213;
+  border-top: 1px solid rgba(16,18,19,.18);
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: -.02em;
+}
+
+.weekly-export-sheet .weekly-export-footer span,
+.weekly-export-sheet .weekly-export-footer strong {
+  font-size: inherit;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.weekly-export-sheet .weekly-export-footer span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #101213;
+  letter-spacing: .06em;
+}
+
+.weekly-export-sheet .weekly-export-footer span::before {
+  content: '';
+  width: 22px;
+  height: 4px;
+  border-radius: 999px;
+  background: #d8ff45;
+}
+
+.weekly-export-sheet .weekly-export-footer strong {
+  color: #6f63ee;
+}
+
+#monthly-export-preview .weekly-export-sheet .weekly-export-footer::after,
+#schedule-print-report .weekly-export-sheet .weekly-export-footer::after {
+  content: 'PÁG. ' counter(ide-export-page) ' • COMUNIDADE IDE';
+  position: absolute;
+  right: 0;
+  color: #69716f;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
 @media (max-width: 900px) {
   .ide-sidebar-collapsed .ide-sidebar-link[data-tooltip]::after { display: none; }
 
@@ -140,6 +233,30 @@
     .module-header
   ) > :first-child {
     min-width: 0;
+  }
+}
+
+@media print {
+  #schedule-print-report .weekly-export-sheet .weekly-export-event-card {
+    box-shadow: none;
+  }
+
+  #schedule-print-report .weekly-export-sheet .weekly-export-footer {
+    left: 12mm;
+    right: 12mm;
+    bottom: 6mm;
+    padding-top: 2.4mm;
+    border-top-width: .3mm;
+    font-size: 3.5mm;
+  }
+
+  #schedule-print-report .weekly-export-sheet .weekly-export-footer span::before {
+    width: 5.5mm;
+    height: 1mm;
+  }
+
+  #schedule-print-report .weekly-export-sheet .weekly-export-footer::after {
+    font-size: 2.25mm;
   }
 }
 
