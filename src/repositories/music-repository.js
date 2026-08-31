@@ -102,6 +102,16 @@ export class MusicRepository extends BaseRepository {
       .sort((a, b) => String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'pt-BR'));
   }
 
+  async listUsersByIds(userIds = []) {
+    const ids = [...new Set(userIds.filter(Boolean))];
+    if (!ids.length) return [];
+    const users = await this.getCollection(COLLECTIONS.USERS);
+    const snapshots = await Promise.all(ids.map(id => users.doc(id).get()));
+    return snapshots
+      .filter(snapshot => snapshot.exists)
+      .map(snapshot => ({ id: snapshot.id, ...snapshot.data() }));
+  }
+
   async getMinisterKeys(songId) {
     const collection = await this.getCollection(COLLECTIONS.SONG_MINISTER_KEYS);
     const snapshot = await collection.where('songId', '==', songId).get();
