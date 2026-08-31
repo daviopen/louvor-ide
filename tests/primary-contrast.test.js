@@ -53,3 +53,11 @@ test('canonical primary components are forced to primary ink by the visual contr
   }
   assert.match(css, /color:\s*var\(--ide-primary-ink\)\s*!important/);
 });
+
+test('weekly schedule export keeps dark ink on lime badges and table headers', () => {
+  const source = fs.readFileSync(path.join(root, 'src/js/modules/schedules-monthly-ui.js'), 'utf8');
+  assert.match(source, /\.weekly-export-date-badge\{[^}]*background:#d8ff45;[^}]*color:#090b0c/s);
+  assert.match(source, /\.weekly-export-absence-content th\{[^}]*font-weight:900;[^}]*background:rgba\(216,255,69,/s);
+  const guard = fs.readFileSync(path.join(root, 'src/styles/ui-consistency.css'), 'utf8');
+  assert.match(guard, /\.weekly-export-sheet \.weekly-export-date-badge,[\s\S]*\.weekly-export-sheet \.weekly-export-absence-content th[\s\S]*color:\s*#090b0c\s*!important/);
+});
