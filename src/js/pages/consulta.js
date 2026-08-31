@@ -10,10 +10,19 @@ const SEARCH_DEBOUNCE_MS = 160;
 
 class MusicCatalogPage {
   constructor() {
+    const params = new URLSearchParams(window.location.search);
     this.allSongs = [];
     this.filteredSongs = [];
-    this.selectedSongId = null;
-    this.page = 1;
+    this.selectedSongId = params.get('song') || null;
+    this.page = Math.max(1, Number.parseInt(params.get('page') || '1', 10) || 1);
+    this.initialFilters = {
+      search: params.get('q') || '',
+      artist: params.get('artist') || '',
+      minister: params.get('minister') || '',
+      key: params.get('key') || '',
+      theme: params.get('theme') || ''
+    };
+    this.initialFiltersApplied = false;
     this.unsubscribe = null;
     this.loadTimeout = null;
     this.searchTimer = null;
@@ -23,6 +32,8 @@ class MusicCatalogPage {
   init() {
     this.cacheElements();
     if (!this.list || !this.search) return;
+    this.search.value = this.initialFilters.search;
+    this.configureCreateLink();
     this.bindEvents();
     this.startWhenAuthenticated();
   }
@@ -51,6 +62,46 @@ class MusicCatalogPage {
     this.detailLink = document.getElementById('song-detail-link');
     this.detailEdit = document.getElementById('song-detail-edit');
     this.detailStage = document.getElementById('song-detail-stage');
+  }
+
+  navigation() {
+    return window.MusicIdeNavigationState || null;
+  }
+
+  configureCreateLink() {
+    const navigation = this.navigation();
+    if (!navigation) return;
+    document.querySelectorAll('a[href="nova-musica.html"]').forEach(link => {
+      link.href = navigation.withReturnTo('nova-musica.html');
+    });
+  }
+
+  applyInitialFilters() {
+    if (this.initialFiltersApplied) return;
+    const values = this.initialFilters;
+    this.search.value = values.search;
+    [[this.artist, values.artist], [this.minister, values.minister], [this.key, values.key], [this.theme, values.theme]].forEach(([select, value]) => {
+      if (!select || !value) return;
+      if ([...select.options].some(option => option.value === value)) select.value = value;
+    });
+    this.initialFiltersApplied = true;
+  }
+
+  syncNavigationState() {
+    const navigation = this.navigation();
+    if (!navigation) return;
+    const filters = this.currentFilters();
+    const href = navigation.replaceQuery({
+      q: filters.search,
+      artist: filters.artist,
+      minister: filters.minister,
+      key: filters.key,
+      theme: filters.theme,
+      page: this.page,
+      song: this.selectedSongId || ''
+    }, { page: '1' });
+    navigation.remember('songs', href);
+    this.configureCreateLink();
   }
 
   bindEvents() {
@@ -161,6 +212,7 @@ class MusicCatalogPage {
       .sort((a, b) => this.songTitle(a).localeCompare(this.songTitle(b), 'pt-BR', { sensitivity: 'base' }));
     this.setLoading(false);
     this.populateFilterOptions();
+    this.applyInitialFilters();
     this.render();
 
     if (this.selectedSongId) {
@@ -230,6 +282,7 @@ class MusicCatalogPage {
     this.filteredSongs = musicService.filterCatalog(this.allSongs, this.currentFilters());
     const pagination = musicService.paginateCatalog(this.filteredSongs, this.page, PAGE_SIZE);
     this.page = pagination.page;
+    this.syncNavigationState();
 
     if (this.clear) this.clear.disabled = !this.hasActiveFilters();
     if (this.count) this.count.textContent = this.resultLabel(this.filteredSongs.length, this.allSongs.length);
@@ -338,9 +391,12 @@ class MusicCatalogPage {
     });
 
     const songId = encodeURIComponent(song.id);
-    if (this.detailStage) this.detailStage.href = `setlist-view.html?song=${songId}&stage=1`;
+    const navigation = this.navigation();
+    const stageTarget = `setlist-view.html?song=${songId}&stage=1`;
+    const editTarget = `nova-musica.html?edit=${songId}`;
+    if (this.detailStage) this.detailStage.href = navigation ? navigation.withReturnTo(stageTarget) : stageTarget;
     if (this.detailEdit) {
-      this.detailEdit.href = `nova-musica.html?edit=${songId}`;
+      this.detailEdit.href = navigation ? navigation.withReturnTo(editTarget) : editTarget;
       this.detailEdit.hidden = !this.canEditSongs();
     }
 
@@ -353,6 +409,7 @@ class MusicCatalogPage {
     this.selectedSongId = null;
     this.emptyViewer.hidden = false;
     this.detail.hidden = true;
+    this.syncNavigationState();
   }
 
   clearFilters() {
