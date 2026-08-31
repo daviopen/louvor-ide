@@ -311,23 +311,6 @@
     }
   }
 
-  function bootstrapProfilePayload(scope, user) {
-    const firestore = scope.firebase && scope.firebase.firestore;
-    const fieldValue = firestore && firestore.FieldValue;
-    const timestamp = fieldValue && typeof fieldValue.serverTimestamp === 'function' ? fieldValue.serverTimestamp() : new Date();
-    return {
-      uid: user.uid,
-      name: user.displayName || user.email || 'Usuário IDE Music',
-      email: user.email || '',
-      photoURL: user.photoURL || null,
-      active: true,
-      role: 'SUPER_ADMIN',
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      lastAccessAt: timestamp
-    };
-  }
-
   async function recordLastAccess(scope, user) {
     if (!user || !user.uid || !scope.firebase || typeof scope.firebase.firestore !== 'function') return;
     const firestore = scope.firebase.firestore;
@@ -362,17 +345,9 @@
       throw error;
     }
     const profileRef = scope.firebase.firestore().collection('users').doc(user.uid);
-    let snapshot = await profileRef.get();
+    const snapshot = await profileRef.get();
     if (!snapshot.exists) {
-      try {
-        await profileRef.set(bootstrapProfilePayload(scope, user));
-        snapshot = await profileRef.get();
-      } catch (error) {
-        if (error && ['permission-denied', 'firestore/permission-denied'].includes(error.code)) {
-          return { authorized: false, reason: 'not-provisioned', profile: null, permissionsFromCache: false };
-        }
-        throw error;
-      }
+      return { authorized: false, reason: 'not-provisioned', profile: null, permissionsFromCache: false };
     }
     const profile = snapshot.data() || null;
     if (!isActiveProfile(profile)) return { authorized: false, reason: 'inactive', profile, permissionsFromCache: false };
