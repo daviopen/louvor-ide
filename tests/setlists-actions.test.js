@@ -50,6 +50,18 @@ test('upcoming setlists expose date, minister, status and participant filters', 
   assert.match(js, /scheduleMembers/);
 });
 
+test('event, minister and participant filters list available names', () => {
+  assert.match(html, /<select id="filter-event"/);
+  assert.match(html, /<select id="filter-minister"/);
+  assert.match(html, /<select id="filter-participant"/);
+  assert.match(js, /setSelectOptions\('filter-event'/);
+  assert.match(js, /setSelectOptions\('filter-minister'/);
+  assert.match(js, /setSelectOptions\('filter-participant'/);
+  assert.match(js, /Todos os eventos/);
+  assert.match(js, /Todos os ministros/);
+  assert.match(js, /Todos os participantes/);
+});
+
 test('upcoming setlists render all filtered results without pagination', () => {
   assert.match(js, /const page=history[\s\S]*MusicIdeSetlistHistory\.paginate\(state\.filtered,state\.page,state\.pageSize\)[\s\S]*items:state\.filtered/);
   assert.match(js, /\$\('pagination'\)\.hidden=!history\|\|page\.totalPages<=1/);
