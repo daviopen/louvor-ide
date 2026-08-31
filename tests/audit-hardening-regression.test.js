@@ -26,6 +26,25 @@ test('Design system mantém targets touch essenciais em pelo menos 44px', () => 
   ].forEach(pattern => assert.match(css, pattern));
 });
 
+test('Indisponibilidade mantém navegação do calendário acessível e cabeçalho legível', () => {
+  const css = read('src/styles/unavailability.css');
+  assert.match(css, /\.unavailability-calendar-nav \.ide-button\{width:44px;min-width:44px;height:44px;min-height:44px;padding:0\}/);
+  assert.match(css, /\.unavailability-header h1\{color:var\(--ide-text-on-dark\)\}/);
+  assert.match(css, /\.unavailability-header p\{[^}]*color:var\(--ide-text-on-dark-secondary\)/);
+  assert.match(css, /\.unavailability-header \.ide-module-kicker\{color:var\(--ide-primary\)\}/);
+});
+
+test('Termos e Privacidade usam links com contraste e target mínimo adequados', () => {
+  for (const file of ['src/pages/termos.html', 'src/pages/privacidade.html']) {
+    const html = read(file);
+    assert.match(html, /a\{display:inline-flex;align-items:center;min-height:44px;/);
+    assert.match(html, /color:var\(--music-accent-text\)/);
+    assert.match(html, /a:focus-visible\{outline:3px solid var\(--ide-focus-ring\)/);
+    assert.match(html, /\.back\{[^}]*color:var\(--ide-text-primary\)/);
+    assert.doesNotMatch(html, /a\{color:var\(--ide-primary-active\)/);
+  }
+});
+
 test('Tema claro usa texto secundário com contraste mais forte', () => {
   const tokens = read('src/styles/tokens.css');
   assert.match(tokens, /--ide-text-secondary: var\(--ide-color-neutral-700\);/);
