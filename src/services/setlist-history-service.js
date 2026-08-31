@@ -40,6 +40,7 @@
     const songs = Array.isArray(context.songs) ? context.songs : [];
     const users = context.users || new Map();
     const library = context.library || new Map();
+    const participantNames = Array.isArray(context.participantNames) ? context.participantNames : [];
     const date = setlist.eventDate || setlist.data || event.date || setlist.createdAt || null;
     const normalizedSongs = songs.map(song => {
       const source = library.get ? (library.get(song.songId) || {}) : {};
@@ -60,6 +61,7 @@
       dressCodeColors: normalizeDressCodeColors(setlist.dressCodeColors),
       songs: normalizedSongs,
       ministerNames: [...new Set(normalizedSongs.map(song => text(song.ministerName)).filter(Boolean))],
+      participantNames: [...new Set(participantNames.map(name => text(name)).filter(Boolean))],
       songTitles: normalizedSongs.map(song => text(song.title)).filter(Boolean),
       totalSongs: Number(setlist.totalMusicas ?? normalizedSongs.length ?? 0),
       status: text(setlist.status || event.status || 'DRAFT').toUpperCase()
@@ -95,10 +97,16 @@
     if (eventTerm && !lower(`${item.name} ${item.event?.name || ''}`).includes(eventTerm)) return false;
 
     const ministerTerm = lower(filters.minister);
-    if (ministerTerm && !item.ministerNames.some(name => lower(name).includes(ministerTerm))) return false;
+    if (ministerTerm && !(item.ministerNames || []).some(name => lower(name).includes(ministerTerm))) return false;
+
+    const participantTerm = lower(filters.participant);
+    if (participantTerm && !(item.participantNames || []).some(name => lower(name).includes(participantTerm))) return false;
+
+    const status = text(filters.status).toUpperCase();
+    if (status && text(item.status).toUpperCase() !== status) return false;
 
     const songTerm = lower(filters.song);
-    if (songTerm && !item.songTitles.some(title => lower(title).includes(songTerm))) return false;
+    if (songTerm && !(item.songTitles || []).some(title => lower(title).includes(songTerm))) return false;
 
     const themeTerm = lower(filters.theme);
     if (themeTerm && !lower(item.theme).includes(themeTerm)) return false;
