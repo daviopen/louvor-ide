@@ -3,10 +3,19 @@
   const params = new URLSearchParams(scope.location.search);
   if (params.get('section') !== 'schedules') return;
 
+  const validSorts = new Set(['DATE_ASC', 'DATE_DESC', 'EVENT_ASC', 'EVENT_DESC']);
+  const initialSort = validSorts.has(params.get('sort')) ? params.get('sort') : 'DATE_ASC';
   const state = {
     data: null,
     scheduleId: params.get('scheduleId') || null,
-    filters: { term: '', person: 'ALL', functionId: 'ALL', from: '', to: '', sort: 'DATE_ASC' },
+    filters: {
+      term: params.get('q') || '',
+      person: params.get('person') || 'ALL',
+      functionId: params.get('function') || 'ALL',
+      from: params.get('from') || '',
+      to: params.get('to') || '',
+      sort: initialSort
+    },
     picker: { scheduleId: null, slotId: null }
   };
   let repository;
@@ -17,8 +26,35 @@
   const formatDate = value => { const key = dateKey(value); return key ? new Intl.DateTimeFormat('pt-BR').format(new Date(`${key}T12:00:00`)) : 'Data a definir'; };
   const userId = user => user.id || user.uid;
   const scheduleEvent = item => item.event || {};
-  const listUrl = () => 'module.html?section=schedules';
-  const editorUrl = scheduleId => `module.html?section=schedules&scheduleId=${encodeURIComponent(scheduleId)}`;
+
+  function syncListState() {
+    if (state.scheduleId) return '';
+    const navigation = scope.MusicIdeNavigationState;
+    if (navigation) {
+      const href = navigation.replaceQuery({
+        q: state.filters.term,
+        person: state.filters.person,
+        function: state.filters.functionId,
+        from: state.filters.from,
+        to: state.filters.to,
+        sort: state.filters.sort
+      }, { person: 'ALL', function: 'ALL', sort: 'DATE_ASC' });
+      navigation.remember('schedules', href);
+      return href;
+    }
+    return `module.html?section=schedules`;
+  }
+
+  function listUrl() {
+    const navigation = scope.MusicIdeNavigationState;
+    return navigation ? navigation.resolveReturnUrl('module.html?section=schedules', 'schedules') : 'module.html?section=schedules';
+  }
+
+  function editorUrl(scheduleId) {
+    const target = `module.html?section=schedules&scheduleId=${encodeURIComponent(scheduleId)}`;
+    const navigation = scope.MusicIdeNavigationState;
+    return navigation ? navigation.withReturnTo(target) : target;
+  }
 
   function injectShell() {
     const placeholder = el('module-placeholder');
@@ -106,6 +142,7 @@
   }
 
   function renderListView() {
+    syncListState();
     scope.document.title='IDE Music — Escalas';
     const items=state.data.schedules.filter(matchesFilters).sort(compareSchedules);
     el('schedules-root').innerHTML=`<header class="schedules-header"><div><div class="ide-module-kicker">Escalas · Operação</div><h1>Escalas</h1><p>Consulte as escalas por evento e abra uma por vez para edição.</p></div></header><details id="schedules-filter-panel" class="ide-filter-panel" data-filter-panel="schedules"><summary class="ide-filter-panel__summary"><span class="ide-filter-panel__summary-main"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filtros <span class="ide-filter-panel__badge">0</span></span><span class="ide-filter-panel__summary-meta"><span class="ide-filter-panel__state">Mostrar</span></span></summary><div class="ide-filter-panel__body"><section class="schedules-filters" aria-label="Filtros de escalas"><label><span>Buscar evento</span><input id="schedule-filter-term" class="ide-field__control ide-field__input" type="search" placeholder="Evento ou local" value="${esc(state.filters.term)}"></label><label><span>Pessoa</span><select id="schedule-filter-person" class="ide-field__control ide-select" data-filter-neutral="ALL"><option value="ALL">Todas</option>${state.data.users.map(u=>`<option value="${esc(userId(u))}" ${state.filters.person===userId(u)?'selected':''}>${esc(u.name||u.email)}</option>`).join('')}</select></label><label><span>Função</span><select id="schedule-filter-function" class="ide-field__control ide-select" data-filter-neutral="ALL"><option value="ALL">Todas</option>${state.data.functions.map(fn=>`<option value="${esc(fn.id)}" ${state.filters.functionId===fn.id?'selected':''}>${esc(fn.name)}</option>`).join('')}</select></label><label><span>De</span><input id="schedule-filter-from" class="ide-field__control ide-field__input" type="date" value="${esc(state.filters.from)}"></label><label><span>Até</span><input id="schedule-filter-to" class="ide-field__control ide-field__input" type="date" value="${esc(state.filters.to)}"></label><label><span>Ordenar por</span><select id="schedule-sort" class="ide-field__control ide-select" data-filter-neutral="DATE_ASC"><option value="DATE_ASC" ${state.filters.sort==='DATE_ASC'?'selected':''}>Data · mais próxima primeiro</option><option value="DATE_DESC" ${state.filters.sort==='DATE_DESC'?'selected':''}>Data · mais distante primeiro</option><option value="EVENT_ASC" ${state.filters.sort==='EVENT_ASC'?'selected':''}>Evento · A–Z</option><option value="EVENT_DESC" ${state.filters.sort==='EVENT_DESC'?'selected':''}>Evento · Z–A</option></select></label><button id="schedule-clear-filters" class="ide-button ide-button--ghost" type="button"><i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i> Limpar filtros</button></section></div></details><div class="ide-empty-state" ${items.length?'hidden':''}><strong>Nenhuma escala encontrada</strong><span>Ajuste os filtros ou crie um evento primeiro.</span></div><section class="schedule-summary-list" aria-live="polite">${items.map(renderSummaryCard).join('')}</section>`;
