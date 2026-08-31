@@ -10,7 +10,7 @@
   const params = new URLSearchParams(scope.location?.search || '');
   const section = params.get('section') || '';
   const page = String(scope.location?.pathname || '').split('/').pop();
-  const relevant = page === 'consultar.html' || page === 'module.html';
+  const relevant = ['consultar.html', 'module.html', 'login.html'].includes(page);
   if (!relevant) return;
 
   function wrapUnavailabilityRows() {
@@ -60,12 +60,19 @@
     heading.replaceWith(replacement);
   }
 
+  function ensureLoginTouchTargets() {
+    if (page !== 'login.html') return;
+    const forgot = scope.document.querySelector('.forgot-button');
+    if (forgot) forgot.style.minHeight = '44px';
+  }
+
   let frame = 0;
   function apply() {
     frame = 0;
     wrapUnavailabilityRows();
     ensureScrollableKeyboardAccess();
     ensureFormNames();
+    ensureLoginTouchTargets();
     if (section === 'permissions') ensurePrimaryHeading();
   }
 
