@@ -1,4 +1,5 @@
 import musicRepository from '../../repositories/music-repository.js';
+import { mountMusicAIImport, getMusicAIImportMetadata } from '../modules/music-ai-import.js';
 
 const form = document.getElementById('song-form');
 const statusEl = document.getElementById('status');
@@ -139,11 +140,13 @@ function getData() {
   selection.forEach(item => {
     if (item.preferredKey) tomMinistro[item.name] = item.preferredKey;
   });
+  const aiMetadata = getMusicAIImportMetadata();
 
   return {
     titulo: document.getElementById('titulo').value.trim(),
     artista: document.getElementById('artista').value.trim(),
     tom: document.getElementById('tom').value.trim(),
+    originalKey: document.getElementById('tom').value.trim(),
     tema: document.getElementById('tema').value.trim() || null,
     link: document.getElementById('link').value.trim() || null,
     cifra: document.getElementById('cifra').value.trim(),
@@ -151,7 +154,8 @@ function getData() {
     observacoes: document.getElementById('observacoes').value.trim() || null,
     ministros: selection.map(item => item.name),
     ministerUserIds: selection.map(item => item.userId),
-    tomMinistro: Object.keys(tomMinistro).length ? tomMinistro : null
+    tomMinistro: Object.keys(tomMinistro).length ? tomMinistro : null,
+    ...(aiMetadata || { importMethod: 'manual' })
   };
 }
 
@@ -160,7 +164,11 @@ function validate(data) {
   if (data.titulo.length < 2) errors.push('Informe o nome da música.');
   if (!data.artista) errors.push('Informe o artista.');
   if (!data.tom) errors.push('Informe o tom original.');
+  if (!/^(?:[A-G](?:#|b)?)(?:m|maj|min|sus|dim|aug)?(?:\d{0,2})?$/i.test(data.tom)) errors.push('Informe um tom musical válido.');
   if (!data.cifra) errors.push('Informe a cifra.');
+  if (data.bpm !== null && data.bpm !== undefined && (!Number.isInteger(Number(data.bpm)) || Number(data.bpm) < 30 || Number(data.bpm) > 260)) {
+    errors.push('O BPM deve estar entre 30 e 260.');
+  }
   if (data.link) {
     try { new URL(data.link); } catch { errors.push('Informe um link de referência válido.'); }
   }
@@ -197,9 +205,9 @@ async function loadEdit() {
 
   document.getElementById('titulo').value = song.titulo || '';
   document.getElementById('artista').value = song.artista || '';
-  document.getElementById('tom').value = song.tom || '';
+  document.getElementById('tom').value = song.tom || song.originalKey || '';
   document.getElementById('tema').value = song.tema || song.theme || '';
-  document.getElementById('link').value = song.link || song.referenceUrl || '';
+  document.getElementById('link').value = song.link || song.referenceUrl || song.video?.url || '';
   document.getElementById('cifra').value = song.cifra || song.chordSheet || '';
   document.getElementById('letra').value = song.letra || song.lyrics || '';
   document.getElementById('observacoes').value = song.observacoes || song.notes || '';
@@ -255,10 +263,14 @@ async function save(event) {
     }
 
     await musicRepository.replaceMinisterKeys(songId, getMinisterSelection());
-    await musicRepository.addAuditLog(actor.uid, editId ? 'SONG_UPDATED' : 'SONG_CREATED', songId, {
-      before,
-      after: data
-    });
+    const auditDetails = {
+      importMethod: data.importMethod || 'manual',
+      aiProvider: data.aiProvider || null,
+      aiModel: data.aiModel || null,
+      aiSchemaVersion: data.aiSchemaVersion || null,
+      changedFields: Object.keys(data).filter(key => !['cifra', 'letra', 'observacoes'].includes(key))
+    };
+    await musicRepository.addAuditLog(actor.uid, editId ? 'SONG_UPDATED' : 'SONG_CREATED', songId, auditDetails);
 
     initialSnapshot = snapshot();
     dirty = false;
@@ -283,6 +295,7 @@ function leavePage() {
 async function init() {
   try {
     configureOptionalLyrics();
+    mountMusicAIImport();
     await loadMinisters();
     await loadEdit();
     updatePreview();
