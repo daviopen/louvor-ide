@@ -96,6 +96,7 @@ Antes de concluir uma nova funcionalidade ou mutation dentro de `src/`, verifica
 10. Erro restaura estado otimista ou mantém a UI coerente?
 11. Há teste de regressão para perfil/permissão e para a mutação crítica?
 12. Foi confirmado que nenhum perfil perdeu acesso que já possuía sem decisão explícita de produto?
+13. Toda rota/página nova está registrada no `ROUTE_CATALOG` antes de ser considerada concluída?
 
 ## 8. Validação funcional pós-Action com contas QA
 
@@ -207,5 +208,28 @@ Ao modificar funcionalidade existente:
 - não remover acesso como efeito colateral de refactor, alteração de rota, mudança de nome, criação de submenu ou troca de componente;
 - testes devem detectar regressões da matriz;
 - se uma mudança exige alterar acesso de um perfil, registrar a decisão no mesmo commit/PR e atualizar esta matriz quando aplicável.
+
+## 10. Route Catalog é obrigatório
+
+O `ROUTE_CATALOG` de `src/js/modules/app-shell.js` é a fonte única da verdade para páginas, rotas funcionais, itens de menu e guard de navegação. A tela administrativa **Configurações → Rotas e Acessos** deve somente projetar esse catálogo e a matriz de `access-profiles.js`; ela não mantém uma segunda cópia de autorização.
+
+Regras obrigatórias:
+
+- toda página `.html` navegável em `src/pages/` deve possuir ao menos uma entrada correspondente no `ROUTE_CATALOG`;
+- toda variação funcional relevante de uma mesma página (`section`, `view`, `tab`, detalhe, editor) deve possuir entrada própria quando tiver semântica ou requisito de acesso diferente;
+- rota protegida deve declarar exatamente uma política: `permission` ou `adminOnly`; rota pública deve declarar `public: true`;
+- rota com mutação exclusiva deve declarar `minLevel: 'edit'` quando usuários de leitura não puderem acessá-la;
+- o menu deve ser derivado do catálogo, nunca manter uma lista paralela de rotas;
+- o guard deve resolver a rota atual pelo catálogo e bloquear acesso incompatível mesmo quando o usuário digitar a URL diretamente;
+- páginas públicas também devem ser registradas no catálogo, identificadas como públicas;
+- criar arquivo/página e “lembrar depois” de adicionar permissão não é aceitável: o teste `tests/route-catalog-guardrail.test.js` deve falhar enquanto a rota não estiver registrada;
+- não varrer HTML em runtime para descobrir autorização. Descoberta automática pertence ao teste/CI; runtime deve consumir o catálogo versionado e determinístico;
+- a tela **Rotas e Acessos** permanece somente leitura por padrão. Alteração dinâmica de autorização no Firestore exige requisito explícito futuro, auditoria, versionamento e Rules adequadas.
+
+Para uma nova rota protegida, o fluxo obrigatório é:
+
+`definir requisito -> decidir NONE/READ/EDIT dos cinco perfis -> registrar no ROUTE_CATALOG -> atualizar access-profiles.js se necessário -> implementar UI/Service/Repository/Rules -> testes -> Quality Gate -> deploy -> QA funcional`.
+
+Se a nova rota não tiver política de acesso clara, **perguntar ao usuário antes de implementá-la**. Não criar rota temporariamente com acesso amplo, não assumir `ADMINISTRATOR` como solução genérica e não copiar uma política existente sem justificativa funcional.
 
 Em caso de conflito, o `AGENTS.md` raiz continua sendo a regra global e este arquivo torna as exigências acima mais específicas para o código de `src/`.
