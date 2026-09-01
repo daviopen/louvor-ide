@@ -22,15 +22,29 @@ function classifyError(error) {
   return 'UNAVAILABLE';
 }
 
+async function loadPublicConfig() {
+  try {
+    await import('../js/ai-public-config.js');
+  } catch {}
+  return window.IDE_MUSIC_AI_CONFIG || {};
+}
+
 export class FirebaseMusicAIProvider extends MusicAIProvider {
-  constructor({ model = window.ENV?.VITE_FIREBASE_AI_MODEL || DEFAULT_MODEL } = {}) {
-    super({ provider: 'firebase-ai-logic/google-ai', model });
+  constructor({ model = null } = {}) {
+    super({ provider: 'firebase-ai-logic/google-ai', model: model || DEFAULT_MODEL });
+    this.explicitModel = model;
     this._model = null;
   }
 
   async _loadModel() {
     if (this._model) return this._model;
     try {
+      const publicConfig = await loadPublicConfig();
+      if (publicConfig.enabled === false) {
+        throw new MusicAIProviderError('DISABLED', 'A importação com IA está desabilitada. Continue pelo cadastro manual.');
+      }
+      this.model = this.explicitModel || publicConfig.model || window.ENV?.VITE_FIREBASE_AI_MODEL || DEFAULT_MODEL;
+
       const [{ initializeApp, getApps, getApp }, aiModule, appCheckModule] = await Promise.all([
         import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-app.js`),
         import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-ai.js`),
@@ -40,16 +54,18 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
       const options = firebaseOptionsFromCompat();
       const appName = 'ide-music-ai';
       const modularApp = getApps().some(app => app.name === appName) ? getApp(appName) : initializeApp(options, appName);
-      const siteKey = window.ENV?.VITE_FIREBASE_APPCHECK_SITE_KEY || window.FIREBASE_APPCHECK_SITE_KEY || '';
-      if (siteKey) {
-        try {
-          appCheckModule.initializeAppCheck(modularApp, {
-            provider: new appCheckModule.ReCaptchaEnterpriseProvider(siteKey),
-            isTokenAutoRefreshEnabled: true
-          });
-        } catch (error) {
-          if (!String(error?.code || '').includes('already-initialized')) throw error;
-        }
+      const siteKey = publicConfig.appCheckSiteKey || window.ENV?.VITE_FIREBASE_APPCHECK_SITE_KEY || window.FIREBASE_APPCHECK_SITE_KEY || '';
+      if (!siteKey) {
+        throw new MusicAIProviderError('APP_CHECK_CONFIG', 'A proteção App Check da IA ainda não foi configurada. Continue pelo cadastro manual.');
+      }
+
+      try {
+        appCheckModule.initializeAppCheck(modularApp, {
+          provider: new appCheckModule.ReCaptchaEnterpriseProvider(siteKey),
+          isTokenAutoRefreshEnabled: true
+        });
+      } catch (error) {
+        if (!String(error?.code || '').includes('already-initialized')) throw error;
       }
 
       const ai = aiModule.getAI(modularApp, { backend: new aiModule.GoogleAIBackend() });
