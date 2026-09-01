@@ -12,12 +12,12 @@
   <script src="../js/modules/app-shell.js?v=20260825-sidebar" defer></script>
   <script src="../repositories/dashboard-repository.js?v=20260826-personal" defer></script>
   <script src="../services/dashboard-service.js?v=20260826-personal" defer></script>
-  <script src="../js/modules/dashboard-page.js?v=20260831-indicator-links" defer></script>
+  <script src="../js/modules/dashboard-page.js?v=20260831-section-title-links" defer></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
   <link rel="stylesheet" href="../css/music-ide-theme.css">
-  <link rel="stylesheet" href="../styles/dashboard.css?v=20260831-indicator-links">
+  <link rel="stylesheet" href="../styles/dashboard.css?v=20260831-section-title-links">
 </head>
 <body>
   <main class="ide-dashboard" id="dashboard-main">
@@ -34,17 +34,17 @@
 
     <section class="ide-dashboard-grid" aria-label="Meus próximos compromissos">
       <article class="ide-dashboard-card">
-        <header class="ide-dashboard-card__header"><i class="fa-solid fa-people-group" aria-hidden="true"></i><h2>Minhas próximas escalas</h2></header>
+        <header class="ide-dashboard-card__header"><i class="fa-solid fa-people-group" aria-hidden="true"></i><h2><a id="dashboard-schedules-title-link" class="ide-dashboard-card__title-link" href="module.html?section=schedules" aria-label="Abrir minhas próximas escalas">Minhas próximas escalas</a></h2></header>
         <div id="dashboard-upcoming-schedules" class="ide-dashboard-list" aria-live="polite"></div>
       </article>
 
       <article class="ide-dashboard-card">
-        <header class="ide-dashboard-card__header"><i class="fa-solid fa-list-check" aria-hidden="true"></i><h2>Meus setlists</h2></header>
+        <header class="ide-dashboard-card__header"><i class="fa-solid fa-list-check" aria-hidden="true"></i><h2><a id="dashboard-setlists-title-link" class="ide-dashboard-card__title-link" href="setlists.html?view=upcoming" aria-label="Abrir meus setlists">Meus setlists</a></h2></header>
         <div id="dashboard-upcoming-setlists" class="ide-dashboard-list" aria-live="polite"></div>
       </article>
 
       <article class="ide-dashboard-card">
-        <header class="ide-dashboard-card__header"><i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i><h2>Minhas indisponibilidades</h2></header>
+        <header class="ide-dashboard-card__header"><i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i><h2><a id="dashboard-unavailability-title-link" class="ide-dashboard-card__title-link" href="module.html?section=unavailability" aria-label="Abrir minhas indisponibilidades">Minhas indisponibilidades</a></h2></header>
         <div id="dashboard-upcoming-unavailability" class="ide-dashboard-list" aria-live="polite"></div>
       </article>
     </section>
