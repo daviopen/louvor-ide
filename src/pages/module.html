@@ -13,22 +13,21 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="../config/firebase-config.js"></script>
-  <script src="../repositories/unavailability-repository.js?v=20260825-unavailability"></script>
+  <script src="../repositories/unavailability-repository.js?v=20260831-unavailability-audit-fix"></script>
   <script src="../services/unavailability-service.js?v=20260825-unavailability"></script>
   <script src="../repositories/event-repository.js?v=20260825-events"></script>
   <script src="../services/event-service.js?v=20260825-events"></script>
   <script src="../js/modules/auth-service.js?v=20260825-events"></script>
   <script src="../js/modules/app-shell.js?v=20260825-menu-main" defer></script>
   <script src="../js/modules/permissions-page.js?v=20260825-permissions" defer></script>
-  <script src="../js/modules/unavailability-page.js?v=20260825-unavailability" defer></script>
+  <script src="../js/modules/unavailability-page.js?v=20260831-unavailability-calendar-v2" defer></script>
   <script src="../js/modules/events-page.js?v=20260825-events" defer></script>
   <script src="../js/modules/schedule-export-polish.js?v=20260831-export-polish" defer></script>
-  <script src="../features/unavailability/filter-panel-standard.js?v=20260831-standard-filters" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
   <link rel="stylesheet" href="../styles/unavailability.css?v=20260825-unavailability">
-  <link rel="stylesheet" href="../styles/unavailability-filter-panel.css?v=20260831-standard-filters">
+  <link rel="stylesheet" href="../styles/unavailability-filter-panel.css?v=20260831-calendar-v2">
   <link rel="stylesheet" href="../styles/events.css?v=20260825-events">
   <link rel="stylesheet" href="../css/music-ide-theme.css">
   <style>
@@ -136,19 +135,19 @@
         <div class="unavailability-section-heading">
           <div><span class="ide-module-kicker">Visão mensal</span><h2 id="calendar-title">Calendário</h2></div>
           <div class="unavailability-calendar-nav">
-            <button id="calendar-prev" class="ide-button ide-button--secondary ide-button--sm" type="button" aria-label="Mês anterior"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+            <button id="calendar-prev" class="ide-button ide-button--secondary ide-button--sm" type="button" aria-label="Mês anterior com indisponibilidades"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
             <strong id="calendar-label"></strong>
-            <button id="calendar-next" class="ide-button ide-button--secondary ide-button--sm" type="button" aria-label="Próximo mês"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+            <button id="calendar-next" class="ide-button ide-button--secondary ide-button--sm" type="button" aria-label="Próximo mês com indisponibilidades"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
           </div>
         </div>
         <div class="unavailability-weekdays" aria-hidden="true"><span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span></div>
         <div id="unavailability-calendar" class="unavailability-calendar" role="grid" aria-label="Calendário de indisponibilidades"></div>
-        <p class="unavailability-calendar-help"><span class="unavailability-dot" aria-hidden="true"></span> Dias marcados possuem uma ou mais indisponibilidades.</p>
+        <p class="unavailability-calendar-help"><span class="unavailability-dot" aria-hidden="true"></span> Clique em um dia para ver quem está indisponível.</p>
       </article>
 
       <article class="ide-section-card unavailability-list-card" aria-labelledby="future-title">
         <div class="unavailability-section-heading">
-          <div><span class="ide-module-kicker">Próximos registros</span><h2 id="future-title">Indisponibilidades futuras</h2></div>
+          <div><span class="ide-module-kicker">Registros</span><h2 id="future-title">Indisponibilidades</h2></div>
         </div>
 
         <details id="unavailability-filter-panel" class="ide-filter-panel" data-filter-panel="unavailability">
@@ -162,6 +161,10 @@
                 <span>Pessoa</span>
                 <select id="admin-user-filter" class="ide-field__control ide-select" data-filter-neutral="ALL"><option value="ALL">Todas</option></select>
               </label>
+              <label class="unavailability-filter">
+                <span>Mês</span>
+                <select id="unavailability-month-filter" class="ide-field__control ide-select" data-filter-neutral=""><option value="">Todos os meses</option></select>
+              </label>
               <button id="unavailability-clear-filters" class="ide-button ide-button--ghost unavailability-clear-filters" type="button"><i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i> Limpar filtros</button>
             </div>
           </div>
@@ -169,7 +172,7 @@
 
         <div id="unavailability-loading" class="unavailability-loading" role="status">Carregando indisponibilidades...</div>
         <div id="unavailability-empty" class="ide-empty-state" hidden>
-          <i class="fa-solid fa-calendar-check" aria-hidden="true"></i><strong>Nenhuma indisponibilidade futura</strong><span>Quando houver necessidade, registre uma nova data.</span>
+          <i class="fa-solid fa-calendar-check" aria-hidden="true"></i><strong>Nenhuma indisponibilidade encontrada</strong><span>Ajuste os filtros ou registre uma nova indisponibilidade.</span>
         </div>
         <div id="unavailability-list" class="unavailability-list" aria-live="polite"></div>
       </article>
@@ -208,6 +211,16 @@
         <button id="unavailability-submit" class="ide-button ide-button--primary" type="submit">Salvar indisponibilidade</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="unavailability-day-dialog" class="unavailability-dialog unavailability-day-dialog" aria-labelledby="unavailability-day-title">
+    <div class="unavailability-day-dialog__content">
+      <div class="unavailability-dialog-heading">
+        <div><div class="ide-module-kicker">Indisponibilidades do dia</div><h2 id="unavailability-day-title">Detalhes</h2></div>
+        <button id="unavailability-day-close" class="ide-button ide-button--secondary ide-button--sm" type="button" aria-label="Fechar detalhes do dia">Fechar</button>
+      </div>
+      <div id="unavailability-day-list" class="unavailability-day-list"></div>
+    </div>
   </dialog>
 
   <div id="events-toast" class="events-toast" role="status" aria-live="polite" hidden></div>
