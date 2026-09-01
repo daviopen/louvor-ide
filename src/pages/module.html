@@ -23,6 +23,7 @@
   <script src="../js/modules/unavailability-page.js?v=20260831-unavailability-calendar-v2" defer></script>
   <script src="../js/modules/events-page.js?v=20260825-events" defer></script>
   <script src="../js/modules/schedule-export-polish.js?v=20260831-export-polish" defer></script>
+  <script src="../js/modules/function-display-order.js?v=20260901-display-order" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
@@ -97,7 +98,7 @@
       </div>
       <input id="event-id" type="hidden">
       <div class="event-form-grid">
-        <label class="full"><span class="ide-field__label">Nome <strong aria-hidden="true">*</strong></span><input id="event-name" class="ide-field__control ide-field__input" type="text" maxlength="120" required></label>
+        <label class="full"><span class="ide-field__label">Nome <strong aria-hidden="true">*</strong></span><input id="event-name" class="ide-field__control ide-field__input" type="text" maxlength="120" required value=""></label>
         <label><span class="ide-field__label">Data <strong aria-hidden="true">*</strong></span><input id="event-date" class="ide-field__control ide-field__input" type="date" required></label>
         <label><span class="ide-field__label">Horário</span><input id="event-time" class="ide-field__control ide-field__input" type="time"></label>
         <label><span class="ide-field__label">Status</span><select id="event-status" class="ide-field__control ide-select"><option value="PLANNED">Planejado</option><option value="CONFIRMED">Confirmado</option></select></label>
