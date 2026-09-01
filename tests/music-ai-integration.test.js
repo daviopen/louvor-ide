@@ -36,7 +36,8 @@ test('provider usa Firebase AI Logic no cliente, App Check e Gemini Developer AP
   assert.match(provider, /getGenerativeModel/);
   assert.match(provider, /responseMimeType:\s*'application\/json'/);
   assert.match(provider, /responseSchema/);
-  assert.match(provider, /tools:\s*\[\{ urlContext: \{\} \}\]/);
+  assert.match(provider, /\[\{ urlContext: \{\} \}\]/);
+  assert.match(provider, /tools,/);
   assert.doesNotMatch(provider, /functions\.httpsCallable|cloudfunctions|serviceAccount|privateKey/);
 });
 
