@@ -101,19 +101,54 @@ Alteração que afete UI, autenticação, autorização, Firestore, navegação,
 
 Depois de `Quality Gate` e deploy concluídos com sucesso, executar validação funcional diretamente na aplicação publicada sempre que houver acesso às contas QA apropriadas.
 
-Manter duas contas reais e não administrativas dedicadas exclusivamente a QA:
+### 8.1. Contas QA fixas e persistentes
 
-- **QA MEMBER EDIT**: perfil `MEMBER`, ativo, com permissões `EDIT` nos módulos operacionais que precisam ter mutações validadas;
-- **QA MEMBER READ**: perfil `MEMBER`, ativo, configurado com `READ` nos mesmos módulos quando a funcionalidade possuir modo somente leitura, e `NONE` nos módulos que precisem ter negação de acesso validada.
+O projeto deve manter **exatamente duas contas de QA persistentes**, criadas uma única vez no Firebase Authentication e reutilizadas entre execuções, sessões e iterações futuras.
 
-Regras obrigatórias para essas contas:
+Essas contas possuem identidade funcional estável:
 
-- nunca usar `ADMIN` ou `SUPER_ADMIN` como substituto para validar comportamento de usuário comum;
-- não adicionar e-mail, senha, token, cookie ou qualquer credencial dessas contas ao repositório, `AGENTS.md`, código, testes, fixtures, logs ou GitHub Actions;
-- credenciais ficam fora do Git e são usadas somente na sessão de validação interativa;
-- essas contas não fazem parte da pipeline e não devem ser autenticadas automaticamente pelo GitHub Actions;
-- dados criados durante QA devem usar registros claramente identificáveis como teste e, quando a operação for segura, devem ser removidos ao final;
-- não usar dados reais sensíveis de membros como fixture de teste.
+- **QA MEMBER EDIT**: perfil `MEMBER`, ativo, dedicado à validação de fluxos com mutação;
+- **QA MEMBER READ**: perfil `MEMBER`, ativo, dedicado à validação de leitura, ausência de controles de edição e negação de acesso.
+
+Regras obrigatórias de ciclo de vida:
+
+- não criar nova conta de QA a cada teste, deploy, Action ou sessão;
+- não excluir/recriar as contas ao final da validação;
+- não gerar nova senha automaticamente a cada execução;
+- manter o mesmo usuário Firebase/UID enquanto a conta permanecer válida;
+- manter nomes funcionais estáveis para facilitar auditoria, logs e investigação de defeitos;
+- alteração de e-mail, UID, perfil base ou finalidade da conta exige decisão explícita e atualização deste padrão;
+- dados temporários criados pelas contas podem ser limpos, mas a identidade da conta permanece.
+
+Permissões esperadas:
+
+- **QA MEMBER EDIT** deve receber `EDIT` nos módulos operacionais que precisam ter mutações validadas;
+- **QA MEMBER READ** deve receber `READ` nos módulos equivalentes quando houver modo somente leitura e `NONE` onde seja necessário validar negação de acesso;
+- permissões podem ser ajustadas deliberadamente entre cenários, mas o usuário/UID da conta deve permanecer o mesmo;
+- nunca usar `ADMIN` ou `SUPER_ADMIN` como substituto para validar comportamento de usuário comum.
+
+### 8.2. Segurança das credenciais
+
+A identidade lógica das contas pode ser documentada como `QA MEMBER EDIT` e `QA MEMBER READ`, porém credenciais secretas devem ficar fora do Git.
+
+É proibido adicionar senha, token, cookie, refresh token, service account ou outro segredo dessas contas em:
+
+- `AGENTS.md`;
+- código-fonte;
+- testes e fixtures;
+- arquivos versionados;
+- logs;
+- screenshots;
+- artifacts;
+- GitHub Actions.
+
+O e-mail real das contas também não precisa ser versionado quando não houver necessidade técnica. Quando for necessário referenciá-las em configuração local segura, usar mecanismo não versionado e claramente identificado para QA.
+
+As credenciais devem ser armazenadas em meio seguro e persistente fora do repositório, permitindo reutilização nas sessões de validação sem recriar as contas. Se uma credencial precisar ser rotacionada, alterar somente a credencial; preservar a conta e o UID sempre que possível.
+
+Essas contas não fazem parte da pipeline e não devem ser autenticadas automaticamente pelo GitHub Actions. O objetivo é validar a aplicação publicada em uma sessão funcional real depois que a pipeline concluir.
+
+### 8.3. Execução da validação
 
 Para cada correção ou funcionalidade afetada, a validação pós-deploy deve cobrir, conforme aplicável:
 
@@ -127,9 +162,11 @@ Para cada correção ou funcionalidade afetada, a validação pós-deploy deve c
 8. quando houver `NONE`, confirmar que menu/rota e operação permanecem bloqueados;
 9. quando a mudança afetar responsividade, repetir o fluxo relevante em desktop e mobile.
 
+Dados criados durante QA devem usar registros claramente identificáveis como teste e, quando a operação for segura, devem ser removidos ao final. Não usar dados reais sensíveis de membros como fixture de teste.
+
 Ordem de conclusão esperada para mudanças de produção:
 
-`implementação -> testes locais/estáticos -> Quality Gate -> deploy -> validação funcional na aplicação com contas QA -> conclusão`.
+`implementação -> testes locais/estáticos -> Quality Gate -> deploy -> validação funcional na aplicação com contas QA persistentes -> conclusão`.
 
 Se o Action passar mas a validação funcional falhar, o item continua **não concluído**. Se o deploy não tiver ocorrido, também não é permitido afirmar que a correção foi validada em produção.
 
