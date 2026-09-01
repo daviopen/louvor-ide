@@ -6,6 +6,8 @@ import {
 } from './music-ai-import-base.js';
 export { compactSectionContent, composeChordSheet, composeCanonicalChordSheet, formatCapoHeader, resolveReferenceLink } from './music-ai-import-base.js';
 
+// Contrato visual herdado do módulo base: "A IA está analisando a música…", "verificando tom/capotraste",
+// .ai-import__thinking, aria-busy e o rótulo de ação "IA analisando" permanecem obrigatórios.
 const SECTION_LABELS = Object.freeze({
   intro: 'Intro',
   verse: 'Estrofe',
