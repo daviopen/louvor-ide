@@ -20,7 +20,7 @@ concurrency:
 jobs:
   music_ai_mock_e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
 
     steps:
       - name: 📂 Checkout
@@ -35,57 +35,53 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
-      - name: 🔑 Authenticate Firebase service account
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
-
       - name: 🏗️ Build branch under test
         env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          # O harness não inicializa Firebase. Valores não sensíveis apenas satisfazem
+          # o contrato do build e mantêm este E2E independente de produção/quota/secrets.
+          VITE_FIREBASE_API_KEY: e2e-public-api-key
+          VITE_FIREBASE_AUTH_DOMAIN: e2e.invalid
+          VITE_FIREBASE_PROJECT_ID: e2e-music-ai
+          VITE_FIREBASE_STORAGE_BUCKET: e2e.invalid
+          VITE_FIREBASE_MESSAGING_SENDER_ID: '000000000000'
+          VITE_FIREBASE_APP_ID: e2e-app-id
+          VITE_FIREBASE_MEASUREMENT_ID: e2e-measurement-id
           VITE_FIREBASE_APPCHECK_SITE_KEY: ''
           VITE_FIREBASE_AI_MODEL: gemini-3.5-flash-lite
         run: npm run build
 
-      - name: 🌐 Install Playwright E2E dependencies
+      - name: 🌐 Install Playwright
         run: |
           set -euo pipefail
-          npm install --no-save playwright@1.55.0 firebase-admin@13.4.0
+          npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
 
-      - name: 🔥 Start local Hosting preview
+      - name: 🌐 Start isolated static preview
         run: |
           set -euo pipefail
-          npx firebase serve --only hosting --project louvor-ide --host 127.0.0.1 --port 5000 > /tmp/music-ai-firebase.log 2>&1 &
-          echo $! > /tmp/music-ai-firebase.pid
-          for attempt in {1..40}; do
-            if curl --fail --silent http://127.0.0.1:5000/login.html >/dev/null; then
+          python3 -m http.server 5000 --bind 127.0.0.1 > /tmp/music-ai-static.log 2>&1 &
+          echo $! > /tmp/music-ai-static.pid
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:5000/nova-musica.html >/dev/null; then
               exit 0
             fi
             sleep 1
           done
-          cat /tmp/music-ai-firebase.log
+          cat /tmp/music-ai-static.log
           exit 1
 
       - name: 🎭 Run mocked provider E2E
         env:
           E2E_BASE_URL: http://127.0.0.1:5000
-          FIREBASE_PROJECT_ID: louvor-ide
         run: node tests/music-ai-mock.e2e.cjs
 
-      - name: 📜 Print Hosting preview log on failure
+      - name: 📜 Print preview log on failure
         if: failure()
-        run: cat /tmp/music-ai-firebase.log || true
+        run: cat /tmp/music-ai-static.log || true
 
-      - name: 🧹 Stop local Hosting preview
+      - name: 🧹 Stop isolated preview
         if: always()
         run: |
-          if [ -f /tmp/music-ai-firebase.pid ]; then
-            kill "$(cat /tmp/music-ai-firebase.pid)" 2>/dev/null || true
+          if [ -f /tmp/music-ai-static.pid ]; then
+            kill "$(cat /tmp/music-ai-static.pid)" 2>/dev/null || true
           fi
