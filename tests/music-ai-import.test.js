@@ -34,11 +34,29 @@ test('normaliza BPM somente dentro de faixa plausível', () => {
   assert.equal(normalizeBpm('abc'), null);
 });
 
-test('extrai videoId de URLs YouTube suportadas', () => {
+test('extrai videoId de URLs YouTube e thumbnails ytimg suportadas', () => {
   assert.equal(extractYouTubeVideoId('https://www.youtube.com/watch?v=abc123XYZ'), 'abc123XYZ');
   assert.equal(extractYouTubeVideoId('https://youtu.be/abc123XYZ'), 'abc123XYZ');
   assert.equal(extractYouTubeVideoId('https://www.youtube.com/shorts/abc123XYZ'), 'abc123XYZ');
+  assert.equal(extractYouTubeVideoId('https://i.ytimg.com/vi/HYwg0HlxBas/default.jpg'), 'HYwg0HlxBas');
+  assert.equal(extractYouTubeVideoId('https://i.ytimg.com/vi_webp/HYwg0HlxBas/default.webp'), 'HYwg0HlxBas');
   assert.equal(extractYouTubeVideoId('https://example.com/video'), null);
+});
+
+test('normaliza thumbnail do YouTube para link watch canônico', () => {
+  const normalized = normalizeMusicAIResponse({
+    video: {
+      provider: null,
+      url: 'https://i.ytimg.com/vi/HYwg0HlxBas/default.jpg',
+      videoId: null
+    }
+  });
+
+  assert.deepEqual(normalized.video, {
+    provider: 'youtube',
+    url: 'https://www.youtube.com/watch?v=HYwg0HlxBas',
+    videoId: 'HYwg0HlxBas'
+  });
 });
 
 test('resposta parcial mantém campos não identificados vazios', () => {
