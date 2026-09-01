@@ -39,10 +39,14 @@ body { background: var(--ide-background); color: var(--ide-text-primary); }
 .ide-dashboard-empty h3, .ide-dashboard-empty p { margin: 0; }
 .ide-dashboard-empty p { color: var(--ide-text-secondary); }
 .ide-dashboard-indicators { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--ide-space-4); }
-.ide-dashboard-indicator { border: 1px solid var(--ide-border); border-radius: var(--ide-radius-lg); background: var(--ide-surface); padding: var(--ide-space-5); display: grid; gap: var(--ide-space-2); box-shadow: var(--ide-shadow-sm); }
+.ide-dashboard-indicator { position: relative; border: 1px solid var(--ide-border); border-radius: var(--ide-radius-lg); background: var(--ide-surface); color: inherit; text-decoration: none; padding: var(--ide-space-5); display: grid; gap: var(--ide-space-2); box-shadow: var(--ide-shadow-sm); cursor: pointer; transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.ide-dashboard-indicator:hover, .ide-dashboard-indicator:focus-visible { border-color: var(--ide-primary); background: var(--ide-surface-secondary); box-shadow: var(--ide-shadow-md); transform: translateY(-1px); }
+.ide-dashboard-indicator:focus-visible { outline: 2px solid var(--ide-primary); outline-offset: 2px; }
 .ide-dashboard-indicator i { color: var(--ide-primary-active); }
 .ide-dashboard-indicator strong { font-size: 2rem; line-height: 1; }
-.ide-dashboard-indicator span { color: var(--ide-text-secondary); font-size: var(--ide-font-size-sm); }
+.ide-dashboard-indicator span { color: var(--ide-text-secondary); font-size: var(--ide-font-size-sm); padding-right: var(--ide-space-5); }
+.ide-dashboard-indicator__arrow { position: absolute; top: var(--ide-space-5); right: var(--ide-space-5); color: var(--ide-text-secondary) !important; font-size: var(--ide-font-size-sm); }
+.ide-dashboard-indicator:hover .ide-dashboard-indicator__arrow, .ide-dashboard-indicator:focus-visible .ide-dashboard-indicator__arrow { color: var(--ide-primary-active) !important; }
 
 @media (max-width: 900px) {
   .ide-dashboard { padding: var(--ide-space-6) var(--ide-space-4) 96px; }
