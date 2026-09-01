@@ -9,6 +9,9 @@ let lastFingerprint = '';
 let lastStartedAt = 0;
 const requestTimes = [];
 
+const CHORD_TOKEN_RE = /^(?:[A-G](?:#|b)?)(?:(?:m|maj|min|dim|aug|sus|add|M)?(?:\d{0,2})?(?:[#b+\-º°()]*)?)(?:\/[A-G](?:#|b)?)?$/u;
+const MUSIC_METADATA_RE = /^(?:tom|capotraste|afina[cç][aã]o|bpm|compasso|tuning|key)\s*:/iu;
+
 function validHttpUrl(value) {
   if (!value) return null;
   try {
@@ -33,6 +36,66 @@ function looksLikeSongQuery(value) {
   return true;
 }
 
+export function parseSongQueryIdentity(value) {
+  const text = compactText(value, 300).replace(/\s+/g, ' ');
+  if (!text) return null;
+
+  for (const separator of [' — ', ' – ', ' - ']) {
+    const index = text.lastIndexOf(separator);
+    if (index > 0) {
+      const title = text.slice(0, index).trim();
+      const artist = text.slice(index + separator.length).trim();
+      if (title && artist) return { title, artist };
+    }
+  }
+
+  const commaIndex = text.lastIndexOf(',');
+  if (commaIndex > 0) {
+    const title = text.slice(0, commaIndex).trim();
+    const artist = text.slice(commaIndex + 1).trim();
+    if (title && artist && artist.split(/\s+/).length <= 6) return { title, artist };
+  }
+  return null;
+}
+
+function normalizeChordToken(token) {
+  const normalized = String(token || '')
+    .trim()
+    .replace(/^[\[({|]+/, '')
+    .replace(/[\])},;:|]+$/, '');
+  return CHORD_TOKEN_RE.test(normalized) ? normalized : null;
+}
+
+function isChordOnlyLine(line) {
+  const tokens = String(line || '').trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return false;
+  const meaningful = tokens.filter(token => !/^[|()\[\]{},;:\-]+$/.test(token));
+  return Boolean(meaningful.length) && meaningful.every(token => normalizeChordToken(token));
+}
+
+export function extractLyricsFromPastedMusicText(value) {
+  const text = compactText(value);
+  if (!text) return null;
+  const output = [];
+  let previousBlank = false;
+
+  for (const rawLine of text.replace(/\r\n?/g, '\n').split('\n')) {
+    const line = rawLine.trim();
+    if (!line) {
+      if (output.length && !previousBlank) output.push('');
+      previousBlank = true;
+      continue;
+    }
+    if (isChordOnlyLine(line) || MUSIC_METADATA_RE.test(line)) continue;
+    output.push(line);
+    previousBlank = false;
+  }
+
+  while (output.length && !output.at(-1)) output.pop();
+  const lyrics = output.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return lyrics || null;
+}
+
 export function classifyMusicAIInput(value) {
   const rawInput = compactText(value);
   if (!rawInput) {
@@ -43,7 +106,8 @@ export function classifyMusicAIInput(value) {
       youtubeUrl: null,
       manualBpm: null,
       sourceType: null,
-      songQuery: null
+      songQuery: null,
+      songIdentity: null
     };
   }
 
@@ -58,11 +122,13 @@ export function classifyMusicAIInput(value) {
       youtubeUrl: youtubeVideoId ? detectedUrl : null,
       manualBpm: null,
       sourceType: youtubeVideoId ? 'youtube-url' : 'source-url',
-      songQuery: null
+      songQuery: null,
+      songIdentity: null
     };
   }
 
   const sourceType = looksLikeSongQuery(rawInput) ? 'song-query' : 'pasted-text';
+  const songQuery = sourceType === 'song-query' ? rawInput : null;
   return {
     rawInput,
     pastedText: rawInput,
@@ -70,7 +136,8 @@ export function classifyMusicAIInput(value) {
     youtubeUrl: null,
     manualBpm: null,
     sourceType,
-    songQuery: sourceType === 'song-query' ? rawInput : null
+    songQuery,
+    songIdentity: songQuery ? parseSongQueryIdentity(songQuery) : null
   };
 }
 
@@ -84,6 +151,30 @@ function fingerprint(input) {
     input.sourceType,
     input.songQuery
   ]);
+}
+
+function enrichNormalizedData(data, input) {
+  const enriched = { ...data };
+  if (input.sourceType === 'song-query' && input.songIdentity) {
+    enriched.title ||= input.songIdentity.title;
+    enriched.artist ||= input.songIdentity.artist;
+    enriched.provenance = {
+      ...(enriched.provenance || {}),
+      ...(!data.title ? { title: 'informado pelo usuário' } : {}),
+      ...(!data.artist ? { artist: 'informado pelo usuário' } : {})
+    };
+  }
+  if (!enriched.lyrics && input.sourceType === 'pasted-text') {
+    const lyrics = extractLyricsFromPastedMusicText(input.pastedText);
+    if (lyrics) {
+      enriched.lyrics = lyrics;
+      enriched.provenance = {
+        ...(enriched.provenance || {}),
+        lyrics: 'extraída do conteúdo colado pelo usuário'
+      };
+    }
+  }
+  return enriched;
 }
 
 export class MusicAIService {
@@ -119,7 +210,8 @@ export class MusicAIService {
         youtubeUrl,
         manualBpm,
         sourceType: sourceUrl ? 'source-url' : (youtubeUrl ? 'youtube-url' : 'pasted-text'),
-        songQuery: null
+        songQuery: null,
+        songIdentity: null
       }
     };
   }
@@ -147,7 +239,10 @@ export class MusicAIService {
     lastStartedAt = now;
     requestTimes.push(now);
     activeRequest = this.provider.analyzeSong(normalized)
-      .then(raw => ({ data: normalizeMusicAIResponse(raw), provider: this.provider.getMetadata(), input: normalized }))
+      .then(raw => {
+        const data = enrichNormalizedData(normalizeMusicAIResponse(raw), normalized);
+        return { data, provider: this.provider.getMetadata(), input: normalized };
+      })
       .finally(() => { activeRequest = null; });
     return activeRequest;
   }
