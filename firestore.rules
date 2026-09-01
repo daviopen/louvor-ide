@@ -5,6 +5,9 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function supportedProvider() { return signedIn() && request.auth.token.firebase.sign_in_provider in ['google.com', 'password']; }
     function profilePath(uid) { return /databases/$(database)/documents/users/$(uid); }
+    function eventPath(eventId) { return /databases/$(database)/documents/events/$(eventId); }
+    function schedulePath(scheduleId) { return /databases/$(database)/documents/schedules/$(scheduleId); }
+    function setlistPath(setlistId) { return /databases/$(database)/documents/setlists/$(setlistId); }
     function hasProfile() { return supportedProvider() && exists(profilePath(request.auth.uid)); }
     function profile() { return get(profilePath(request.auth.uid)); }
     function activeUser() { return supportedProvider() && hasProfile() && profile().data.active == true; }
@@ -87,21 +90,21 @@ service cloud.firestore {
         && request.resource.data.status in ['PLANNED', 'CONFIRMED'];
     }
     function linkedEventBundleConsistent(eventId) {
-      let schedulePath = /databases/$(database)/documents/schedules/$(request.resource.data.scheduleId);
-      let setlistPath = /databases/$(database)/documents/setlists/$(request.resource.data.setlistId);
-      return existsAfter(schedulePath)
-        && existsAfter(setlistPath)
-        && getAfter(schedulePath).data.eventId == eventId
-        && getAfter(schedulePath).data.eventDate == request.resource.data.date
-        && getAfter(schedulePath).data.eventTime == request.resource.data.time
-        && getAfter(setlistPath).data.eventId == eventId
-        && getAfter(setlistPath).data.scheduleId == request.resource.data.scheduleId
-        && getAfter(setlistPath).data.eventDate == request.resource.data.date
-        && getAfter(setlistPath).data.eventTime == request.resource.data.time
+      let linkedSchedulePath = /databases/$(database)/documents/schedules/$(request.resource.data.scheduleId);
+      let linkedSetlistPath = /databases/$(database)/documents/setlists/$(request.resource.data.setlistId);
+      return existsAfter(linkedSchedulePath)
+        && existsAfter(linkedSetlistPath)
+        && getAfter(linkedSchedulePath).data.eventId == eventId
+        && getAfter(linkedSchedulePath).data.eventDate == request.resource.data.date
+        && getAfter(linkedSchedulePath).data.eventTime == request.resource.data.time
+        && getAfter(linkedSetlistPath).data.eventId == eventId
+        && getAfter(linkedSetlistPath).data.scheduleId == request.resource.data.scheduleId
+        && getAfter(linkedSetlistPath).data.eventDate == request.resource.data.date
+        && getAfter(linkedSetlistPath).data.eventTime == request.resource.data.time
         && (
-          (request.resource.data.status == 'CANCELLED' && getAfter(schedulePath).data.status == 'CANCELLED' && getAfter(setlistPath).data.status == 'CANCELLED')
-          || (request.resource.data.status == 'COMPLETED' && getAfter(schedulePath).data.status == 'COMPLETED' && getAfter(setlistPath).data.status == 'COMPLETED')
-          || (request.resource.data.status in ['PLANNED', 'CONFIRMED'] && getAfter(schedulePath).data.status in ['DRAFT', 'COMPLETE'] && getAfter(setlistPath).data.status in ['DRAFT', 'READY'])
+          (request.resource.data.status == 'CANCELLED' && getAfter(linkedSchedulePath).data.status == 'CANCELLED' && getAfter(linkedSetlistPath).data.status == 'CANCELLED')
+          || (request.resource.data.status == 'COMPLETED' && getAfter(linkedSchedulePath).data.status == 'COMPLETED' && getAfter(linkedSetlistPath).data.status == 'COMPLETED')
+          || (request.resource.data.status in ['PLANNED', 'CONFIRMED'] && getAfter(linkedSchedulePath).data.status in ['DRAFT', 'COMPLETE'] && getAfter(linkedSetlistPath).data.status in ['DRAFT', 'READY'])
         );
     }
     function validEventUpdate(eventId) {
@@ -111,12 +114,102 @@ service cloud.firestore {
         && linkedEventBundleConsistent(eventId);
     }
     function validEventDelete() {
-      let schedulePath = /databases/$(database)/documents/schedules/$(resource.data.scheduleId);
-      let setlistPath = /databases/$(database)/documents/setlists/$(resource.data.setlistId);
+      let linkedSchedulePath = /databases/$(database)/documents/schedules/$(resource.data.scheduleId);
+      let linkedSetlistPath = /databases/$(database)/documents/setlists/$(resource.data.setlistId);
       return resource.data.status in ['PLANNED', 'CONFIRMED', 'CANCELLED', 'COMPLETED']
-        && !existsAfter(schedulePath)
-        && !existsAfter(setlistPath);
+        && !existsAfter(linkedSchedulePath)
+        && !existsAfter(linkedSetlistPath);
     }
+
+    function eventManagedScheduleWrite(scheduleId) {
+      let eventId = request.resource.data.eventId;
+      let linkedEventPath = eventPath(eventId);
+      return canEdit('events')
+        && eventId is string
+        && scheduleId == 'schedule_' + eventId
+        && existsAfter(linkedEventPath)
+        && getAfter(linkedEventPath).data.scheduleId == scheduleId
+        && request.resource.data.eventDate == getAfter(linkedEventPath).data.date
+        && request.resource.data.eventTime == getAfter(linkedEventPath).data.time
+        && request.resource.data.updatedBy == request.auth.uid
+        && (
+          (getAfter(linkedEventPath).data.status == 'CANCELLED' && request.resource.data.status == 'CANCELLED')
+          || (getAfter(linkedEventPath).data.status == 'COMPLETED' && request.resource.data.status == 'COMPLETED')
+          || (getAfter(linkedEventPath).data.status in ['PLANNED', 'CONFIRMED'] && request.resource.data.status in ['DRAFT', 'COMPLETE'])
+        );
+    }
+    function eventManagedScheduleUpdate(scheduleId) {
+      return eventManagedScheduleWrite(scheduleId)
+        && resource.data.eventId == request.resource.data.eventId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['eventDate', 'eventTime', 'status', 'updatedBy', 'updatedAt']);
+    }
+    function eventManagedScheduleDelete(scheduleId) {
+      let eventId = resource.data.eventId;
+      let linkedEventPath = eventPath(eventId);
+      return canEdit('events')
+        && eventId is string
+        && scheduleId == 'schedule_' + eventId
+        && exists(linkedEventPath)
+        && get(linkedEventPath).data.scheduleId == scheduleId
+        && !existsAfter(linkedEventPath);
+    }
+
+    function eventManagedSetlistWrite(setlistId) {
+      let eventId = request.resource.data.eventId;
+      let linkedEventPath = eventPath(eventId);
+      return canEdit('events')
+        && eventId is string
+        && setlistId == 'setlist_' + eventId
+        && existsAfter(linkedEventPath)
+        && getAfter(linkedEventPath).data.setlistId == setlistId
+        && request.resource.data.scheduleId == getAfter(linkedEventPath).data.scheduleId
+        && request.resource.data.eventDate == getAfter(linkedEventPath).data.date
+        && request.resource.data.eventTime == getAfter(linkedEventPath).data.time
+        && request.resource.data.updatedBy == request.auth.uid
+        && (
+          (getAfter(linkedEventPath).data.status == 'CANCELLED' && request.resource.data.status == 'CANCELLED')
+          || (getAfter(linkedEventPath).data.status == 'COMPLETED' && request.resource.data.status == 'COMPLETED')
+          || (getAfter(linkedEventPath).data.status in ['PLANNED', 'CONFIRMED'] && request.resource.data.status in ['DRAFT', 'READY'])
+        );
+    }
+    function eventManagedSetlistUpdate(setlistId) {
+      return eventManagedSetlistWrite(setlistId)
+        && resource.data.eventId == request.resource.data.eventId
+        && resource.data.scheduleId == request.resource.data.scheduleId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['eventDate', 'eventTime', 'status', 'updatedBy', 'updatedAt']);
+    }
+    function eventManagedSetlistDelete(setlistId) {
+      let eventId = resource.data.eventId;
+      let linkedEventPath = eventPath(eventId);
+      return canEdit('events')
+        && eventId is string
+        && setlistId == 'setlist_' + eventId
+        && exists(linkedEventPath)
+        && get(linkedEventPath).data.setlistId == setlistId
+        && !existsAfter(linkedEventPath);
+    }
+
+    function eventCascadeScheduleMemberDelete() {
+      let linkedSchedulePath = schedulePath(resource.data.scheduleId);
+      return canEdit('events')
+        && resource.data.scheduleId is string
+        && exists(linkedSchedulePath)
+        && exists(eventPath(get(linkedSchedulePath).data.eventId))
+        && get(eventPath(get(linkedSchedulePath).data.eventId)).data.scheduleId == resource.data.scheduleId
+        && !existsAfter(linkedSchedulePath)
+        && !existsAfter(eventPath(get(linkedSchedulePath).data.eventId));
+    }
+    function eventCascadeSetlistSongDelete() {
+      let linkedSetlistPath = setlistPath(resource.data.setlistId);
+      return canEdit('events')
+        && resource.data.setlistId is string
+        && exists(linkedSetlistPath)
+        && exists(eventPath(get(linkedSetlistPath).data.eventId))
+        && get(eventPath(get(linkedSetlistPath).data.eventId)).data.setlistId == resource.data.setlistId
+        && !existsAfter(linkedSetlistPath)
+        && !existsAfter(eventPath(get(linkedSetlistPath).data.eventId));
+    }
+
     function validUnavailabilityDocument() {
       return request.resource.data.userId is string
         && request.resource.data.date is timestamp
@@ -195,9 +288,9 @@ service cloud.firestore {
     }
     match /events/{documentId} {
       allow read: if canRead('events') || canRead('schedules') || canRead('setlists') || canRead('dashboard');
-      allow create: if canEdit('events') && canEdit('schedules') && canEdit('setlists') && validEventCreate(documentId) && linkedEventBundleConsistent(documentId);
+      allow create: if canEdit('events') && validEventCreate(documentId) && linkedEventBundleConsistent(documentId);
       allow update: if canEdit('events') && validEventUpdate(documentId);
-      allow delete: if canEdit('events') && canEdit('schedules') && canEdit('setlists') && validEventDelete();
+      allow delete: if canEdit('events') && validEventDelete();
     }
     match /unavailability/{documentId} {
       allow read: if canRead('schedules') || (activeUser() && resource.data.userId == request.auth.uid) || (isAdmin() && canRead('unavailability'));
@@ -211,10 +304,28 @@ service cloud.firestore {
         || (isAdmin() && canEdit('unavailability'))
       );
     }
-    match /schedules/{documentId} { allow read: if canRead('schedules') || canRead('setlists') || canRead('dashboard'); allow write: if canEdit('schedules'); }
-    match /scheduleMembers/{documentId} { allow read: if canRead('schedules') || canRead('setlists') || canRead('dashboard'); allow write: if canEdit('schedules'); }
-    match /setlists/{documentId} { allow read: if canRead('setlists') || canRead('dashboard'); allow write: if canEdit('setlists'); }
-    match /setlistSongs/{documentId} { allow read: if canRead('setlists'); allow write: if canEdit('setlists'); }
+    match /schedules/{documentId} {
+      allow read: if canRead('schedules') || canRead('setlists') || canRead('dashboard') || canEdit('events');
+      allow create: if canEdit('schedules') || eventManagedScheduleWrite(documentId);
+      allow update: if canEdit('schedules') || eventManagedScheduleUpdate(documentId);
+      allow delete: if canEdit('schedules') || eventManagedScheduleDelete(documentId);
+    }
+    match /scheduleMembers/{documentId} {
+      allow read: if canRead('schedules') || canRead('setlists') || canRead('dashboard') || canEdit('events');
+      allow create, update: if canEdit('schedules');
+      allow delete: if canEdit('schedules') || eventCascadeScheduleMemberDelete();
+    }
+    match /setlists/{documentId} {
+      allow read: if canRead('setlists') || canRead('dashboard') || canEdit('events');
+      allow create: if canEdit('setlists') || eventManagedSetlistWrite(documentId);
+      allow update: if canEdit('setlists') || eventManagedSetlistUpdate(documentId);
+      allow delete: if canEdit('setlists') || eventManagedSetlistDelete(documentId);
+    }
+    match /setlistSongs/{documentId} {
+      allow read: if canRead('setlists') || canEdit('events');
+      allow create, update: if canEdit('setlists');
+      allow delete: if canEdit('setlists') || eventCascadeSetlistSongDelete();
+    }
     match /songs/{documentId} { allow read: if canRead('songs') || canRead('setlists'); allow write: if canEdit('songs'); }
     match /songMinisterKeys/{documentId} { allow read: if canRead('songs') || canRead('setlists'); allow write: if canEdit('songs'); }
     match /settings/{documentId} {
