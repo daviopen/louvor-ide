@@ -44,6 +44,9 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          # São configurações públicas do cliente, não secrets privados.
+          VITE_FIREBASE_APPCHECK_SITE_KEY: ${{ vars.VITE_FIREBASE_APPCHECK_SITE_KEY }}
+          VITE_FIREBASE_AI_MODEL: ${{ vars.VITE_FIREBASE_AI_MODEL || 'gemini-3.5-flash-lite' }}
         run: npm run build
 
       - name: 🔐 Usar domínio de autenticação first-party
@@ -117,6 +120,8 @@ jobs:
             https://louvor-ide.web.app/ \
             https://louvor-ide.web.app/login.html \
             https://louvor-ide.web.app/styles/tokens.css \
+            https://louvor-ide.web.app/styles/music-ai-import.css \
+            https://louvor-ide.web.app/services/music-ai-provider.js \
             https://louvor-ide.web.app/js/modules/auth-service.js \
             https://louvor-ide.web.app/js/modules/mobile-auth-compat.js
           do
@@ -126,6 +131,8 @@ jobs:
           done
           curl --fail-with-body -sS https://louvor-ide.web.app/js/env-config.js -o /tmp/env-config.js
           grep -q "VITE_FIREBASE_AUTH_DOMAIN: 'louvor-ide.web.app'" /tmp/env-config.js || { echo '❌ authDomain first-party não foi publicado'; exit 1; }
+          grep -q "VITE_FIREBASE_AI_MODEL:" /tmp/env-config.js || { echo '❌ configuração pública do modelo de IA não foi publicada'; exit 1; }
+          grep -q "VITE_FIREBASE_APPCHECK_SITE_KEY:" /tmp/env-config.js || { echo '❌ configuração pública do App Check não foi publicada'; exit 1; }
           curl --fail-with-body -sS https://louvor-ide.web.app/__/firebase/init.json -o /tmp/firebase-init.json
           jq -e '.projectId == "louvor-ide"' /tmp/firebase-init.json >/dev/null || { echo '❌ Firebase Hosting auth helper aponta para projeto incorreto'; exit 1; }
           echo "✅ Smoke test concluído sem autenticação, navegação E2E ou acesso ao Firestore"
