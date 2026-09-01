@@ -117,6 +117,17 @@
   color: var(--ide-primary-ink) !important;
 }
 
+/* Cabeçalhos posicionados sobre a faixa escura não podem herdar a tinta de superfícies claras. */
+.ide-ds-migrated .unavailability-header h1 {
+  color: var(--ide-text-on-dark) !important;
+}
+.ide-ds-migrated .unavailability-header p {
+  color: var(--ide-text-on-dark-secondary) !important;
+}
+.ide-ds-migrated .unavailability-header .ide-module-kicker {
+  color: var(--ide-primary) !important;
+}
+
 /* Exportação semanal: reforça contraste e cria um rodapé editorial mais legível. */
 #monthly-export-preview { counter-reset: ide-export-page; }
 #monthly-export-preview .weekly-export-sheet { counter-increment: ide-export-page; }

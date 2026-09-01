@@ -32,6 +32,11 @@ test('Indisponibilidade mantém navegação do calendário acessível e cabeçal
   assert.match(css, /\.unavailability-header h1\{color:var\(--ide-text-on-dark\)\}/);
   assert.match(css, /\.unavailability-header p\{[^}]*color:var\(--ide-text-on-dark-secondary\)/);
   assert.match(css, /\.unavailability-header \.ide-module-kicker\{color:var\(--ide-primary\)\}/);
+
+  const finalContract = read('src/styles/ui-consistency.css');
+  assert.match(finalContract, /\.ide-ds-migrated \.unavailability-header h1 \{\s*color: var\(--ide-text-on-dark\) !important;/);
+  assert.match(finalContract, /\.ide-ds-migrated \.unavailability-header p \{\s*color: var\(--ide-text-on-dark-secondary\) !important;/);
+  assert.match(finalContract, /\.ide-ds-migrated \.unavailability-header \.ide-module-kicker \{\s*color: var\(--ide-primary\) !important;/);
 });
 
 test('Termos e Privacidade usam links com contraste e target mínimo adequados', () => {
