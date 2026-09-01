@@ -1,95 +1,120 @@
 /**
- * Integra as permissões ao fluxo de Usuários sem duplicar regras de persistência.
- * SUPER_ADMIN pode editar acessos no mesmo formulário do usuário.
+ * Integra os perfis de acesso reutilizáveis ao CRUD de usuários.
+ * A UI escolhe um único perfil; o Repository materializa a matriz técnica
+ * de permissions exigida pelas Firestore Rules.
  */
-(function initUserPermissionsIntegration(scope) {
+(function initUserAccessProfileIntegration(scope) {
   if (!scope || !scope.document) return;
 
-  const MODULES = Object.freeze({
-    dashboard: 'Dashboard', users: 'Usuários', permissions: 'Permissões',
-    unavailability: 'Indisponibilidades', events: 'Eventos', schedules: 'Escalas',
-    setlists: 'Setlists', songs: 'Músicas', audit: 'Auditoria'
-  });
-  const LEVELS = Object.freeze([['NONE', 'Sem acesso'], ['READ', 'Leitura'], ['EDIT', 'Edição']]);
   let editingUserId = null;
-  let renderedUserId = null;
+  let renderedUserId = undefined;
+
+  function accessProfiles() {
+    const api = scope.MusicIdeAccessProfiles;
+    if (!api) throw new Error('MusicIdeAccessProfiles não foi carregado.');
+    return api;
+  }
 
   function isSuperAdmin() {
     const profile = scope.currentMusicIdeProfile;
     return Boolean(profile && (profile.role === 'SUPER_ADMIN' || profile.isSuperAdmin === true));
   }
+
   function escapeHtml(value) {
     return String(value == null ? '' : value).replace(/[&<>'"]/g, char => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[char]));
   }
-  function normalizeLevel(value) {
-    const level = String(value || '').toUpperCase();
-    return LEVELS.some(([candidate]) => candidate === level) ? level : 'NONE';
+
+  async function readUserProfile(userId) {
+    if (!userId) return null;
+    const snapshot = await scope.firebase.firestore().collection('users').doc(userId).get();
+    return snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null;
   }
 
-  async function fetchPermissions(userId) {
-    const db = scope.firebase.firestore();
-    const snapshot = await db.collection('permissions').where('userId', '==', userId).get();
-    const permissions = {};
-    snapshot.forEach(doc => {
-      const data = doc.data() || {};
-      if (data.module) permissions[data.module] = normalizeLevel(data.level);
-    });
-    return permissions;
+  function effectiveProfileId(user) {
+    const api = accessProfiles();
+    const explicit = api.normalizeProfile(user && user.accessProfile);
+    if (explicit) return explicit;
+    const inferred = api.inferProfile(user && user.permissions || {});
+    return inferred || 'PARTICIPANT';
   }
 
-  function renderPermissions(permissions) {
-    const container = scope.document.getElementById('user-permissions');
+  function renderProfileSelector(user = null) {
+    const api = accessProfiles();
     const fieldset = scope.document.getElementById('user-permissions-row');
-    if (!container || !fieldset) return;
+    const container = scope.document.getElementById('user-permissions');
+    if (!fieldset || !container) return;
+
     const legend = fieldset.querySelector('legend');
-    const help = fieldset.querySelector('.users-muted');
-    if (legend) legend.textContent = 'Permissões de acesso';
-    if (help) help.textContent = 'Defina o acesso deste usuário aos módulos. Edição inclui leitura; Sem acesso remove o módulo do menu e bloqueia a rota.';
-    container.innerHTML = Object.entries(MODULES).map(([moduleName, label]) => {
-      const current = normalizeLevel(permissions[moduleName]);
-      return `<label class="users-permission-option"><span>${escapeHtml(label)}</span><select class="ide-field__control ide-select" data-permission-module="${escapeHtml(moduleName)}" aria-label="Permissão para ${escapeHtml(label)}">${LEVELS.map(([level, text]) => `<option value="${level}" ${current === level ? 'selected' : ''}>${text}</option>`).join('')}</select></label>`;
-    }).join('');
+    const help = fieldset.querySelector('.users-fieldset-help, .users-muted');
+    if (legend) legend.textContent = 'Perfil de acesso';
+    if (help) help.textContent = 'Associe um único perfil. As permissões dos módulos são aplicadas automaticamente conforme o padrão do IDE Music.';
+
+    const selected = effectiveProfileId(user);
+    const options = api.PROFILES.map(profile => `<option value="${escapeHtml(profile.id)}" ${selected === profile.id ? 'selected' : ''}>${escapeHtml(profile.label)}</option>`).join('');
+    container.innerHTML = `<label class="ide-field"><span class="ide-field__label">Perfil</span><select id="user-access-profile" class="ide-field__control ide-select" aria-label="Perfil de acesso">${options}</select></label><p id="user-access-profile-help" class="users-muted"></p>`;
+
+    const select = scope.document.getElementById('user-access-profile');
+    const description = scope.document.getElementById('user-access-profile-help');
+    const syncDescription = () => {
+      const definition = api.profileDefinition(select.value);
+      description.textContent = definition ? definition.description : '';
+    };
+    select.addEventListener('change', syncDescription);
+    syncDescription();
     fieldset.hidden = !isSuperAdmin();
   }
 
-  function readPermissions() {
-    const result = {};
-    const container = scope.document.getElementById('user-permissions');
-    if (!container) return result;
-    container.querySelectorAll('[data-permission-module]').forEach(select => {
-      result[select.dataset.permissionModule] = normalizeLevel(select.value);
-    });
-    return result;
+  function selectedProfileId() {
+    const select = scope.document.getElementById('user-access-profile');
+    return accessProfiles().normalizeProfile(select && select.value) || 'PARTICIPANT';
   }
 
-  async function hydrateEditingPermissions() {
+  async function hydrateEditingProfile() {
     const dialog = scope.document.getElementById('user-dialog');
-    if (!dialog || !dialog.open || !editingUserId || !isSuperAdmin() || renderedUserId === editingUserId) return;
+    if (!dialog || !dialog.open || !isSuperAdmin()) return;
+    if (renderedUserId === editingUserId) return;
     renderedUserId = editingUserId;
-    const fieldset = scope.document.getElementById('user-permissions-row');
-    if (fieldset) fieldset.hidden = false;
     try {
-      renderPermissions(await fetchPermissions(editingUserId));
+      renderProfileSelector(editingUserId ? await readUserProfile(editingUserId) : null);
     } catch (error) {
-      renderedUserId = null;
-      console.error('Falha ao carregar permissões do usuário:', error);
+      renderedUserId = undefined;
+      console.error('Falha ao carregar perfil de acesso do usuário:', error);
     }
   }
 
   function patchUserService() {
     const Service = scope.MusicIdeUserService && scope.MusicIdeUserService.UserService;
-    if (!Service || Service.prototype.__permissionsIntegrated) return;
+    if (!Service || Service.prototype.__accessProfilesIntegrated) return;
+
+    const originalCreate = Service.prototype.create;
+    Service.prototype.create = async function createWithAccessProfile(input) {
+      if (!isSuperAdmin()) return originalCreate.call(this, input);
+      const profileId = selectedProfileId();
+      const permissions = accessProfiles().permissionsFor(profileId);
+      const result = await originalCreate.call(this, { ...input, accessProfile: profileId, permissions });
+      if (this.repository && typeof this.repository.assignAccessProfile === 'function') {
+        await this.repository.assignAccessProfile(result.id, profileId, permissions);
+        await this.audit('USER_ACCESS_PROFILE_ASSIGNED', result.id, { accessProfile: profileId });
+        this.invalidateDirectoryCache();
+      }
+      return { ...result, accessProfile: profileId };
+    };
+
     const originalUpdate = Service.prototype.update;
-    Service.prototype.update = async function updateWithPermissions(id, input) {
+    Service.prototype.update = async function updateWithAccessProfile(id, input) {
       const result = await originalUpdate.call(this, id, input);
-      if (isSuperAdmin() && editingUserId === id && this.repository && typeof this.repository.replaceInitialPermissions === 'function') {
-        const permissions = readPermissions();
-        await this.repository.replaceInitialPermissions(id, permissions);
-        await this.audit('USER_PERMISSIONS_UPDATED', id, { permissions });
+      if (isSuperAdmin() && editingUserId === id && this.repository && typeof this.repository.assignAccessProfile === 'function') {
+        const profileId = selectedProfileId();
+        const permissions = accessProfiles().permissionsFor(profileId);
+        await this.repository.assignAccessProfile(id, profileId, permissions);
+        await this.audit('USER_ACCESS_PROFILE_ASSIGNED', id, { accessProfile: profileId });
+        this.invalidateDirectoryCache();
+        return { ...result, accessProfile: profileId };
       }
       return result;
     };
-    Service.prototype.__permissionsIntegrated = true;
+
+    Service.prototype.__accessProfilesIntegrated = true;
   }
 
   function bootstrap() {
@@ -99,19 +124,25 @@
       const button = event.target.closest('button[data-action]');
       if (button && button.dataset.action === 'edit') {
         editingUserId = button.dataset.id || null;
-        renderedUserId = null;
-        setTimeout(hydrateEditingPermissions, 0);
+        renderedUserId = undefined;
+        setTimeout(hydrateEditingProfile, 0);
       }
       if (event.target.closest('#new-user')) {
         editingUserId = null;
-        renderedUserId = null;
+        renderedUserId = undefined;
+        setTimeout(hydrateEditingProfile, 0);
       }
     }, true);
 
     const dialog = scope.document.getElementById('user-dialog');
     if (dialog) {
-      new MutationObserver(() => { if (dialog.open) hydrateEditingPermissions(); }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
-      dialog.addEventListener('close', () => { editingUserId = null; renderedUserId = null; });
+      new MutationObserver(() => {
+        if (dialog.open) hydrateEditingProfile();
+      }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
+      dialog.addEventListener('close', () => {
+        editingUserId = null;
+        renderedUserId = undefined;
+      });
     }
   }
 
