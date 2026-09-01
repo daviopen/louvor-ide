@@ -12,6 +12,8 @@ const SECTION_LABELS = Object.freeze({
   outro: 'Final'
 });
 
+const CHORD_TOKEN_RE = /^(?:[A-G](?:#|b)?)(?:(?:m|maj|min|dim|aug|sus|add|M)?(?:\d{0,2})?(?:[#b+\-º°()]*)?)(?:\/[A-G](?:#|b)?)?$/u;
+
 export function getMusicAIImportMetadata() {
   return importMetadata ? { ...importMetadata } : null;
 }
@@ -91,14 +93,106 @@ function cleanSectionContent(content, label) {
   return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+function normalizeChordToken(token) {
+  const normalized = String(token || '')
+    .trim()
+    .replace(/^[\[({|]+/, '')
+    .replace(/[\])},;:|]+$/, '');
+  return CHORD_TOKEN_RE.test(normalized) ? normalized : null;
+}
+
+function extractChordLine(line) {
+  const rawTokens = String(line || '').trim().split(/\s+/).filter(Boolean);
+  if (!rawTokens.length) return null;
+
+  const meaningful = rawTokens.filter(token => !/^[|()\[\]{},;:\-]+$/.test(token));
+  if (!meaningful.length) return null;
+
+  const chords = meaningful.map(normalizeChordToken);
+  return chords.every(Boolean) ? chords : null;
+}
+
+function firstTwoWords(line) {
+  return String(line || '')
+    .trim()
+    .replace(/^[\-–—•]+\s*/, '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(' ')
+    .replace(/[,:;.!?]+$/g, '');
+}
+
+export function compactSectionContent(content, label = '') {
+  const cleaned = cleanSectionContent(content, label);
+  if (!cleaned) return '';
+
+  const chordLines = [];
+  const chordLineKeys = new Set();
+  let lyricCue = '';
+
+  for (const rawLine of cleaned.split('\n')) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const chords = extractChordLine(line);
+    if (chords?.length) {
+      const key = chords.join(' ');
+      if (!chordLineKeys.has(key)) {
+        chordLineKeys.add(key);
+        chordLines.push(chords);
+      }
+      continue;
+    }
+
+    if (!lyricCue && normalizedLabel(line).toLocaleLowerCase('pt-BR') !== normalizedLabel(label).toLocaleLowerCase('pt-BR')) {
+      lyricCue = firstTwoWords(line);
+    }
+  }
+
+  const progression = chordLines.flat().join('  ');
+  if (lyricCue && progression) return `${lyricCue} - ${progression}`;
+  if (progression) return progression;
+  return lyricCue || cleaned;
+}
+
+function compactSectionIdentity(section, label, compactContent) {
+  const type = String(section?.type || 'other').trim().toLowerCase();
+  const cue = compactContent.includes(' - ')
+    ? compactContent.split(' - ')[0]
+    : '';
+  const identityContent = cue || compactContent;
+  return `${type}|${normalizedLabel(label).toLocaleLowerCase('pt-BR').replace(/\s+\d+$/, '')}|${identityContent.toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ')}`;
+}
+
 export function composeChordSheet(data = {}) {
   const sections = Array.isArray(data.sections) ? data.sections.filter(section => section?.content?.trim()) : [];
   if (sections.length) {
-    return sections.map((section, index) => {
+    const seen = new Set();
+    const prepared = [];
+
+    sections.forEach((section, index) => {
       const label = getSectionLabel(section, index);
-      const content = cleanSectionContent(section.content, label);
-      return content ? `${label}:\n${content}` : '';
-    }).filter(Boolean).join('\n\n');
+      const content = compactSectionContent(section.content, label);
+      if (!content) return;
+
+      const identity = compactSectionIdentity(section, label, content);
+      if (seen.has(identity)) return;
+      seen.add(identity);
+      prepared.push({ section, label, content });
+    });
+
+    const verseTotal = prepared.filter(item => item.section?.type === 'verse').length;
+    let verseIndex = 0;
+
+    return prepared.map(item => {
+      let label = item.label;
+      if (item.section?.type === 'verse' && verseTotal > 1 && !/\d+$/.test(label)) {
+        verseIndex += 1;
+        label = `${SECTION_LABELS.verse} ${verseIndex}`;
+      }
+      return `${label}:\n${item.content}`;
+    }).join('\n\n');
   }
 
   return String(data.chordSheet || '').replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -149,12 +243,12 @@ function createPanel() {
   panel.setAttribute('aria-labelledby', 'ai-import-title');
   panel.innerHTML = `
     <div class="ai-import__top">
-      <div><h2 id="ai-import-title">Importar com IA</h2><p>Cole uma cifra/texto ou tente uma URL. A IA organiza a cifra no padrão do IDE Music e usa como referência o vídeo da música, não a página da cifra.</p></div>
+      <div><h2 id="ai-import-title">Importar com IA</h2><p>Cole uma cifra/texto ou tente uma URL. A IA gera uma cifra compacta no padrão do IDE Music e usa como referência o vídeo da música, não a página da cifra.</p></div>
       <button type="button" class="ai-import__toggle" aria-expanded="false" aria-controls="ai-import-body"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Importar com IA</button>
     </div>
     <div class="ai-import__body" id="ai-import-body">
       <div class="ai-import__grid">
-        <div class="ai-import__field full"><label for="ai-pasted-text">Cifra ou texto para análise</label><textarea id="ai-pasted-text" placeholder="Cole aqui a cifra, letra ou informações da música..."></textarea><span class="ai-import__hint">A IA reorganiza o conteúdo em seções naturais como Intro, Estrofe, Refrão e Ponte.</span></div>
+        <div class="ai-import__field full"><label for="ai-pasted-text">Cifra ou texto para análise</label><textarea id="ai-pasted-text" placeholder="Cole aqui a cifra, letra ou informações da música..."></textarea><span class="ai-import__hint">A cifra fica orientativa: por seção, usa apenas uma pequena referência da letra e os acordes necessários, sem repetir estruturas iguais.</span></div>
         <div class="ai-import__field"><label for="ai-source-url">URL da cifra/fonte</label><input id="ai-source-url" type="url" placeholder="https://..."><span class="ai-import__hint">A URL é usada apenas como fonte. O link de referência da música será o vídeo encontrado nela.</span></div>
         <div class="ai-import__field"><label for="ai-youtube-url">YouTube de referência</label><input id="ai-youtube-url" type="url" placeholder="https://youtube.com/watch?v=..."></div>
         <div class="ai-import__field"><label for="ai-manual-bpm">BPM (opcional)</label><input id="ai-manual-bpm" type="number" min="30" max="260" step="1" inputmode="numeric" placeholder="Ex.: 72"></div>
@@ -162,7 +256,7 @@ function createPanel() {
       <div class="ai-import__actions"><button type="button" class="ai-import__analyze"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Analisar e preencher</button><span class="ai-import__state" role="status" aria-live="polite">Você poderá editar todos os campos antes de salvar.</span></div>
       <div class="ai-import__thinking" hidden role="status" aria-live="assertive">
         <div class="ai-import__thinking-icon" aria-hidden="true"><i class="fa-solid fa-circle-notch"></i></div>
-        <div><strong>A IA está analisando a música…</strong><span>Identificando dados, procurando o vídeo de referência e organizando a cifra no padrão do IDE Music.</span></div>
+        <div><strong>A IA está analisando a música…</strong><span>Identificando dados, procurando o vídeo de referência e organizando a cifra compacta no padrão do IDE Music.</span></div>
       </div>
       <div class="ai-import__review" hidden></div>
     </div>`;
