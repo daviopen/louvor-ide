@@ -7,9 +7,15 @@ import {
   MusicAIService
 } from '../src/services/music-ai-service.js';
 import {
+  buildChordSourceCandidates,
+  chordResultMatchesIdentity,
   extractSongIdentityFromChordUrl,
-  selectMusicAIStrategy
+  mergeVideoAndChordSource,
+  selectMusicAIStrategy,
+  slugifyChordPath,
+  urlContextRetrievedSuccessfully
 } from '../src/services/firebase-music-ai-provider.js';
+import { normalizeMusicAIResponse } from '../src/services/music-ai-schema.js';
 import { MusicAIProvider } from '../src/services/music-ai-provider.js';
 
 class CaptureProvider extends MusicAIProvider {
@@ -21,6 +27,7 @@ class CaptureProvider extends MusicAIProvider {
 
   async analyzeSong(input) {
     this.lastInput = input;
+    input.onProgress?.({ stage: 'test', message: 'progresso' });
     return this.result || {
       schemaVersion: '1.0.0',
       title: 'Jesus, Filho de Deus',
@@ -99,6 +106,89 @@ test('identidade da música pode ser inferida de Cifra Club e Banana Cifras para
   );
 });
 
+test('gera candidatos de cifra conhecidos a partir da identidade detectada no YouTube', () => {
+  assert.equal(slugifyChordPath('Nada Além do Sangue'), 'nada-alem-do-sangue');
+  const candidates = buildChordSourceCandidates({ title: 'Nada Além do Sangue', artist: 'Fernandinho' });
+  assert.deepEqual(candidates, [
+    {
+      provider: 'cifraclub',
+      label: 'Cifra Club',
+      url: 'https://www.cifraclub.com.br/fernandinho/nada-alem-do-sangue/'
+    },
+    {
+      provider: 'bananacifras',
+      label: 'Banana Cifras',
+      url: 'https://www.bananacifras.com/cifra/f/fernandinho/nada-alem-do-sangue'
+    }
+  ]);
+});
+
+test('só aceita cifra recuperada por URL Context e compatível com a música identificada', () => {
+  const expectedUrl = 'https://www.cifraclub.com.br/fernandinho/nada-alem-do-sangue/';
+  assert.equal(urlContextRetrievedSuccessfully({
+    urlMetadata: [{ retrievedUrl: expectedUrl, urlRetrievalStatus: 'URL_RETRIEVAL_STATUS_SUCCESS' }]
+  }, expectedUrl), true);
+  assert.equal(urlContextRetrievedSuccessfully({
+    urlMetadata: [{ retrievedUrl: expectedUrl, urlRetrievalStatus: 'URL_RETRIEVAL_STATUS_ERROR' }]
+  }, expectedUrl), false);
+  assert.equal(chordResultMatchesIdentity(
+    { title: 'Nada Além do Sangue', artist: 'Fernandinho' },
+    { title: 'Nada Além do Sangue', artist: 'Fernandinho' }
+  ), true);
+  assert.equal(chordResultMatchesIdentity(
+    { title: 'Grandes Coisas', artist: 'Fernandinho' },
+    { title: 'Nada Além do Sangue', artist: 'Fernandinho' }
+  ), false);
+});
+
+test('mescla identificação e vídeo com a cifra confirmada sem trocar o link de referência', () => {
+  const videoData = {
+    schemaVersion: '1.0.0',
+    title: 'Nada Além do Sangue',
+    artist: 'Fernandinho',
+    originalKey: 'A',
+    chordSheet: 'sugestão do vídeo',
+    lyrics: null,
+    sections: [],
+    timeSignature: '4/4',
+    bpm: 72,
+    bpmSource: 'análise do vídeo',
+    video: { provider: 'youtube', url: 'https://www.youtube.com/watch?v=abc123', videoId: 'abc123' },
+    provenance: { title: 'vídeo' }
+  };
+  const chordData = {
+    title: 'Nada Além do Sangue',
+    artist: 'Fernandinho',
+    originalKey: 'Bb',
+    chordSheet: 'Intro:\nA D9/F# A D9/F#',
+    sections: [{ type: 'intro', label: 'Intro', content: 'A D9/F# A D9/F#' }],
+    provenance: { chordSheet: 'página de cifra' }
+  };
+  const merged = mergeVideoAndChordSource(videoData, chordData, {
+    provider: 'cifraclub',
+    label: 'Cifra Club',
+    url: 'https://www.cifraclub.com.br/fernandinho/nada-alem-do-sangue/'
+  });
+
+  assert.equal(merged.originalKey, 'Bb');
+  assert.equal(merged.bpm, 72);
+  assert.equal(merged.video.url, 'https://www.youtube.com/watch?v=abc123');
+  assert.equal(merged.chordSheet, 'Intro:\nA D9/F# A D9/F#');
+  assert.equal(merged.chordSourceProvider, 'cifraclub');
+  assert.match(merged.chordSourceUrl, /cifraclub\.com\.br/);
+});
+
+test('normalização preserva a fonte de cifra adicionada pelo provider', () => {
+  const normalized = normalizeMusicAIResponse({
+    title: 'Nada Além do Sangue',
+    artist: 'Fernandinho',
+    chordSourceUrl: 'https://www.cifraclub.com.br/fernandinho/nada-alem-do-sangue/',
+    chordSourceProvider: 'cifraclub'
+  });
+  assert.match(normalized.chordSourceUrl, /nada-alem-do-sangue/);
+  assert.equal(normalized.chordSourceProvider, 'cifraclub');
+});
+
 test('letra é extraída de conteúdo colado removendo linhas formadas só por acordes', () => {
   const lyrics = extractLyricsFromPastedMusicText([
     'Tom: B',
@@ -120,15 +210,21 @@ test('letra é extraída de conteúdo colado removendo linhas formadas só por a
   assert.doesNotMatch(lyrics, /Tom: B/);
 });
 
-test('service encaminha a classificação automática para o provider', async () => {
+test('service encaminha a classificação automática e callback de progresso para o provider', async () => {
   const provider = new CaptureProvider();
   const service = new MusicAIService(provider);
-  const result = await service.analyze({ rawInput: 'https://www.youtube.com/watch?v=HYwg0HlxBas' });
+  const progress = [];
+  const result = await service.analyze({
+    rawInput: 'https://www.youtube.com/watch?v=HYwg0HlxBas',
+    onProgress: event => progress.push(event)
+  });
 
   assert.equal(provider.lastInput.sourceType, 'youtube-url');
   assert.equal(provider.lastInput.youtubeUrl, 'https://www.youtube.com/watch?v=HYwg0HlxBas');
+  assert.equal(typeof provider.lastInput.onProgress, 'function');
   assert.equal(result.input.sourceType, 'youtube-url');
   assert.equal(result.data.video.videoId, 'HYwg0HlxBas');
+  assert.deepEqual(progress, [{ stage: 'test', message: 'progresso' }]);
 });
 
 test('service preserva nome e artista informados quando a IA omite esses campos', async () => {
