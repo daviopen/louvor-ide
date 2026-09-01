@@ -119,3 +119,15 @@ test('permite mesma pessoa em funções diferentes e impede duplicidade na mesma
   await service.assign('schedule_event_1', 'slot_b', 'u1', { uid: 'admin' }, { role: 'SUPER_ADMIN' });
   await assert.rejects(() => service.assign('schedule_event_1', 'slot_c', 'u1', { uid: 'admin' }, { role: 'SUPER_ADMIN' }), /mesma função/);
 });
+
+test('selecionar novamente a pessoa já vinculada ao slot é idempotente', async () => {
+  const repository = fakeRepository();
+  const service = new ScheduleService(repository);
+  const first = await service.assign('schedule_event_1', 'slot_a', 'u1', { uid: 'admin' }, { role: 'SUPER_ADMIN' });
+  const auditCount = repository.audit.length;
+  const second = await service.assign('schedule_event_1', 'slot_a', 'u1', { uid: 'admin' }, { role: 'SUPER_ADMIN' });
+  assert.equal(second.unchanged, true);
+  assert.equal(second.member.id, first.member.id);
+  assert.equal(repository.members.filter(item => item.active !== false).length, 1);
+  assert.equal(repository.audit.length, auditCount);
+});
