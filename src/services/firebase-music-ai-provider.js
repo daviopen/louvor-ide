@@ -124,11 +124,13 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
         },
         systemInstruction: `Você estrutura dados de músicas para o IDE Music. Responda somente no schema ${MUSIC_AI_SCHEMA_VERSION}. Não invente nome, artista, tom, BPM, compasso, cifra, letra ou vídeo. Quando não houver evidência suficiente, use null ou lista vazia.
 
+A entrada pode ser um link do YouTube, uma URL de cifra/fonte, uma cifra ou texto colado, ou apenas nome da música + artista. Quando a entrada for apenas nome/artista, trate-a como uma identificação da música e use somente conhecimento do modelo de alta confiança para sugerir título, artista, tom, BPM e estrutura harmônica. Marque a proveniência desses campos como "conhecimento do modelo; revisar". Nesse modo, não invente link ou ID do YouTube e não gere letra completa; video deve ficar null salvo se houver uma URL explícita fornecida pelo usuário.
+
 A cifra do IDE Music é COMPACTA e ORIENTATIVA, não uma transcrição integral da página de cifra. Remova cabeçalhos do site, menus, anúncios, créditos, navegação, comentários e qualquer texto que não faça parte da execução musical. Em chordSheet e em sections, NÃO copie a letra inteira.
 
 Regra de detalhamento: se uma seção musical tiver até 5 acordes efetivos, resuma em uma única linha usando uma pequena referência da letra e a progressão. Se a seção tiver mais de 5 acordes efetivos, divida-a em várias linhas curtas, preservando a ordem musical. Cada linha deve usar normalmente 2 ou 3 palavras da letra como referência visual e cerca de 3 a 5 acordes correspondentes àquela frase. Exemplo de formato: "Refrão:\nNo altar - B  F#/B  B\nJesus, Filho - E  B/D#  F#4\n\nDeixou a Sua - G#m  F#/A#  B\nJesus, Filho - E  B/D#  F#4". Em partes puramente instrumentais, retorne apenas os acordes. Use cabeçalhos naturais como "Intro:", "Estrofe:", "Pré-Refrão:", "Refrão:", "Ponte:", "Instrumental:", "Solo:", "Interlúdio:" e "Final:" quando existirem.
 
-Quando houver blocos distintos dentro da mesma seção, preserve pequenas quebras de linha para facilitar leitura. Se uma progressão consecutiva for exatamente repetida dentro da mesma frase, não é necessário repeti-la. Se uma estrutura inteira se repetir mais tarde sem mudança musical relevante, como o mesmo Refrão ou a mesma Ponte, represente essa estrutura uma única vez na cifra. Estrofes diferentes podem permanecer como Estrofe 1, Estrofe 2 etc. O campo lyrics pode conter a letra identificada separadamente; a compactação se aplica ao chordSheet e ao conteúdo de sections.
+Quando houver blocos distintos dentro da mesma seção, preserve pequenas quebras de linha para facilitar leitura. Se uma progressão consecutiva for exatamente repetida dentro da mesma frase, não é necessário repeti-la. Se uma estrutura inteira se repetir mais tarde sem mudança musical relevante, como o mesmo Refrão ou a mesma Ponte, represente essa estrutura uma única vez na cifra. Estrofes diferentes podem permanecer como Estrofe 1, Estrofe 2 etc. O campo lyrics pode conter a letra identificada separadamente quando ela tiver sido fornecida pelo usuário; a compactação se aplica ao chordSheet e ao conteúdo de sections.
 
 O campo video deve representar um vídeo real da música, preferencialmente YouTube, encontrado incorporado ou referenciado dentro da página de cifra, ou explicitamente informado pelo usuário. Nunca use a URL da própria página de cifra como video.url. Em páginas de cifra, o vídeo pode não possuir href direto: procure também por thumbnails do YouTube em src/id/atributos, como https://i.ytimg.com/vi/VIDEO_ID/default.jpg ou https://i.ytimg.com/vi_webp/VIDEO_ID/default.webp. Quando encontrar esse padrão, extraia VIDEO_ID e retorne video.url como https://www.youtube.com/watch?v=VIDEO_ID, video.videoId como VIDEO_ID e provider como youtube. Se conseguir identificar apenas VIDEO_ID, retorne-o em video.videoId mesmo que video.url fique null. Se nenhum vídeo real for identificado, retorne video como null.
 
@@ -144,14 +146,16 @@ Não faça scraping próprio nem tente contornar login, paywall, robots ou bloqu
   async analyzeSong(input) {
     const model = await this._loadModel();
     const prompt = [
-      'Analise os dados fornecidos e retorne somente informações sustentadas pelo conteúdo.',
+      'Analise os dados fornecidos e retorne somente informações sustentadas pelo conteúdo ou, no modo nome/artista, por conhecimento do modelo de alta confiança.',
+      input.sourceType ? `Tipo de entrada detectado pelo aplicativo: ${input.sourceType}.` : '',
+      input.songQuery ? `O usuário informou somente a identificação da música: ${input.songQuery}. Identifique a música e sugira os dados que você conhece com alta confiança. Não invente vídeo/ID do YouTube e não devolva letra completa.` : '',
       input.sourceUrl ? `URL da página de cifra/fonte (use como fonte de análise, mas NUNCA como link de referência da música): ${input.sourceUrl}` : '',
       input.sourceUrl ? 'Se essa página contiver um vídeo incorporado, link de vídeo ou thumbnail do YouTube, extraia o vídeo em video.url ou ao menos em video.videoId. Dê atenção especial a src como i.ytimg.com/vi/VIDEO_ID/... e i.ytimg.com/vi_webp/VIDEO_ID/...: nesses casos, construa https://www.youtube.com/watch?v=VIDEO_ID. Se não houver vídeo identificável, deixe video como null.' : '',
-      input.youtubeUrl ? `URL de vídeo de referência informada pelo usuário: ${input.youtubeUrl}` : '',
+      input.youtubeUrl ? `URL de vídeo de referência informada pelo usuário: ${input.youtubeUrl}. Use este próprio vídeo como video.url e extraia o videoId.` : '',
       input.manualBpm ? `BPM informado manualmente pelo usuário: ${input.manualBpm}. Marque bpmSource como manual.` : '',
-      input.pastedText ? `Conteúdo colado pelo usuário:\n---\n${input.pastedText}\n---` : '',
+      input.pastedText && !input.songQuery ? `Conteúdo colado pelo usuário:\n---\n${input.pastedText}\n---` : '',
       'Para a cifra, gere o resumo do IDE Music: até 5 acordes efetivos na seção, uma linha compacta; acima de 5, use várias linhas de frase, cada uma com 2 ou 3 palavras da letra como pista e aproximadamente 3 a 5 acordes correspondentes. Preserve a sequência musical e não devolva a letra inteira no chordSheet nem em sections.',
-      'Se a URL não puder ser acessada, continue somente com o texto colado e demais informações fornecidas. Não invente dados ausentes.'
+      'Se uma URL não puder ser acessada, continue somente com as demais informações fornecidas. Não invente dados ausentes.'
     ].filter(Boolean).join('\n\n');
 
     try {
