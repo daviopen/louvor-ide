@@ -124,10 +124,21 @@ test('index.html contém somente as áreas pessoais solicitadas no Dashboard', (
   assert.doesNotMatch(html, /id="search-input"/);
 });
 
+test('Indicadores pessoais do Dashboard navegam para os módulos correspondentes', () => {
+  const script = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'modules', 'dashboard-page.js'), 'utf8');
+  assert.match(script, /element\('a', 'ide-dashboard-indicator'\)/);
+  assert.match(script, /\['Próximas escalas', indicators\.upcomingSchedules, 'fa-people-group', 'module\.html\?section=schedules'\]/);
+  assert.match(script, /\['Escalas pendentes', indicators\.draftSchedules, 'fa-user-clock', 'module\.html\?section=schedules'\]/);
+  assert.match(script, /\['Próximos setlists', indicators\.upcomingSetlists, 'fa-list-check', 'setlists\.html\?view=upcoming'\]/);
+  assert.match(script, /\['Indisponibilidades futuras', indicators\.upcomingUnavailability, 'fa-calendar-xmark', 'module\.html\?section=unavailability'\]/);
+});
+
 test('Dashboard possui layout responsivo e usa tokens do Design System', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'styles', 'dashboard.css'), 'utf8');
   assert.match(css, /@media \(max-width: 900px\)/);
   assert.match(css, /@media \(max-width: 520px\)/);
   assert.match(css, /var\(--ide-background\)/);
+  assert.match(css, /\.ide-dashboard-indicator:hover/);
+  assert.match(css, /cursor: pointer/);
   assert.doesNotMatch(css, /#[0-9a-f]{3,8}\b/i);
 });
