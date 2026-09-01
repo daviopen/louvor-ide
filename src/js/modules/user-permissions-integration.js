@@ -9,6 +9,20 @@
   let editingUserId = null;
   let renderedUserId = undefined;
 
+  function ensureAccessProfiles() {
+    if (scope.MusicIdeAccessProfiles) return Promise.resolve(scope.MusicIdeAccessProfiles);
+    if (scope.__musicIdeAccessProfilesPromise) return scope.__musicIdeAccessProfilesPromise;
+    scope.__musicIdeAccessProfilesPromise = new Promise((resolve, reject) => {
+      const script = scope.document.createElement('script');
+      script.src = '../js/modules/access-profiles.js?v=20260901-access-profiles';
+      script.defer = true;
+      script.onload = () => scope.MusicIdeAccessProfiles ? resolve(scope.MusicIdeAccessProfiles) : reject(new Error('Catálogo de perfis não foi inicializado.'));
+      script.onerror = () => reject(new Error('Não foi possível carregar o catálogo de perfis de acesso.'));
+      scope.document.head.appendChild(script);
+    });
+    return scope.__musicIdeAccessProfilesPromise;
+  }
+
   function accessProfiles() {
     const api = scope.MusicIdeAccessProfiles;
     if (!api) throw new Error('MusicIdeAccessProfiles não foi carregado.');
@@ -75,6 +89,7 @@
     if (renderedUserId === editingUserId) return;
     renderedUserId = editingUserId;
     try {
+      await ensureAccessProfiles();
       renderProfileSelector(editingUserId ? await readUserProfile(editingUserId) : null);
     } catch (error) {
       renderedUserId = undefined;
@@ -89,6 +104,7 @@
     const originalCreate = Service.prototype.create;
     Service.prototype.create = async function createWithAccessProfile(input) {
       if (!isSuperAdmin()) return originalCreate.call(this, input);
+      await ensureAccessProfiles();
       const profileId = selectedProfileId();
       const permissions = accessProfiles().permissionsFor(profileId);
       const result = await originalCreate.call(this, { ...input, accessProfile: profileId, permissions });
@@ -104,6 +120,7 @@
     Service.prototype.update = async function updateWithAccessProfile(id, input) {
       const result = await originalUpdate.call(this, id, input);
       if (isSuperAdmin() && editingUserId === id && this.repository && typeof this.repository.assignAccessProfile === 'function') {
+        await ensureAccessProfiles();
         const profileId = selectedProfileId();
         const permissions = accessProfiles().permissionsFor(profileId);
         await this.repository.assignAccessProfile(id, profileId, permissions);
@@ -118,6 +135,7 @@
   }
 
   function bootstrap() {
+    ensureAccessProfiles().catch(error => console.error(error));
     patchUserService();
 
     scope.document.addEventListener('click', event => {
