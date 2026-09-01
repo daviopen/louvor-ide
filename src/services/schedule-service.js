@@ -205,18 +205,27 @@
       if (!selectedUser || selectedUser.active === false) throw new Error('Usuário inativo ou inexistente.');
       const hasFunction = userFunctions.some(item => item.active !== false && item.functionId === slot.functionId && item.userId === userId);
       if (!hasFunction) throw new Error('O usuário selecionado não possui esta função ministerial.');
-      const fullSchedule = { ...schedule, members };
+      const existing = members.find(item => item.slotId === slotId && item.active !== false);
+      if (existing?.userId === userId && existing.functionId === slot.functionId) {
+        return {
+          member: existing,
+          conflict: { unavailable: false, unavailability: null, duplicateFunction: false, otherRole: null },
+          completeness: scheduleCompleteness(schedule, members),
+          unchanged: true
+        };
+      }
+      const comparableMembers = members.filter(item => item.active !== false && item.id !== existing?.id);
+      const fullSchedule = { ...schedule, members: comparableMembers };
       const conflict = this.userConflict(userId, slot.functionId, fullSchedule, event, { unavailability });
       if (conflict.duplicateFunction) throw new Error('Este usuário já está escalado nesta mesma função.');
       if (conflict.unavailable && !options.override) throw new Error('Usuário indisponível para este evento. Confirme uma exceção administrativa para continuar.');
       if (conflict.unavailable && options.override && !String(options.reason || '').trim()) throw new Error('Informe o motivo da exceção administrativa.');
-      const existing = members.find(item => item.slotId === slotId && item.active !== false);
       if (existing) await this.repository.removeMember(existing.id, this.actorId(user));
       const member = await this.repository.createMember({
         scheduleId, slotId, userId, functionId: slot.functionId,
         exception: conflict.unavailable ? { override: true, reason: String(options.reason).trim() } : null
       }, this.actorId(user));
-      const nextMembers = members.filter(item => item.active !== false && item.id !== existing?.id).concat(member);
+      const nextMembers = comparableMembers.concat(member);
       const completeness = scheduleCompleteness(schedule, nextMembers);
       await this.repository.updateSchedule(scheduleId, { status: completeness.complete ? 'COMPLETE' : 'DRAFT' }, this.actorId(user));
       await this.repository.addAuditLog(this.actorId(user), conflict.unavailable ? 'SCHEDULE_MEMBER_OVERRIDE_ASSIGNED' : 'SCHEDULE_MEMBER_ASSIGNED', scheduleId, {
