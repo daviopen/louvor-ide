@@ -1,4 +1,4 @@
-import FirebaseMusicAIProvider from './firebase-music-ai-provider.js';
+import FirebaseMusicAIProvider, { buildChordSourceCandidates } from './firebase-music-ai-provider.js';
 import { normalizeMusicAIResponse, normalizeBpm, extractYouTubeVideoId } from './music-ai-schema.js';
 
 const DUPLICATE_WINDOW_MS = 5000;
@@ -74,6 +74,28 @@ function isChordOnlyLine(line) {
   if (!tokens.length) return false;
   const meaningful = tokens.filter(token => !/^[|()\[\]{},;:\-]+$/.test(token));
   return Boolean(meaningful.length) && meaningful.every(token => normalizeChordToken(token));
+}
+
+function countChordTokens(value) {
+  return String(value || '')
+    .split(/\s+/)
+    .map(normalizeChordToken)
+    .filter(Boolean)
+    .length;
+}
+
+export function hasUsefulChordDetail(data = {}) {
+  const sections = Array.isArray(data.sections) ? data.sections : [];
+  const detailedSections = sections
+    .map(section => countChordTokens(section?.content))
+    .filter(count => count > 0);
+
+  if (detailedSections.length) {
+    const total = detailedSections.reduce((sum, count) => sum + count, 0);
+    return total >= 8 && detailedSections.length >= 2;
+  }
+
+  return countChordTokens(data.chordSheet) >= 8;
 }
 
 export function extractLyricsFromPastedMusicText(value) {
@@ -180,6 +202,19 @@ function enrichNormalizedData(data, input) {
   return enriched;
 }
 
+function discardSparseChord(data, input) {
+  if (input.sourceType !== 'song-query' || hasUsefulChordDetail(data)) return data;
+  return {
+    ...data,
+    chordSheet: null,
+    sections: [],
+    provenance: {
+      ...(data.provenance || {}),
+      chordSheet: 'estrutura harmônica insuficiente; cifra não aplicada'
+    }
+  };
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -261,6 +296,55 @@ export class MusicAIService {
     }
   }
 
+  async _analyzeSongQuery(normalized, onProgress) {
+    const candidates = buildChordSourceCandidates(normalized.songIdentity || {});
+    let bestFallback = null;
+
+    for (const candidate of candidates) {
+      const providerInput = {
+        ...normalized,
+        sourceUrl: candidate.url,
+        sourceType: 'source-url',
+        ...(typeof onProgress === 'function' ? { onProgress } : {})
+      };
+      notifyProgress(providerInput, 'song-query-source', `Procurando uma cifra detalhada em ${candidate.label}…`);
+
+      try {
+        const { raw, provider } = await this._analyzeWithResilience(providerInput);
+        const data = enrichNormalizedData(normalizeMusicAIResponse(raw), normalized);
+        if (!bestFallback) bestFallback = { data, provider };
+        if (!hasUsefulChordDetail(data)) continue;
+
+        data.chordSourceUrl ||= candidate.url;
+        data.chordSourceProvider ||= candidate.provider;
+        data.provenance = {
+          ...(data.provenance || {}),
+          chordSheet: `${candidate.label}: ${candidate.url}`
+        };
+        return { data, provider };
+      } catch (error) {
+        console.warn(`Busca de cifra por nome/artista indisponível (${candidate.label}):`, error?.code || error?.message || error);
+      }
+    }
+
+    notifyProgress(
+      { ...(typeof onProgress === 'function' ? { onProgress } : {}) },
+      'song-query-fallback',
+      'Não encontrei uma cifra detalhada confirmada. Mantendo somente os dados confiáveis da música.'
+    );
+
+    if (bestFallback) {
+      return { data: discardSparseChord(bestFallback.data, normalized), provider: bestFallback.provider };
+    }
+
+    const providerInput = typeof onProgress === 'function'
+      ? { ...normalized, onProgress }
+      : normalized;
+    const { raw, provider } = await this._analyzeWithResilience(providerInput);
+    const data = discardSparseChord(enrichNormalizedData(normalizeMusicAIResponse(raw), normalized), normalized);
+    return { data, provider };
+  }
+
   async analyze(input = {}) {
     const { errors, normalized } = this.validateInput(input);
     if (errors.length) {
@@ -283,6 +367,14 @@ export class MusicAIService {
     lastFingerprint = nextFingerprint;
     lastStartedAt = now;
     requestTimes.push(now);
+
+    if (normalized.sourceType === 'song-query' && normalized.songIdentity) {
+      activeRequest = this._analyzeSongQuery(normalized, input.onProgress)
+        .then(({ data, provider }) => ({ data, provider: provider.getMetadata(), input: normalized }))
+        .finally(() => { activeRequest = null; });
+      return activeRequest;
+    }
+
     const providerInput = typeof input.onProgress === 'function'
       ? { ...normalized, onProgress: input.onProgress }
       : normalized;
