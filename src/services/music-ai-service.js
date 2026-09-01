@@ -238,7 +238,11 @@ export class MusicAIService {
     lastFingerprint = nextFingerprint;
     lastStartedAt = now;
     requestTimes.push(now);
-    activeRequest = this.provider.analyzeSong(normalized)
+    const providerInput = typeof input.onProgress === 'function'
+      ? { ...normalized, onProgress: input.onProgress }
+      : normalized;
+
+    activeRequest = this.provider.analyzeSong(providerInput)
       .then(raw => {
         const data = enrichNormalizedData(normalizeMusicAIResponse(raw), normalized);
         return { data, provider: this.provider.getMetadata(), input: normalized };

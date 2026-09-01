@@ -48,6 +48,7 @@ Campos automáticos relevantes:
 - `timeSignature`;
 - `sourceUrl`, `sourceProvider`, `sourceType`, `importedAt`;
 - `video.provider`, `video.url`, `video.videoId`;
+- `chordSourceUrl`, `chordSourceProvider` quando uma cifra externa é confirmada;
 - `fieldProvenance`;
 - `aiProvider`, `aiModel`, `aiSchemaVersion`;
 - `importMethod` (`manual` ou `ai-assisted`).
@@ -60,16 +61,26 @@ A interface possui um único campo, mas o provider não trata todas as entradas 
 
 - **Nome + artista**: modelo estruturado simples, sem URL Context, reduzindo latência e evitando timeout desnecessário.
 - **Cifra/texto colado**: modelo estruturado simples. Quando a IA não separar a letra, o frontend consegue derivá-la do próprio conteúdo fornecido pelo usuário removendo linhas formadas apenas por acordes.
-- **Link do YouTube**: o vídeo é enviado como entrada multimodal (`fileData`) para Video Understanding. URL Context não é usado para vídeos do YouTube. O link informado pelo usuário é sempre preservado como referência.
+- **Link do YouTube**: o vídeo é enviado como entrada multimodal (`fileData`) para Video Understanding. O próprio vídeo é usado para identificar nome, artista, tom, BPM e estrutura harmônica. Quando nome e artista são identificados, o sistema gera endereços canônicos de fontes conhecidas de cifra (primeiro Cifra Club e depois Banana Cifras), tenta recuperá-los com URL Context, valida que a página realmente foi recuperada e que corresponde à mesma música, e então usa a cifra confirmada para enriquecer a análise do vídeo. O link do YouTube continua sendo a referência principal.
 - **Link de cifra/fonte**: usa URL Context apenas para a página informada. Cifra Club pode receber uma segunda leitura curta e focada no vídeo incorporado. Se Cifra Club ou Banana Cifras não puderem ser lidos, o sistema tenta inferir nome e artista a partir da própria URL e faz um fallback sem URL Context.
 
 Cada estratégia usa timeout próprio: consultas simples são mais curtas; análise de vídeo recebe uma janela maior.
+
+### Fluxo YouTube → cifra
+
+O fluxo automático é:
+
+`YouTube -> identificar música/artista -> gerar candidatos de cifra -> confirmar acesso via URL Context -> validar identidade -> mesclar cifra + dados do vídeo`
+
+A cifra externa tem preferência para `originalKey`, `chordSheet` e `sections`; o vídeo continua tendo preferência para BPM, compasso quando identificado e link de referência. Se nenhuma fonte externa puder ser confirmada, o cadastro não falha: permanece a estrutura harmônica extraída do próprio vídeo.
+
+Para manter o projeto frontend-only e compatível com o plano atual sem faturamento, o fluxo **não ativa Grounding with Google Search**. Nos modelos Gemini 3.x esse recurso pode exigir billing. Em vez disso, a busca automática usa padrões conhecidos de URL das fontes suportadas e só aceita uma cifra quando o próprio URL Context informa recuperação bem-sucedida.
 
 ## URL de cifra
 
 O fluxo pode tentar enriquecer a análise usando URL Context do Firebase AI Logic quando a URL for publicamente acessível. Não existe scraping próprio, proxy ou tentativa de contornar paywall, login, robots ou bloqueios do site.
 
-URL Context lê apenas a URL fornecida e pode não enxergar conteúdo carregado dinamicamente no navegador. Por isso, localizar vídeos incorporados em sites de cifra é **best effort**. Quando a leitura da página falha em sites conhecidos, o fallback por identidade da URL evita que toda a funcionalidade falhe.
+URL Context lê apenas a URL fornecida e pode não enxergar conteúdo carregado dinamicamente no navegador. Por isso, localizar vídeos incorporados em sites de cifra e confirmar uma cifra externa continua sendo **best effort**. A validação usa `urlContextMetadata.urlMetadata` e exige status de recuperação bem-sucedida antes de aceitar o conteúdo como fonte.
 
 ## Letra da música
 
@@ -85,6 +96,9 @@ O cliente possui:
 - tratamento de quota, App Check, timeout e resposta inválida;
 - normalização de tom, BPM, compasso e YouTube;
 - fallback por nome/artista inferido de URLs conhecidas de cifra;
+- geração determinística de candidatos Cifra Club e Banana Cifras a partir de nome/artista;
+- validação de recuperação do URL Context antes de aceitar uma cifra automática;
+- validação de identidade para impedir que uma cifra de outra música seja mesclada;
 - campos não identificados permanecem vazios;
 - nenhum autosave da sugestão.
 
@@ -101,6 +115,10 @@ Rate limit de cliente melhora UX, mas não substitui proteção de infraestrutur
 - classificação automática da entrada única;
 - seleção de estratégia por tipo de entrada;
 - fallback de identidade para Cifra Club e Banana Cifras;
+- geração de candidatos de cifra a partir da música identificada no vídeo;
+- validação de sucesso do URL Context;
+- validação de identidade da cifra encontrada;
+- merge de dados do vídeo com a cifra externa sem perder o link do YouTube;
 - extração de letra do conteúdo colado pelo usuário;
 - respostas parciais;
 - provider mockado;
