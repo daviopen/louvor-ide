@@ -88,19 +88,21 @@ function transposeChordText(text, data = {}) {
 function transposeCompactContent(content, data = {}) {
   return String(content || '').split('\n').map(line => {
     const cueMatch = line.match(/^(.+?)\s+-\s+(.+)$/);
-    if (cueMatch) {
-      return `${cueMatch[1].trim()} — ${transposeChordText(cueMatch[2], data).trim()}`;
-    }
+    if (cueMatch) return `${cueMatch[1].trim()} - ${transposeChordText(cueMatch[2], data).trim()}`;
     return transposeChordText(line, data).trim();
   }).join('\n').trim();
 }
 
 function harmonicIdentity(content) {
   return String(content || '')
-    .replace(/^.*?\s[—-]\s/gm, '')
+    .replace(/^.*?\s-\s/gm, '')
     .toLocaleLowerCase('pt-BR')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function lyricalIdentity(content) {
+  return String(content || '').toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ').trim();
 }
 
 export function composeIdeMusicChordSheet(data = {}) {
@@ -125,7 +127,7 @@ export function composeIdeMusicChordSheet(data = {}) {
       groups.push(group);
     }
 
-    const identity = harmonicIdentity(content);
+    const identity = key === 'verse' ? lyricalIdentity(content) : harmonicIdentity(content);
     if (group.variants.some(variant => variant.identity === identity)) return;
     group.variants.push({ content, identity });
   });
@@ -136,6 +138,10 @@ export function composeIdeMusicChordSheet(data = {}) {
     }
     return `${group.label}:\n${group.variants.map(variant => variant.content).join('\n')}`;
   }).join('\n\n');
+}
+
+function escapeCueSeparatorsForLegacyFormatter(chordSheet) {
+  return String(chordSheet || '').replace(/\s-\s/g, ' — ');
 }
 
 class EnhancedMusicAIService {
@@ -161,7 +167,7 @@ class EnhancedMusicAIService {
       ...result,
       data: {
         ...data,
-        chordSheet,
+        chordSheet: escapeCueSeparatorsForLegacyFormatter(chordSheet),
         sections: [],
         chordFormKey: data.originalKey || data.chordFormKey || null,
         capoFret: null
