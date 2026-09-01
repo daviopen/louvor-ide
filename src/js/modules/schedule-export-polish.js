@@ -12,7 +12,7 @@
   const JSPDF_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js';
   const COLORS = Object.freeze({
     lime: [216, 255, 69],
-    violet: [110, 89, 221],
+    violet: [132, 120, 255],
     ink: [9, 11, 12],
     text: [21, 23, 23],
     muted: [82, 89, 87],
@@ -47,7 +47,7 @@
         .weekly-export-sheet .weekly-export-footer span,.weekly-export-sheet .weekly-export-footer strong{font-size:inherit!important;font-weight:850!important;line-height:1!important}
         .weekly-export-sheet .weekly-export-footer span{display:inline-flex!important;align-items:center!important;gap:6px!important;color:var(--ide-color-neutral-800,#252a29)!important;letter-spacing:.04em!important}
         .weekly-export-sheet .weekly-export-footer span::before{content:''!important;width:7px!important;height:7px!important;border-radius:999px!important;background:var(--ide-primary,#d8ff45)!important}
-        .weekly-export-sheet .weekly-export-footer strong{color:var(--ide-color-violet-600,#6e59dd)!important}
+        .weekly-export-sheet .weekly-export-footer strong{color:var(--ide-color-violet-500,#8478ff)!important}
         #monthly-export-preview .weekly-export-sheet .weekly-export-footer::after,#schedule-print-report .weekly-export-sheet .weekly-export-footer::after{
           content:'PÁG. ' counter(ide-export-page) ' • COMUNIDADE IDE'!important;position:absolute!important;right:0!important;
           color:var(--ide-color-neutral-500,#707775)!important;font-size:8px!important;font-weight:750!important;letter-spacing:.07em!important;text-transform:uppercase!important;
