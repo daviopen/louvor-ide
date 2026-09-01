@@ -15,7 +15,7 @@ Nunca considerar uma funcionalidade pronta quando somente a UI está protegida.
 
 `READ` significa consultar e navegar pelos detalhes sem possibilidade de mutação. `EDIT` inclui leitura e habilita ações de alteração. `NONE` não deve oferecer rota, botão ou acesso indireto ao módulo.
 
-`SUPER_ADMIN` é o único bypass global implícito. `ADMIN` continua sujeito à matriz de permissões de módulos, salvo regra de negócio explícita, documentada e refletida também nas Firestore Rules e testes.
+`SUPER_ADMIN` é o único bypass global implícito. O perfil de acesso do usuário define as permissões funcionais; o campo técnico `role` existe para compatibilidade de segurança (`MEMBER`, `ADMIN`, `SUPER_ADMIN`) e não deve voltar a ser usado como substituto da matriz de perfis.
 
 ## 2. UX obrigatória para READ x EDIT
 
@@ -85,15 +85,17 @@ A listagem deve usar o texto e o ícone correspondentes ao acesso real do usuár
 Antes de concluir uma nova funcionalidade ou mutation dentro de `src/`, verificar:
 
 1. Qual módulo/permissão governa a operação?
-2. O comportamento de `NONE`, `READ` e `EDIT` está definido?
-3. A UI diferencia visualizar de editar?
-4. O Service valida acesso antes da mutação?
-5. As Firestore Rules concedem exatamente o mesmo acesso?
-6. A operação composta é atômica quando necessário?
-7. Audit log usa timestamp do servidor?
-8. Sucesso atualiza a UI sem F5?
-9. Erro restaura estado otimista ou mantém a UI coerente?
-10. Há teste de regressão para permissão e para a mutação crítica?
+2. Quais perfis de acesso recebem `NONE`, `READ` e `EDIT`?
+3. O comportamento de `NONE`, `READ` e `EDIT` está definido?
+4. A UI diferencia visualizar de editar?
+5. O Service valida acesso antes da mutação?
+6. As Firestore Rules concedem exatamente o mesmo acesso?
+7. A operação composta é atômica quando necessário?
+8. Audit log usa timestamp do servidor?
+9. Sucesso atualiza a UI sem F5?
+10. Erro restaura estado otimista ou mantém a UI coerente?
+11. Há teste de regressão para perfil/permissão e para a mutação crítica?
+12. Foi confirmado que nenhum perfil perdeu acesso que já possuía sem decisão explícita de produto?
 
 ## 8. Validação funcional pós-Action com contas QA
 
@@ -107,8 +109,8 @@ O projeto deve manter **exatamente duas contas de QA persistentes**, criadas uma
 
 Essas contas possuem identidade funcional estável:
 
-- **QA MEMBER EDIT**: perfil `MEMBER`, ativo, dedicado à validação de fluxos com mutação;
-- **QA MEMBER READ**: perfil `MEMBER`, ativo, dedicado à validação de leitura, ausência de controles de edição e negação de acesso.
+- **QA MEMBER EDIT**: conta ativa dedicada à validação de fluxos com mutação;
+- **QA MEMBER READ**: conta ativa dedicada à validação de leitura, ausência de controles de edição e negação de acesso.
 
 Regras obrigatórias de ciclo de vida:
 
@@ -120,12 +122,7 @@ Regras obrigatórias de ciclo de vida:
 - alteração de e-mail, UID, perfil base ou finalidade da conta exige decisão explícita e atualização deste padrão;
 - dados temporários criados pelas contas podem ser limpos, mas a identidade da conta permanece.
 
-Permissões esperadas:
-
-- **QA MEMBER EDIT** deve receber `EDIT` nos módulos operacionais que precisam ter mutações validadas;
-- **QA MEMBER READ** deve receber `READ` nos módulos equivalentes quando houver modo somente leitura e `NONE` onde seja necessário validar negação de acesso;
-- permissões podem ser ajustadas deliberadamente entre cenários, mas o usuário/UID da conta deve permanecer o mesmo;
-- nunca usar `ADMIN` ou `SUPER_ADMIN` como substituto para validar comportamento de usuário comum.
+Os perfis dessas contas podem ser ajustados deliberadamente entre cenários para validar os níveis esperados, mas o usuário/UID deve permanecer o mesmo. Nunca usar `SUPER_ADMIN` como substituto para validar comportamento de um perfil comum.
 
 ### 8.2. Segurança das credenciais
 
@@ -142,9 +139,7 @@ A identidade lógica das contas pode ser documentada como `QA MEMBER EDIT` e `QA
 - artifacts;
 - GitHub Actions.
 
-O e-mail real das contas também não precisa ser versionado quando não houver necessidade técnica. Quando for necessário referenciá-las em configuração local segura, usar mecanismo não versionado e claramente identificado para QA.
-
-As credenciais devem ser armazenadas em meio seguro e persistente fora do repositório, permitindo reutilização nas sessões de validação sem recriar as contas. Se uma credencial precisar ser rotacionada, alterar somente a credencial; preservar a conta e o UID sempre que possível.
+As credenciais devem ser armazenadas em meio seguro e persistente fora do repositório. Se uma credencial precisar ser rotacionada, alterar somente a credencial; preservar a conta e o UID sempre que possível.
 
 Essas contas não fazem parte da pipeline e não devem ser autenticadas automaticamente pelo GitHub Actions. O objetivo é validar a aplicação publicada em uma sessão funcional real depois que a pipeline concluir.
 
@@ -152,13 +147,13 @@ Essas contas não fazem parte da pipeline e não devem ser autenticadas automati
 
 Para cada correção ou funcionalidade afetada, a validação pós-deploy deve cobrir, conforme aplicável:
 
-1. login com **QA MEMBER EDIT**;
+1. login com conta QA com perfil que possua `EDIT`;
 2. acesso à rota afetada;
 3. execução real do fluxo alterado, incluindo salvar/adicionar/remover quando essa for a finalidade da correção;
 4. confirmação visual de que o estado foi atualizado sem F5;
 5. recarga/nova navegação para confirmar persistência no servidor;
 6. ausência de `console.error`, `pageerror` e HTTP 5xx inesperado;
-7. login com **QA MEMBER READ** e confirmação de que consulta funciona, mas controles de mutação não são oferecidos nem aceitos;
+7. login com conta QA em perfil que possua somente `READ` e confirmação de que consulta funciona, mas controles de mutação não são oferecidos nem aceitos;
 8. quando houver `NONE`, confirmar que menu/rota e operação permanecem bloqueados;
 9. quando a mudança afetar responsividade, repetir o fluxo relevante em desktop e mobile.
 
@@ -171,5 +166,46 @@ Ordem de conclusão esperada para mudanças de produção:
 Se o Action passar mas a validação funcional falhar, o item continua **não concluído**. Se o deploy não tiver ocorrido, também não é permitido afirmar que a correção foi validada em produção.
 
 Quando as contas QA ainda não estiverem provisionadas ou suas credenciais não estiverem disponíveis na sessão de trabalho, registrar explicitamente essa limitação e não substituir a etapa por suposição baseada somente em testes automatizados.
+
+## 9. Perfis de acesso são a fonte de verdade
+
+Usuários comuns não devem receber uma matriz de permissões configurada manualmente módulo por módulo. A aplicação deve associar cada usuário a **um único perfil de acesso reutilizável** através de `users.accessProfile`.
+
+Perfis canônicos:
+
+| Perfil | dashboard | users | permissions | unavailability | events | schedules | setlists | songs | audit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **Participante** (`PARTICIPANT`) | READ | NONE | NONE | EDIT | READ | READ | READ | READ | NONE |
+| **Ministro** (`MINISTER`) | READ | NONE | NONE | EDIT | READ | READ | EDIT | EDIT | NONE |
+| **DM** (`DM`) | READ | NONE | NONE | EDIT | READ | EDIT | EDIT | EDIT | NONE |
+| **Líder** (`LEADER`) | READ | READ | READ | EDIT | EDIT | EDIT | EDIT | EDIT | READ |
+| **Administrador** (`ADMINISTRATOR`) | EDIT | EDIT | EDIT | EDIT | EDIT | EDIT | EDIT | EDIT | EDIT |
+
+A fonte de verdade executável desta matriz é `src/js/modules/access-profiles.js`. Os documentos da coleção `permissions` podem continuar existindo como **materialização técnica** para compatibilidade e enforcement das Firestore Rules, mas não são mais o modelo administrativo apresentado ao usuário.
+
+### 9.1. Regras para associação e alteração de perfil
+
+- a tela de Usuários deve pedir **Perfil de acesso**, nunca nove seletores independentes de módulo;
+- a associação do perfil deve atualizar `users.accessProfile` e a matriz técnica de `permissions` de forma coerente;
+- mudanças de perfil devem ser atômicas sempre que envolverem mais de um documento;
+- `SUPER_ADMIN` continua sendo bypass global e não depende de `accessProfile` para manter seus privilégios;
+- o perfil `ADMINISTRATOR` pode corresponder tecnicamente ao `role: ADMIN` quando necessário às regras existentes;
+- funções ministeriais (`Ministro`, `Back`, `Bateria`, etc.) continuam sendo conceito separado de perfil de acesso. O fato de alguém exercer a função ministerial “Ministro” não deve alterar automaticamente seu perfil sem decisão explícita;
+- nunca inferir aumento/redução de privilégio apenas pelo nome de uma função ministerial.
+
+### 9.2. Regra obrigatória para novas funcionalidades
+
+Toda nova funcionalidade, rota, botão, operação ou módulo protegido deve, **antes da implementação**, ter seu acesso classificado para os cinco perfis canônicos.
+
+Se o pedido do usuário já determinar claramente quem acessa, aplicar a decisão e atualizar `access-profiles.js`, Rules/guards relevantes e testes quando necessário.
+
+Se houver qualquer dúvida real sobre qual perfil deve receber `NONE`, `READ` ou `EDIT`, **perguntar ao usuário antes de inventar a política de acesso**. Não escolher silenciosamente um perfil “parecido”, não copiar acesso de outro módulo por conveniência e não assumir que Administrador/Líder/DM/Ministro/Participante devem herdar uma nova função sem confirmação quando isso não for evidente.
+
+Ao modificar funcionalidade existente:
+
+- preservar o acesso atual de todos os perfis, salvo solicitação explícita para alterá-lo;
+- não remover acesso como efeito colateral de refactor, alteração de rota, mudança de nome, criação de submenu ou troca de componente;
+- testes devem detectar regressões da matriz;
+- se uma mudança exige alterar acesso de um perfil, registrar a decisão no mesmo commit/PR e atualizar esta matriz quando aplicável.
 
 Em caso de conflito, o `AGENTS.md` raiz continua sendo a regra global e este arquivo torna as exigências acima mais específicas para o código de `src/`.
