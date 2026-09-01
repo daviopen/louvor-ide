@@ -2,6 +2,6 @@
 // Não coloque secrets neste arquivo. O site key do reCAPTCHA Enterprise é público.
 window.IDE_MUSIC_AI_CONFIG = Object.freeze({
   enabled: true,
-  model: 'gemini-3.7-flash',
+  model: 'gemini-3.5-flash',
   appCheckSiteKey: '6Lf3i6ItAAAAAN3-aCEZDd7u01T_f0nnAnuXTx70'
 });
