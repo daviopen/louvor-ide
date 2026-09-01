@@ -19,6 +19,19 @@
     return time ? `${label} · ${time}` : label;
   }
 
+  function dateInputValue(date = new Date()) {
+    const local = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+    return local.toISOString().slice(0, 10);
+  }
+
+  function profileUserId(profile) {
+    return profile?.id || profile?.uid || '';
+  }
+
+  function profileParticipantName(profile) {
+    return profile?.name || profile?.displayName || profile?.email || '';
+  }
+
   function element(tag, className, text) {
     const node = scope.document.createElement(tag);
     if (className) node.className = className;
@@ -96,8 +109,9 @@
     items.forEach(item => {
       const period = PERIOD_LABELS[String(item.period || '').toUpperCase()];
       const meta = [formatDate(item.date), period, item.note].filter(Boolean).join(' · ');
+      const userFilter = item.userId ? `&user=${encodeURIComponent(item.userId)}&future=1` : '';
       container.appendChild(itemLink(
-        'module.html?section=unavailability',
+        `module.html?section=unavailability${userFilter}`,
         'Indisponibilidade',
         meta,
         null,
@@ -116,15 +130,27 @@
     return link;
   }
 
-  function renderUserIndicators(indicators) {
+  function renderUserIndicators(indicators, profile) {
     const container = scope.document.getElementById('dashboard-user-indicators');
     if (!container) return;
     container.textContent = '';
+
+    const userId = profileUserId(profile);
+    const participant = profileParticipantName(profile);
+    const today = dateInputValue();
+    const scheduleHref = `module.html?section=schedules&person=${encodeURIComponent(userId)}&from=${today}`;
+    const setlistsHref = participant
+      ? `setlists.html?view=upcoming&participant=${encodeURIComponent(participant)}`
+      : 'setlists.html?view=upcoming';
+    const unavailabilityHref = userId
+      ? `module.html?section=unavailability&user=${encodeURIComponent(userId)}&future=1`
+      : 'module.html?section=unavailability';
+
     const cards = [
-      ['Próximas escalas', indicators.upcomingSchedules, 'fa-people-group', 'module.html?section=schedules'],
-      ['Escalas pendentes', indicators.draftSchedules, 'fa-user-clock', 'module.html?section=schedules'],
-      ['Próximos setlists', indicators.upcomingSetlists, 'fa-list-check', 'setlists.html?view=upcoming'],
-      ['Indisponibilidades futuras', indicators.upcomingUnavailability, 'fa-calendar-xmark', 'module.html?section=unavailability']
+      ['Próximas escalas', indicators.upcomingSchedules, 'fa-people-group', scheduleHref],
+      ['Escalas pendentes', indicators.draftSchedules, 'fa-user-clock', scheduleHref],
+      ['Próximos setlists', indicators.upcomingSetlists, 'fa-list-check', setlistsHref],
+      ['Indisponibilidades futuras', indicators.upcomingUnavailability, 'fa-calendar-xmark', unavailabilityHref]
     ];
     cards.forEach(([label, value, iconName, href]) => {
       container.appendChild(indicatorLink(label, value, iconName, href));
@@ -145,7 +171,7 @@
     renderSchedules(viewModel.upcomingSchedules);
     renderSetlists(viewModel.upcomingSetlists);
     renderUnavailability(viewModel.upcomingUnavailability);
-    renderUserIndicators(viewModel.userIndicators);
+    renderUserIndicators(viewModel.userIndicators, viewModel.profile);
     setStatus('', 'success');
   }
 
