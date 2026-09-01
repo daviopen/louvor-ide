@@ -47,7 +47,7 @@ test('operações administrativas impedem exclusão física de usuário', () => 
   assert.match(users, /resource\.data\.role != 'SUPER_ADMIN'/);
 });
 
-test('indisponibilidade de terceiros exige perfil ADMIN além da permissão do módulo', () => {
+test('indisponibilidade de terceiros exige perfil ADMIN além da permissão do módulo para gestão', () => {
   assert.match(rules, /function administrativeUnavailabilityWrite\(\)[\s\S]*isAdmin\(\)[\s\S]*canEdit\('unavailability'\)/);
   const unavailability = extractMatch('unavailability/{documentId}');
   assert.match(unavailability, /isAdmin\(\) && canRead\('unavailability'\)/);
@@ -66,9 +66,18 @@ test('audit log é append-only, possui schema limitado e timestamp do servidor',
   assert.match(audit, /allow update, delete: if false;/);
 });
 
+test('Escalas pode ler somente as dependências operacionais necessárias ao editor', () => {
+  assert.match(extractMatch('users/{userId}'), /canRead\('schedules'\)/);
+  assert.match(extractMatch('userFunctions/{documentId}'), /canRead\('schedules'\)/);
+  assert.match(extractMatch('events/{documentId}'), /canRead\('schedules'\)/);
+  assert.match(extractMatch('unavailability/{documentId}'), /canRead\('schedules'\)/);
+  assert.match(extractMatch('schedules/{documentId}'), /canRead\('schedules'\)/);
+  assert.match(extractMatch('scheduleMembers/{documentId}'), /canRead\('schedules'\)/);
+});
+
 test('Setlist pode ler somente as dependências operacionais necessárias', () => {
   assert.match(extractMatch('users/{userId}'), /canRead\('setlists'\)/);
-  assert.match(extractMatch('events/{documentId}'), /canRead\('events'\) \|\| canRead\('setlists'\)/);
+  assert.match(extractMatch('events/{documentId}'), /canRead\('events'\) \|\| canRead\('schedules'\) \|\| canRead\('setlists'\)/);
   assert.match(extractMatch('schedules/{documentId}'), /canRead\('schedules'\) \|\| canRead\('setlists'\)/);
   assert.match(extractMatch('scheduleMembers/{documentId}'), /canRead\('schedules'\) \|\| canRead\('setlists'\)/);
   assert.match(extractMatch('songs/{documentId}'), /canRead\('songs'\) \|\| canRead\('setlists'\)/);
