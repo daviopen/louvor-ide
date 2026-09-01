@@ -124,13 +124,20 @@ test('index.html contém somente as áreas pessoais solicitadas no Dashboard', (
   assert.doesNotMatch(html, /id="search-input"/);
 });
 
-test('Indicadores pessoais do Dashboard navegam para os módulos correspondentes', () => {
+test('Indicadores pessoais do Dashboard navegam com os filtros do usuário', () => {
   const script = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'modules', 'dashboard-page.js'), 'utf8');
+  const unavailability = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'modules', 'unavailability-page.js'), 'utf8');
+
   assert.match(script, /element\('a', 'ide-dashboard-indicator'\)/);
-  assert.match(script, /\['Próximas escalas', indicators\.upcomingSchedules, 'fa-people-group', 'module\.html\?section=schedules'\]/);
-  assert.match(script, /\['Escalas pendentes', indicators\.draftSchedules, 'fa-user-clock', 'module\.html\?section=schedules'\]/);
-  assert.match(script, /\['Próximos setlists', indicators\.upcomingSetlists, 'fa-list-check', 'setlists\.html\?view=upcoming'\]/);
-  assert.match(script, /\['Indisponibilidades futuras', indicators\.upcomingUnavailability, 'fa-calendar-xmark', 'module\.html\?section=unavailability'\]/);
+  assert.match(script, /module\.html\?section=schedules&person=\$\{encodeURIComponent\(userId\)\}&from=\$\{today\}/);
+  assert.match(script, /setlists\.html\?view=upcoming&participant=\$\{encodeURIComponent\(participant\)\}/);
+  assert.match(script, /module\.html\?section=unavailability&user=\$\{encodeURIComponent\(userId\)\}&future=1/);
+  assert.match(script, /renderUserIndicators\(viewModel\.userIndicators, viewModel\.profile\)/);
+
+  assert.match(unavailability, /const params = new URLSearchParams\(scope\.location\.search\)/);
+  assert.match(unavailability, /filterUserId: params\.get\('user'\) \|\| 'ALL'/);
+  assert.match(unavailability, /const keepAllFuture = params\.get\('future'\) === '1'/);
+  assert.match(unavailability, /await loadRecords\(\{ initial: !keepAllFuture \}\)/);
 });
 
 test('Dashboard possui layout responsivo e usa tokens do Design System', () => {
