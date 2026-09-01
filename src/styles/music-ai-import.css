@@ -1,0 +1,188 @@
+.song-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ide-space-2);
+  margin-bottom: var(--ide-space-5);
+  padding: var(--ide-space-1);
+  border: 1px solid var(--ide-border);
+  border-radius: var(--ide-radius-lg);
+  background: var(--ide-surface-secondary);
+}
+
+.song-mode-button {
+  min-height: 44px;
+  padding: 10px 14px;
+  color: var(--ide-text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--ide-radius-md);
+  background: transparent;
+  font: inherit;
+  font-weight: var(--ide-font-weight-bold);
+  cursor: pointer;
+}
+
+.song-mode-button[aria-selected="true"] {
+  color: var(--ide-text-primary);
+  border-color: var(--ide-border-strong);
+  background: var(--ide-surface);
+  box-shadow: var(--ide-shadow-sm);
+}
+
+.song-mode-button:focus-visible,
+.ai-action:focus-visible {
+  outline: 3px solid var(--ide-focus-ring);
+  outline-offset: 2px;
+}
+
+.ai-import-panel {
+  margin-bottom: var(--ide-space-6);
+  padding: var(--ide-space-5);
+  border: 1px solid var(--ide-border);
+  border-radius: var(--ide-radius-lg);
+  background: var(--ide-surface-secondary);
+}
+
+.ai-import-panel[hidden],
+.ai-review-banner[hidden] {
+  display: none !important;
+}
+
+.ai-import-intro {
+  display: grid;
+  gap: var(--ide-space-2);
+  margin-bottom: var(--ide-space-5);
+}
+
+.ai-import-intro h3 {
+  margin: 0;
+  color: var(--ide-text-primary);
+  font-size: var(--ide-font-size-md);
+  font-weight: var(--ide-font-weight-extrabold);
+}
+
+.ai-import-intro p {
+  margin: 0;
+  color: var(--ide-text-secondary);
+  font-size: var(--ide-font-size-sm);
+  line-height: var(--ide-line-height-relaxed);
+}
+
+.ai-import-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--ide-space-4);
+}
+
+.ai-import-panel .field {
+  margin-bottom: 0;
+}
+
+.ai-import-panel textarea {
+  min-height: 190px;
+}
+
+.ai-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ide-space-3);
+  align-items: center;
+  margin-top: var(--ide-space-5);
+}
+
+.ai-action {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ide-space-2);
+  padding: 10px 16px;
+  border-radius: var(--ide-radius-pill);
+  font: inherit;
+  font-weight: var(--ide-font-weight-bold);
+  cursor: pointer;
+}
+
+.ai-action.primary {
+  color: var(--ide-primary-ink);
+  border: 1px solid var(--ide-primary);
+  background: var(--ide-primary);
+}
+
+.ai-action.secondary {
+  color: var(--ide-text-primary);
+  border: 1px solid var(--ide-border-strong);
+  background: var(--ide-surface);
+}
+
+.ai-action:disabled {
+  cursor: not-allowed;
+  opacity: .65;
+}
+
+.ai-inline-status {
+  min-height: 22px;
+  margin: var(--ide-space-4) 0 0;
+  color: var(--ide-text-secondary);
+  font-size: var(--ide-font-size-sm);
+  line-height: var(--ide-line-height-normal);
+}
+
+.ai-inline-status[data-state="error"] {
+  color: var(--ide-error);
+}
+
+.ai-inline-status[data-state="success"] {
+  color: var(--ide-success);
+}
+
+.ai-review-banner {
+  display: grid;
+  gap: var(--ide-space-2);
+  margin: 0 0 var(--ide-space-5);
+  padding: var(--ide-space-4);
+  border: 1px solid var(--ide-border-strong);
+  border-radius: var(--ide-radius-md);
+  background: var(--ide-surface-secondary);
+}
+
+.ai-review-banner strong {
+  color: var(--ide-text-primary);
+}
+
+.ai-review-banner span,
+.ai-review-banner ul {
+  margin: 0;
+  color: var(--ide-text-secondary);
+  font-size: var(--ide-font-size-sm);
+  line-height: var(--ide-line-height-relaxed);
+}
+
+.ai-review-banner ul {
+  padding-left: 20px;
+}
+
+.ai-badge {
+  width: fit-content;
+  padding: 4px 9px;
+  color: var(--ide-primary-ink);
+  border-radius: var(--ide-radius-pill);
+  background: var(--ide-primary);
+  font-size: var(--ide-font-size-xs);
+  font-weight: var(--ide-font-weight-extrabold);
+  letter-spacing: .03em;
+}
+
+@media (max-width: 600px) {
+  .song-mode-switch {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-import-panel {
+    padding: var(--ide-space-4);
+  }
+
+  .ai-import-actions,
+  .ai-action {
+    width: 100%;
+  }
+}
