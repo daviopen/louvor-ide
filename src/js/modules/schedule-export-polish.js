@@ -16,8 +16,9 @@
     ink: [9, 11, 12],
     text: [21, 23, 23],
     muted: [82, 89, 87],
-    border: [205, 209, 207],
-    paper: [249, 250, 247],
+    border: [207, 210, 207],
+    decoration: [220, 222, 218],
+    paper: [247, 248, 244],
     white: [255, 255, 255]
   });
 
@@ -310,95 +311,106 @@
     doc[method](color[0], color[1], color[2]);
   }
 
+  function drawDecorations(doc) {
+    setRgb(doc, 'setDrawColor', COLORS.decoration);
+    doc.setLineWidth(0.45);
+    doc.line(-12, 162, 82, -10);
+    doc.circle(184, 220, 67, 'S');
+    doc.setLineWidth(0.18);
+    doc.circle(184, 220, 70, 'S');
+  }
+
   function drawPageBase(doc) {
     setRgb(doc, 'setFillColor', COLORS.paper);
     doc.rect(0, 0, 210, 297, 'F');
+    drawDecorations(doc);
     setRgb(doc, 'setFillColor', COLORS.lime);
-    doc.rect(12, 12, 186, 1.6, 'F');
+    doc.rect(12, 12, 186, 1.65, 'F');
   }
 
   function drawHeader(doc, kind, month, label) {
     setRgb(doc, 'setTextColor', COLORS.ink);
+    doc.setFont('helvetica', kind === 'escala' ? 'bolditalic' : 'bold');
+    doc.setFontSize(kind === 'indisponibilidades' ? 16.5 : 18);
+    doc.text(kind, 14, 22.5);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(kind === 'indisponibilidades' ? 17 : 18);
-    doc.text(kind, 14, 23);
-    doc.setFontSize(kind === 'indisponibilidades' ? 31 : 32);
-    const monthLines = textLines(doc, month, 125).slice(0, 2);
-    doc.text(monthLines, 14, 37, { lineHeightFactor: 0.9 });
+    doc.setFontSize(kind === 'indisponibilidades' ? 31 : 33);
+    const monthWidth = kind === 'indisponibilidades' ? 120 : 150;
+    const monthLines = textLines(doc, month, monthWidth).slice(0, 2);
+    doc.text(monthLines, 14, 36.5, { lineHeightFactor: 0.87 });
     if (label) {
       setRgb(doc, 'setTextColor', COLORS.muted);
-      doc.setFontSize(7.5);
-      doc.text(textLines(doc, label, 58).slice(0, 2), 196, 34, { align: 'right', lineHeightFactor: 1.05 });
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.2);
+      doc.text(textLines(doc, label, 60).slice(0, 2), 196, 39, { align: 'right', lineHeightFactor: 1.05 });
     }
   }
 
-  function drawFooter(doc, page, total) {
+  function drawFooter(doc, page) {
     setRgb(doc, 'setDrawColor', COLORS.border);
-    doc.setLineWidth(0.25);
-    doc.line(12, 284, 198, 284);
+    doc.setLineWidth(0.2);
+    doc.line(12, 285, 198, 285);
     setRgb(doc, 'setFillColor', COLORS.lime);
-    doc.circle(13.6, 289, 1, 'F');
+    doc.circle(13.5, 290, 0.9, 'F');
     setRgb(doc, 'setTextColor', COLORS.ink);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.text('IDE', 16.2, 291);
+    doc.setFontSize(7.5);
+    doc.text('IDE', 16, 291.1);
     setRgb(doc, 'setTextColor', COLORS.violet);
-    doc.setFontSize(7.2);
-    doc.text('Music', 27, 291);
+    doc.setFontSize(6.7);
+    doc.text('Music', 26.2, 291.1);
     setRgb(doc, 'setTextColor', COLORS.muted);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.3);
-    doc.text(`PÁG. ${page} • COMUNIDADE IDE`, 197, 291, { align: 'right' });
-    doc.setFontSize(5.4);
-    doc.text(`${page}/${total}`, 197, 287.5, { align: 'right' });
+    doc.setFontSize(5.8);
+    doc.text(`PÁG. ${page} • COMUNIDADE IDE`, 197, 291.1, { align: 'right' });
   }
 
   function measureEventHeight(doc, event, compact) {
-    const titleSize = compact ? 10 : 12;
-    const teamSize = compact ? 7.1 : 8;
-    doc.setFontSize(titleSize);
-    const titleCount = Math.max(1, textLines(doc, event.title, 124).length);
-    doc.setFontSize(teamSize);
-    const assignmentLines = event.assignments.reduce((sum, item) => sum + Math.max(1, textLines(doc, item, 126).length), 0);
-    const locationLines = event.location ? Math.max(1, textLines(doc, event.location, 126).length) : 0;
-    return Math.max(compact ? 32 : 38, 10 + titleCount * 5 + locationLines * 3.5 + assignmentLines * (compact ? 3.4 : 3.8));
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(compact ? 10.5 : 12.5);
+    const titleCount = Math.max(1, textLines(doc, event.title.toLocaleUpperCase('pt-BR'), 122).length);
+    doc.setFontSize(compact ? 7.2 : 8);
+    const assignmentLines = event.assignments.reduce((sum, item) => sum + Math.max(1, textLines(doc, item, 124).length), 0);
+    const locationLines = event.location ? Math.max(1, textLines(doc, event.location, 124).length) : 0;
+    return Math.max(compact ? 31 : 37, 9 + titleCount * 5 + locationLines * 3.5 + assignmentLines * (compact ? 3.35 : 3.75));
   }
 
   function drawEventCard(doc, event, y, height, compact) {
     const badgeX = 14;
-    const badgeW = 38;
-    const cardX = 58;
-    const cardW = 138;
+    const badgeW = 39;
+    const cardX = 59;
+    const cardW = 137;
     setRgb(doc, 'setFillColor', COLORS.lime);
-    doc.roundedRect(badgeX, y, badgeW, height, 18, 18, 'F');
+    doc.roundedRect(badgeX, y, badgeW, height, 19.5, 19.5, 'F');
     setRgb(doc, 'setTextColor', COLORS.ink);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(compact ? 18 : 21);
-    doc.text(event.weekday || 'DATA', badgeX + badgeW / 2, y + height / 2 - 1.5, { align: 'center' });
-    doc.setFontSize(compact ? 8.5 : 9.5);
+    doc.setFontSize(compact ? 17.5 : 21);
+    doc.text((event.weekday || 'DATA').toLocaleUpperCase('pt-BR'), badgeX + badgeW / 2, y + height / 2 - 1.4, { align: 'center' });
+    doc.setFontSize(compact ? 8.3 : 9.4);
     doc.text(event.date || '—', badgeX + badgeW / 2, y + height / 2 + 5, { align: 'center' });
 
     setRgb(doc, 'setFillColor', COLORS.white);
     setRgb(doc, 'setDrawColor', COLORS.ink);
-    doc.setLineWidth(0.55);
-    doc.roundedRect(cardX, y, cardW, height, 8, 8, 'FD');
-    let cy = y + 7;
+    doc.setLineWidth(0.65);
+    doc.roundedRect(cardX, y, cardW, height, 9.5, 9.5, 'FD');
+    let cy = y + 7.4;
     setRgb(doc, 'setTextColor', COLORS.ink);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(compact ? 10 : 12);
-    const title = textLines(doc, event.title, cardW - 12).slice(0, compact ? 2 : 3);
-    doc.text(title, cardX + 6, cy, { lineHeightFactor: 1.05 });
-    cy += title.length * (compact ? 4.1 : 4.8) + 1;
+    doc.setFontSize(compact ? 10.5 : 12.5);
+    const title = textLines(doc, event.title.toLocaleUpperCase('pt-BR'), cardW - 12).slice(0, compact ? 2 : 3);
+    doc.text(title, cardX + 6, cy, { lineHeightFactor: 1.02 });
+    cy += title.length * (compact ? 4.3 : 5) + 1.2;
+
     if (event.location) {
       setRgb(doc, 'setTextColor', COLORS.muted);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(compact ? 6.8 : 7.4);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(compact ? 6.8 : 7.3);
       const location = textLines(doc, event.location, cardW - 12).slice(0, 1);
       doc.text(location, cardX + 6, cy);
       cy += 3.8;
     }
+
     setRgb(doc, 'setTextColor', COLORS.text);
-    doc.setFontSize(compact ? 7.1 : 8);
+    doc.setFontSize(compact ? 7.15 : 8);
     event.assignments.forEach(item => {
       if (cy > y + height - 4) return;
       const colon = item.indexOf(':');
@@ -413,9 +425,9 @@
       const lines = textLines(doc, value, Math.max(30, available)).slice(0, 2);
       if (lines.length) {
         doc.text(lines[0], cardX + 6 + labelW, cy);
-        if (lines[1] && cy + 3.2 <= y + height - 3) doc.text(lines[1], cardX + 6, cy + 3.2);
+        if (lines[1] && cy + 3.1 <= y + height - 3) doc.text(lines[1], cardX + 6, cy + 3.1);
       }
-      cy += lines.length > 1 ? 6.3 : (compact ? 3.35 : 3.7);
+      cy += lines.length > 1 ? 6.15 : (compact ? 3.35 : 3.7);
     });
   }
 
@@ -426,7 +438,7 @@
     if (!events.length) return;
     const compact = events.length >= 4;
     const top = 54;
-    const bottom = 278;
+    const bottom = 277;
     const available = bottom - top;
     const heights = events.map(event => measureEventHeight(doc, event, compact));
     const sum = heights.reduce((acc, value) => acc + value, 0);
@@ -435,11 +447,11 @@
     if (events.length === 1) {
       y = top + Math.max(0, (available - heights[0]) / 2);
       gap = 0;
-    } else if (events.length === 2 && sum < available - 20) {
-      gap = Math.max(12, (available - sum) / 3);
+    } else if (events.length === 2 && sum < available - 22) {
+      gap = Math.max(13, (available - sum) / 3);
       y = top + gap;
     } else {
-      gap = Math.max(3, (available - sum) / Math.max(1, events.length - 1));
+      gap = Math.max(3.5, (available - sum) / Math.max(1, events.length - 1));
       y = top;
     }
     events.forEach((event, index) => {
@@ -459,31 +471,37 @@
     return lines;
   }
 
+  function measureAbsenceCard(doc, person, width) {
+    doc.setFontSize(6.8);
+    const lines = absenceCardLines(doc, person, width - 8);
+    return Math.max(20, 14 + lines.length * 4.05);
+  }
+
   function drawAbsenceCard(doc, person, x, y, width, height) {
     setRgb(doc, 'setFillColor', COLORS.white);
     setRgb(doc, 'setDrawColor', COLORS.border);
-    doc.setLineWidth(0.35);
-    doc.roundedRect(x, y, width, height, 4, 4, 'FD');
+    doc.setLineWidth(0.3);
+    doc.roundedRect(x, y, width, height, 4.5, 4.5, 'FD');
     setRgb(doc, 'setFillColor', COLORS.lime);
-    doc.roundedRect(x + 3.5, y + 3.5, 1.3, 5, 0.65, 0.65, 'F');
+    doc.roundedRect(x + 3.5, y + 3.6, 1.35, 5.2, 0.7, 0.7, 'F');
     setRgb(doc, 'setTextColor', COLORS.ink);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.6);
-    doc.text(textLines(doc, person.name || 'Pessoa', width - 11).slice(0, 1), x + 7, y + 7.5);
+    doc.setFontSize(8.4);
+    doc.text(textLines(doc, person.name || 'Pessoa', width - 12).slice(0, 1), x + 7, y + 7.7);
     let cy = y + 13;
     doc.setFontSize(6.8);
     const lines = absenceCardLines(doc, person, width - 8);
     lines.forEach((line, index) => {
-      if (cy > y + height - 3.3) return;
+      if (cy > y + height - 3.2) return;
       if (index > 0) {
         setRgb(doc, 'setDrawColor', COLORS.border);
-        doc.setLineWidth(0.15);
-        doc.line(x + 4, cy - 2.4, x + width - 4, cy - 2.4);
+        doc.setLineWidth(0.12);
+        doc.line(x + 4, cy - 2.35, x + width - 4, cy - 2.35);
       }
       setRgb(doc, 'setTextColor', line.note ? COLORS.muted : COLORS.text);
       doc.setFont('helvetica', line.note ? 'normal' : 'bold');
       doc.text(line.text, x + 4, cy);
-      cy += 3.55;
+      cy += 4.05;
     });
   }
 
@@ -498,19 +516,22 @@
       doc.text('Nenhuma indisponibilidade registrada no mês.', 105, 120, { align: 'center' });
       return;
     }
-    const columns = 2;
-    const rows = Math.ceil(people.length / columns);
+
     const gapX = 4;
-    const gapY = 3.2;
-    const x1 = 13;
-    const width = (184 - gapX) / 2;
-    const top = 55;
+    const gapY = 3;
+    const x = [13, 107];
+    const width = 90;
+    const top = 57;
     const bottom = 278;
-    const height = Math.min(50, (bottom - top - (rows - 1) * gapY) / rows);
-    people.forEach((person, index) => {
-      const col = index % columns;
-      const row = Math.floor(index / columns);
-      drawAbsenceCard(doc, person, x1 + col * (width + gapX), top + row * (height + gapY), width, height);
+    const cursor = [top, top];
+
+    people.forEach(person => {
+      let height = measureAbsenceCard(doc, person, width);
+      let col = cursor[0] <= cursor[1] ? 0 : 1;
+      if (cursor[col] + height > bottom && cursor[1 - col] + height <= bottom) col = 1 - col;
+      height = Math.min(height, bottom - cursor[col]);
+      drawAbsenceCard(doc, person, x[col], cursor[col], width, height);
+      cursor[col] += height + gapY;
     });
   }
 
@@ -534,7 +555,7 @@
     models.forEach((model, index) => {
       if (index > 0) doc.addPage('a4', 'portrait');
       if (model.type === 'absence') drawAbsencePage(doc, model); else drawSchedulePage(doc, model);
-      drawFooter(doc, index + 1, models.length);
+      drawFooter(doc, index + 1);
     });
     doc.save(`IDE-Music-Escalas-${month || 'mensal'}.pdf`);
   }
