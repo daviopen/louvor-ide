@@ -85,7 +85,7 @@ Regra de detalhamento: se uma seção musical tiver até 5 acordes efetivos, res
 
 Quando houver blocos distintos dentro da mesma seção, preserve pequenas quebras de linha para facilitar leitura. Se uma progressão consecutiva for exatamente repetida dentro da mesma frase, não é necessário repeti-la. Se uma estrutura inteira se repetir mais tarde sem mudança musical relevante, como o mesmo Refrão ou a mesma Ponte, represente essa estrutura uma única vez na cifra. Estrofes diferentes podem permanecer como Estrofe 1, Estrofe 2 etc. O campo lyrics pode conter a letra identificada separadamente; a compactação se aplica ao chordSheet e ao conteúdo de sections.
 
-O campo video deve representar um vídeo real da música, preferencialmente YouTube, encontrado incorporado ou referenciado dentro da página de cifra, ou explicitamente informado pelo usuário. Nunca use a URL da própria página de cifra como video.url. Se nenhum vídeo real for identificado, retorne video como null.
+O campo video deve representar um vídeo real da música, preferencialmente YouTube, encontrado incorporado ou referenciado dentro da página de cifra, ou explicitamente informado pelo usuário. Nunca use a URL da própria página de cifra como video.url. Em páginas de cifra, o vídeo pode não possuir href direto: procure também por thumbnails do YouTube em src/id/atributos, como https://i.ytimg.com/vi/VIDEO_ID/default.jpg ou https://i.ytimg.com/vi_webp/VIDEO_ID/default.webp. Quando encontrar esse padrão, extraia VIDEO_ID e retorne video.url como https://www.youtube.com/watch?v=VIDEO_ID, video.videoId como VIDEO_ID e provider como youtube. Se nenhum vídeo real for identificado, retorne video como null.
 
 Não faça scraping próprio nem tente contornar login, paywall, robots ou bloqueios de sites.`
       }, { timeout: 45000 });
@@ -101,7 +101,7 @@ Não faça scraping próprio nem tente contornar login, paywall, robots ou bloqu
     const prompt = [
       'Analise os dados fornecidos e retorne somente informações sustentadas pelo conteúdo.',
       input.sourceUrl ? `URL da página de cifra/fonte (use como fonte de análise, mas NUNCA como link de referência da música): ${input.sourceUrl}` : '',
-      input.sourceUrl ? 'Se essa página contiver um vídeo incorporado ou um link para vídeo da música, extraia esse vídeo em video.url. Se não houver vídeo identificável, deixe video como null.' : '',
+      input.sourceUrl ? 'Se essa página contiver um vídeo incorporado, link de vídeo ou thumbnail do YouTube, extraia o vídeo em video.url. Dê atenção especial a src como i.ytimg.com/vi/VIDEO_ID/... e i.ytimg.com/vi_webp/VIDEO_ID/...: nesses casos, construa https://www.youtube.com/watch?v=VIDEO_ID. Se não houver vídeo identificável, deixe video como null.' : '',
       input.youtubeUrl ? `URL de vídeo de referência informada pelo usuário: ${input.youtubeUrl}` : '',
       input.manualBpm ? `BPM informado manualmente pelo usuário: ${input.manualBpm}. Marque bpmSource como manual.` : '',
       input.pastedText ? `Conteúdo colado pelo usuário:\n---\n${input.pastedText}\n---` : '',
