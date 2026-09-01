@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { normalizeMusicAIResponse, normalizeMusicalKey, normalizeBpm, extractYouTubeVideoId, MUSIC_AI_SCHEMA_VERSION } from '../src/services/music-ai-schema.js';
 import { MusicAIService } from '../src/services/music-ai-service.js';
 import { MusicAIProvider } from '../src/services/music-ai-provider.js';
-import { composeChordSheet, resolveReferenceLink } from '../src/js/modules/music-ai-import.js';
+import { compactSectionContent, composeChordSheet, resolveReferenceLink } from '../src/js/modules/music-ai-import.js';
 
 class MockProvider extends MusicAIProvider {
   constructor(result) {
@@ -87,24 +87,43 @@ test('service valida BPM manual e URL do YouTube sem chamar provider', async () 
   assert.equal(provider.calls, 0);
 });
 
-test('monta cifra pelo padrão natural do IDE Music e prioriza sections sobre copia-e-cola bruto', () => {
+test('compacta seção para duas palavras de referência e acordes suficientes', () => {
+  const compact = compactSectionContent([
+    'G               D',
+    'Primeira linha completa da estrofe',
+    'Em              C',
+    'Continuação que não deve ir inteira para a cifra',
+    'G               D',
+    'Outra linha repetindo a mesma progressão'
+  ].join('\n'), 'Estrofe');
+
+  assert.equal(compact, 'Primeira linha - G  D  Em  C');
+  assert.doesNotMatch(compact, /completa da estrofe/);
+  assert.doesNotMatch(compact, /Continuação/);
+});
+
+test('monta cifra compacta do IDE Music e remove estruturas repetidas', () => {
   const chordSheet = composeChordSheet({
     chordSheet: 'MENU DO SITE\nCifra copiada sem tratamento',
     sections: [
       { type: 'intro', label: 'Intro', content: 'Intro:\nG  D  Em  C' },
-      { type: 'verse', label: 'Verse 1', content: 'G               D\nPrimeira linha' },
-      { type: 'chorus', label: 'Chorus', content: 'C               G\nLinha do refrão' },
+      { type: 'verse', label: 'Verse', content: 'G  D\nPrimeira linha completa\nEm  C\nOutra frase da estrofe' },
+      { type: 'chorus', label: 'Chorus', content: 'C  G\nLinha do refrão completa\nAm  F\nContinuação do refrão' },
+      { type: 'verse', label: 'Verse', content: 'Em  C\nSegunda estrofe completa\nG  D\nOutra frase diferente' },
+      { type: 'chorus', label: 'Chorus', content: 'C  G\nLinha do refrão completa\nAm  F\nContinuação do refrão' },
       { type: 'bridge', label: 'Bridge', content: 'Em  C  G  D' }
     ]
   });
 
   assert.equal(chordSheet, [
     'Intro:\nG  D  Em  C',
-    'Estrofe 1:\nG               D\nPrimeira linha',
-    'Refrão:\nC               G\nLinha do refrão',
+    'Estrofe 1:\nPrimeira linha - G  D  Em  C',
+    'Refrão:\nLinha do - C  G  Am  F',
+    'Estrofe 2:\nSegunda estrofe - Em  C  G  D',
     'Ponte:\nEm  C  G  D'
   ].join('\n\n'));
   assert.doesNotMatch(chordSheet, /MENU DO SITE/);
+  assert.equal((chordSheet.match(/Refrão:/g) || []).length, 1);
 });
 
 test('link de referência nunca usa a página da cifra', () => {
