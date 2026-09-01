@@ -140,15 +140,19 @@
     const scheduleId = params.get('scheduleId');
     const card = scope.document.querySelector('.schedule-editor-card');
     if (!scheduleId || !card || view) return false;
+    if (card.nextElementSibling?.classList.contains('schedule-monthly-summary')) return true;
     clearTimeout(editorTimer);
     editorTimer = setTimeout(async () => {
       try {
         const data = await loadScheduleData();
         const schedule = data.schedules.find(item => item.id === scheduleId);
         if (!schedule) return;
+        const currentCard = scope.document.querySelector('.schedule-editor-card');
+        if (!currentCard?.isConnected || currentCard.dataset.scheduleId !== scheduleId) return;
+        if (currentCard.nextElementSibling?.classList.contains('schedule-monthly-summary')) return;
         const month = monthly().monthKey(schedule.event?.date || schedule.eventDate);
         scope.document.querySelector('.schedule-monthly-summary')?.remove();
-        card.insertAdjacentHTML('afterend', participationTable(data, month, 'Participações no mês'));
+        currentCard.insertAdjacentHTML('afterend', participationTable(data, month, 'Participações no mês'));
       } catch (error) { console.error('Resumo mensal indisponível.', error); }
     }, 150);
     return true;
