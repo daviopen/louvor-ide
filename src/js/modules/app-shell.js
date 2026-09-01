@@ -20,9 +20,9 @@
       { id: 'schedules-export', label: 'Exportar', href: 'module.html?section=schedules&view=export', icon: 'fa-file-pdf', permission: 'schedules' },
       { id: 'schedules-participation', label: 'Participações', href: 'module.html?section=schedules&view=participation', icon: 'fa-chart-column', permission: 'schedules' }
     ] },
-    { id: 'setlists', label: 'Setlist', items: [
-      { id: 'setlists-upcoming', label: 'Próximos', href: 'setlists.html?view=upcoming', icon: 'fa-list-check', permission: 'setlists' },
-      { id: 'setlists-history', label: 'Histórico', href: 'setlists.html?view=history', icon: 'fa-clock-rotate-left', permission: 'setlists' }
+    { id: 'setlists', label: 'Setlists', items: [
+      { id: 'setlists-upcoming', label: 'Próximos Setlists', href: 'setlists.html?view=upcoming', icon: 'fa-list-check', permission: 'setlists' },
+      { id: 'setlists-history', label: 'Histórico de Setlists', href: 'setlists.html?view=history', icon: 'fa-clock-rotate-left', permission: 'setlists' }
     ] },
     { id: 'songs', label: 'Músicas', items: [
       { id: 'songs', label: 'Consultar', href: 'consultar.html', icon: 'fa-music', permission: 'songs' },
