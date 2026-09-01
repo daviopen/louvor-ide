@@ -31,13 +31,13 @@ function injectStyles() {
     .ai-import__toggle { flex:none; min-height:44px; padding:10px 16px; border:1px solid var(--ide-border-strong); border-radius:999px; background:var(--ide-surface); color:var(--ide-text-primary); font:inherit; font-weight:700; cursor:pointer; }
     .ai-import__body { display:none; margin-top:var(--ide-space-5); }
     .ai-import__body.open { display:block; }
-    .ai-import__grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--ide-space-4); }
-    .ai-import__field { display:flex; flex-direction:column; gap:7px; }
-    .ai-import__field.full { grid-column:1/-1; }
+    .ai-import__field { display:flex; flex-direction:column; gap:8px; }
     .ai-import__field label { color:var(--ide-text-primary); font-size:var(--ide-font-size-sm); font-weight:700; }
-    .ai-import__field input,.ai-import__field textarea { width:100%; min-height:46px; padding:12px 13px; border:1px solid var(--ide-border-strong); border-radius:var(--ide-radius-md); background:var(--ide-surface); color:var(--ide-text-primary); font:inherit; }
-    .ai-import__field textarea { min-height:150px; resize:vertical; font-family:var(--ide-font-family-mono); }
+    .ai-import__field textarea { width:100%; min-height:132px; padding:14px; border:1px solid var(--ide-border-strong); border-radius:var(--ide-radius-md); background:var(--ide-surface); color:var(--ide-text-primary); font:inherit; resize:vertical; line-height:1.5; }
+    .ai-import__field textarea:focus { outline:2px solid color-mix(in srgb, var(--ide-primary) 45%, transparent); outline-offset:2px; border-color:var(--ide-primary); }
     .ai-import__hint,.ai-import__state { color:var(--ide-text-secondary); font-size:var(--ide-font-size-xs); line-height:1.5; }
+    .ai-import__examples { display:flex; flex-wrap:wrap; gap:6px 10px; margin-top:2px; color:var(--ide-text-secondary); font-size:var(--ide-font-size-xs); }
+    .ai-import__examples span { display:inline-flex; align-items:center; gap:5px; }
     .ai-import__actions { display:flex; align-items:center; gap:var(--ide-space-3); margin-top:var(--ide-space-4); flex-wrap:wrap; }
     .ai-import__analyze { min-height:44px; padding:10px 18px; border:1px solid var(--ide-primary); border-radius:999px; background:var(--ide-primary); color:var(--ide-primary-ink); font:inherit; font-weight:800; cursor:pointer; }
     .ai-import__analyze:disabled { opacity:.72; cursor:wait; }
@@ -50,7 +50,7 @@ function injectStyles() {
     .ai-import__review { margin-top:var(--ide-space-4); padding:12px 14px; border-left:4px solid var(--ide-primary); border-radius:var(--ide-radius-md); background:var(--ide-surface); color:var(--ide-text-primary); font-size:var(--ide-font-size-sm); line-height:1.5; }
     @keyframes ai-import-spin { to { transform:rotate(360deg); } }
     @media (prefers-reduced-motion:reduce){.ai-import__thinking-icon i{animation:none}}
-    @media (max-width:700px){.ai-import__top{flex-direction:column}.ai-import__toggle{width:100%}.ai-import__grid{grid-template-columns:1fr}.ai-import__field.full{grid-column:auto}.ai-import__analyze{width:100%}.ai-import__thinking{align-items:flex-start}}
+    @media (max-width:700px){.ai-import__top{flex-direction:column}.ai-import__toggle{width:100%}.ai-import__analyze{width:100%}.ai-import__thinking{align-items:flex-start}}
   `;
   document.head.appendChild(style);
 }
@@ -354,7 +354,7 @@ function applySuggestion(result) {
     timeSignature: data.timeSignature || null,
     sourceUrl: input.sourceUrl || null,
     sourceProvider: provider.provider,
-    sourceType: input.sourceUrl ? 'url' : 'pasted-text',
+    sourceType: input.sourceType || (input.sourceUrl ? 'source-url' : 'pasted-text'),
     importedAt: new Date().toISOString(),
     aiProvider: provider.provider,
     aiModel: provider.model,
@@ -371,20 +371,25 @@ function createPanel() {
   panel.setAttribute('aria-labelledby', 'ai-import-title');
   panel.innerHTML = `
     <div class="ai-import__top">
-      <div><h2 id="ai-import-title">Importar com IA</h2><p>Cole uma cifra/texto ou tente uma URL. A IA gera uma cifra compacta no padrão do IDE Music e usa como referência o vídeo da música, não a página da cifra.</p></div>
+      <div><h2 id="ai-import-title">Importar com IA</h2><p>Um único campo para começar. A IA identifica automaticamente o que você informou e tenta preencher a música no padrão do IDE Music.</p></div>
       <button type="button" class="ai-import__toggle" aria-expanded="false" aria-controls="ai-import-body"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Importar com IA</button>
     </div>
     <div class="ai-import__body" id="ai-import-body">
-      <div class="ai-import__grid">
-        <div class="ai-import__field full"><label for="ai-pasted-text">Cifra ou texto para análise</label><textarea id="ai-pasted-text" placeholder="Cole aqui a cifra, letra ou informações da música..."></textarea><span class="ai-import__hint">A cifra fica orientativa: partes curtas permanecem resumidas; quando há mais de 5 acordes, a seção é dividida em pequenas frases com referência da letra e seus acordes.</span></div>
-        <div class="ai-import__field"><label for="ai-source-url">URL da cifra/fonte</label><input id="ai-source-url" type="url" placeholder="https://..."><span class="ai-import__hint">A URL é usada apenas como fonte. O link de referência da música será o vídeo encontrado nela.</span></div>
-        <div class="ai-import__field"><label for="ai-youtube-url">YouTube de referência</label><input id="ai-youtube-url" type="url" placeholder="https://youtube.com/watch?v=..."></div>
-        <div class="ai-import__field"><label for="ai-manual-bpm">BPM (opcional)</label><input id="ai-manual-bpm" type="number" min="30" max="260" step="1" inputmode="numeric" placeholder="Ex.: 72"></div>
+      <div class="ai-import__field">
+        <label for="ai-universal-input">Informe a música</label>
+        <textarea id="ai-universal-input" placeholder="Cole um link do YouTube, link da cifra, a própria cifra ou digite o nome da música e artista.\n\nEx.: Jesus, Filho de Deus — Fernandinho"></textarea>
+        <span class="ai-import__hint">Não precisa escolher o tipo de entrada. O sistema reconhece automaticamente e você poderá revisar tudo antes de salvar.</span>
+        <div class="ai-import__examples" aria-hidden="true">
+          <span><i class="fa-brands fa-youtube"></i> YouTube</span>
+          <span><i class="fa-solid fa-link"></i> Link da cifra</span>
+          <span><i class="fa-solid fa-music"></i> Cifra colada</span>
+          <span><i class="fa-solid fa-font"></i> Nome + artista</span>
+        </div>
       </div>
-      <div class="ai-import__actions"><button type="button" class="ai-import__analyze"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Analisar e preencher</button><span class="ai-import__state" role="status" aria-live="polite">Você poderá editar todos os campos antes de salvar.</span></div>
+      <div class="ai-import__actions"><button type="button" class="ai-import__analyze"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Analisar e preencher</button><span class="ai-import__state" role="status" aria-live="polite">A IA só sugere os dados; nada é salvo automaticamente.</span></div>
       <div class="ai-import__thinking" hidden role="status" aria-live="assertive">
         <div class="ai-import__thinking-icon" aria-hidden="true"><i class="fa-solid fa-circle-notch"></i></div>
-        <div><strong>A IA está analisando a música…</strong><span>Identificando dados, procurando o vídeo de referência e organizando a cifra compacta no padrão do IDE Music.</span></div>
+        <div><strong>A IA está analisando a música…</strong><span>Entendendo sua entrada, identificando a música, procurando o vídeo quando houver fonte e organizando a cifra no padrão do IDE Music.</span></div>
       </div>
       <div class="ai-import__review" hidden></div>
     </div>`;
@@ -405,13 +410,21 @@ export function mountMusicAIImport({ service = new MusicAIService() } = {}) {
   const state = panel.querySelector('.ai-import__state');
   const thinking = panel.querySelector('.ai-import__thinking');
   const review = panel.querySelector('.ai-import__review');
+  const input = panel.querySelector('#ai-universal-input');
   const idleAnalyzeHtml = analyze.innerHTML;
 
   toggle.addEventListener('click', () => {
     const open = !body.classList.contains('open');
     body.classList.toggle('open', open);
     toggle.setAttribute('aria-expanded', String(open));
-    if (open) panel.querySelector('#ai-pasted-text')?.focus();
+    if (open) input?.focus();
+  });
+
+  input?.addEventListener('keydown', event => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && !analyze.disabled) {
+      event.preventDefault();
+      analyze.click();
+    }
   });
 
   analyze.addEventListener('click', async () => {
@@ -425,21 +438,16 @@ export function mountMusicAIImport({ service = new MusicAIService() } = {}) {
     analyze.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i> IA analisando…';
     panel.setAttribute('aria-busy', 'true');
     thinking.hidden = false;
-    state.textContent = 'Aguarde enquanto a IA analisa e organiza a música.';
+    state.textContent = 'Aguarde enquanto a IA entende a entrada e organiza a música.';
     review.hidden = true;
     try {
-      const result = await service.analyze({
-        pastedText: panel.querySelector('#ai-pasted-text').value,
-        sourceUrl: panel.querySelector('#ai-source-url').value,
-        youtubeUrl: panel.querySelector('#ai-youtube-url').value,
-        manualBpm: panel.querySelector('#ai-manual-bpm').value
-      });
+      const result = await service.analyze({ rawInput: input?.value || '' });
       const applied = applySuggestion(result);
       state.textContent = 'Sugestão aplicada ao formulário. Revise os dados antes de salvar.';
       review.hidden = false;
       review.textContent = applied.length
-        ? `Campos sugeridos: ${applied.join(', ')}. Campos sem evidência permaneceram vazios.`
-        : 'A IA não encontrou dados suficientes para preencher o formulário. Continue manualmente.';
+        ? `Campos sugeridos: ${applied.join(', ')}. Campos sem evidência suficiente permaneceram vazios.`
+        : 'A IA não encontrou dados suficientes para preencher o formulário. Tente informar mais contexto ou continue manualmente.';
     } catch (error) {
       console.warn('Importação assistida indisponível:', error?.code || error?.message || error);
       state.textContent = `${error?.message || 'A IA está indisponível no momento.'} Você pode continuar normalmente pelo cadastro manual.`;
