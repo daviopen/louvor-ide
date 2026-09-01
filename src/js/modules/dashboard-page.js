@@ -32,6 +32,23 @@
     return profile?.name || profile?.displayName || profile?.email || '';
   }
 
+  function personalDestinations(profile) {
+    const userId = profileUserId(profile);
+    const participant = profileParticipantName(profile);
+    const today = dateInputValue();
+    return {
+      schedules: userId
+        ? `module.html?section=schedules&person=${encodeURIComponent(userId)}&from=${today}`
+        : `module.html?section=schedules&from=${today}`,
+      setlists: participant
+        ? `setlists.html?view=upcoming&participant=${encodeURIComponent(participant)}`
+        : 'setlists.html?view=upcoming',
+      unavailability: userId
+        ? `module.html?section=unavailability&user=${encodeURIComponent(userId)}&future=1`
+        : 'module.html?section=unavailability'
+    };
+  }
+
   function element(tag, className, text) {
     const node = scope.document.createElement(tag);
     if (className) node.className = className;
@@ -120,6 +137,19 @@
     });
   }
 
+  function configureSectionLinks(profile) {
+    const destinations = personalDestinations(profile);
+    const links = [
+      ['dashboard-schedules-title-link', destinations.schedules],
+      ['dashboard-setlists-title-link', destinations.setlists],
+      ['dashboard-unavailability-title-link', destinations.unavailability]
+    ];
+    links.forEach(([id, href]) => {
+      const link = scope.document.getElementById(id);
+      if (link) link.href = href;
+    });
+  }
+
   function indicatorLink(label, value, iconName, href) {
     const link = element('a', 'ide-dashboard-indicator');
     link.href = href;
@@ -135,22 +165,12 @@
     if (!container) return;
     container.textContent = '';
 
-    const userId = profileUserId(profile);
-    const participant = profileParticipantName(profile);
-    const today = dateInputValue();
-    const scheduleHref = `module.html?section=schedules&person=${encodeURIComponent(userId)}&from=${today}`;
-    const setlistsHref = participant
-      ? `setlists.html?view=upcoming&participant=${encodeURIComponent(participant)}`
-      : 'setlists.html?view=upcoming';
-    const unavailabilityHref = userId
-      ? `module.html?section=unavailability&user=${encodeURIComponent(userId)}&future=1`
-      : 'module.html?section=unavailability';
-
+    const destinations = personalDestinations(profile);
     const cards = [
-      ['Próximas escalas', indicators.upcomingSchedules, 'fa-people-group', scheduleHref],
-      ['Escalas pendentes', indicators.draftSchedules, 'fa-user-clock', scheduleHref],
-      ['Próximos setlists', indicators.upcomingSetlists, 'fa-list-check', setlistsHref],
-      ['Indisponibilidades futuras', indicators.upcomingUnavailability, 'fa-calendar-xmark', unavailabilityHref]
+      ['Próximas escalas', indicators.upcomingSchedules, 'fa-people-group', destinations.schedules],
+      ['Escalas pendentes', indicators.draftSchedules, 'fa-user-clock', destinations.schedules],
+      ['Próximos setlists', indicators.upcomingSetlists, 'fa-list-check', destinations.setlists],
+      ['Indisponibilidades futuras', indicators.upcomingUnavailability, 'fa-calendar-xmark', destinations.unavailability]
     ];
     cards.forEach(([label, value, iconName, href]) => {
       container.appendChild(indicatorLink(label, value, iconName, href));
@@ -168,6 +188,7 @@
   function render(viewModel) {
     const greeting = scope.document.getElementById('dashboard-greeting');
     if (greeting) greeting.textContent = viewModel.profile.name ? `Olá, ${viewModel.profile.name.split(' ')[0]}.` : 'Olá.';
+    configureSectionLinks(viewModel.profile);
     renderSchedules(viewModel.upcomingSchedules);
     renderSetlists(viewModel.upcomingSetlists);
     renderUnavailability(viewModel.upcomingUnavailability);
