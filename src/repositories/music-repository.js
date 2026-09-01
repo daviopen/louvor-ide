@@ -210,7 +210,8 @@ export class MusicRepository extends BaseRepository {
 
   async addAuditLog(actorUserId, action, entityId, details = {}) {
     const database = await this.getDatabase();
-    const createdAt = new Date();
+    const fieldValue = typeof window !== 'undefined' ? window.firebase?.firestore?.FieldValue : null;
+    const createdAt = fieldValue?.serverTimestamp ? fieldValue.serverTimestamp() : new Date();
     const ref = await database.collection(COLLECTIONS.AUDIT_LOGS).add({
       actorUserId,
       action,
