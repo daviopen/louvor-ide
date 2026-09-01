@@ -313,7 +313,8 @@ test('link de referência nunca usa a página da cifra', () => {
 test('UI informa visualmente enquanto a IA está analisando', async () => {
   const source = await readFile(new URL('../src/js/modules/music-ai-import.js', import.meta.url), 'utf8');
   assert.match(source, /A IA está analisando a música/);
-  assert.match(source, /verificando tom\/capotraste/);
+  assert.match(source, /confirmando o tom real/);
+  assert.doesNotMatch(source, /verificando tom\/capotraste/);
   assert.match(source, /ai-import__thinking/);
   assert.match(source, /aria-busy/);
   assert.match(source, /IA analisando/);
