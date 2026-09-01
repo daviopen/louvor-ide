@@ -26,7 +26,9 @@ Antes de validar em produção:
 2. Selecione `Gemini Developer API` como backend do Gemini para priorizar a opção compatível com free tier quando disponível.
 3. Registre o app Web no App Check com reCAPTCHA Enterprise.
 4. Mantenha App Check enforced para Firebase AI Logic.
-5. Disponibilize o site key público ao runtime como `window.ENV.VITE_FIREBASE_APPCHECK_SITE_KEY` ou `window.FIREBASE_APPCHECK_SITE_KEY`.
+5. Configure o site key público em `src/js/ai-public-config.js`, no campo `appCheckSiteKey`.
+
+O provider também aceita configuração de modelo por `window.ENV.VITE_FIREBASE_AI_MODEL`, mas o site key de produção é mantido explicitamente no arquivo público de configuração do cliente.
 
 Se o App Check/site key ou a IA estiverem indisponíveis, a tela não bloqueia o usuário: o cadastro manual permanece utilizável.
 
