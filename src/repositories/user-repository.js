@@ -6,10 +6,10 @@
   const dataModel = globalScope && globalScope.MusicIdeDataModel
     ? globalScope.MusicIdeDataModel
     : (typeof module !== 'undefined' && module.exports ? require('../models/data-model.js') : null);
-  const api = factory(dataModel);
+  const api = factory(dataModel, globalScope);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (globalScope) globalScope.MusicIdeUserRepository = api;
-})(typeof window !== 'undefined' ? window : null, function createModule(dataModel) {
+})(typeof window !== 'undefined' ? window : null, function createModule(dataModel, globalScope) {
   if (!dataModel) throw new Error('MusicIdeDataModel é obrigatório.');
   const {
     normalizeEmail,
@@ -23,11 +23,18 @@
     return snapshot && snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null;
   }
 
+  function defaultServerTimestamp(clock) {
+    const fieldValue = globalScope?.firebase?.firestore?.FieldValue;
+    if (fieldValue && typeof fieldValue.serverTimestamp === 'function') return fieldValue.serverTimestamp();
+    return clock();
+  }
+
   class UserRepository {
     constructor(database, options = {}) {
       if (!database || typeof database.collection !== 'function') throw new Error('Firestore é obrigatório.');
       this.db = database;
       this.clock = options.clock || (() => new Date());
+      this.serverTimestamp = options.serverTimestamp || (() => defaultServerTimestamp(this.clock));
     }
 
     users() { return this.db.collection('users'); }
@@ -162,7 +169,7 @@
     }
 
     async addAuditLog(actorUserId, action, entityId, details = {}) {
-      const createdAt = this.clock();
+      const createdAt = this.serverTimestamp();
       const ref = await this.audits().add({
         actorUserId,
         action,
