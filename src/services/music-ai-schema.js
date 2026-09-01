@@ -65,12 +65,26 @@ export function extractYouTubeVideoId(url) {
     const parsed = new URL(url);
     if (parsed.hostname === 'youtu.be') return parsed.pathname.slice(1).split('/')[0] || null;
     if (parsed.hostname.endsWith('youtube.com')) return parsed.searchParams.get('v') || parsed.pathname.match(/\/(?:shorts|embed)\/([^/?]+)/)?.[1] || null;
+    if (parsed.hostname === 'i.ytimg.com' || parsed.hostname.endsWith('.ytimg.com')) {
+      return parsed.pathname.match(/\/(?:vi|vi_webp)\/([^/?]+)\//)?.[1] || null;
+    }
   } catch {}
   return null;
 }
 
+export function normalizeYouTubeVideoUrl(url) {
+  const videoId = extractYouTubeVideoId(url);
+  return videoId ? `https://www.youtube.com/watch?v=${videoId}` : null;
+}
+
 export function normalizeMusicAIResponse(raw = {}) {
-  const videoUrl = raw?.video?.url || null;
+  const rawVideoUrl = raw?.video?.url || null;
+  const rawVideoId = String(raw?.video?.videoId || '').trim() || null;
+  const extractedVideoId = extractYouTubeVideoId(rawVideoUrl);
+  const youtubeVideoId = rawVideoId || extractedVideoId;
+  const canonicalYouTubeUrl = youtubeVideoId ? `https://www.youtube.com/watch?v=${youtubeVideoId}` : null;
+  const videoUrl = canonicalYouTubeUrl || rawVideoUrl;
+
   return {
     schemaVersion: MUSIC_AI_SCHEMA_VERSION,
     title: String(raw.title || '').trim() || null,
@@ -82,7 +96,7 @@ export function normalizeMusicAIResponse(raw = {}) {
     timeSignature: /^\d{1,2}\/\d{1,2}$/.test(String(raw.timeSignature || '').trim()) ? String(raw.timeSignature).trim() : null,
     bpm: normalizeBpm(raw.bpm),
     bpmSource: String(raw.bpmSource || '').trim() || null,
-    video: videoUrl ? { provider: raw.video?.provider || (extractYouTubeVideoId(videoUrl) ? 'youtube' : null), url: videoUrl, videoId: raw.video?.videoId || extractYouTubeVideoId(videoUrl) } : null,
+    video: videoUrl ? { provider: youtubeVideoId ? 'youtube' : (raw.video?.provider || null), url: videoUrl, videoId: youtubeVideoId } : null,
     provenance: raw.provenance && typeof raw.provenance === 'object' ? raw.provenance : {}
   };
 }
