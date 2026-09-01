@@ -38,7 +38,7 @@ Se o App Check/site key ou a IA estiverem indisponíveis, a tela não bloqueia o
 - Provider Firebase: `src/services/firebase-music-ai-provider.js`.
 - Structured Output versionado: `src/services/music-ai-schema.js`.
 - Schema atual: `1.0.0`.
-- Modelo padrão: `gemini-3.6-flash`.
+- Modelo padrão: `gemini-3.7-flash`.
 - O modelo pode ser sobrescrito no runtime por `window.ENV.VITE_FIREBASE_AI_MODEL`.
 
 Campos automáticos relevantes:
@@ -54,9 +54,26 @@ Campos automáticos relevantes:
 
 `preferredKey` continua em `songMinisterKeys`. O tom de execução continua pertencendo ao Setlist, não à música.
 
+## Entrada única e estratégias
+
+A interface possui um único campo, mas o provider não trata todas as entradas do mesmo modo:
+
+- **Nome + artista**: modelo estruturado simples, sem URL Context, reduzindo latência e evitando timeout desnecessário.
+- **Cifra/texto colado**: modelo estruturado simples. Quando a IA não separar a letra, o frontend consegue derivá-la do próprio conteúdo fornecido pelo usuário removendo linhas formadas apenas por acordes.
+- **Link do YouTube**: o vídeo é enviado como entrada multimodal (`fileData`) para Video Understanding. URL Context não é usado para vídeos do YouTube. O link informado pelo usuário é sempre preservado como referência.
+- **Link de cifra/fonte**: usa URL Context apenas para a página informada. Cifra Club pode receber uma segunda leitura curta e focada no vídeo incorporado. Se Cifra Club ou Banana Cifras não puderem ser lidos, o sistema tenta inferir nome e artista a partir da própria URL e faz um fallback sem URL Context.
+
+Cada estratégia usa timeout próprio: consultas simples são mais curtas; análise de vídeo recebe uma janela maior.
+
 ## URL de cifra
 
-O fluxo pode tentar enriquecer a análise usando URL Context do Firebase AI Logic quando a URL for publicamente acessível. Não existe scraping próprio, proxy ou tentativa de contornar paywall, login, robots ou bloqueios do site. Se a URL falhar, o texto colado é o fallback imediato.
+O fluxo pode tentar enriquecer a análise usando URL Context do Firebase AI Logic quando a URL for publicamente acessível. Não existe scraping próprio, proxy ou tentativa de contornar paywall, login, robots ou bloqueios do site.
+
+URL Context lê apenas a URL fornecida e pode não enxergar conteúdo carregado dinamicamente no navegador. Por isso, localizar vídeos incorporados em sites de cifra é **best effort**. Quando a leitura da página falha em sites conhecidos, o fallback por identidade da URL evita que toda a funcionalidade falhe.
+
+## Letra da música
+
+A letra completa só é preenchida automaticamente quando ela foi fornecida pelo próprio usuário no conteúdo colado. Para páginas remotas, o sistema não tenta copiar integralmente a letra de terceiros; os dados remotos são usados para identificação, tom e estrutura harmônica quando disponíveis.
 
 ## Limites e confiabilidade
 
@@ -64,9 +81,10 @@ O cliente possui:
 
 - prevenção de requisições duplicadas idênticas em curto intervalo;
 - limite local de requisições em janela de tempo;
-- timeout do SDK;
+- timeout específico por estratégia;
 - tratamento de quota, App Check, timeout e resposta inválida;
 - normalização de tom, BPM, compasso e YouTube;
+- fallback por nome/artista inferido de URLs conhecidas de cifra;
 - campos não identificados permanecem vazios;
 - nenhum autosave da sugestão.
 
@@ -74,12 +92,16 @@ Rate limit de cliente melhora UX, mas não substitui proteção de infraestrutur
 
 ## Testes
 
-`tests/music-ai-import.test.js` cobre:
+`tests/music-ai-import.test.js` e `tests/music-ai-universal-input.test.js` cobrem:
 
 - parser/schema;
 - tons válidos e inválidos;
 - BPM plausível;
 - URLs do YouTube;
+- classificação automática da entrada única;
+- seleção de estratégia por tipo de entrada;
+- fallback de identidade para Cifra Club e Banana Cifras;
+- extração de letra do conteúdo colado pelo usuário;
 - respostas parciais;
 - provider mockado;
 - validação/fallback manual.
