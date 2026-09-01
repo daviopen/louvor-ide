@@ -11,7 +11,7 @@ test('exclusão de evento aceita todos os status válidos quando o bundle vincul
   const body = match[1];
 
   assert.match(body, /resource\.data\.status in \['PLANNED', 'CONFIRMED', 'CANCELLED', 'COMPLETED'\]/);
-  assert.match(body, /!existsAfter\(schedulePath\)/);
-  assert.match(body, /!existsAfter\(setlistPath\)/);
+  assert.match(body, /!existsAfter\(linkedSchedulePath\)/);
+  assert.match(body, /!existsAfter\(linkedSetlistPath\)/);
   assert.doesNotMatch(body, /resource\.data\.status == 'PLANNED'/);
 });
