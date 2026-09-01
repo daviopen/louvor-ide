@@ -87,19 +87,68 @@ test('service valida BPM manual e URL do YouTube sem chamar provider', async () 
   assert.equal(provider.calls, 0);
 });
 
-test('compacta seção para duas palavras de referência e acordes suficientes', () => {
+test('mantém seção curta em uma única linha compacta', () => {
   const compact = compactSectionContent([
     'G               D',
     'Primeira linha completa da estrofe',
     'Em              C',
-    'Continuação que não deve ir inteira para a cifra',
-    'G               D',
-    'Outra linha repetindo a mesma progressão'
+    'Continuação que não deve ir inteira para a cifra'
   ].join('\n'), 'Estrofe');
 
   assert.equal(compact, 'Primeira linha - G  D  Em  C');
   assert.doesNotMatch(compact, /completa da estrofe/);
   assert.doesNotMatch(compact, /Continuação/);
+});
+
+test('detalha estrofe longa por blocos sem copiar a letra inteira', () => {
+  const compact = compactSectionContent([
+    'B                   E/B',
+    'Deixou os céus para me encontrar',
+    'B              E/B',
+    'Aqui não é o Seu lugar',
+    'G#m             E         B',
+    'Um amor assim o mundo não conheceu',
+    '',
+    'B                 E/B',
+    'Naquela cruz se entregou',
+    'B                 E/B',
+    'O Teu perdão me alcançou',
+    'G#m             E         B',
+    'Um amor assim o mundo não conheceu'
+  ].join('\n'), 'Estrofe 1');
+
+  assert.equal(compact, [
+    'Deixou os - B  E/B  G#m  E  B',
+    '',
+    'Naquela cruz - B  E/B  G#m  E  B'
+  ].join('\n'));
+});
+
+test('detalha refrão com mais de 5 acordes em pequenas frases e elimina progressão consecutiva repetida', () => {
+  const compact = compactSectionContent([
+    'B',
+    'No altar de adoração',
+    'F#/B         B',
+    'Seja sempre exaltado',
+    'E     B/D#     F#4',
+    'Jesus, Filho de Deus',
+    'G#m',
+    'Deixou a Sua glória',
+    'F#/A#        B',
+    'Morreu em meu lugar',
+    'E     B/D#     F#4',
+    'Jesus, Filho de Deus',
+    'E     B/D#     F#4',
+    'Tu és Jesus, Filho de Deus'
+  ].join('\n'), 'Refrão');
+
+  assert.equal(compact, [
+    'No altar - B  F#/B  B',
+    'Jesus, Filho - E  B/D#  F#4',
+    '',
+    'Deixou a Sua - G#m  F#/A#  B',
+    'Jesus, Filho - E  B/D#  F#4'
+  ].join('\n'));
 });
 
 test('monta cifra compacta do IDE Music e remove estruturas repetidas', () => {
