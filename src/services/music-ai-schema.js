@@ -77,6 +77,16 @@ export function normalizeYouTubeVideoUrl(url) {
   return videoId ? `https://www.youtube.com/watch?v=${videoId}` : null;
 }
 
+function normalizeHttpUrl(value) {
+  if (!value) return null;
+  try {
+    const url = new URL(String(value));
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 export function normalizeMusicAIResponse(raw = {}) {
   const rawVideoUrl = raw?.video?.url || null;
   const rawVideoId = String(raw?.video?.videoId || '').trim() || null;
@@ -97,6 +107,8 @@ export function normalizeMusicAIResponse(raw = {}) {
     bpm: normalizeBpm(raw.bpm),
     bpmSource: String(raw.bpmSource || '').trim() || null,
     video: videoUrl ? { provider: youtubeVideoId ? 'youtube' : (raw.video?.provider || null), url: videoUrl, videoId: youtubeVideoId } : null,
+    chordSourceUrl: normalizeHttpUrl(raw.chordSourceUrl),
+    chordSourceProvider: String(raw.chordSourceProvider || '').trim() || null,
     provenance: raw.provenance && typeof raw.provenance === 'object' ? raw.provenance : {}
   };
 }
