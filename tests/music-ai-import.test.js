@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { normalizeMusicAIResponse, normalizeMusicalKey, normalizeBpm, extractYouTubeVideoId, MUSIC_AI_SCHEMA_VERSION } from '../src/services/music-ai-schema.js';
 import { MusicAIService } from '../src/services/music-ai-service.js';
 import { MusicAIProvider } from '../src/services/music-ai-provider.js';
+import { mergeEmbeddedVideoLookup, shouldRetryEmbeddedVideoLookup } from '../src/services/firebase-music-ai-provider.js';
 import { compactSectionContent, composeChordSheet, resolveReferenceLink } from '../src/js/modules/music-ai-import.js';
 
 class MockProvider extends MusicAIProvider {
@@ -57,6 +58,53 @@ test('normaliza thumbnail do YouTube para link watch canônico', () => {
     url: 'https://www.youtube.com/watch?v=HYwg0HlxBas',
     videoId: 'HYwg0HlxBas'
   });
+});
+
+test('normaliza videoId isolado para link watch canônico', () => {
+  const normalized = normalizeMusicAIResponse({
+    video: {
+      provider: 'youtube',
+      url: null,
+      videoId: 'HYwg0HlxBas'
+    }
+  });
+
+  assert.deepEqual(normalized.video, {
+    provider: 'youtube',
+    url: 'https://www.youtube.com/watch?v=HYwg0HlxBas',
+    videoId: 'HYwg0HlxBas'
+  });
+});
+
+test('faz segunda leitura focada somente quando Cifra Club não trouxe vídeo', () => {
+  const input = { sourceUrl: 'https://www.cifraclub.com.br/fernandinho/jesus-filho-de-deus/' };
+  assert.equal(shouldRetryEmbeddedVideoLookup({ input, data: { video: null } }), true);
+  assert.equal(shouldRetryEmbeddedVideoLookup({ input, data: { video: { videoId: 'HYwg0HlxBas' } } }), false);
+  assert.equal(shouldRetryEmbeddedVideoLookup({ input: { ...input, youtubeUrl: 'https://youtu.be/HYwg0HlxBas' }, data: { video: null } }), false);
+  assert.equal(shouldRetryEmbeddedVideoLookup({ input: { sourceUrl: 'https://example.com/musica' }, data: { video: null } }), false);
+});
+
+test('segunda leitura acrescenta somente o vídeo ausente e preserva a primeira análise', () => {
+  const primary = {
+    title: 'Jesus, Filho de Deus',
+    artist: 'Fernandinho',
+    originalKey: 'B',
+    chordSheet: 'Intro:\nB  E/B',
+    video: null,
+    provenance: { title: 'fonte' }
+  };
+  const fallback = {
+    title: null,
+    artist: null,
+    video: { provider: 'youtube', url: null, videoId: 'HYwg0HlxBas' },
+    provenance: { video: 'thumbnail ytimg da página' }
+  };
+
+  const merged = mergeEmbeddedVideoLookup(primary, fallback);
+  assert.equal(merged.title, primary.title);
+  assert.equal(merged.chordSheet, primary.chordSheet);
+  assert.deepEqual(merged.video, fallback.video);
+  assert.equal(merged.provenance.video, 'thumbnail ytimg da página');
 });
 
 test('resposta parcial mantém campos não identificados vazios', () => {

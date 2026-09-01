@@ -29,6 +29,51 @@ async function loadPublicConfig() {
   return window.IDE_MUSIC_AI_CONFIG || {};
 }
 
+function hasVideoCandidate(data) {
+  return Boolean(data?.video?.url || data?.video?.videoId);
+}
+
+function isCifraClubUrl(value) {
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return hostname === 'cifraclub.com.br' || hostname.endsWith('.cifraclub.com.br');
+  } catch {
+    return false;
+  }
+}
+
+export function shouldRetryEmbeddedVideoLookup({ input = {}, data = {} } = {}) {
+  return Boolean(
+    input.sourceUrl
+    && !input.youtubeUrl
+    && isCifraClubUrl(input.sourceUrl)
+    && !hasVideoCandidate(data)
+  );
+}
+
+export function mergeEmbeddedVideoLookup(primary = {}, fallback = {}) {
+  if (hasVideoCandidate(primary) || !hasVideoCandidate(fallback)) return primary;
+  return {
+    ...primary,
+    video: fallback.video,
+    provenance: {
+      ...(primary.provenance || {}),
+      video: fallback?.provenance?.video || 'segunda leitura focada da página de cifra'
+    }
+  };
+}
+
+async function generateStructuredJson(model, prompt) {
+  const result = await model.generateContent(prompt);
+  const text = result?.response?.text?.() || '';
+  if (!text) throw new MusicAIProviderError('INVALID_RESPONSE', 'A IA retornou uma resposta vazia.');
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new MusicAIProviderError('INVALID_RESPONSE', 'A IA retornou uma resposta que não pôde ser validada.', error);
+  }
+}
+
 export class FirebaseMusicAIProvider extends MusicAIProvider {
   constructor({ model = null } = {}) {
     super({ provider: 'firebase-ai-logic/google-ai', model: model || DEFAULT_MODEL });
@@ -85,7 +130,7 @@ Regra de detalhamento: se uma seção musical tiver até 5 acordes efetivos, res
 
 Quando houver blocos distintos dentro da mesma seção, preserve pequenas quebras de linha para facilitar leitura. Se uma progressão consecutiva for exatamente repetida dentro da mesma frase, não é necessário repeti-la. Se uma estrutura inteira se repetir mais tarde sem mudança musical relevante, como o mesmo Refrão ou a mesma Ponte, represente essa estrutura uma única vez na cifra. Estrofes diferentes podem permanecer como Estrofe 1, Estrofe 2 etc. O campo lyrics pode conter a letra identificada separadamente; a compactação se aplica ao chordSheet e ao conteúdo de sections.
 
-O campo video deve representar um vídeo real da música, preferencialmente YouTube, encontrado incorporado ou referenciado dentro da página de cifra, ou explicitamente informado pelo usuário. Nunca use a URL da própria página de cifra como video.url. Em páginas de cifra, o vídeo pode não possuir href direto: procure também por thumbnails do YouTube em src/id/atributos, como https://i.ytimg.com/vi/VIDEO_ID/default.jpg ou https://i.ytimg.com/vi_webp/VIDEO_ID/default.webp. Quando encontrar esse padrão, extraia VIDEO_ID e retorne video.url como https://www.youtube.com/watch?v=VIDEO_ID, video.videoId como VIDEO_ID e provider como youtube. Se nenhum vídeo real for identificado, retorne video como null.
+O campo video deve representar um vídeo real da música, preferencialmente YouTube, encontrado incorporado ou referenciado dentro da página de cifra, ou explicitamente informado pelo usuário. Nunca use a URL da própria página de cifra como video.url. Em páginas de cifra, o vídeo pode não possuir href direto: procure também por thumbnails do YouTube em src/id/atributos, como https://i.ytimg.com/vi/VIDEO_ID/default.jpg ou https://i.ytimg.com/vi_webp/VIDEO_ID/default.webp. Quando encontrar esse padrão, extraia VIDEO_ID e retorne video.url como https://www.youtube.com/watch?v=VIDEO_ID, video.videoId como VIDEO_ID e provider como youtube. Se conseguir identificar apenas VIDEO_ID, retorne-o em video.videoId mesmo que video.url fique null. Se nenhum vídeo real for identificado, retorne video como null.
 
 Não faça scraping próprio nem tente contornar login, paywall, robots ou bloqueios de sites.`
       }, { timeout: 45000 });
@@ -101,7 +146,7 @@ Não faça scraping próprio nem tente contornar login, paywall, robots ou bloqu
     const prompt = [
       'Analise os dados fornecidos e retorne somente informações sustentadas pelo conteúdo.',
       input.sourceUrl ? `URL da página de cifra/fonte (use como fonte de análise, mas NUNCA como link de referência da música): ${input.sourceUrl}` : '',
-      input.sourceUrl ? 'Se essa página contiver um vídeo incorporado, link de vídeo ou thumbnail do YouTube, extraia o vídeo em video.url. Dê atenção especial a src como i.ytimg.com/vi/VIDEO_ID/... e i.ytimg.com/vi_webp/VIDEO_ID/...: nesses casos, construa https://www.youtube.com/watch?v=VIDEO_ID. Se não houver vídeo identificável, deixe video como null.' : '',
+      input.sourceUrl ? 'Se essa página contiver um vídeo incorporado, link de vídeo ou thumbnail do YouTube, extraia o vídeo em video.url ou ao menos em video.videoId. Dê atenção especial a src como i.ytimg.com/vi/VIDEO_ID/... e i.ytimg.com/vi_webp/VIDEO_ID/...: nesses casos, construa https://www.youtube.com/watch?v=VIDEO_ID. Se não houver vídeo identificável, deixe video como null.' : '',
       input.youtubeUrl ? `URL de vídeo de referência informada pelo usuário: ${input.youtubeUrl}` : '',
       input.manualBpm ? `BPM informado manualmente pelo usuário: ${input.manualBpm}. Marque bpmSource como manual.` : '',
       input.pastedText ? `Conteúdo colado pelo usuário:\n---\n${input.pastedText}\n---` : '',
@@ -110,13 +155,26 @@ Não faça scraping próprio nem tente contornar login, paywall, robots ou bloqu
     ].filter(Boolean).join('\n\n');
 
     try {
-      const result = await model.generateContent(prompt);
-      const text = result?.response?.text?.() || '';
-      if (!text) throw new MusicAIProviderError('INVALID_RESPONSE', 'A IA retornou uma resposta vazia.');
+      const primary = await generateStructuredJson(model, prompt);
+
+      if (!shouldRetryEmbeddedVideoLookup({ input, data: primary })) return primary;
+
+      const identity = [primary.title, primary.artist].filter(Boolean).join(' — ');
+      const videoPrompt = [
+        'Faça uma SEGUNDA LEITURA da URL abaixo exclusivamente para localizar o clipe/vídeo incorporado à própria página. Não use busca externa, não escolha outro vídeo e não invente ID.',
+        `URL da cifra: ${input.sourceUrl}`,
+        identity ? `Música já identificada na primeira leitura: ${identity}. Use isso apenas para conferir que o clipe pertence à mesma música.` : '',
+        'No Cifra Club o clipe pode ser renderizado como um <button> sem href. O identificador do YouTube costuma aparecer em atributos do thumbnail, especialmente src de imagem no formato i.ytimg.com/vi/VIDEO_ID/... ou i.ytimg.com/vi_webp/VIDEO_ID/.... Procure especificamente esses recursos e também URLs youtube.com/watch, youtu.be e youtube.com/embed.',
+        'Se encontrar um VIDEO_ID comprovadamente presente na página, retorne video.provider="youtube", video.videoId=VIDEO_ID e video.url="https://www.youtube.com/watch?v=VIDEO_ID". Se só conseguir obter o ID, video.url pode ficar null. Se não houver evidência do vídeo na página, retorne video=null.',
+        'Mantenha os demais campos do schema vazios/nulos nesta segunda leitura; o objetivo é somente recuperar video.'
+      ].filter(Boolean).join('\n\n');
+
       try {
-        return JSON.parse(text);
-      } catch (error) {
-        throw new MusicAIProviderError('INVALID_RESPONSE', 'A IA retornou uma resposta que não pôde ser validada.', error);
+        const fallback = await generateStructuredJson(model, videoPrompt);
+        return mergeEmbeddedVideoLookup(primary, fallback);
+      } catch (videoError) {
+        console.warn('Segunda leitura do vídeo não encontrou evidência utilizável:', videoError?.code || videoError?.message || videoError);
+        return primary;
       }
     } catch (error) {
       if (error instanceof MusicAIProviderError) throw error;
