@@ -1,6 +1,8 @@
 (function initUnavailabilityPage(scope) {
   if (!scope || !scope.document) return;
-  if (new URLSearchParams(scope.location.search).get('section') !== 'unavailability') return;
+  const params = new URLSearchParams(scope.location.search);
+  if (params.get('section') !== 'unavailability') return;
+  const keepAllFuture = params.get('future') === '1';
 
   const state = {
     records: [],
@@ -9,7 +11,7 @@
     access: { level: 'NONE', canManageOthers: false },
     month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     editingId: null,
-    filterUserId: 'ALL',
+    filterUserId: params.get('user') || 'ALL',
     filterMonthKey: '',
     availableMonthKeys: []
   };
@@ -608,13 +610,14 @@
     repository = new scope.MusicIdeUnavailabilityRepository.UnavailabilityRepository(scope.firebase.firestore());
     service = new scope.MusicIdeUnavailabilityService.UnavailabilityService(repository);
     state.access = await service.resolveAccess(scope.currentMusicIdeUser, scope.currentMusicIdeProfile);
+    if (!state.access.canManageOthers) state.filterUserId = actorId();
 
     el('unavailability-admin-note').hidden = !state.access.canManageOthers;
     el('unavailability-user-wrap').hidden = !state.access.canManageOthers;
     el('admin-user-filter-wrap').hidden = !state.access.canManageOthers;
     wireEvents();
     await loadReferences();
-    await loadRecords({ initial: true });
+    await loadRecords({ initial: !keepAllFuture });
   }
 
   if (scope.document.readyState === 'loading') scope.document.addEventListener('DOMContentLoaded', bootstrap, { once: true });
