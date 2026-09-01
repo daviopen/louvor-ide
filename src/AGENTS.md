@@ -95,4 +95,44 @@ Antes de concluir uma nova funcionalidade ou mutation dentro de `src/`, verifica
 9. Erro restaura estado otimista ou mantém a UI coerente?
 10. Há teste de regressão para permissão e para a mutação crítica?
 
+## 8. Validação funcional pós-Action com contas QA
+
+Alteração que afete UI, autenticação, autorização, Firestore, navegação, formulário ou mutação não deve ser considerada validada apenas porque o GitHub Action passou.
+
+Depois de `Quality Gate` e deploy concluídos com sucesso, executar validação funcional diretamente na aplicação publicada sempre que houver acesso às contas QA apropriadas.
+
+Manter duas contas reais e não administrativas dedicadas exclusivamente a QA:
+
+- **QA MEMBER EDIT**: perfil `MEMBER`, ativo, com permissões `EDIT` nos módulos operacionais que precisam ter mutações validadas;
+- **QA MEMBER READ**: perfil `MEMBER`, ativo, configurado com `READ` nos mesmos módulos quando a funcionalidade possuir modo somente leitura, e `NONE` nos módulos que precisem ter negação de acesso validada.
+
+Regras obrigatórias para essas contas:
+
+- nunca usar `ADMIN` ou `SUPER_ADMIN` como substituto para validar comportamento de usuário comum;
+- não adicionar e-mail, senha, token, cookie ou qualquer credencial dessas contas ao repositório, `AGENTS.md`, código, testes, fixtures, logs ou GitHub Actions;
+- credenciais ficam fora do Git e são usadas somente na sessão de validação interativa;
+- essas contas não fazem parte da pipeline e não devem ser autenticadas automaticamente pelo GitHub Actions;
+- dados criados durante QA devem usar registros claramente identificáveis como teste e, quando a operação for segura, devem ser removidos ao final;
+- não usar dados reais sensíveis de membros como fixture de teste.
+
+Para cada correção ou funcionalidade afetada, a validação pós-deploy deve cobrir, conforme aplicável:
+
+1. login com **QA MEMBER EDIT**;
+2. acesso à rota afetada;
+3. execução real do fluxo alterado, incluindo salvar/adicionar/remover quando essa for a finalidade da correção;
+4. confirmação visual de que o estado foi atualizado sem F5;
+5. recarga/nova navegação para confirmar persistência no servidor;
+6. ausência de `console.error`, `pageerror` e HTTP 5xx inesperado;
+7. login com **QA MEMBER READ** e confirmação de que consulta funciona, mas controles de mutação não são oferecidos nem aceitos;
+8. quando houver `NONE`, confirmar que menu/rota e operação permanecem bloqueados;
+9. quando a mudança afetar responsividade, repetir o fluxo relevante em desktop e mobile.
+
+Ordem de conclusão esperada para mudanças de produção:
+
+`implementação -> testes locais/estáticos -> Quality Gate -> deploy -> validação funcional na aplicação com contas QA -> conclusão`.
+
+Se o Action passar mas a validação funcional falhar, o item continua **não concluído**. Se o deploy não tiver ocorrido, também não é permitido afirmar que a correção foi validada em produção.
+
+Quando as contas QA ainda não estiverem provisionadas ou suas credenciais não estiverem disponíveis na sessão de trabalho, registrar explicitamente essa limitação e não substituir a etapa por suposição baseada somente em testes automatizados.
+
 Em caso de conflito, o `AGENTS.md` raiz continua sendo a regra global e este arquivo torna as exigências acima mais específicas para o código de `src/`.
