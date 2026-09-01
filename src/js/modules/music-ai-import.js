@@ -13,6 +13,7 @@ const SECTION_LABELS = Object.freeze({
 });
 
 const CHORD_TOKEN_RE = /^(?:[A-G](?:#|b)?)(?:(?:m|maj|min|dim|aug|sus|add|M)?(?:\d{0,2})?(?:[#b+\-º°()]*)?)(?:\/[A-G](?:#|b)?)?$/u;
+const DETAILED_CHORD_THRESHOLD = 5;
 
 export function getMusicAIImportMetadata() {
   return importMetadata ? { ...importMetadata } : null;
@@ -112,57 +113,184 @@ function extractChordLine(line) {
   return chords.every(Boolean) ? chords : null;
 }
 
-function firstTwoWords(line) {
-  return String(line || '')
+function lyricCue(line) {
+  const words = String(line || '')
     .trim()
     .replace(/^[\-–—•]+\s*/, '')
     .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .join(' ')
-    .replace(/[,:;.!?]+$/g, '');
+    .filter(Boolean);
+
+  if (!words.length) return '';
+  const secondWord = String(words[1] || '').toLocaleLowerCase('pt-BR').replace(/[^\p{L}]/gu, '');
+  const wordLimit = words.length >= 3 && ['a', 'o', 'e', 'à'].includes(secondWord) ? 3 : 2;
+  return words.slice(0, wordLimit).join(' ').replace(/[,:;.!?]+$/g, '');
+}
+
+function parseCompactCueLine(line) {
+  const match = String(line || '').match(/^(.+?)\s+-\s+(.+)$/);
+  if (!match) return null;
+  const chords = extractChordLine(match[2]);
+  if (!chords?.length) return null;
+  return { cue: lyricCue(match[1]) || match[1].trim(), chords };
+}
+
+function parseSectionPhrases(cleaned, label) {
+  const phrases = [];
+  let pendingChordLines = [];
+  let pendingBreak = false;
+  let breakBeforeNext = false;
+
+  const flushInstrumental = () => {
+    if (!pendingChordLines.length) return;
+    phrases.push({
+      cue: '',
+      chords: pendingChordLines.flat(),
+      breakBefore: pendingBreak || breakBeforeNext
+    });
+    pendingChordLines = [];
+    pendingBreak = false;
+    breakBeforeNext = false;
+  };
+
+  for (const rawLine of cleaned.split('\n')) {
+    const line = rawLine.trim();
+    if (!line) {
+      breakBeforeNext = true;
+      continue;
+    }
+
+    const compactLine = parseCompactCueLine(line);
+    if (compactLine) {
+      flushInstrumental();
+      phrases.push({ ...compactLine, breakBefore: breakBeforeNext });
+      breakBeforeNext = false;
+      continue;
+    }
+
+    const chords = extractChordLine(line);
+    if (chords?.length) {
+      if (!pendingChordLines.length) pendingBreak = breakBeforeNext;
+      pendingChordLines.push(chords);
+      breakBeforeNext = false;
+      continue;
+    }
+
+    if (normalizedLabel(line).toLocaleLowerCase('pt-BR') === normalizedLabel(label).toLocaleLowerCase('pt-BR')) continue;
+
+    if (pendingChordLines.length) {
+      phrases.push({
+        cue: lyricCue(line),
+        chords: pendingChordLines.flat(),
+        breakBefore: pendingBreak
+      });
+      pendingChordLines = [];
+      pendingBreak = false;
+      breakBeforeNext = false;
+    }
+  }
+
+  flushInstrumental();
+  return phrases;
+}
+
+function countEffectiveChords(phrases) {
+  let count = 0;
+  let previousKey = '';
+  for (const phrase of phrases) {
+    const key = phrase.chords.join(' ');
+    if (phrase.breakBefore || key !== previousKey) count += phrase.chords.length;
+    previousKey = key;
+  }
+  return count;
+}
+
+function compactShortSection(phrases) {
+  const progression = [];
+  let previousKey = '';
+  let cue = '';
+
+  for (const phrase of phrases) {
+    if (!cue && phrase.cue) cue = phrase.cue;
+    const key = phrase.chords.join(' ');
+    if (phrase.breakBefore || key !== previousKey) progression.push(...phrase.chords);
+    previousKey = key;
+  }
+
+  const chordText = progression.join('  ');
+  if (cue && chordText) return `${cue} - ${chordText}`;
+  return chordText || cue;
+}
+
+function compactDetailedSection(phrases) {
+  const rows = [];
+  let group = null;
+
+  const flush = () => {
+    if (!group?.chords?.length) {
+      group = null;
+      return;
+    }
+    rows.push(group);
+    group = null;
+  };
+
+  for (const phrase of phrases) {
+    if (!phrase.chords.length) continue;
+    const phraseKey = phrase.chords.join(' ');
+
+    const sourceBreak = Boolean(group?.chords.length && phrase.breakBefore);
+    const harmonicBreak = Boolean(group?.chords.length >= 3 && phrase.chords.length === 1 && group.lastProgressionKey !== phraseKey);
+    const duplicateProgression = Boolean(group?.chords.length && group.lastProgressionKey === phraseKey && !sourceBreak);
+    const overflow = Boolean(group?.chords.length && !duplicateProgression && group.chords.length + phrase.chords.length > DETAILED_CHORD_THRESHOLD);
+
+    if (sourceBreak || harmonicBreak || overflow) {
+      flush();
+      group = {
+        cue: phrase.cue,
+        chords: [],
+        breakBefore: sourceBreak || harmonicBreak,
+        lastProgressionKey: ''
+      };
+    }
+
+    if (!group) {
+      group = {
+        cue: phrase.cue,
+        chords: [],
+        breakBefore: Boolean(phrase.breakBefore && rows.length),
+        lastProgressionKey: ''
+      };
+    }
+
+    if (!group.cue && phrase.cue) group.cue = phrase.cue;
+    if (group.lastProgressionKey !== phraseKey) group.chords.push(...phrase.chords);
+    group.lastProgressionKey = phraseKey;
+  }
+
+  flush();
+
+  return rows.map((row, index) => {
+    const text = row.cue ? `${row.cue} - ${row.chords.join('  ')}` : row.chords.join('  ');
+    return `${row.breakBefore && index ? '\n' : ''}${text}`;
+  }).join('\n');
 }
 
 export function compactSectionContent(content, label = '') {
   const cleaned = cleanSectionContent(content, label);
   if (!cleaned) return '';
 
-  const chordLines = [];
-  const chordLineKeys = new Set();
-  let lyricCue = '';
+  const phrases = parseSectionPhrases(cleaned, label);
+  if (!phrases.length) return lyricCue(cleaned) || cleaned;
 
-  for (const rawLine of cleaned.split('\n')) {
-    const line = rawLine.trim();
-    if (!line) continue;
-
-    const chords = extractChordLine(line);
-    if (chords?.length) {
-      const key = chords.join(' ');
-      if (!chordLineKeys.has(key)) {
-        chordLineKeys.add(key);
-        chordLines.push(chords);
-      }
-      continue;
-    }
-
-    if (!lyricCue && normalizedLabel(line).toLocaleLowerCase('pt-BR') !== normalizedLabel(label).toLocaleLowerCase('pt-BR')) {
-      lyricCue = firstTwoWords(line);
-    }
-  }
-
-  const progression = chordLines.flat().join('  ');
-  if (lyricCue && progression) return `${lyricCue} - ${progression}`;
-  if (progression) return progression;
-  return lyricCue || cleaned;
+  return countEffectiveChords(phrases) > DETAILED_CHORD_THRESHOLD
+    ? compactDetailedSection(phrases)
+    : compactShortSection(phrases);
 }
 
 function compactSectionIdentity(section, label, compactContent) {
   const type = String(section?.type || 'other').trim().toLowerCase();
-  const cue = compactContent.includes(' - ')
-    ? compactContent.split(' - ')[0]
-    : '';
-  const identityContent = cue || compactContent;
-  return `${type}|${normalizedLabel(label).toLocaleLowerCase('pt-BR').replace(/\s+\d+$/, '')}|${identityContent.toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ')}`;
+  const identityContent = compactContent.toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ').trim();
+  return `${type}|${normalizedLabel(label).toLocaleLowerCase('pt-BR').replace(/\s+\d+$/, '')}|${identityContent}`;
 }
 
 export function composeChordSheet(data = {}) {
@@ -248,7 +376,7 @@ function createPanel() {
     </div>
     <div class="ai-import__body" id="ai-import-body">
       <div class="ai-import__grid">
-        <div class="ai-import__field full"><label for="ai-pasted-text">Cifra ou texto para análise</label><textarea id="ai-pasted-text" placeholder="Cole aqui a cifra, letra ou informações da música..."></textarea><span class="ai-import__hint">A cifra fica orientativa: por seção, usa apenas uma pequena referência da letra e os acordes necessários, sem repetir estruturas iguais.</span></div>
+        <div class="ai-import__field full"><label for="ai-pasted-text">Cifra ou texto para análise</label><textarea id="ai-pasted-text" placeholder="Cole aqui a cifra, letra ou informações da música..."></textarea><span class="ai-import__hint">A cifra fica orientativa: partes curtas permanecem resumidas; quando há mais de 5 acordes, a seção é dividida em pequenas frases com referência da letra e seus acordes.</span></div>
         <div class="ai-import__field"><label for="ai-source-url">URL da cifra/fonte</label><input id="ai-source-url" type="url" placeholder="https://..."><span class="ai-import__hint">A URL é usada apenas como fonte. O link de referência da música será o vídeo encontrado nela.</span></div>
         <div class="ai-import__field"><label for="ai-youtube-url">YouTube de referência</label><input id="ai-youtube-url" type="url" placeholder="https://youtube.com/watch?v=..."></div>
         <div class="ai-import__field"><label for="ai-manual-bpm">BPM (opcional)</label><input id="ai-manual-bpm" type="number" min="30" max="260" step="1" inputmode="numeric" placeholder="Ex.: 72"></div>
