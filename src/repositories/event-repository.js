@@ -73,6 +73,13 @@
     return slots;
   }
 
+  function auditTimestamp(clock) {
+    const firebaseApi = typeof globalThis !== 'undefined' ? globalThis.firebase : null;
+    const fieldValue = firebaseApi && firebaseApi.firestore && firebaseApi.firestore.FieldValue;
+    if (fieldValue && typeof fieldValue.serverTimestamp === 'function') return fieldValue.serverTimestamp();
+    return clock();
+  }
+
   class EventRepository {
     constructor(database, options = {}) {
       if (!database || typeof database.collection !== 'function') throw new Error('Firestore é obrigatório para EventRepository.');
@@ -122,6 +129,7 @@
       const setlistRef = this.setlists().doc(setlistId);
       const auditRef = this.auditLogs().doc();
       const now = this.clock();
+      const auditCreatedAt = auditTimestamp(this.clock);
       const scheduleTemplate = await this.loadScheduleTemplate();
 
       return this.db.runTransaction(async transaction => {
@@ -179,7 +187,7 @@
             scheduleTemplateSource: scheduleTemplate.source,
             schedulePositions: scheduleTemplate.slots.length
           },
-          createdAt: now
+          createdAt: auditCreatedAt
         });
         return { id: eventId, ...eventDocument, idempotent: false };
       });
@@ -201,6 +209,7 @@
       }
 
       const now = this.clock();
+      const auditCreatedAt = auditTimestamp(this.clock);
       const batch = this.db.batch();
       batch.set(this.events().doc(eventId), {
         ...data,
@@ -250,7 +259,7 @@
           time: data.time || null,
           linkedSynchronized: Boolean(options.syncLinked)
         },
-        createdAt: now
+        createdAt: auditCreatedAt
       });
       await batch.commit();
       return { ...current, ...data, id: eventId, scheduleId, setlistId, updatedBy: actorUserId, updatedAt: now };
@@ -270,7 +279,7 @@
       const eventId = event.id;
       const scheduleId = event.scheduleId || scheduleDocumentId(eventId);
       const setlistId = event.setlistId || setlistDocumentId(eventId);
-      const now = this.clock();
+      const auditCreatedAt = auditTimestamp(this.clock);
       const [membersSnapshot, songsSnapshot] = await Promise.all([
         this.db.collection('scheduleMembers').where('scheduleId', '==', scheduleId).get(),
         this.db.collection('setlistSongs').where('setlistId', '==', setlistId).get()
@@ -297,7 +306,7 @@
           deletedScheduleMembers: membersSnapshot.docs.length,
           deletedSetlistSongs: songsSnapshot.docs.length
         },
-        createdAt: now
+        createdAt: auditCreatedAt
       });
       await batch.commit();
       return true;
