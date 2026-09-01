@@ -193,7 +193,9 @@ build:
 	echo "    VITE_FIREBASE_STORAGE_BUCKET: '$${VITE_FIREBASE_STORAGE_BUCKET}'," >> js/env-config.js && \
 	echo "    VITE_FIREBASE_MESSAGING_SENDER_ID: '$${VITE_FIREBASE_MESSAGING_SENDER_ID}'," >> js/env-config.js && \
 	echo "    VITE_FIREBASE_APP_ID: '$${VITE_FIREBASE_APP_ID}'," >> js/env-config.js && \
-	echo "    VITE_FIREBASE_MEASUREMENT_ID: '$${VITE_FIREBASE_MEASUREMENT_ID}'" >> js/env-config.js && \
+	echo "    VITE_FIREBASE_MEASUREMENT_ID: '$${VITE_FIREBASE_MEASUREMENT_ID}'," >> js/env-config.js && \
+	echo "    VITE_FIREBASE_APPCHECK_SITE_KEY: '$${VITE_FIREBASE_APPCHECK_SITE_KEY}'," >> js/env-config.js && \
+	echo "    VITE_FIREBASE_AI_MODEL: '$${VITE_FIREBASE_AI_MODEL}'" >> js/env-config.js && \
 	echo "};" >> js/env-config.js
 	@echo "$(GREEN)✅ Arquivo env-config.js criado$(NC)"
 	@echo "$(YELLOW)🔗 Adicionando referências ao env-config.js nos arquivos HTML...$(NC)"
