@@ -169,8 +169,8 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get: if (supportedProvider() && request.auth.uid == userId) || canRead('users') || canRead('permissions') || (isAdmin() && canEdit('unavailability')) || canRead('setlists') || canRead('songs');
-      allow list: if canRead('users') || canRead('permissions') || (isAdmin() && canEdit('unavailability')) || canRead('setlists') || canRead('songs');
+      allow get: if (supportedProvider() && request.auth.uid == userId) || canRead('users') || canRead('permissions') || (isAdmin() && canEdit('unavailability')) || canRead('schedules') || canRead('setlists') || canRead('songs');
+      allow list: if canRead('users') || canRead('permissions') || (isAdmin() && canEdit('unavailability')) || canRead('schedules') || canRead('setlists') || canRead('songs');
       allow create: if validCreatedUser(userId) && (isSuperAdmin() || (isAdmin() && canEdit('users') && request.resource.data.role == 'MEMBER'));
       allow update: if isSuperAdmin()
         || (canEdit('users') && resource.data.role != 'SUPER_ADMIN' && request.resource.data.role == resource.data.role && adminKeepsPrivilegeFields())
@@ -190,17 +190,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /userFunctions/{documentId} {
-      allow read: if canRead('users') || canRead('songs');
+      allow read: if canRead('users') || canRead('schedules') || canRead('songs');
       allow write: if canEdit('users');
     }
     match /events/{documentId} {
-      allow read: if canRead('events') || canRead('setlists') || canRead('dashboard');
+      allow read: if canRead('events') || canRead('schedules') || canRead('setlists') || canRead('dashboard');
       allow create: if canEdit('events') && canEdit('schedules') && canEdit('setlists') && validEventCreate(documentId) && linkedEventBundleConsistent(documentId);
       allow update: if canEdit('events') && validEventUpdate(documentId);
       allow delete: if canEdit('events') && canEdit('schedules') && canEdit('setlists') && validEventDelete();
     }
     match /unavailability/{documentId} {
-      allow read: if (activeUser() && resource.data.userId == request.auth.uid) || (isAdmin() && canRead('unavailability'));
+      allow read: if canRead('schedules') || (activeUser() && resource.data.userId == request.auth.uid) || (isAdmin() && canRead('unavailability'));
       allow create: if validUnavailabilityDocument() && (ownUnavailabilityCreate() || administrativeUnavailabilityWrite());
       allow update: if validUnavailabilityUpdate() && (
         (activeUser() && resource.data.userId == request.auth.uid)
