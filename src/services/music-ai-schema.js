@@ -3,12 +3,14 @@ export const MUSIC_AI_SCHEMA_VERSION = '1.0.0';
 export const MUSIC_AI_RESPONSE_JSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['schemaVersion', 'title', 'artist', 'originalKey', 'chordSheet', 'lyrics', 'sections', 'timeSignature', 'bpm', 'video', 'provenance'],
+  required: ['schemaVersion', 'title', 'artist', 'originalKey', 'chordFormKey', 'capoFret', 'chordSheet', 'lyrics', 'sections', 'timeSignature', 'bpm', 'video', 'provenance'],
   properties: {
     schemaVersion: { type: 'string' },
     title: { type: ['string', 'null'] },
     artist: { type: ['string', 'null'] },
     originalKey: { type: ['string', 'null'] },
+    chordFormKey: { type: ['string', 'null'] },
+    capoFret: { type: ['integer', 'null'], minimum: 0, maximum: 12 },
     chordSheet: { type: ['string', 'null'] },
     lyrics: { type: ['string', 'null'] },
     sections: {
@@ -41,6 +43,7 @@ export const MUSIC_AI_RESPONSE_JSON_SCHEMA = {
       additionalProperties: false,
       properties: {
         title: { type: ['string', 'null'] }, artist: { type: ['string', 'null'] }, originalKey: { type: ['string', 'null'] },
+        chordFormKey: { type: ['string', 'null'] }, capoFret: { type: ['string', 'null'] },
         chordSheet: { type: ['string', 'null'] }, lyrics: { type: ['string', 'null'] }, timeSignature: { type: ['string', 'null'] }, bpm: { type: ['string', 'null'] }, video: { type: ['string', 'null'] }
       }
     }
@@ -51,6 +54,12 @@ const KEY_RE = /^(?:[A-G](?:#|b)?)(?:m|maj|min|sus|dim|aug)?(?:\d{0,2})?$/i;
 export function normalizeMusicalKey(value) {
   const key = String(value || '').trim();
   return key && KEY_RE.test(key) ? key : null;
+}
+
+export function normalizeCapoFret(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const fret = Number(value);
+  return Number.isInteger(fret) && fret >= 0 && fret <= 12 ? fret : null;
 }
 
 export function normalizeBpm(value) {
@@ -100,6 +109,8 @@ export function normalizeMusicAIResponse(raw = {}) {
     title: String(raw.title || '').trim() || null,
     artist: String(raw.artist || '').trim() || null,
     originalKey: normalizeMusicalKey(raw.originalKey),
+    chordFormKey: normalizeMusicalKey(raw.chordFormKey),
+    capoFret: normalizeCapoFret(raw.capoFret),
     chordSheet: String(raw.chordSheet || '').trim() || null,
     lyrics: String(raw.lyrics || '').trim() || null,
     sections: Array.isArray(raw.sections) ? raw.sections.filter(Boolean).map(section => ({ type: section.type || 'other', label: String(section.label || '').trim() || null, content: String(section.content || '').trim() || null })) : [],
