@@ -5,39 +5,49 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'src/pages/module.html'), 'utf8');
-const adapter = fs.readFileSync(path.join(root, 'src/features/unavailability/filter-panel-standard.js'), 'utf8');
+const page = fs.readFileSync(path.join(root, 'src/js/modules/unavailability-page.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'src/styles/unavailability-filter-panel.css'), 'utf8');
+const repository = fs.readFileSync(path.join(root, 'src/repositories/unavailability-repository.js'), 'utf8');
 
-test('indisponibilidade usa o mesmo painel recolhível de filtros do design system', () => {
+test('indisponibilidade usa painel padrão com pessoa e mês, sem filtros de data soltos', () => {
   assert.match(html, /id="unavailability-filter-panel" class="ide-filter-panel" data-filter-panel="unavailability"/);
-  assert.match(html, /ide-filter-panel__summary-main/);
-  assert.match(html, /ide-filter-panel__badge/);
-  assert.match(html, /ide-filter-panel__state/);
   assert.match(html, /id="admin-user-filter"[^>]*data-filter-neutral="ALL"/);
+  assert.match(html, /id="unavailability-month-filter"[^>]*data-filter-neutral=""/);
   assert.match(html, /id="unavailability-clear-filters"[^>]*ide-button--ghost/);
+  assert.doesNotMatch(html, /id="unavailability-filter-from"/);
+  assert.doesNotMatch(html, /id="unavailability-filter-to"/);
+  assert.doesNotMatch(html, /features\/unavailability\/filter-panel-standard\.js/);
 });
 
-test('filtros mensais injetados são movidos para o painel padrão sem estilo inline', () => {
-  assert.match(adapter, /unavailability-month-filter/);
-  assert.match(adapter, /group\.className = 'unavailability-date-filter-group'/);
-  assert.match(adapter, /group\.removeAttribute\('style'\)/);
-  assert.match(adapter, /grid\.insertBefore\(group, clearButton \|\| null\)/);
-  assert.match(adapter, /MutationObserver/);
+test('lista de mês é derivada das indisponibilidades e sincroniza o calendário', () => {
+  assert.match(page, /function monthKeysWithRecords\(records\)/);
+  assert.match(page, /recordOverlapsMonth\(record, key\)/);
+  assert.match(page, /state\.availableMonthKeys = monthKeysWithRecords\(personFilteredRecords\(\)\)/);
+  assert.match(page, /state\.filterMonthKey = String\(value \|\| ''\)/);
+  assert.match(page, /state\.month = monthFromKey\(state\.filterMonthKey\)/);
+  assert.match(page, /renderList\(\);\s*renderCalendar\(\);/);
 });
 
-test('limpar filtros reutiliza eventos existentes e atualiza o contador do painel', () => {
-  assert.match(adapter, /person\.value = 'ALL'/);
-  assert.match(adapter, /month\.value = ''/);
-  assert.match(adapter, /from\.value = ''/);
-  assert.match(adapter, /to\.value = ''/);
-  assert.match(adapter, /dispatchChange\(person\)/);
-  assert.match(adapter, /MusicIdeFilterPanels\.updatePanel/);
+test('setas do calendário continuam disponíveis e navegam entre meses com registros', () => {
+  assert.match(html, /id="calendar-prev"/);
+  assert.match(html, /id="calendar-next"/);
+  assert.match(page, /function navigateCalendar\(direction\)/);
+  assert.match(page, /calendar-prev'\)\.addEventListener\('click', \(\) => navigateCalendar\(-1\)\)/);
+  assert.match(page, /calendar-next'\)\.addEventListener\('click', \(\) => navigateCalendar\(1\)\)/);
 });
 
-test('layout dos filtros é responsivo e usa tokens do design system', () => {
-  assert.match(css, /grid-template-columns: repeat\(auto-fit, minmax\(150px, 1fr\)\)/);
-  assert.match(css, /var\(--ide-space-3\)/);
-  assert.match(css, /\.unavailability-date-filter-group\s*\{\s*display: contents;/);
-  assert.match(css, /@media \(max-width: 700px\)/);
-  assert.match(css, /\.unavailability-clear-filters/);
+test('dias do calendário são clicáveis e abrem popup com pessoas indisponíveis', () => {
+  assert.match(html, /id="unavailability-day-dialog"/);
+  assert.match(html, /id="unavailability-day-list"/);
+  assert.match(page, /data-unavailability-date=/);
+  assert.match(page, /function openDayDetails\(key\)/);
+  assert.match(page, /personName\(userId\)/);
+  assert.match(page, /unavailability-day-dialog/);
+  assert.match(css, /\.unavailability-day-person/);
+});
+
+test('auditoria de indisponibilidade usa timestamp do servidor exigido pelas Rules', () => {
+  assert.match(repository, /FieldValue/);
+  assert.match(repository, /serverTimestamp\(\)/);
+  assert.match(repository, /const createdAt = this\.serverTimestamp\(\)/);
 });
