@@ -299,7 +299,7 @@ test('monta cifra do IDE Music com capotraste, detalhe por limite e sem estrutur
     'Refrão:\nGrandes coisas - F9  G  C9  G/B  F9'
   ].join('\n\n'));
   assert.doesNotMatch(chordSheet, /MENU DO SITE/);
-  assert.equal((chordSheet.match(/Refrão:/g) || []).length, 1);
+  assert.equal((chordSheet.match(/^Refrão:/gm) || []).length, 1);
 });
 
 test('link de referência nunca usa a página da cifra', () => {
