@@ -77,7 +77,13 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
           responseJsonSchema: MUSIC_AI_RESPONSE_JSON_SCHEMA,
           temperature: 0.1
         },
-        systemInstruction: `Você estrutura dados de músicas para o IDE Music. Responda somente no schema ${MUSIC_AI_SCHEMA_VERSION}. Não invente nome, artista, tom, BPM, compasso, cifra, letra ou vídeo. Quando não houver evidência suficiente, use null ou lista vazia. Preserve a cifra em texto simples, mantendo seções naturais como Intro, Estrofe, Pré-Refrão, Refrão, Ponte, Instrumental e Final. Não faça scraping nem tente contornar bloqueios de sites.`
+        systemInstruction: `Você estrutura dados de músicas para o IDE Music. Responda somente no schema ${MUSIC_AI_SCHEMA_VERSION}. Não invente nome, artista, tom, BPM, compasso, cifra, letra ou vídeo. Quando não houver evidência suficiente, use null ou lista vazia.
+
+A cifra NÃO deve ser uma cópia bruta da página de origem. Remova cabeçalhos do site, menus, anúncios, créditos da página, navegação, comentários e qualquer texto que não faça parte da execução musical. Organize a cifra no padrão natural do IDE Music, em texto simples e sem HTML/tags, usando seções como "Intro:", "Estrofe:", "Pré-Refrão:", "Refrão:", "Ponte:", "Instrumental:" e "Final:". Preserve os acordes e a letra exatamente conforme a evidência disponível; apenas reorganize a estrutura. Sempre que houver cifra suficiente, preencha também sections com as partes musicais correspondentes para que o cliente monte o formato oficial.
+
+O campo video deve representar um vídeo real da música, preferencialmente YouTube, encontrado incorporado ou referenciado dentro da página de cifra, ou explicitamente informado pelo usuário. Nunca use a URL da própria página de cifra como video.url. Se nenhum vídeo real for identificado, retorne video como null.
+
+Não faça scraping próprio nem tente contornar login, paywall, robots ou bloqueios de sites.`
       }, { timeout: 45000 });
       return this._model;
     } catch (error) {
@@ -90,10 +96,12 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
     const model = await this._loadModel();
     const prompt = [
       'Analise os dados fornecidos e retorne somente informações sustentadas pelo conteúdo.',
-      input.sourceUrl ? `URL de cifra/referência (use apenas se estiver publicamente acessível e permitido): ${input.sourceUrl}` : '',
-      input.youtubeUrl ? `URL de vídeo de referência: ${input.youtubeUrl}` : '',
+      input.sourceUrl ? `URL da página de cifra/fonte (use como fonte de análise, mas NUNCA como link de referência da música): ${input.sourceUrl}` : '',
+      input.sourceUrl ? 'Se essa página contiver um vídeo incorporado ou um link para vídeo da música, extraia esse vídeo em video.url. Se não houver vídeo identificável, deixe video como null.' : '',
+      input.youtubeUrl ? `URL de vídeo de referência informada pelo usuário: ${input.youtubeUrl}` : '',
       input.manualBpm ? `BPM informado manualmente pelo usuário: ${input.manualBpm}. Marque bpmSource como manual.` : '',
       input.pastedText ? `Conteúdo colado pelo usuário:\n---\n${input.pastedText}\n---` : '',
+      'Para a cifra, não devolva o copia-e-cola bruto da fonte. Separe as partes musicais em sections e mantenha chordSheet no mesmo padrão natural do IDE Music: título da seção terminado em dois-pontos, seguido de acordes/letra, com uma linha em branco entre seções.',
       'Se a URL não puder ser acessada, continue somente com o texto colado e demais informações fornecidas. Não invente dados ausentes.'
     ].filter(Boolean).join('\n\n');
 

@@ -2,6 +2,16 @@ import MusicAIService from '../../services/music-ai-service.js';
 
 let importMetadata = null;
 
+const SECTION_LABELS = Object.freeze({
+  intro: 'Intro',
+  verse: 'Estrofe',
+  pre_chorus: 'Pré-Refrão',
+  chorus: 'Refrão',
+  bridge: 'Ponte',
+  instrumental: 'Instrumental',
+  outro: 'Final'
+});
+
 export function getMusicAIImportMetadata() {
   return importMetadata ? { ...importMetadata } : null;
 }
@@ -27,9 +37,17 @@ function injectStyles() {
     .ai-import__hint,.ai-import__state { color:var(--ide-text-secondary); font-size:var(--ide-font-size-xs); line-height:1.5; }
     .ai-import__actions { display:flex; align-items:center; gap:var(--ide-space-3); margin-top:var(--ide-space-4); flex-wrap:wrap; }
     .ai-import__analyze { min-height:44px; padding:10px 18px; border:1px solid var(--ide-primary); border-radius:999px; background:var(--ide-primary); color:var(--ide-primary-ink); font:inherit; font-weight:800; cursor:pointer; }
-    .ai-import__analyze:disabled { opacity:.6; cursor:wait; }
+    .ai-import__analyze:disabled { opacity:.72; cursor:wait; }
+    .ai-import__thinking[hidden] { display:none; }
+    .ai-import__thinking { display:flex; align-items:center; gap:var(--ide-space-4); margin-top:var(--ide-space-4); padding:16px; border:1px solid var(--ide-border-strong); border-radius:var(--ide-radius-lg); background:var(--ide-surface); color:var(--ide-text-primary); }
+    .ai-import__thinking-icon { width:36px; height:36px; flex:0 0 36px; display:grid; place-items:center; border-radius:50%; background:var(--ide-surface-secondary); color:var(--ide-primary); }
+    .ai-import__thinking-icon i { animation:ai-import-spin 1s linear infinite; }
+    .ai-import__thinking strong { display:block; margin-bottom:3px; font-size:var(--ide-font-size-sm); }
+    .ai-import__thinking span { display:block; color:var(--ide-text-secondary); font-size:var(--ide-font-size-xs); line-height:1.45; }
     .ai-import__review { margin-top:var(--ide-space-4); padding:12px 14px; border-left:4px solid var(--ide-primary); border-radius:var(--ide-radius-md); background:var(--ide-surface); color:var(--ide-text-primary); font-size:var(--ide-font-size-sm); line-height:1.5; }
-    @media (max-width:700px){.ai-import__top{flex-direction:column}.ai-import__toggle{width:100%}.ai-import__grid{grid-template-columns:1fr}.ai-import__field.full{grid-column:auto}.ai-import__analyze{width:100%}}
+    @keyframes ai-import-spin { to { transform:rotate(360deg); } }
+    @media (prefers-reduced-motion:reduce){.ai-import__thinking-icon i{animation:none}}
+    @media (max-width:700px){.ai-import__top{flex-direction:column}.ai-import__toggle{width:100%}.ai-import__grid{grid-template-columns:1fr}.ai-import__field.full{grid-column:auto}.ai-import__analyze{width:100%}.ai-import__thinking{align-items:flex-start}}
   `;
   document.head.appendChild(style);
 }
@@ -43,10 +61,57 @@ function setValue(id, value) {
   return true;
 }
 
-function composeChordSheet(data) {
-  if (data.chordSheet) return data.chordSheet;
-  if (!data.sections?.length) return '';
-  return data.sections.map(section => `${section.label || section.type}:\n${section.content || ''}`.trim()).filter(Boolean).join('\n\n');
+function normalizedLabel(value) {
+  return String(value || '').trim().replace(/^\[|\]$/g, '').replace(/:+$/, '').trim();
+}
+
+function getSectionLabel(section, index) {
+  const canonical = SECTION_LABELS[section?.type] || '';
+  const provided = normalizedLabel(section?.label);
+  if (!canonical) return provided || `Parte ${index + 1}`;
+
+  const numericSuffix = provided.match(/(?:^|\s)(\d+)$/)?.[1];
+  return numericSuffix ? `${canonical} ${numericSuffix}` : canonical;
+}
+
+function cleanSectionContent(content, label) {
+  const lines = String(content || '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map(line => line.replace(/\s+$/g, ''));
+
+  while (lines.length && !lines[0].trim()) lines.shift();
+  while (lines.length && !lines.at(-1).trim()) lines.pop();
+
+  if (lines.length && normalizedLabel(lines[0]).toLocaleLowerCase('pt-BR') === normalizedLabel(label).toLocaleLowerCase('pt-BR')) {
+    lines.shift();
+    while (lines.length && !lines[0].trim()) lines.shift();
+  }
+
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+export function composeChordSheet(data = {}) {
+  const sections = Array.isArray(data.sections) ? data.sections.filter(section => section?.content?.trim()) : [];
+  if (sections.length) {
+    return sections.map((section, index) => {
+      const label = getSectionLabel(section, index);
+      const content = cleanSectionContent(section.content, label);
+      return content ? `${label}:\n${content}` : '';
+    }).filter(Boolean).join('\n\n');
+  }
+
+  return String(data.chordSheet || '').replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+export function resolveReferenceLink(data = {}, input = {}) {
+  const aiVideo = String(data?.video?.url || '').trim();
+  const explicitVideo = String(input?.youtubeUrl || '').trim();
+  const sourceUrl = String(input?.sourceUrl || '').trim();
+
+  if (aiVideo && aiVideo !== sourceUrl) return aiVideo;
+  if (explicitVideo && explicitVideo !== sourceUrl) return explicitVideo;
+  return '';
 }
 
 function applySuggestion(result) {
@@ -57,7 +122,7 @@ function applySuggestion(result) {
   if (setValue('tom', data.originalKey)) applied.push('tom original');
   if (setValue('cifra', composeChordSheet(data))) applied.push('cifra');
   if (setValue('letra', data.lyrics)) applied.push('letra');
-  if (setValue('link', data.video?.url || input.sourceUrl || input.youtubeUrl)) applied.push('link');
+  if (setValue('link', resolveReferenceLink(data, input))) applied.push('link do vídeo');
 
   importMetadata = {
     importMethod: 'ai-assisted',
@@ -84,17 +149,21 @@ function createPanel() {
   panel.setAttribute('aria-labelledby', 'ai-import-title');
   panel.innerHTML = `
     <div class="ai-import__top">
-      <div><h2 id="ai-import-title">Importar com IA</h2><p>Cole uma cifra/texto ou tente uma URL. A IA apenas sugere o preenchimento: nada é salvo sem sua revisão e confirmação.</p></div>
+      <div><h2 id="ai-import-title">Importar com IA</h2><p>Cole uma cifra/texto ou tente uma URL. A IA organiza a cifra no padrão do IDE Music e usa como referência o vídeo da música, não a página da cifra.</p></div>
       <button type="button" class="ai-import__toggle" aria-expanded="false" aria-controls="ai-import-body"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Importar com IA</button>
     </div>
     <div class="ai-import__body" id="ai-import-body">
       <div class="ai-import__grid">
-        <div class="ai-import__field full"><label for="ai-pasted-text">Cifra ou texto para análise</label><textarea id="ai-pasted-text" placeholder="Cole aqui a cifra, letra ou informações da música..."></textarea><span class="ai-import__hint">É o fallback recomendado quando uma URL não puder ser processada.</span></div>
-        <div class="ai-import__field"><label for="ai-source-url">URL de cifra/referência</label><input id="ai-source-url" type="url" placeholder="https://..."><span class="ai-import__hint">A tentativa depende de a página ser pública e permitir acesso. Não há scraping para contornar bloqueios.</span></div>
+        <div class="ai-import__field full"><label for="ai-pasted-text">Cifra ou texto para análise</label><textarea id="ai-pasted-text" placeholder="Cole aqui a cifra, letra ou informações da música..."></textarea><span class="ai-import__hint">A IA reorganiza o conteúdo em seções naturais como Intro, Estrofe, Refrão e Ponte.</span></div>
+        <div class="ai-import__field"><label for="ai-source-url">URL da cifra/fonte</label><input id="ai-source-url" type="url" placeholder="https://..."><span class="ai-import__hint">A URL é usada apenas como fonte. O link de referência da música será o vídeo encontrado nela.</span></div>
         <div class="ai-import__field"><label for="ai-youtube-url">YouTube de referência</label><input id="ai-youtube-url" type="url" placeholder="https://youtube.com/watch?v=..."></div>
         <div class="ai-import__field"><label for="ai-manual-bpm">BPM (opcional)</label><input id="ai-manual-bpm" type="number" min="30" max="260" step="1" inputmode="numeric" placeholder="Ex.: 72"></div>
       </div>
       <div class="ai-import__actions"><button type="button" class="ai-import__analyze"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Analisar e preencher</button><span class="ai-import__state" role="status" aria-live="polite">Você poderá editar todos os campos antes de salvar.</span></div>
+      <div class="ai-import__thinking" hidden role="status" aria-live="assertive">
+        <div class="ai-import__thinking-icon" aria-hidden="true"><i class="fa-solid fa-circle-notch"></i></div>
+        <div><strong>A IA está analisando a música…</strong><span>Identificando dados, procurando o vídeo de referência e organizando a cifra no padrão do IDE Music.</span></div>
+      </div>
       <div class="ai-import__review" hidden></div>
     </div>`;
   return panel;
@@ -112,7 +181,9 @@ export function mountMusicAIImport({ service = new MusicAIService() } = {}) {
   const body = panel.querySelector('.ai-import__body');
   const analyze = panel.querySelector('.ai-import__analyze');
   const state = panel.querySelector('.ai-import__state');
+  const thinking = panel.querySelector('.ai-import__thinking');
   const review = panel.querySelector('.ai-import__review');
+  const idleAnalyzeHtml = analyze.innerHTML;
 
   toggle.addEventListener('click', () => {
     const open = !body.classList.contains('open');
@@ -129,7 +200,10 @@ export function mountMusicAIImport({ service = new MusicAIService() } = {}) {
     }
 
     analyze.disabled = true;
-    state.textContent = 'Analisando...';
+    analyze.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i> IA analisando…';
+    panel.setAttribute('aria-busy', 'true');
+    thinking.hidden = false;
+    state.textContent = 'Aguarde enquanto a IA analisa e organiza a música.';
     review.hidden = true;
     try {
       const result = await service.analyze({
@@ -151,6 +225,9 @@ export function mountMusicAIImport({ service = new MusicAIService() } = {}) {
       review.textContent = 'Nenhum conteúdo foi salvo. O formulário manual continua disponível.';
     } finally {
       analyze.disabled = false;
+      analyze.innerHTML = idleAnalyzeHtml;
+      panel.setAttribute('aria-busy', 'false');
+      thinking.hidden = true;
     }
   });
 }
