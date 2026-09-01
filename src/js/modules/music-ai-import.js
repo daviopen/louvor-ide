@@ -194,26 +194,16 @@ function parseSectionPhrases(cleaned, label) {
 }
 
 function countEffectiveChords(phrases) {
-  let count = 0;
-  let previousKey = '';
-  for (const phrase of phrases) {
-    const key = phrase.chords.join(' ');
-    if (phrase.breakBefore || key !== previousKey) count += phrase.chords.length;
-    previousKey = key;
-  }
-  return count;
+  return phrases.reduce((count, phrase) => count + phrase.chords.length, 0);
 }
 
 function compactShortSection(phrases) {
   const progression = [];
-  let previousKey = '';
   let cue = '';
 
   for (const phrase of phrases) {
     if (!cue && phrase.cue) cue = phrase.cue;
-    const key = phrase.chords.join(' ');
-    if (phrase.breakBefore || key !== previousKey) progression.push(...phrase.chords);
-    previousKey = key;
+    progression.push(...phrase.chords);
   }
 
   const chordText = progression.join('  ');
@@ -223,56 +213,17 @@ function compactShortSection(phrases) {
 
 function compactDetailedSection(phrases) {
   const rows = [];
-  let group = null;
-
-  const flush = () => {
-    if (!group?.chords?.length) {
-      group = null;
-      return;
-    }
-    rows.push(group);
-    group = null;
-  };
 
   for (const phrase of phrases) {
     if (!phrase.chords.length) continue;
-    const phraseKey = phrase.chords.join(' ');
-
-    const sourceBreak = Boolean(group?.chords.length && phrase.breakBefore);
-    const harmonicBreak = Boolean(group?.chords.length >= 3 && phrase.chords.length === 1 && group.lastProgressionKey !== phraseKey);
-    const duplicateProgression = Boolean(group?.chords.length && group.lastProgressionKey === phraseKey && !sourceBreak);
-    const overflow = Boolean(group?.chords.length && !duplicateProgression && group.chords.length + phrase.chords.length > DETAILED_CHORD_THRESHOLD);
-
-    if (sourceBreak || harmonicBreak || overflow) {
-      flush();
-      group = {
-        cue: phrase.cue,
-        chords: [],
-        breakBefore: sourceBreak || harmonicBreak,
-        lastProgressionKey: ''
-      };
-    }
-
-    if (!group) {
-      group = {
-        cue: phrase.cue,
-        chords: [],
-        breakBefore: Boolean(phrase.breakBefore && rows.length),
-        lastProgressionKey: ''
-      };
-    }
-
-    if (!group.cue && phrase.cue) group.cue = phrase.cue;
-    if (group.lastProgressionKey !== phraseKey) group.chords.push(...phrase.chords);
-    group.lastProgressionKey = phraseKey;
+    const text = phrase.cue
+      ? `${phrase.cue} - ${phrase.chords.join('  ')}`
+      : phrase.chords.join('  ');
+    if (!text) continue;
+    rows.push(`${phrase.breakBefore && rows.length ? '\n' : ''}${text}`);
   }
 
-  flush();
-
-  return rows.map((row, index) => {
-    const text = row.cue ? `${row.cue} - ${row.chords.join('  ')}` : row.chords.join('  ');
-    return `${row.breakBefore && index ? '\n' : ''}${text}`;
-  }).join('\n');
+  return rows.join('\n');
 }
 
 export function compactSectionContent(content, label = '') {
@@ -281,6 +232,9 @@ export function compactSectionContent(content, label = '') {
 
   const phrases = parseSectionPhrases(cleaned, label);
   if (!phrases.length) return lyricCue(cleaned) || cleaned;
+
+  const hasVocalCue = phrases.some(phrase => phrase.cue);
+  if (!hasVocalCue) return phrases.flatMap(phrase => phrase.chords).join('  ');
 
   return countEffectiveChords(phrases) > DETAILED_CHORD_THRESHOLD
     ? compactDetailedSection(phrases)
@@ -293,8 +247,19 @@ function compactSectionIdentity(section, label, compactContent) {
   return `${type}|${normalizedLabel(label).toLocaleLowerCase('pt-BR').replace(/\s+\d+$/, '')}|${identityContent}`;
 }
 
+export function formatCapoHeader(data = {}) {
+  const fret = Number(data.capoFret);
+  if (!Number.isInteger(fret) || fret <= 0 || fret > 12) return '';
+  const ordinal = `${fret}ª casa`;
+  const formKey = String(data.chordFormKey || '').trim();
+  return formKey ? `Capotraste: ${ordinal} (forma de ${formKey})` : `Capotraste: ${ordinal}`;
+}
+
 export function composeChordSheet(data = {}) {
+  const capoHeader = formatCapoHeader(data);
   const sections = Array.isArray(data.sections) ? data.sections.filter(section => section?.content?.trim()) : [];
+  let body = '';
+
   if (sections.length) {
     const seen = new Set();
     const prepared = [];
@@ -313,7 +278,7 @@ export function composeChordSheet(data = {}) {
     const verseTotal = prepared.filter(item => item.section?.type === 'verse').length;
     let verseIndex = 0;
 
-    return prepared.map(item => {
+    body = prepared.map(item => {
       let label = item.label;
       if (item.section?.type === 'verse' && verseTotal > 1 && !/\d+$/.test(label)) {
         verseIndex += 1;
@@ -321,9 +286,11 @@ export function composeChordSheet(data = {}) {
       }
       return `${label}:\n${item.content}`;
     }).join('\n\n');
+  } else {
+    body = String(data.chordSheet || '').replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   }
 
-  return String(data.chordSheet || '').replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return [capoHeader, body].filter(Boolean).join('\n\n');
 }
 
 export function resolveReferenceLink(data = {}, input = {}) {
@@ -349,6 +316,8 @@ function applySuggestion(result) {
   importMetadata = {
     importMethod: 'ai-assisted',
     originalKey: data.originalKey || null,
+    chordFormKey: data.chordFormKey || null,
+    capoFret: data.capoFret ?? null,
     bpm: data.bpm || input.manualBpm || null,
     bpmSource: input.manualBpm ? 'manual' : (data.bpmSource || null),
     timeSignature: data.timeSignature || null,
@@ -389,7 +358,7 @@ function createPanel() {
       <div class="ai-import__actions"><button type="button" class="ai-import__analyze"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Analisar e preencher</button><span class="ai-import__state" role="status" aria-live="polite">A IA só sugere os dados; nada é salvo automaticamente.</span></div>
       <div class="ai-import__thinking" hidden role="status" aria-live="assertive">
         <div class="ai-import__thinking-icon" aria-hidden="true"><i class="fa-solid fa-circle-notch"></i></div>
-        <div><strong>A IA está analisando a música…</strong><span>Entendendo sua entrada, identificando a música, procurando o vídeo quando houver fonte e organizando a cifra no padrão do IDE Music.</span></div>
+        <div><strong>A IA está analisando a música…</strong><span>Entendendo sua entrada, identificando a música, verificando tom/capotraste e organizando a cifra no padrão do IDE Music.</span></div>
       </div>
       <div class="ai-import__review" hidden></div>
     </div>`;
