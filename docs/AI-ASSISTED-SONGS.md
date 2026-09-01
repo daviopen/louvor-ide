@@ -38,8 +38,9 @@ Se o App Check/site key ou a IA estiverem indisponíveis, a tela não bloqueia o
 - Provider Firebase: `src/services/firebase-music-ai-provider.js`.
 - Structured Output versionado: `src/services/music-ai-schema.js`.
 - Schema atual: `1.0.0`.
-- Modelo padrão: `gemini-3.7-flash`.
-- O modelo pode ser sobrescrito no runtime por `window.ENV.VITE_FIREBASE_AI_MODEL`.
+- Modelo primário de produção: `gemini-3.5-flash`, escolhido por ter janela de disponibilidade estável mais longa.
+- Em falhas temporárias `UNAVAILABLE`/`TIMEOUT`, o cliente repete a chamada uma vez e, se a instabilidade persistir, tenta `gemini-3.7-flash` como modelo alternativo.
+- O modelo primário pode ser sobrescrito no runtime por `window.ENV.VITE_FIREBASE_AI_MODEL`.
 
 Campos automáticos relevantes:
 
@@ -93,6 +94,8 @@ O cliente possui:
 - prevenção de requisições duplicadas idênticas em curto intervalo;
 - limite local de requisições em janela de tempo;
 - timeout específico por estratégia;
+- retry automático único para erros temporários de indisponibilidade/timeout;
+- fallback automático para um segundo modelo quando a primeira rota continua indisponível;
 - tratamento de quota, App Check, timeout e resposta inválida;
 - normalização de tom, BPM, compasso e YouTube;
 - fallback por nome/artista inferido de URLs conhecidas de cifra;
@@ -120,6 +123,8 @@ Rate limit de cliente melhora UX, mas não substitui proteção de infraestrutur
 - validação de identidade da cifra encontrada;
 - merge de dados do vídeo com a cifra externa sem perder o link do YouTube;
 - extração de letra do conteúdo colado pelo usuário;
+- retry em indisponibilidade temporária;
+- fallback para modelo alternativo após retry malsucedido;
 - respostas parciais;
 - provider mockado;
 - validação/fallback manual.

@@ -45,6 +45,37 @@ class CaptureProvider extends MusicAIProvider {
   }
 }
 
+class FlakyProvider extends CaptureProvider {
+  constructor(result = null) {
+    super(result);
+    this.calls = 0;
+  }
+
+  async analyzeSong(input) {
+    this.calls += 1;
+    if (this.calls === 1) {
+      const error = new Error('Internal Server Error');
+      error.code = 'UNAVAILABLE';
+      throw error;
+    }
+    return super.analyzeSong(input);
+  }
+}
+
+class AlwaysUnavailableProvider extends MusicAIProvider {
+  constructor() {
+    super({ provider: 'primary', model: 'unstable-model' });
+    this.calls = 0;
+  }
+
+  async analyzeSong() {
+    this.calls += 1;
+    const error = new Error('Internal Server Error');
+    error.code = 'UNAVAILABLE';
+    throw error;
+  }
+}
+
 test('entrada única reconhece link do YouTube', () => {
   const result = classifyMusicAIInput('https://www.youtube.com/watch?v=HYwg0HlxBas');
   assert.equal(result.sourceType, 'youtube-url');
@@ -246,6 +277,52 @@ test('service preserva nome e artista informados quando a IA omite esses campos'
   const result = await service.analyze({ rawInput: 'Nada além do Sangue, Fernandinho' });
   assert.equal(result.data.title, 'Nada além do Sangue');
   assert.equal(result.data.artist, 'Fernandinho');
+});
+
+test('service repete automaticamente uma falha temporária do provider', async () => {
+  const provider = new FlakyProvider();
+  const service = new MusicAIService(provider);
+  const progress = [];
+  const result = await service.analyze({
+    rawInput: 'Grandes Coisas, Fernandinho',
+    onProgress: event => progress.push(event)
+  });
+
+  assert.equal(provider.calls, 2);
+  assert.equal(result.data.artist, 'Fernandinho');
+  assert.ok(progress.some(event => event.stage === 'retry'));
+});
+
+test('service usa modelo alternativo quando a instabilidade persiste após retry', async () => {
+  const primary = new AlwaysUnavailableProvider();
+  const fallback = new CaptureProvider({
+    schemaVersion: '1.0.0',
+    title: 'Grandes Coisas',
+    artist: 'Fernandinho',
+    originalKey: 'Db',
+    chordSheet: 'Intro:\nAb7  Gb',
+    lyrics: null,
+    sections: [],
+    timeSignature: '4/4',
+    bpm: 72,
+    bpmSource: 'modelo alternativo',
+    video: null,
+    provenance: {}
+  });
+  fallback.provider = 'fallback';
+  fallback.model = 'fallback-model';
+
+  const service = new MusicAIService(primary, { fallbackProvider: fallback });
+  const progress = [];
+  const result = await service.analyze({
+    rawInput: 'Grandes Coisas, Fernandinho',
+    onProgress: event => progress.push(event)
+  });
+
+  assert.equal(primary.calls, 2);
+  assert.equal(result.provider.model, 'fallback-model');
+  assert.equal(result.data.title, 'Grandes Coisas');
+  assert.ok(progress.some(event => event.stage === 'fallback-model'));
 });
 
 test('service rejeita somente quando o campo único está vazio', async () => {
