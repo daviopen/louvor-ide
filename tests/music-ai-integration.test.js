@@ -9,6 +9,7 @@ const provider = fs.readFileSync(path.join(root, 'src/services/music-ai-provider
 const contract = fs.readFileSync(path.join(root, 'src/services/music-ai-contract.js'), 'utf8');
 const styles = fs.readFileSync(path.join(root, 'src/styles/music-ai-import.css'), 'utf8');
 const makefile = fs.readFileSync(path.join(root, 'Makefile'), 'utf8');
+const deployWorkflow = fs.readFileSync(path.join(root, '.github/workflows/deploy.yml'), 'utf8');
 const envExample = fs.readFileSync(path.join(root, '.env.example'), 'utf8');
 
 test('fluxo mantém cadastro manual e adiciona Importar com IA no mesmo formulário', () => {
@@ -77,12 +78,16 @@ test('modelo de dados separa originalKey, execução no setlist e preferredKey p
   assert.match(contract, /MUSIC_AI_SCHEMA_VERSION/);
 });
 
-test('build injeta apenas configuração pública de App Check e modelo', () => {
+test('build e deploy injetam somente configuração pública de App Check e modelo', () => {
   assert.match(envExample, /VITE_FIREBASE_APPCHECK_SITE_KEY/);
   assert.match(envExample, /VITE_FIREBASE_AI_MODEL/);
   assert.match(envExample, /SITE KEY pública/);
   assert.match(makefile, /VITE_FIREBASE_APPCHECK_SITE_KEY/);
   assert.match(makefile, /VITE_FIREBASE_AI_MODEL/);
+  assert.match(deployWorkflow, /vars\.VITE_FIREBASE_APPCHECK_SITE_KEY/);
+  assert.match(deployWorkflow, /vars\.VITE_FIREBASE_AI_MODEL/);
+  assert.match(deployWorkflow, /services\/music-ai-provider\.js/);
+  assert.match(deployWorkflow, /styles\/music-ai-import\.css/);
   assert.doesNotMatch(envExample, /RECAPTCHA_SECRET|PRIVATE_KEY|SERVICE_ACCOUNT/);
 });
 
