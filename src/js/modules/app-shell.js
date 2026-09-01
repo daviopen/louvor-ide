@@ -7,38 +7,33 @@
 
   const COLLAPSED_KEY = 'musicIdeSidebarCollapsed';
   const shellExcludedPages = new Set(['login.html', 'consentimento.html', 'termos.html', 'privacidade.html']);
-  const navigationGroups = [
-    { id: 'dashboard', label: '', items: [{ id: 'dashboard', label: 'Dashboard', href: 'index.html', icon: 'fa-house', permission: 'dashboard' }] },
-    { id: 'users', label: 'Usuários', items: [
-      { id: 'users', label: 'Usuários', href: 'users.html', icon: 'fa-users', permission: 'users' },
-      { id: 'permissions', label: 'Permissões', href: 'module.html?section=permissions', icon: 'fa-lock', permission: 'permissions' }
-    ] },
-    { id: 'schedules', label: 'Escalas', items: [
-      { id: 'unavailability', label: 'Indisponibilidade', href: 'module.html?section=unavailability', icon: 'fa-calendar-xmark', permission: 'unavailability' },
-      { id: 'events', label: 'Eventos', href: 'module.html?section=events', icon: 'fa-calendar-days', permission: 'events' },
-      { id: 'schedules', label: 'Escalas', href: 'module.html?section=schedules', icon: 'fa-calendar-check', permission: 'schedules' },
-      { id: 'schedules-export', label: 'Exportar', href: 'module.html?section=schedules&view=export', icon: 'fa-file-pdf', permission: 'schedules' },
-      { id: 'schedules-participation', label: 'Participações', href: 'module.html?section=schedules&view=participation', icon: 'fa-chart-column', permission: 'schedules' }
-    ] },
-    { id: 'setlists', label: 'Setlists', items: [
-      { id: 'setlists-upcoming', label: 'Próximos Setlists', href: 'setlists.html?view=upcoming', icon: 'fa-list-check', permission: 'setlists' },
-      { id: 'setlists-history', label: 'Histórico de Setlists', href: 'setlists.html?view=history', icon: 'fa-clock-rotate-left', permission: 'setlists' }
-    ] },
-    { id: 'songs', label: 'Músicas', items: [
-      { id: 'songs', label: 'Consultar', href: 'consultar.html', icon: 'fa-music', permission: 'songs' },
-      { id: 'new-song', label: 'Nova Música', href: 'nova-musica.html', icon: 'fa-circle-plus', permission: 'songs', minLevel: 'edit' }
-    ] },
-    { id: 'administration', label: 'Administração', items: [
-      { id: 'audit', label: 'Auditoria', href: 'module.html?section=audit', icon: 'fa-clipboard-list', permission: 'audit' }
-    ] },
-    { id: 'settings', label: 'Configurações', items: [
-      { id: 'settings-template', label: 'Template de Escala', href: 'module.html?section=settings', icon: 'fa-calendar-check', adminOnly: true },
-      { id: 'settings-functions', label: 'Funções Ministeriais', href: 'module.html?section=settings&tab=functions', icon: 'fa-layer-group', adminOnly: true }
-    ] },
-    { id: 'help', label: '', items: [
-      { id: 'help', label: 'Ajuda', href: 'help.html', icon: 'fa-circle-question', public: true }
-    ] }
-  ];
+  const ROUTE_CATALOG = Object.freeze([
+    Object.freeze({ id: 'dashboard', label: 'Dashboard', href: 'index.html', icon: 'fa-house', groupId: 'dashboard', groupLabel: '', permission: 'dashboard', menu: true }),
+    Object.freeze({ id: 'users', label: 'Usuários', href: 'users.html', icon: 'fa-users', groupId: 'users', groupLabel: 'Usuários', permission: 'users', menu: true }),
+    Object.freeze({ id: 'permissions', label: 'Permissões', href: 'module.html?section=permissions', icon: 'fa-lock', groupId: 'users', groupLabel: 'Usuários', permission: 'permissions', menu: true }),
+    Object.freeze({ id: 'unavailability', label: 'Indisponibilidade', href: 'module.html?section=unavailability', icon: 'fa-calendar-xmark', groupId: 'schedules', groupLabel: 'Escalas', permission: 'unavailability', menu: true }),
+    Object.freeze({ id: 'events', label: 'Eventos', href: 'module.html?section=events', icon: 'fa-calendar-days', groupId: 'schedules', groupLabel: 'Escalas', permission: 'events', menu: true }),
+    Object.freeze({ id: 'schedules', label: 'Escalas', href: 'module.html?section=schedules', icon: 'fa-calendar-check', groupId: 'schedules', groupLabel: 'Escalas', permission: 'schedules', menu: true }),
+    Object.freeze({ id: 'schedules-export', label: 'Exportar escalas', href: 'module.html?section=schedules&view=export', icon: 'fa-file-pdf', groupId: 'schedules', groupLabel: 'Escalas', permission: 'schedules', menu: true }),
+    Object.freeze({ id: 'schedules-participation', label: 'Participações', href: 'module.html?section=schedules&view=participation', icon: 'fa-chart-column', groupId: 'schedules', groupLabel: 'Escalas', permission: 'schedules', menu: true }),
+    Object.freeze({ id: 'setlists-upcoming', label: 'Próximos Setlists', href: 'setlists.html?view=upcoming', icon: 'fa-list-check', groupId: 'setlists', groupLabel: 'Setlists', permission: 'setlists', menu: true }),
+    Object.freeze({ id: 'setlists-history', label: 'Histórico de Setlists', href: 'setlists.html?view=history', icon: 'fa-clock-rotate-left', groupId: 'setlists', groupLabel: 'Setlists', permission: 'setlists', menu: true }),
+    Object.freeze({ id: 'setlist-view', label: 'Visualizar Setlist', href: 'setlist-view.html?id=:id', icon: 'fa-eye', groupId: 'setlists', groupLabel: 'Setlists', permission: 'setlists', menu: false }),
+    Object.freeze({ id: 'setlist-edit', label: 'Editar Setlist', href: 'setlist.html?id=:id', icon: 'fa-pen', groupId: 'setlists', groupLabel: 'Setlists', permission: 'setlists', minLevel: 'edit', menu: false }),
+    Object.freeze({ id: 'songs', label: 'Consultar músicas', href: 'consultar.html', icon: 'fa-music', groupId: 'songs', groupLabel: 'Músicas', permission: 'songs', menu: true }),
+    Object.freeze({ id: 'song-view', label: 'Visualizar música', href: 'ver.html?id=:id', icon: 'fa-eye', groupId: 'songs', groupLabel: 'Músicas', permission: 'songs', menu: false }),
+    Object.freeze({ id: 'new-song', label: 'Nova Música', href: 'nova-musica.html', icon: 'fa-circle-plus', groupId: 'songs', groupLabel: 'Músicas', permission: 'songs', minLevel: 'edit', menu: true }),
+    Object.freeze({ id: 'audit', label: 'Auditoria', href: 'module.html?section=audit', icon: 'fa-clipboard-list', groupId: 'administration', groupLabel: 'Administração', permission: 'audit', menu: true }),
+    Object.freeze({ id: 'settings-template', label: 'Template de Escala', href: 'module.html?section=settings', icon: 'fa-calendar-check', groupId: 'settings', groupLabel: 'Configurações', adminOnly: true, menu: true }),
+    Object.freeze({ id: 'settings-functions', label: 'Funções Ministeriais', href: 'module.html?section=settings&tab=functions', icon: 'fa-layer-group', groupId: 'settings', groupLabel: 'Configurações', adminOnly: true, menu: true }),
+    Object.freeze({ id: 'settings-routes', label: 'Rotas e Acessos', href: 'module.html?section=settings&tab=routes', icon: 'fa-route', groupId: 'settings', groupLabel: 'Configurações', adminOnly: true, menu: true }),
+    Object.freeze({ id: 'help', label: 'Ajuda', href: 'help.html', icon: 'fa-circle-question', groupId: 'help', groupLabel: '', public: true, menu: true }),
+    Object.freeze({ id: 'login', label: 'Login', href: 'login.html', icon: 'fa-right-to-bracket', groupId: 'public', groupLabel: 'Públicas', public: true, menu: false }),
+    Object.freeze({ id: 'terms', label: 'Termos de Uso', href: 'termos.html', icon: 'fa-file-contract', groupId: 'public', groupLabel: 'Públicas', public: true, menu: false }),
+    Object.freeze({ id: 'privacy', label: 'Privacidade', href: 'privacidade.html', icon: 'fa-shield-halved', groupId: 'public', groupLabel: 'Públicas', public: true, menu: false }),
+    Object.freeze({ id: 'consent', label: 'Consentimento', href: 'consentimento.html', icon: 'fa-check-double', groupId: 'public', groupLabel: 'Públicas', public: true, menu: false })
+  ]);
+  const navigationGroups = Object.freeze([...new Map(ROUTE_CATALOG.filter(route => route.menu === true).map(route => [route.groupId, route.groupLabel])).entries()].map(([id, label]) => Object.freeze({ id, label, items: ROUTE_CATALOG.filter(route => route.menu === true && route.groupId === id) })));
   const moduleSections = new Set(['permissions', 'unavailability', 'events', 'schedules', 'audit', 'settings']);
 
   function initializeObservability() {
@@ -53,11 +48,14 @@
 
   function initializeSettingsPage() {
     const page = currentPage(scope.location && scope.location.pathname);
-    const section = new URLSearchParams(scope.location && scope.location.search || '').get('section');
+    const params = new URLSearchParams(scope.location && scope.location.search || '');
+    const section = params.get('section');
     if (page !== 'module.html' || section !== 'settings') return;
     if (scope.document.querySelector('script[data-ide-settings-page]')) return;
     const script = scope.document.createElement('script');
-    script.src = '../js/modules/settings-page.js?v=20260827-settings-submenus';
+    script.src = params.get('tab') === 'routes'
+      ? '../js/modules/route-access-page.js?v=20260901-route-catalog'
+      : '../js/modules/settings-page.js?v=20260827-settings-submenus';
     script.defer = true;
     script.setAttribute('data-ide-settings-page', 'true');
     scope.document.head.appendChild(script);
@@ -75,9 +73,22 @@
     const params = new URLSearchParams(scope.location && scope.location.search || '');
     if (page === 'users.html') return 'users';
     if (page === 'help.html') return 'help';
+    if (page === 'login.html') return 'login';
+    if (page === 'termos.html') return 'terms';
+    if (page === 'privacidade.html') return 'privacy';
+    if (page === 'consentimento.html') return 'consent';
+    if (page === 'setlist-view.html') return 'setlist-view';
+    if (page === 'setlist.html') return 'setlist-edit';
+    if (page === 'ver.html') return 'song-view';
+    if (page === 'consultar.html') return 'songs';
+    if (page === 'nova-musica.html') return 'new-song';
     if (page === 'module.html') {
       const section = params.get('section');
-      if (section === 'settings') return params.get('tab') === 'functions' ? 'settings-functions' : 'settings-template';
+      if (section === 'settings') {
+        if (params.get('tab') === 'functions') return 'settings-functions';
+        if (params.get('tab') === 'routes') return 'settings-routes';
+        return 'settings-template';
+      }
       if (section === 'schedules') {
         const scheduleView = params.get('view');
         if (scheduleView === 'export') return 'schedules-export';
@@ -86,9 +97,6 @@
       return moduleSections.has(section) ? section : 'dashboard';
     }
     if (page === 'setlists.html') return params.get('view') === 'history' ? 'setlists-history' : 'setlists-upcoming';
-    if (page === 'setlist-view.html' || page === 'setlist.html') return 'setlists-upcoming';
-    if (page === 'consultar.html' || page === 'ver.html') return 'songs';
-    if (page === 'nova-musica.html') return 'new-song';
     return 'dashboard';
   }
 
@@ -101,7 +109,8 @@
 
   function isAdminProfile(profile) {
     const role = String(profile?.role || '').toUpperCase();
-    return profile?.isSuperAdmin === true || profile?.isAdmin === true || role === 'SUPER_ADMIN' || role === 'ADMIN';
+    const accessProfile = String(profile?.accessProfile || '').toUpperCase();
+    return profile?.isSuperAdmin === true || profile?.isAdmin === true || role === 'SUPER_ADMIN' || role === 'ADMIN' || accessProfile === 'ADMINISTRATOR';
   }
 
   function resolveAccessLevel(profile, permission) {
@@ -127,7 +136,7 @@
 
   function currentItem() {
     const id = currentNavigationId();
-    return navigationItems().find(item => item.id === id) || null;
+    return ROUTE_CATALOG.find(item => item.id === id) || null;
   }
 
   function firstAllowedHref(profile) {
@@ -284,7 +293,8 @@
     const mobile = scope.document.getElementById('ide-mobile-navigation');
     if (!mobile) return;
     mobile.textContent = '';
-    const candidates = [navigationGroups[0].items[0], navigationGroups[2].items[2], navigationGroups[3].items[0], navigationGroups[4].items[0]].filter(item => canViewItem(item, profile));
+    const mobileIds = ['dashboard', 'schedules', 'setlists-upcoming', 'songs'];
+    const candidates = mobileIds.map(id => ROUTE_CATALOG.find(route => route.id === id)).filter(item => item && canViewItem(item, profile));
     candidates.slice(0, 4).forEach(item => mobile.appendChild(createNavLink(item, activeId, true)));
     const more = element('button', 'ide-mobile-nav-item ide-mobile-nav-more');
     more.type = 'button';
@@ -376,7 +386,7 @@
     scope.document.addEventListener('keydown', event => { if (event.key === 'Escape') setMenuOpen(false); });
   }
 
-  scope.MusicIdeNavigation = { navigationGroups, resolveAccessLevel, canViewItem, currentNavigationId, enforceCurrentRoute, mountAccountControls, isAdminProfile };
+  scope.MusicIdeNavigation = { routeCatalog: ROUTE_CATALOG, navigationGroups, resolveAccessLevel, canViewItem, currentNavigationId, enforceCurrentRoute, mountAccountControls, isAdminProfile };
   if (scope.document.readyState === 'loading') scope.document.addEventListener('DOMContentLoaded', buildShell, { once: true });
   else buildShell();
 })(typeof window !== 'undefined' ? window : null);
