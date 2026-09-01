@@ -17,7 +17,7 @@ Gerenciar eventos ministeriais e coordenar a criação/atualização das estrutu
 - Cancelamento deve refletir em escala/setlist sem apagar histórico.
 - Evento concluído permanece disponível para histórico.
 - Eventos `CANCELLED` e `COMPLETED` são imutáveis no fluxo operacional.
-- Exclusão física só é admitida para `PLANNED` sem integrantes na escala nem músicas no Setlist; nos demais casos usar cancelamento.
+- Exclusão física remove atomicamente o evento e suas estruturas vinculadas conforme o fluxo administrativo implementado, preservando Audit Log.
 
 ## Identidade dos vínculos e atomicidade
 - Criação usa um `requestId` gerado pela UI apenas como chave de idempotência; a UI nunca fornece `scheduleId` ou `setlistId`.
@@ -28,9 +28,10 @@ Gerenciar eventos ministeriais e coordenar a criação/atualização das estrutu
 
 ## Permissões e rotas
 - Leitura e edição seguem permissão do módulo Eventos.
-- Criar evento, excluir rascunho ou alterar data/horário/status exige `EDIT` em Eventos, Escalas e Setlists, porque a operação escreve nos três domínios.
-- Edição apenas de metadados do evento exige `EDIT` em Eventos.
-- Firestore Rules repetem as invariantes críticas e não confiam no frontend.
+- `EDIT` em Eventos é suficiente para criar, editar, alterar data/horário/status e excluir eventos.
+- O módulo Eventos é proprietário do ciclo de vida automático de sua escala e Setlist vinculados: a permissão de Eventos pode criar, sincronizar ou excluir apenas esses vínculos como parte da operação atômica do evento.
+- Essa autorização vinculada não concede edição manual do módulo Escalas nem do módulo Setlists; essas operações continuam exigindo as permissões específicas dos respectivos módulos.
+- Firestore Rules devem limitar as escritas automáticas de Eventos aos IDs determinísticos, campos de sincronização e cascatas vinculadas, sem abrir CRUD genérico nas coleções dependentes.
 - Rotas atuais: `module.html?section=events` (equivalente funcional de `/events` na arquitetura estática atual).
 
 ## Services / Repositories / Components
@@ -42,24 +43,27 @@ Gerenciar eventos ministeriais e coordenar a criação/atualização das estrutu
 ## Collections
 - `events`
 - `schedules`
-- `scheduleMembers` (somente para verificar dependência antes de exclusão física)
+- `scheduleMembers`
 - `setlists`
-- `setlistSongs` (somente para verificar dependência antes de exclusão física)
+- `setlistSongs`
 - `auditLogs`
 
 ## Segurança e LGPD
 - Não confiar em IDs relacionados fornecidos pela UI sem validação.
 - Operações multi-entidade devem evitar estados parcialmente persistidos.
+- Permissão de Eventos só pode tocar dependências quando elas pertencem ao mesmo bundle determinístico do evento.
 - Alterações relevantes de status devem ser auditáveis.
 - Campos livres possuem limites de tamanho e devem evitar dados pessoais/sensíveis desnecessários.
 
 ## Testes
 - criação gera vínculos uma única vez;
 - repetição é idempotente;
+- usuário com `EDIT` somente em Eventos consegue criar e sincronizar o bundle automático;
+- usuário com `READ` em Eventos não consegue criar, editar ou excluir;
 - mudança de data/hora mantém consistência;
 - cancelamento preserva histórico e reflete nos vínculos;
 - conclusão preserva histórico;
-- exclusão física rejeita evento com dependências;
-- permissões de leitura/edição e escrita vinculada são respeitadas;
+- exclusão física remove o bundle vinculado de forma controlada;
+- edição manual de Escalas/Setlists continua bloqueada sem as permissões desses módulos;
 - UI não acessa Firestore diretamente;
-- Firestore Rules validam vínculo, status e imutabilidade final.
+- Firestore Rules validam vínculo, status, campos sincronizados e imutabilidade final.
