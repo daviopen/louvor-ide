@@ -4,7 +4,7 @@
 
 .unavailability-filter-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--ide-space-3);
   align-items: end;
 }
@@ -21,10 +21,6 @@
   min-width: 0;
 }
 
-.unavailability-date-filter-group {
-  display: contents;
-}
-
 .unavailability-filter-grid .ide-field__control {
   width: 100%;
   min-width: 0;
@@ -36,6 +32,83 @@
   white-space: nowrap;
 }
 
+.unavailability-calendar .unavailability-day {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease, transform .15s ease;
+}
+
+.unavailability-calendar .unavailability-day:hover {
+  border-color: var(--ide-border-strong);
+  background: var(--ide-surface-secondary);
+}
+
+.unavailability-calendar .unavailability-day:focus-visible {
+  outline: 2px solid var(--ide-focus, var(--ide-primary));
+  outline-offset: 2px;
+}
+
+.unavailability-calendar .unavailability-day--marked:hover {
+  transform: translateY(-1px);
+}
+
+.unavailability-calendar-nav .ide-button:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+}
+
+.unavailability-day-dialog {
+  width: min(620px, calc(100vw - 2rem));
+}
+
+.unavailability-day-dialog__content {
+  padding: var(--ide-space-6);
+}
+
+.unavailability-day-list {
+  display: grid;
+  gap: var(--ide-space-3);
+}
+
+.unavailability-day-person {
+  display: grid;
+  gap: var(--ide-space-3);
+  padding: var(--ide-space-4);
+  border: 1px solid var(--ide-border);
+  border-radius: var(--ide-radius-md);
+  background: var(--ide-surface-secondary);
+}
+
+.unavailability-day-person__name {
+  display: flex;
+  align-items: center;
+  gap: var(--ide-space-2);
+  color: var(--ide-text-primary);
+}
+
+.unavailability-day-person__records {
+  display: grid;
+  gap: var(--ide-space-2);
+}
+
+.unavailability-day-record {
+  display: grid;
+  gap: var(--ide-space-2);
+  padding-top: var(--ide-space-2);
+  border-top: 1px solid var(--ide-border);
+}
+
+.unavailability-day-record:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.unavailability-day-record small {
+  color: var(--ide-text-secondary);
+  line-height: var(--ide-line-height-normal);
+}
+
 @media (max-width: 700px) {
   .unavailability-filter-grid {
     grid-template-columns: 1fr;
@@ -44,5 +117,9 @@
   .unavailability-clear-filters {
     width: 100%;
     justify-self: stretch;
+  }
+
+  .unavailability-day-dialog__content {
+    padding: var(--ide-space-4);
   }
 }
