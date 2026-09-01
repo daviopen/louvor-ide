@@ -284,7 +284,7 @@ test('service repete automaticamente uma falha temporária do provider', async (
   const service = new MusicAIService(provider);
   const progress = [];
   const result = await service.analyze({
-    rawInput: 'Grandes Coisas, Fernandinho',
+    rawInput: 'Intro:\nG C Em D\n\nEstrofe:\nG C\nGrandes coisas fez por nós',
     onProgress: event => progress.push(event)
   });
 
@@ -315,7 +315,7 @@ test('service usa modelo alternativo quando a instabilidade persiste após retry
   const service = new MusicAIService(primary, { fallbackProvider: fallback });
   const progress = [];
   const result = await service.analyze({
-    rawInput: 'Grandes Coisas, Fernandinho',
+    rawInput: 'Intro:\nAb7 Gb\n\nEstrofe:\nDb Gb\nGrandes coisas fez por nós',
     onProgress: event => progress.push(event)
   });
 
