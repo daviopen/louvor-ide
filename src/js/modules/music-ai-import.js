@@ -14,6 +14,27 @@ const SECTION_LABELS = Object.freeze({
 
 const CHORD_TOKEN_RE = /^(?:[A-G](?:#|b)?)(?:(?:m|maj|min|dim|aug|sus|add|M)?(?:\d{0,2})?(?:[#b+\-º°()]*)?)(?:\/[A-G](?:#|b)?)?$/u;
 const DETAILED_CHORD_THRESHOLD = 5;
+const SHARP_KEYS = Object.freeze(['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']);
+const FLAT_KEYS = Object.freeze(['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']);
+const NOTE_INDEX = Object.freeze({
+  C: 0,
+  'C#': 1,
+  Db: 1,
+  D: 2,
+  'D#': 3,
+  Eb: 3,
+  E: 4,
+  F: 5,
+  'F#': 6,
+  Gb: 6,
+  G: 7,
+  'G#': 8,
+  Ab: 8,
+  A: 9,
+  'A#': 10,
+  Bb: 10,
+  B: 11
+});
 
 export function getMusicAIImportMetadata() {
   return importMetadata ? { ...importMetadata } : null;
@@ -293,6 +314,199 @@ export function composeChordSheet(data = {}) {
   return [capoHeader, body].filter(Boolean).join('\n\n');
 }
 
+function normalizeKeyRoot(value) {
+  const match = String(value || '').trim().match(/^([A-Ga-g])([#b]?)/);
+  if (!match) return null;
+  const key = `${match[1].toUpperCase()}${match[2]}`;
+  return Object.prototype.hasOwnProperty.call(NOTE_INDEX, key) ? key : null;
+}
+
+function resolveCanonicalSourceKey(data = {}) {
+  const explicitForm = normalizeKeyRoot(data.chordFormKey);
+  if (explicitForm) return explicitForm;
+
+  const target = normalizeKeyRoot(data.originalKey);
+  const fret = Number(data.capoFret);
+  if (!target || !Number.isInteger(fret) || fret <= 0 || fret > 12) return target;
+
+  const sourceIndex = (NOTE_INDEX[target] - fret + 12) % 12;
+  return String(data.originalKey || '').includes('b') ? FLAT_KEYS[sourceIndex] : SHARP_KEYS[sourceIndex];
+}
+
+function transposeCanonicalChord(chord, fromKey, toKey) {
+  const from = normalizeKeyRoot(fromKey);
+  const to = normalizeKeyRoot(toKey);
+  if (!from || !to || from === to) return chord;
+
+  const parsed = String(chord || '').match(/^([A-G](?:#|b)?)([^/]*?)(?:\/([A-G](?:#|b)?))?$/);
+  if (!parsed) return chord;
+
+  const steps = (NOTE_INDEX[to] - NOTE_INDEX[from] + 12) % 12;
+  const spelling = to.includes('b') ? FLAT_KEYS : SHARP_KEYS;
+  const transposeRoot = root => spelling[(NOTE_INDEX[root] + steps) % 12] || root;
+  const bass = parsed[3] ? `/${transposeRoot(parsed[3])}` : '';
+  return `${transposeRoot(parsed[1])}${parsed[2]}${bass}`;
+}
+
+function sameChordBlock(left, right) {
+  return left.length === right.length && left.every((token, index) => token === right[index]);
+}
+
+function collapseConsecutiveChordCycles(chords = []) {
+  const tokens = chords.filter(Boolean);
+  const compact = [];
+  let index = 0;
+
+  while (index < tokens.length) {
+    let best = null;
+    const maxBlock = Math.floor((tokens.length - index) / 2);
+
+    for (let blockSize = 1; blockSize <= maxBlock; blockSize += 1) {
+      const block = tokens.slice(index, index + blockSize);
+      let repetitions = 1;
+      while (
+        index + ((repetitions + 1) * blockSize) <= tokens.length
+        && sameChordBlock(block, tokens.slice(index + (repetitions * blockSize), index + ((repetitions + 1) * blockSize)))
+      ) repetitions += 1;
+
+      if (repetitions < 2) continue;
+      const span = repetitions * blockSize;
+      if (!best || span > best.span || (span === best.span && blockSize < best.blockSize)) {
+        best = { span, blockSize, block };
+      }
+    }
+
+    if (best) {
+      compact.push(...best.block);
+      index += best.span;
+    } else {
+      compact.push(tokens[index]);
+      index += 1;
+    }
+  }
+
+  return compact;
+}
+
+function progressionContains(container = [], candidate = []) {
+  if (!candidate.length || candidate.length > container.length) return false;
+  for (let start = 0; start <= container.length - candidate.length; start += 1) {
+    if (sameChordBlock(container.slice(start, start + candidate.length), candidate)) return true;
+  }
+  return false;
+}
+
+function canonicalSectionProgression(content, label, data = {}) {
+  const cleaned = cleanSectionContent(content, label);
+  if (!cleaned) return [];
+
+  const phrases = parseSectionPhrases(cleaned, label);
+  if (!phrases.length) {
+    const direct = extractChordLine(cleaned);
+    if (!direct?.length) return [];
+    const sourceKey = resolveCanonicalSourceKey(data);
+    const targetKey = normalizeKeyRoot(data.originalKey);
+    return collapseConsecutiveChordCycles(direct).map(chord => transposeCanonicalChord(chord, sourceKey, targetKey));
+  }
+
+  const sourceKey = resolveCanonicalSourceKey(data);
+  const targetKey = normalizeKeyRoot(data.originalKey);
+  const seenRows = new Set();
+  const progression = [];
+
+  for (const phrase of phrases) {
+    const reduced = collapseConsecutiveChordCycles(phrase.chords || []);
+    if (!reduced.length) continue;
+    const rowKey = reduced.join('|');
+    if (seenRows.has(rowKey)) continue;
+    seenRows.add(rowKey);
+    progression.push(...reduced);
+  }
+
+  return collapseConsecutiveChordCycles(progression)
+    .map(chord => transposeCanonicalChord(chord, sourceKey, targetKey));
+}
+
+function canonicalSectionKey(section, label) {
+  const type = String(section?.type || '').trim().toLowerCase();
+  if (SECTION_LABELS[type]) return type;
+  return normalizedLabel(label).toLocaleLowerCase('pt-BR').replace(/\s+\d+$/, '') || 'other';
+}
+
+function canonicalSectionLabel(section, label) {
+  const type = String(section?.type || '').trim().toLowerCase();
+  return SECTION_LABELS[type] || normalizedLabel(label).replace(/\s+\d+$/, '') || 'Parte';
+}
+
+function mergeCanonicalVariant(group, progression) {
+  if (!progression.length) return;
+
+  for (let index = 0; index < group.variants.length; index += 1) {
+    const existing = group.variants[index];
+    if (sameChordBlock(existing, progression)) return;
+    if (progressionContains(existing, progression)) return;
+    if (progressionContains(progression, existing)) {
+      group.variants[index] = progression;
+      return;
+    }
+  }
+
+  group.variants.push(progression);
+}
+
+function canonicalizeRawChordSheet(data = {}) {
+  const sourceKey = resolveCanonicalSourceKey(data);
+  const targetKey = normalizeKeyRoot(data.originalKey);
+  return String(data.chordSheet || '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .filter(line => !/^\s*capotraste\s*:/i.test(line))
+    .map(line => {
+      const compactCue = parseCompactCueLine(line);
+      if (compactCue?.chords?.length) {
+        return collapseConsecutiveChordCycles(compactCue.chords)
+          .map(chord => transposeCanonicalChord(chord, sourceKey, targetKey))
+          .join('  ');
+      }
+      const chords = extractChordLine(line);
+      if (!chords?.length) return line;
+      return collapseConsecutiveChordCycles(chords)
+        .map(chord => transposeCanonicalChord(chord, sourceKey, targetKey))
+        .join('  ');
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+export function composeCanonicalChordSheet(data = {}) {
+  const sections = Array.isArray(data.sections) ? data.sections.filter(section => section?.content?.trim()) : [];
+  if (!sections.length) return canonicalizeRawChordSheet(data);
+
+  const groups = [];
+  const byKey = new Map();
+
+  sections.forEach((section, index) => {
+    const label = getSectionLabel(section, index);
+    const progression = canonicalSectionProgression(section.content, label, data);
+    if (!progression.length) return;
+
+    const key = canonicalSectionKey(section, label);
+    let group = byKey.get(key);
+    if (!group) {
+      group = { key, label: canonicalSectionLabel(section, label), variants: [] };
+      byKey.set(key, group);
+      groups.push(group);
+    }
+    mergeCanonicalVariant(group, progression);
+  });
+
+  return groups
+    .filter(group => group.variants.length)
+    .map(group => `${group.label}:\n${group.variants.map(variant => variant.join('  ')).join('\n')}`)
+    .join('\n\n');
+}
+
 export function resolveReferenceLink(data = {}, input = {}) {
   const aiVideo = String(data?.video?.url || '').trim();
   const explicitVideo = String(input?.youtubeUrl || '').trim();
@@ -309,7 +523,7 @@ function applySuggestion(result) {
   if (setValue('titulo', data.title)) applied.push('nome');
   if (setValue('artista', data.artist)) applied.push('artista');
   if (setValue('tom', data.originalKey)) applied.push('tom original');
-  if (setValue('cifra', composeChordSheet(data))) applied.push('cifra');
+  if (setValue('cifra', composeCanonicalChordSheet(data))) applied.push('cifra');
   if (setValue('letra', data.lyrics)) applied.push('letra');
   if (setValue('link', resolveReferenceLink(data, input))) applied.push('link do vídeo');
 
@@ -358,7 +572,7 @@ function createPanel() {
       <div class="ai-import__actions"><button type="button" class="ai-import__analyze"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Analisar e preencher</button><span class="ai-import__state" role="status" aria-live="polite">A IA só sugere os dados; nada é salvo automaticamente.</span></div>
       <div class="ai-import__thinking" hidden role="status" aria-live="assertive">
         <div class="ai-import__thinking-icon" aria-hidden="true"><i class="fa-solid fa-circle-notch"></i></div>
-        <div><strong>A IA está analisando a música…</strong><span>Entendendo sua entrada, identificando a música, verificando tom/capotraste e organizando a cifra no padrão do IDE Music.</span></div>
+        <div><strong>A IA está analisando a música…</strong><span>Entendendo sua entrada, identificando a música, confirmando o tom real e organizando a cifra no padrão do IDE Music.</span></div>
       </div>
       <div class="ai-import__review" hidden></div>
     </div>`;
