@@ -48,6 +48,7 @@ const actor = { uid: 'user-1' };
 const profile = { role: 'ADMIN' };
 const fullAccess = { events: 'EDIT', schedules: 'EDIT', setlists: 'EDIT', canRead: true, canEdit: true, canManageLinked: true };
 const eventEditOnly = { events: 'EDIT', schedules: 'READ', setlists: 'READ', canRead: true, canEdit: true, canManageLinked: false };
+const eventReadOnly = { events: 'READ', schedules: 'EDIT', setlists: 'EDIT', canRead: true, canEdit: false, canManageLinked: false };
 
 test('normaliza campos obrigatórios/opcionais e valida horário/status', () => {
   const value = normalizeEventInput({ name: '  Culto da Família  ', date: '2026-08-30', time: '19:30', description: '  Celebração  ', location: '', theme: 'Família', status: 'confirmed' });
@@ -61,14 +62,14 @@ test('normaliza campos obrigatórios/opcionais e valida horário/status', () => 
   assert.throws(() => normalizeEventInput({ name: 'Evento', date: '2026-08-30', status: 'COMPLETED' }, { forCreate: true }), /iniciar como Planejado ou Confirmado/);
 });
 
-test('criação exige edição nos três módulos e é idempotente por requestId', async () => {
+test('criação exige somente EDIT em Eventos e é idempotente por requestId', async () => {
   const repo = repositoryFixture();
   const service = new EventService(repo, { clock: () => NOW });
-  await assert.rejects(service.create({ name: 'Evento', date: '2026-08-30' }, actor, profile, { access: eventEditOnly, requestId: 'abc' }), /Eventos, Escalas e Setlists/);
-  const created = await service.create({ name: 'Evento', date: '2026-08-30' }, actor, profile, { access: fullAccess, requestId: 'abc' });
+  await assert.rejects(service.create({ name: 'Evento', date: '2026-08-30' }, actor, profile, { access: eventReadOnly, requestId: 'blocked' }), /permissão de edição em Eventos/);
+  const created = await service.create({ name: 'Evento', date: '2026-08-30' }, actor, profile, { access: eventEditOnly, requestId: 'abc' });
   assert.equal(created.id, 'event_abc');
   assert.equal(repo.calls.creates.length, 1);
-  const repeated = await service.create({ name: 'Evento', date: '2026-08-30' }, actor, profile, { access: fullAccess, requestId: 'abc' });
+  const repeated = await service.create({ name: 'Evento', date: '2026-08-30' }, actor, profile, { access: eventEditOnly, requestId: 'abc' });
   assert.equal(repeated.idempotent, true);
   assert.equal(repo.events.length, 1);
 });
@@ -84,13 +85,12 @@ test('eventos podem repetir o mesmo nome em datas ou horários diferentes', asyn
   assert.deepEqual(repo.events.map(item => dateKey(item.date)), ['2026-09-13', '2026-09-20']);
 });
 
-test('mudança de data/hora/status sincroniza vínculos; metadados isolados não exigem escrita vinculada', async () => {
+test('mudança de data/hora/status sincroniza vínculos com EDIT apenas em Eventos; metadados isolados não regravam vínculos', async () => {
   const repo = repositoryFixture({ events: [{ id: 'event-1', name: 'Culto', date: new Date(2026, 7, 30, 12), time: '19:00', description: null, location: null, theme: null, status: 'PLANNED', scheduleId: 'schedule_event-1', setlistId: 'setlist_event-1' }] });
   const service = new EventService(repo);
   await service.update('event-1', { name: 'Culto especial' }, actor, profile, { access: eventEditOnly });
   assert.equal(repo.calls.updates[0].options.syncLinked, false);
-  await assert.rejects(service.update('event-1', { date: '2026-08-31' }, actor, profile, { access: eventEditOnly }), /Alterar data, horário ou status/);
-  await service.update('event-1', { date: '2026-08-31', time: '20:00', status: 'CONFIRMED' }, actor, profile, { access: fullAccess });
+  await service.update('event-1', { date: '2026-08-31', time: '20:00', status: 'CONFIRMED' }, actor, profile, { access: eventEditOnly });
   assert.equal(repo.calls.updates.at(-1).options.syncLinked, true);
   assert.equal(dateKey(repo.calls.updates.at(-1).data.date), '2026-08-31');
 });
@@ -102,13 +102,22 @@ test('cancelados e concluídos ficam imutáveis no histórico e transições fin
   await assert.rejects(service.update('done', { name: 'Alterado' }, actor, profile, { access: fullAccess }), /somente no histórico/);
 });
 
-test('exclusão física remove o bundle mesmo quando há conteúdo, desde que existam permissões vinculadas', async () => {
+test('exclusão física remove o bundle com EDIT apenas em Eventos', async () => {
   const populated = { id: 'event-1', name: 'Culto', date: NOW, status: 'CONFIRMED', scheduleId: 'schedule_event-1', setlistId: 'setlist_event-1' };
   const repo = repositoryFixture({ events: [populated], dependencies: { scheduleMembers: 4, setlistSongs: 6 } });
-  await new EventService(repo).remove('event-1', actor, profile, { access: fullAccess });
+  await new EventService(repo).remove('event-1', actor, profile, { access: eventEditOnly });
   assert.equal(repo.calls.deletes.length, 1);
   assert.equal(repo.events.length, 0);
-  await assert.rejects(new EventService(repositoryFixture({ events: [populated] })).remove('event-1', actor, profile, { access: eventEditOnly }), /Excluir evento exige permissão/);
+  await assert.rejects(new EventService(repositoryFixture({ events: [populated] })).remove('event-1', actor, profile, { access: eventReadOnly }), /permissão de edição em Eventos/);
+});
+
+test('resolveAccess considera EDIT em Eventos suficiente para gerir o bundle automático', async () => {
+  const repo = repositoryFixture({ permissions: { events: 'EDIT', schedules: 'NONE', setlists: 'NONE' } });
+  const access = await new EventService(repo).resolveAccess(actor, profile);
+  assert.equal(access.canEdit, true);
+  assert.equal(access.canManageLinked, true);
+  assert.equal(access.schedules, 'NONE');
+  assert.equal(access.setlists, 'NONE');
 });
 
 test('SUPER_ADMIN recebe acesso completo e listagem é ordenada por data/horário', async () => {
