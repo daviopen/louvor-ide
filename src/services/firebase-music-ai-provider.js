@@ -79,7 +79,9 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
         },
         systemInstruction: `Você estrutura dados de músicas para o IDE Music. Responda somente no schema ${MUSIC_AI_SCHEMA_VERSION}. Não invente nome, artista, tom, BPM, compasso, cifra, letra ou vídeo. Quando não houver evidência suficiente, use null ou lista vazia.
 
-A cifra NÃO deve ser uma cópia bruta da página de origem. Remova cabeçalhos do site, menus, anúncios, créditos da página, navegação, comentários e qualquer texto que não faça parte da execução musical. Organize a cifra no padrão natural do IDE Music, em texto simples e sem HTML/tags, usando seções como "Intro:", "Estrofe:", "Pré-Refrão:", "Refrão:", "Ponte:", "Instrumental:" e "Final:". Preserve os acordes e a letra exatamente conforme a evidência disponível; apenas reorganize a estrutura. Sempre que houver cifra suficiente, preencha também sections com as partes musicais correspondentes para que o cliente monte o formato oficial.
+A cifra do IDE Music é COMPACTA e ORIENTATIVA, não uma transcrição integral da página de cifra. Remova cabeçalhos do site, menus, anúncios, créditos, navegação, comentários e qualquer texto que não faça parte da execução musical. Em chordSheet e em sections, NÃO copie a letra inteira. Para cada seção, use normalmente apenas as duas primeiras palavras da letra como referência visual e depois a sequência de acordes necessária para orientar a execução. Exemplo: "Estrofe:\nTexto da - E  D  A/C#". Em partes puramente instrumentais, retorne apenas os acordes. Use cabeçalhos naturais como "Intro:", "Estrofe:", "Pré-Refrão:", "Refrão:", "Ponte:", "Instrumental:", "Solo:", "Interlúdio:" e "Final:" quando existirem.
+
+Se uma estrutura se repetir sem mudança musical relevante, como o mesmo Refrão ou a mesma Ponte voltando mais tarde, represente essa estrutura uma única vez na cifra. Estrofes diferentes podem permanecer como Estrofe 1, Estrofe 2 etc. O campo lyrics pode conter a letra identificada separadamente; a compactação se aplica ao chordSheet e ao conteúdo de sections.
 
 O campo video deve representar um vídeo real da música, preferencialmente YouTube, encontrado incorporado ou referenciado dentro da página de cifra, ou explicitamente informado pelo usuário. Nunca use a URL da própria página de cifra como video.url. Se nenhum vídeo real for identificado, retorne video como null.
 
@@ -101,7 +103,7 @@ Não faça scraping próprio nem tente contornar login, paywall, robots ou bloqu
       input.youtubeUrl ? `URL de vídeo de referência informada pelo usuário: ${input.youtubeUrl}` : '',
       input.manualBpm ? `BPM informado manualmente pelo usuário: ${input.manualBpm}. Marque bpmSource como manual.` : '',
       input.pastedText ? `Conteúdo colado pelo usuário:\n---\n${input.pastedText}\n---` : '',
-      'Para a cifra, não devolva o copia-e-cola bruto da fonte. Separe as partes musicais em sections e mantenha chordSheet no mesmo padrão natural do IDE Music: título da seção terminado em dois-pontos, seguido de acordes/letra, com uma linha em branco entre seções.',
+      'Para a cifra, gere o resumo compacto do IDE Music: cada seção aparece uma única vez quando for repetição da mesma estrutura; use só as duas primeiras palavras da letra como pista e os acordes necessários. Não devolva versos/refrões completos no chordSheet nem em sections.',
       'Se a URL não puder ser acessada, continue somente com o texto colado e demais informações fornecidas. Não invente dados ausentes.'
     ].filter(Boolean).join('\n\n');
 
