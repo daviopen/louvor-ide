@@ -4,6 +4,7 @@ import {
   getMusicAIImportMetadata,
   mountMusicAIImport as mountBaseMusicAIImport
 } from './music-ai-import-base.js';
+export { compactSectionContent, composeChordSheet, composeCanonicalChordSheet, formatCapoHeader, resolveReferenceLink } from './music-ai-import-base.js';
 
 const SECTION_LABELS = Object.freeze({
   intro: 'Intro',
