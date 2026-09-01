@@ -1,8 +1,29 @@
 import { MusicAIProvider, MusicAIProviderError } from './music-ai-provider.js';
-import { MUSIC_AI_RESPONSE_JSON_SCHEMA, MUSIC_AI_SCHEMA_VERSION } from './music-ai-schema.js';
+import {
+  MUSIC_AI_RESPONSE_JSON_SCHEMA,
+  MUSIC_AI_SCHEMA_VERSION,
+  extractYouTubeVideoId
+} from './music-ai-schema.js';
 
 const FIREBASE_SDK_VERSION = '12.18.0';
-const DEFAULT_MODEL = 'gemini-3.6-flash';
+const DEFAULT_MODEL = 'gemini-3.7-flash';
+
+const STRATEGY_TIMEOUTS = Object.freeze({
+  plain: 30000,
+  url: 50000,
+  video: 90000,
+  videoLookup: 30000
+});
+
+const VIDEO_LOOKUP_JSON_SCHEMA = Object.freeze({
+  type: 'object',
+  additionalProperties: false,
+  required: ['videoId', 'videoUrl'],
+  properties: {
+    videoId: { type: ['string', 'null'] },
+    videoUrl: { type: ['string', 'null'] }
+  }
+});
 
 function firebaseOptionsFromCompat() {
   const app = window.firebase?.apps?.[0];
@@ -22,6 +43,16 @@ function classifyError(error) {
   return 'UNAVAILABLE';
 }
 
+function friendlyAnalysisError(code, strategy) {
+  if (code === 'TIMEOUT' && strategy === 'video') return 'O vídeo demorou mais que o esperado para ser analisado. Tente novamente ou informe o nome da música e o artista.';
+  if (code === 'TIMEOUT' && strategy === 'url') return 'A página demorou mais que o esperado para responder. Tente novamente ou cole a cifra diretamente no mesmo campo.';
+  if (code === 'TIMEOUT') return 'A análise demorou mais que o esperado. Tente novamente em alguns segundos.';
+  if (code === 'QUOTA') return 'O limite temporário da IA foi atingido. Aguarde alguns instantes e tente novamente.';
+  if (code === 'APP_CHECK') return 'A validação de segurança da IA falhou. Atualize a página e tente novamente.';
+  if (code === 'INVALID_RESPONSE') return 'A IA retornou dados incompletos. Tente novamente ou continue pelo cadastro manual.';
+  return 'A análise com IA não pôde ser concluída. Tente novamente ou continue pelo cadastro manual.';
+}
+
 async function loadPublicConfig() {
   try {
     await import('../js/ai-public-config.js');
@@ -33,13 +64,56 @@ function hasVideoCandidate(data) {
   return Boolean(data?.video?.url || data?.video?.videoId);
 }
 
-function isCifraClubUrl(value) {
+function hostnameOf(value) {
   try {
-    const hostname = new URL(value).hostname.toLowerCase();
-    return hostname === 'cifraclub.com.br' || hostname.endsWith('.cifraclub.com.br');
+    return new URL(value).hostname.toLowerCase().replace(/^www\./, '');
   } catch {
-    return false;
+    return '';
   }
+}
+
+function isCifraClubUrl(value) {
+  const hostname = hostnameOf(value);
+  return hostname === 'cifraclub.com.br' || hostname.endsWith('.cifraclub.com.br');
+}
+
+function isBananaCifrasUrl(value) {
+  const hostname = hostnameOf(value);
+  return hostname === 'bananacifras.com' || hostname.endsWith('.bananacifras.com');
+}
+
+function titleFromSlug(value) {
+  return decodeURIComponent(String(value || ''))
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/(^|\s)(\p{L})/gu, (_, prefix, letter) => `${prefix}${letter.toLocaleUpperCase('pt-BR')}`);
+}
+
+export function extractSongIdentityFromChordUrl(value) {
+  try {
+    const url = new URL(value);
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (isCifraClubUrl(value) && parts.length >= 2) {
+      return {
+        artist: titleFromSlug(parts.at(-2)),
+        title: titleFromSlug(parts.at(-1))
+      };
+    }
+    if (isBananaCifrasUrl(value) && parts.length >= 2) {
+      return {
+        artist: titleFromSlug(parts.at(-2)),
+        title: titleFromSlug(parts.at(-1))
+      };
+    }
+  } catch {}
+  return null;
+}
+
+export function selectMusicAIStrategy(input = {}) {
+  if (input.youtubeUrl || input.sourceType === 'youtube-url') return 'video';
+  if (input.sourceUrl || input.sourceType === 'source-url') return 'url';
+  return 'plain';
 }
 
 export function shouldRetryEmbeddedVideoLookup({ input = {}, data = {} } = {}) {
@@ -51,11 +125,25 @@ export function shouldRetryEmbeddedVideoLookup({ input = {}, data = {} } = {}) {
   );
 }
 
+function videoFromLookup(fallback = {}) {
+  if (hasVideoCandidate(fallback)) return fallback.video;
+  const candidateUrl = String(fallback.videoUrl || '').trim() || null;
+  const videoId = String(fallback.videoId || '').trim() || extractYouTubeVideoId(candidateUrl);
+  if (!videoId && !candidateUrl) return null;
+  return {
+    provider: videoId ? 'youtube' : null,
+    videoId: videoId || null,
+    url: videoId ? `https://www.youtube.com/watch?v=${videoId}` : candidateUrl
+  };
+}
+
 export function mergeEmbeddedVideoLookup(primary = {}, fallback = {}) {
-  if (hasVideoCandidate(primary) || !hasVideoCandidate(fallback)) return primary;
+  if (hasVideoCandidate(primary)) return primary;
+  const video = videoFromLookup(fallback);
+  if (!video) return primary;
   return {
     ...primary,
-    video: fallback.video,
+    video,
     provenance: {
       ...(primary.provenance || {}),
       video: fallback?.provenance?.video || 'segunda leitura focada da página de cifra'
@@ -63,8 +151,44 @@ export function mergeEmbeddedVideoLookup(primary = {}, fallback = {}) {
   };
 }
 
-async function generateStructuredJson(model, prompt) {
-  const result = await model.generateContent(prompt);
+function ensureExplicitYoutubeVideo(data = {}, input = {}) {
+  if (!input.youtubeUrl) return data;
+  const videoId = extractYouTubeVideoId(input.youtubeUrl);
+  if (!videoId) return data;
+  return {
+    ...data,
+    video: {
+      provider: 'youtube',
+      videoId,
+      url: `https://www.youtube.com/watch?v=${videoId}`
+    },
+    provenance: {
+      ...(data.provenance || {}),
+      video: 'URL do YouTube informada pelo usuário'
+    }
+  };
+}
+
+function emptyMusicResponse(overrides = {}) {
+  return {
+    schemaVersion: MUSIC_AI_SCHEMA_VERSION,
+    title: null,
+    artist: null,
+    originalKey: null,
+    chordSheet: null,
+    lyrics: null,
+    sections: [],
+    timeSignature: null,
+    bpm: null,
+    bpmSource: null,
+    video: null,
+    provenance: {},
+    ...overrides
+  };
+}
+
+async function generateStructuredJson(model, content) {
+  const result = await model.generateContent(content);
   const text = result?.response?.text?.() || '';
   if (!text) throw new MusicAIProviderError('INVALID_RESPONSE', 'A IA retornou uma resposta vazia.');
   try {
@@ -74,15 +198,34 @@ async function generateStructuredJson(model, prompt) {
   }
 }
 
+function buildSystemInstruction() {
+  return `Você estrutura dados de músicas para o IDE Music. Responda somente no schema ${MUSIC_AI_SCHEMA_VERSION}. Não invente nome, artista, tom, BPM, compasso, cifra, letra ou vídeo. Quando não houver evidência suficiente, use null ou lista vazia.
+
+A entrada pode ser um link do YouTube, uma URL de cifra/fonte, uma cifra ou texto colado, ou apenas nome da música + artista. Quando a entrada for apenas nome/artista, trate-a como uma identificação da música e use somente conhecimento do modelo de alta confiança para sugerir título, artista, tom, BPM e estrutura harmônica. Marque a proveniência desses campos como "conhecimento do modelo; revisar". Nesse modo, não invente link ou ID do YouTube e não gere letra completa.
+
+A cifra do IDE Music é COMPACTA e ORIENTATIVA, não uma transcrição integral da página de cifra. Remova cabeçalhos do site, menus, anúncios, créditos, navegação, comentários e qualquer texto que não faça parte da execução musical. Em chordSheet e em sections, NÃO copie a letra inteira.
+
+Regra de detalhamento: se uma seção musical tiver até 5 acordes efetivos, resuma em uma única linha usando uma pequena referência da letra e a progressão. Se a seção tiver mais de 5 acordes efetivos, divida-a em várias linhas curtas, preservando a ordem musical. Cada linha deve usar normalmente 2 ou 3 palavras da letra como referência visual e cerca de 3 a 5 acordes correspondentes àquela frase. Em partes puramente instrumentais, retorne apenas os acordes. Use cabeçalhos naturais como "Intro:", "Estrofe:", "Pré-Refrão:", "Refrão:", "Ponte:", "Instrumental:", "Solo:", "Interlúdio:" e "Final:" quando existirem.
+
+Quando houver blocos distintos dentro da mesma seção, preserve pequenas quebras de linha para facilitar leitura. Se uma estrutura inteira se repetir mais tarde sem mudança musical relevante, represente essa estrutura uma única vez. Estrofes diferentes podem permanecer como Estrofe 1, Estrofe 2 etc.
+
+O campo lyrics só deve conter letra que tenha sido fornecida diretamente pelo usuário no texto colado. Não reproduza letra completa obtida apenas de uma página remota ou de conhecimento do modelo.
+
+O campo video deve representar um vídeo real da música, preferencialmente YouTube, encontrado na fonte ou explicitamente informado pelo usuário. Nunca use a URL da própria página de cifra como video.url. Não invente um vídeo.
+
+Não faça scraping próprio nem tente contornar login, paywall, robots ou bloqueios de sites.`;
+}
+
 export class FirebaseMusicAIProvider extends MusicAIProvider {
   constructor({ model = null } = {}) {
     super({ provider: 'firebase-ai-logic/google-ai', model: model || DEFAULT_MODEL });
     this.explicitModel = model;
-    this._model = null;
+    this._runtime = null;
+    this._models = new Map();
   }
 
-  async _loadModel() {
-    if (this._model) return this._model;
+  async _loadRuntime() {
+    if (this._runtime) return this._runtime;
     try {
       const publicConfig = await loadPublicConfig();
       if (publicConfig.enabled === false) {
@@ -114,77 +257,129 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
       }
 
       const ai = aiModule.getAI(modularApp, { backend: new aiModule.GoogleAIBackend() });
-      this._model = aiModule.getGenerativeModel(ai, {
-        model: this.model,
-        tools: [{ urlContext: {} }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseJsonSchema: MUSIC_AI_RESPONSE_JSON_SCHEMA,
-          temperature: 0.1
-        },
-        systemInstruction: `Você estrutura dados de músicas para o IDE Music. Responda somente no schema ${MUSIC_AI_SCHEMA_VERSION}. Não invente nome, artista, tom, BPM, compasso, cifra, letra ou vídeo. Quando não houver evidência suficiente, use null ou lista vazia.
-
-A entrada pode ser um link do YouTube, uma URL de cifra/fonte, uma cifra ou texto colado, ou apenas nome da música + artista. Quando a entrada for apenas nome/artista, trate-a como uma identificação da música e use somente conhecimento do modelo de alta confiança para sugerir título, artista, tom, BPM e estrutura harmônica. Marque a proveniência desses campos como "conhecimento do modelo; revisar". Nesse modo, não invente link ou ID do YouTube e não gere letra completa; video deve ficar null salvo se houver uma URL explícita fornecida pelo usuário.
-
-A cifra do IDE Music é COMPACTA e ORIENTATIVA, não uma transcrição integral da página de cifra. Remova cabeçalhos do site, menus, anúncios, créditos, navegação, comentários e qualquer texto que não faça parte da execução musical. Em chordSheet e em sections, NÃO copie a letra inteira.
-
-Regra de detalhamento: se uma seção musical tiver até 5 acordes efetivos, resuma em uma única linha usando uma pequena referência da letra e a progressão. Se a seção tiver mais de 5 acordes efetivos, divida-a em várias linhas curtas, preservando a ordem musical. Cada linha deve usar normalmente 2 ou 3 palavras da letra como referência visual e cerca de 3 a 5 acordes correspondentes àquela frase. Exemplo de formato: "Refrão:\nNo altar - B  F#/B  B\nJesus, Filho - E  B/D#  F#4\n\nDeixou a Sua - G#m  F#/A#  B\nJesus, Filho - E  B/D#  F#4". Em partes puramente instrumentais, retorne apenas os acordes. Use cabeçalhos naturais como "Intro:", "Estrofe:", "Pré-Refrão:", "Refrão:", "Ponte:", "Instrumental:", "Solo:", "Interlúdio:" e "Final:" quando existirem.
-
-Quando houver blocos distintos dentro da mesma seção, preserve pequenas quebras de linha para facilitar leitura. Se uma progressão consecutiva for exatamente repetida dentro da mesma frase, não é necessário repeti-la. Se uma estrutura inteira se repetir mais tarde sem mudança musical relevante, como o mesmo Refrão ou a mesma Ponte, represente essa estrutura uma única vez na cifra. Estrofes diferentes podem permanecer como Estrofe 1, Estrofe 2 etc. O campo lyrics pode conter a letra identificada separadamente quando ela tiver sido fornecida pelo usuário; a compactação se aplica ao chordSheet e ao conteúdo de sections.
-
-O campo video deve representar um vídeo real da música, preferencialmente YouTube, encontrado incorporado ou referenciado dentro da página de cifra, ou explicitamente informado pelo usuário. Nunca use a URL da própria página de cifra como video.url. Em páginas de cifra, o vídeo pode não possuir href direto: procure também por thumbnails do YouTube em src/id/atributos, como https://i.ytimg.com/vi/VIDEO_ID/default.jpg ou https://i.ytimg.com/vi_webp/VIDEO_ID/default.webp. Quando encontrar esse padrão, extraia VIDEO_ID e retorne video.url como https://www.youtube.com/watch?v=VIDEO_ID, video.videoId como VIDEO_ID e provider como youtube. Se conseguir identificar apenas VIDEO_ID, retorne-o em video.videoId mesmo que video.url fique null. Se nenhum vídeo real for identificado, retorne video como null.
-
-Não faça scraping próprio nem tente contornar login, paywall, robots ou bloqueios de sites.`
-      }, { timeout: 45000 });
-      return this._model;
+      this._runtime = { ai, aiModule };
+      return this._runtime;
     } catch (error) {
       if (error instanceof MusicAIProviderError) throw error;
       throw new MusicAIProviderError(classifyError(error), 'Não foi possível inicializar o Firebase AI Logic.', error);
     }
   }
 
-  async analyzeSong(input) {
-    const model = await this._loadModel();
-    const prompt = [
+  async _loadModel(strategy = 'plain') {
+    if (this._models.has(strategy)) return this._models.get(strategy);
+    const { ai, aiModule } = await this._loadRuntime();
+    const isVideoLookup = strategy === 'videoLookup';
+    const modelParams = {
+      model: this.model,
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseJsonSchema: isVideoLookup ? VIDEO_LOOKUP_JSON_SCHEMA : MUSIC_AI_RESPONSE_JSON_SCHEMA,
+        temperature: 0.1
+      },
+      ...(strategy === 'url' || strategy === 'videoLookup' ? { tools: [{ urlContext: {} }] } : {}),
+      ...(!isVideoLookup ? { systemInstruction: buildSystemInstruction() } : {})
+    };
+    const model = aiModule.getGenerativeModel(ai, modelParams, { timeout: STRATEGY_TIMEOUTS[strategy] || 45000 });
+    this._models.set(strategy, model);
+    return model;
+  }
+
+  _buildPrompt(input) {
+    return [
       'Analise os dados fornecidos e retorne somente informações sustentadas pelo conteúdo ou, no modo nome/artista, por conhecimento do modelo de alta confiança.',
       input.sourceType ? `Tipo de entrada detectado pelo aplicativo: ${input.sourceType}.` : '',
-      input.songQuery ? `O usuário informou somente a identificação da música: ${input.songQuery}. Identifique a música e sugira os dados que você conhece com alta confiança. Não invente vídeo/ID do YouTube e não devolva letra completa.` : '',
-      input.sourceUrl ? `URL da página de cifra/fonte (use como fonte de análise, mas NUNCA como link de referência da música): ${input.sourceUrl}` : '',
-      input.sourceUrl ? 'Se essa página contiver um vídeo incorporado, link de vídeo ou thumbnail do YouTube, extraia o vídeo em video.url ou ao menos em video.videoId. Dê atenção especial a src como i.ytimg.com/vi/VIDEO_ID/... e i.ytimg.com/vi_webp/VIDEO_ID/...: nesses casos, construa https://www.youtube.com/watch?v=VIDEO_ID. Se não houver vídeo identificável, deixe video como null.' : '',
-      input.youtubeUrl ? `URL de vídeo de referência informada pelo usuário: ${input.youtubeUrl}. Use este próprio vídeo como video.url e extraia o videoId.` : '',
+      input.songQuery ? `O usuário informou somente a identificação da música: ${input.songQuery}. Identifique a música e sugira título, artista, tom, BPM e estrutura harmônica quando tiver alta confiança. Não invente vídeo e não devolva letra completa.` : '',
+      input.sourceUrl ? `URL da página de cifra/fonte: ${input.sourceUrl}. Use a página apenas como fonte; nunca use esta URL como link de vídeo.` : '',
+      input.sourceUrl ? 'Extraia nome, artista, tom e estrutura harmônica que estiverem claramente disponíveis. Se houver referência comprovável a vídeo do YouTube na própria página, ela pode ser retornada; não invente.' : '',
+      input.youtubeUrl ? 'Analise o vídeo fornecido como mídia. Tente identificar nome, artista, tom, BPM e estrutura harmônica apenas quando houver evidência suficiente no áudio/vídeo.' : '',
       input.manualBpm ? `BPM informado manualmente pelo usuário: ${input.manualBpm}. Marque bpmSource como manual.` : '',
       input.pastedText && !input.songQuery ? `Conteúdo colado pelo usuário:\n---\n${input.pastedText}\n---` : '',
-      'Para a cifra, gere o resumo do IDE Music: até 5 acordes efetivos na seção, uma linha compacta; acima de 5, use várias linhas de frase, cada uma com 2 ou 3 palavras da letra como pista e aproximadamente 3 a 5 acordes correspondentes. Preserve a sequência musical e não devolva a letra inteira no chordSheet nem em sections.',
-      'Se uma URL não puder ser acessada, continue somente com as demais informações fornecidas. Não invente dados ausentes.'
+      'Para a cifra, gere o resumo do IDE Music: até 5 acordes efetivos na seção, uma linha compacta; acima de 5, use várias linhas de frase, cada uma com 2 ou 3 palavras da letra como pista e aproximadamente 3 a 5 acordes correspondentes. Preserve a sequência musical.',
+      'Não invente dados ausentes.'
     ].filter(Boolean).join('\n\n');
+  }
 
-    try {
-      const primary = await generateStructuredJson(model, prompt);
+  async _analyzePrimary(input, strategy) {
+    const model = await this._loadModel(strategy);
+    const prompt = this._buildPrompt(input);
+    if (strategy === 'video') {
+      const videoPart = {
+        fileData: {
+          fileUri: input.youtubeUrl,
+          mimeType: 'video/*'
+        }
+      };
+      const data = await generateStructuredJson(model, [videoPart, prompt]);
+      return ensureExplicitYoutubeVideo(data, input);
+    }
+    return generateStructuredJson(model, prompt);
+  }
 
-      if (!shouldRetryEmbeddedVideoLookup({ input, data: primary })) return primary;
-
-      const identity = [primary.title, primary.artist].filter(Boolean).join(' — ');
-      const videoPrompt = [
-        'Faça uma SEGUNDA LEITURA da URL abaixo exclusivamente para localizar o clipe/vídeo incorporado à própria página. Não use busca externa, não escolha outro vídeo e não invente ID.',
-        `URL da cifra: ${input.sourceUrl}`,
-        identity ? `Música já identificada na primeira leitura: ${identity}. Use isso apenas para conferir que o clipe pertence à mesma música.` : '',
-        'No Cifra Club o clipe pode ser renderizado como um <button> sem href. O identificador do YouTube costuma aparecer em atributos do thumbnail, especialmente src de imagem no formato i.ytimg.com/vi/VIDEO_ID/... ou i.ytimg.com/vi_webp/VIDEO_ID/.... Procure especificamente esses recursos e também URLs youtube.com/watch, youtu.be e youtube.com/embed.',
-        'Se encontrar um VIDEO_ID comprovadamente presente na página, retorne video.provider="youtube", video.videoId=VIDEO_ID e video.url="https://www.youtube.com/watch?v=VIDEO_ID". Se só conseguir obter o ID, video.url pode ficar null. Se não houver evidência do vídeo na página, retorne video=null.',
-        'Mantenha os demais campos do schema vazios/nulos nesta segunda leitura; o objetivo é somente recuperar video.'
-      ].filter(Boolean).join('\n\n');
-
-      try {
-        const fallback = await generateStructuredJson(model, videoPrompt);
-        return mergeEmbeddedVideoLookup(primary, fallback);
-      } catch (videoError) {
-        console.warn('Segunda leitura do vídeo não encontrou evidência utilizável:', videoError?.code || videoError?.message || videoError);
-        return primary;
+  async _fallbackFromChordUrl(input, sourceError) {
+    const identity = extractSongIdentityFromChordUrl(input.sourceUrl);
+    if (!identity?.title || !identity?.artist) throw sourceError;
+    const model = await this._loadModel('plain');
+    const query = `${identity.title} — ${identity.artist}`;
+    const prompt = [
+      `A página de cifra não pôde ser lida diretamente. Use apenas a identidade inferida da própria URL: ${query}.`,
+      'Sugira título, artista, tom, BPM e estrutura harmônica apenas se tiver alta confiança. Não invente vídeo e não gere letra completa.',
+      'Marque a proveniência dos campos sugeridos como "fallback pelo nome na URL; revisar".'
+    ].join('\n\n');
+    const fallback = await generateStructuredJson(model, prompt);
+    return {
+      ...fallback,
+      title: fallback.title || identity.title,
+      artist: fallback.artist || identity.artist,
+      provenance: {
+        ...(fallback.provenance || {}),
+        title: fallback?.provenance?.title || 'nome inferido da URL da cifra',
+        artist: fallback?.provenance?.artist || 'artista inferido da URL da cifra'
       }
+    };
+  }
+
+  async _lookupEmbeddedVideo(input, primary) {
+    if (!shouldRetryEmbeddedVideoLookup({ input, data: primary })) return primary;
+    const identity = [primary.title, primary.artist].filter(Boolean).join(' — ');
+    const model = await this._loadModel('videoLookup');
+    const videoPrompt = [
+      'Leia a URL exclusivamente para localizar um vídeo do YouTube comprovadamente incorporado ou referenciado na própria página. Não use busca externa e não invente ID.',
+      `URL da cifra: ${input.sourceUrl}`,
+      identity ? `Música identificada: ${identity}.` : '',
+      'No Cifra Club o ID pode aparecer em thumbnails como i.ytimg.com/vi/VIDEO_ID/... ou i.ytimg.com/vi_webp/VIDEO_ID/..., além de youtube.com/watch, youtu.be e youtube.com/embed.',
+      'Retorne videoId e videoUrl. Se não encontrar evidência suficiente, retorne ambos como null.'
+    ].filter(Boolean).join('\n\n');
+    try {
+      const fallback = await generateStructuredJson(model, videoPrompt);
+      return mergeEmbeddedVideoLookup(primary, fallback);
     } catch (error) {
-      if (error instanceof MusicAIProviderError) throw error;
-      throw new MusicAIProviderError(classifyError(error), 'A análise com IA não pôde ser concluída.', error);
+      console.warn('Busca complementar do vídeo não encontrou evidência utilizável:', error?.code || error?.message || error);
+      return primary;
+    }
+  }
+
+  async analyzeSong(input) {
+    const strategy = selectMusicAIStrategy(input);
+    try {
+      let primary;
+      try {
+        primary = await this._analyzePrimary(input, strategy);
+      } catch (error) {
+        if (strategy !== 'url' || !extractSongIdentityFromChordUrl(input.sourceUrl)) throw error;
+        console.warn('Leitura direta da página falhou; usando identidade da URL como fallback:', error?.code || error?.message || error);
+        primary = await this._fallbackFromChordUrl(input, error);
+      }
+
+      if (strategy === 'video') return ensureExplicitYoutubeVideo(primary, input);
+      if (strategy === 'url') return this._lookupEmbeddedVideo(input, primary);
+      return primary;
+    } catch (error) {
+      if (error instanceof MusicAIProviderError && ['DISABLED', 'APP_CHECK_CONFIG', 'FIREBASE_NOT_READY'].includes(error.code)) throw error;
+      const code = error instanceof MusicAIProviderError ? error.code : classifyError(error);
+      throw new MusicAIProviderError(code, friendlyAnalysisError(code, strategy), error);
     }
   }
 }
 
+export { emptyMusicResponse };
 export default FirebaseMusicAIProvider;
