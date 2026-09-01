@@ -238,6 +238,8 @@ export function mergeVideoAndChordSource(videoData = {}, chordData = {}, source 
     title: videoData.title || chordData.title || null,
     artist: videoData.artist || chordData.artist || null,
     originalKey: chordData.originalKey || videoData.originalKey || null,
+    chordFormKey: chordData.chordFormKey || videoData.chordFormKey || null,
+    capoFret: chordData.capoFret ?? videoData.capoFret ?? null,
     chordSheet: chordData.chordSheet || videoData.chordSheet || null,
     sections: chordSections || [],
     timeSignature: videoData.timeSignature || chordData.timeSignature || null,
@@ -251,7 +253,8 @@ export function mergeVideoAndChordSource(videoData = {}, chordData = {}, source 
       ...(videoData.provenance || {}),
       ...(chordData.provenance || {}),
       ...(sourceUrl ? { chordSheet: `${sourceLabel}: ${sourceUrl}` } : {}),
-      ...(sourceUrl && chordData.originalKey ? { originalKey: `${sourceLabel}: ${sourceUrl}` } : {})
+      ...(sourceUrl && chordData.originalKey ? { originalKey: `${sourceLabel}: ${sourceUrl}` } : {}),
+      ...(sourceUrl && chordData.capoFret !== null && chordData.capoFret !== undefined ? { capoFret: `${sourceLabel}: ${sourceUrl}` } : {})
     }
   };
 }
@@ -287,6 +290,8 @@ function emptyMusicResponse(overrides = {}) {
     title: null,
     artist: null,
     originalKey: null,
+    chordFormKey: null,
+    capoFret: null,
     chordSheet: null,
     lyrics: null,
     sections: [],
@@ -321,13 +326,17 @@ async function generateStructuredJson(model, content) {
 }
 
 function buildSystemInstruction() {
-  return `Você estrutura dados de músicas para o IDE Music. Responda somente no schema ${MUSIC_AI_SCHEMA_VERSION}. Não invente nome, artista, tom, BPM, compasso, cifra, letra ou vídeo. Quando não houver evidência suficiente, use null ou lista vazia.
+  return `Você estrutura dados de músicas para o IDE Music. Responda somente no schema ${MUSIC_AI_SCHEMA_VERSION}. Não invente nome, artista, tom, BPM, compasso, capotraste, cifra, letra ou vídeo. Quando não houver evidência suficiente, use null ou lista vazia.
 
-A entrada pode ser um link do YouTube, uma URL de cifra/fonte, uma cifra ou texto colado, ou apenas nome da música + artista. Quando a entrada for apenas nome/artista, trate-a como uma identificação da música e use somente conhecimento do modelo de alta confiança para sugerir título, artista, tom, BPM e estrutura harmônica. Marque a proveniência desses campos como "conhecimento do modelo; revisar". Nesse modo, não invente link ou ID do YouTube e não gere letra completa.
+A entrada pode ser um link do YouTube, uma URL de cifra/fonte, uma cifra ou texto colado, ou apenas nome da música + artista. Quando a entrada for apenas nome/artista, trate-a como uma identificação da música e use somente conhecimento do modelo de alta confiança para sugerir título, artista, tom, BPM e estrutura harmônica. Marque a proveniência desses campos como "conhecimento do modelo; revisar". Nesse modo, não invente link ou ID do YouTube, capotraste ou letra completa.
+
+REGRA DE TOM E CAPOTRASTE: originalKey é SEMPRE o tom musical real/soante declarado pela fonte, nunca o tom deduzido apenas pelas formas dos acordes exibidos. Se uma página disser, por exemplo, "Tom: Db (com forma de C)" e "Capotraste: 1ª casa", retorne originalKey="Db", chordFormKey="C" e capoFret=1. Se não houver capotraste, capoFret deve ser null. Não converta Db para C só porque os desenhos/acordes estão na forma de C.
 
 A cifra do IDE Music é COMPACTA e ORIENTATIVA, não uma transcrição integral da página de cifra. Remova cabeçalhos do site, menus, anúncios, créditos, navegação, comentários e qualquer texto que não faça parte da execução musical. Em chordSheet e em sections, NÃO copie a letra inteira.
 
-Regra de detalhamento: se uma seção musical tiver até 5 acordes efetivos, resuma em uma única linha usando uma pequena referência da letra e a progressão. Se a seção tiver mais de 5 acordes efetivos, divida-a em várias linhas curtas, preservando a ordem musical. Cada linha deve usar normalmente 2 ou 3 palavras da letra como referência visual e cerca de 3 a 5 acordes correspondentes àquela frase. Em partes puramente instrumentais, retorne apenas os acordes. Use cabeçalhos naturais como "Intro:", "Estrofe:", "Pré-Refrão:", "Refrão:", "Ponte:", "Instrumental:", "Solo:", "Interlúdio:" e "Final:" quando existirem.
+PADRÃO IDE MUSIC: preserve a relação entre cada pequena pista de letra e os acordes que realmente pertencem àquela frase. Uma linha válida é algo como "Tu és o - Am7", "Tu és Rei - G" ou "És o Senhor - F9  Dm7". Nunca devolva somente "Tu és", "Grandes coisas" ou "Não há" quando a fonte possui acordes para essas frases. Não junte todos os acordes de uma seção em uma progressão única se isso apagar onde as mudanças harmônicas acontecem.
+
+Regra de detalhamento: se uma seção musical tiver até 5 acordes efetivos, ela pode ser resumida em uma única linha quando isso não perder a relação letra/acorde. Se a seção tiver mais de 5 acordes efetivos, divida-a em várias linhas curtas, preservando a ordem musical e as mudanças de acorde. Cada linha deve usar normalmente 2 ou 3 palavras da letra como referência visual e os acordes correspondentes àquela frase. Em partes puramente instrumentais, preserve a sequência de acordes, inclusive repetições que tenham função de contagem/forma. Use cabeçalhos naturais como "Intro:", "Estrofe:", "Pré-Refrão:", "Refrão:", "Ponte:", "Instrumental:", "Solo:", "Interlúdio:" e "Final:" quando existirem.
 
 Quando houver blocos distintos dentro da mesma seção, preserve pequenas quebras de linha para facilitar leitura. Se uma estrutura inteira se repetir mais tarde sem mudança musical relevante, represente essa estrutura uma única vez. Estrofes diferentes podem permanecer como Estrofe 1, Estrofe 2 etc.
 
@@ -407,16 +416,18 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
   }
 
   _buildPrompt(input) {
+    const sourceIsCifraClub = Boolean(input.sourceUrl && isCifraClubUrl(input.sourceUrl));
     return [
       'Analise os dados fornecidos e retorne somente informações sustentadas pelo conteúdo ou, no modo nome/artista, por conhecimento do modelo de alta confiança.',
       input.sourceType ? `Tipo de entrada detectado pelo aplicativo: ${input.sourceType}.` : '',
-      input.songQuery ? `O usuário informou somente a identificação da música: ${input.songQuery}. Identifique a música e sugira título, artista, tom, BPM e estrutura harmônica quando tiver alta confiança. Não invente vídeo e não devolva letra completa.` : '',
+      input.songQuery ? `O usuário informou somente a identificação da música: ${input.songQuery}. Identifique a música e sugira título, artista, tom, BPM e estrutura harmônica quando tiver alta confiança. Não invente vídeo, capotraste e não devolva letra completa.` : '',
       input.sourceUrl ? `URL da página de cifra/fonte: ${input.sourceUrl}. Use a página apenas como fonte; nunca use esta URL como link de vídeo.` : '',
-      input.sourceUrl ? 'Extraia nome, artista, tom e estrutura harmônica que estiverem claramente disponíveis. Se houver referência comprovável a vídeo do YouTube na própria página, ela pode ser retornada; não invente.' : '',
+      sourceIsCifraClub ? 'Esta é uma página do Cifra Club. Leia explicitamente os campos "Tom", "Capotraste" e, quando existir, a indicação "com forma de". originalKey deve ser o valor de "Tom"; chordFormKey deve ser a forma indicada; capoFret deve ser o número da casa do capotraste.' : '',
+      input.sourceUrl ? 'Extraia nome, artista, tom real e estrutura harmônica que estiverem claramente disponíveis. Para sections, preserve pequenas pistas da letra JUNTO dos acordes correspondentes de cada frase. Se houver referência comprovável a vídeo do YouTube na própria página, ela pode ser retornada; não invente.' : '',
       input.youtubeUrl ? 'Analise o vídeo fornecido como mídia. Tente identificar nome, artista, tom, BPM e estrutura harmônica apenas quando houver evidência suficiente no áudio/vídeo.' : '',
       input.manualBpm ? `BPM informado manualmente pelo usuário: ${input.manualBpm}. Marque bpmSource como manual.` : '',
       input.pastedText && !input.songQuery ? `Conteúdo colado pelo usuário:\n---\n${input.pastedText}\n---` : '',
-      'Para a cifra, gere o resumo do IDE Music: até 5 acordes efetivos na seção, uma linha compacta; acima de 5, use várias linhas de frase, cada uma com 2 ou 3 palavras da letra como pista e aproximadamente 3 a 5 acordes correspondentes. Preserve a sequência musical.',
+      'Para a cifra, siga o padrão IDE Music: não devolva apenas a pista da letra. Toda linha vocal precisa carregar os acordes que pertencem àquela frase. Se a seção passar de 5 acordes, prefira várias linhas curtas (pista de 2 ou 3 palavras + acordes correspondentes) em vez de uma progressão única. Preserve repetições instrumentais relevantes.',
       'Não invente dados ausentes.'
     ].filter(Boolean).join('\n\n');
   }
@@ -445,12 +456,14 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
     const query = `${identity.title} — ${identity.artist}`;
     const prompt = [
       `A página de cifra não pôde ser lida diretamente. Use apenas a identidade inferida da própria URL: ${query}.`,
-      'Sugira título, artista, tom, BPM e estrutura harmônica apenas se tiver alta confiança. Não invente vídeo e não gere letra completa.',
+      'Sugira título, artista, tom, BPM e estrutura harmônica apenas se tiver alta confiança. Não invente vídeo, capotraste, forma de acorde e não gere letra completa.',
       'Marque a proveniência dos campos sugeridos como "fallback pelo nome na URL; revisar".'
     ].join('\n\n');
     const fallback = await generateStructuredJson(model, prompt);
     return {
       ...fallback,
+      capoFret: null,
+      chordFormKey: null,
       title: fallback.title || identity.title,
       artist: fallback.artist || identity.artist,
       provenance: {
@@ -484,12 +497,16 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
   async _readChordCandidate(candidate, identity, input) {
     const model = await this._loadModel('url');
     notifyProgress(input, 'chord-source', `Procurando uma cifra compatível em ${candidate.label}…`);
+    const cifraClubRules = candidate.provider === 'cifraclub'
+      ? 'No Cifra Club, leia os campos "Tom", "Capotraste" e "com forma de". O tom real declarado em "Tom" vai para originalKey; a forma vai para chordFormKey; a casa do capotraste vai para capoFret. Não confunda forma de acorde com tom real.'
+      : '';
     const prompt = [
       `Leia esta URL como possível cifra para ${identity.title} — ${identity.artist}: ${candidate.url}`,
       'Use exclusivamente o conteúdo realmente recuperado da URL para a estrutura harmônica.',
-      'Se a página não corresponder à música e ao artista esperados, retorne chordSheet null, sections vazias e originalKey null.',
-      'Se corresponder, extraia o tom original e organize a cifra no padrão compacto do IDE Music. Não copie a letra completa.'
-    ].join('\n\n');
+      cifraClubRules,
+      'Se a página não corresponder à música e ao artista esperados, retorne chordSheet null, sections vazias, originalKey null, chordFormKey null e capoFret null.',
+      'Se corresponder, organize a cifra no padrão IDE Music. Em sections, associe cada pequena pista vocal aos acordes reais daquela frase; não retorne linhas vocais sem acorde quando a página mostra o acorde. Se uma seção tiver mais de 5 acordes, mantenha várias linhas curtas. Em Intro/Instrumental/Final, preserve a progressão e repetições relevantes. Não copie a letra completa.'
+    ].filter(Boolean).join('\n\n');
     const result = await generateStructuredResult(model, prompt);
     if (!urlContextRetrievedSuccessfully(result.urlContextMetadata, candidate.url)) return null;
     if (!chordResultMatchesIdentity(result.data, identity)) return null;
