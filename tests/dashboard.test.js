@@ -114,9 +114,13 @@ test('index.html contém somente as áreas pessoais solicitadas no Dashboard', (
     'dashboard-upcoming-schedules',
     'dashboard-upcoming-setlists',
     'dashboard-upcoming-unavailability',
-    'dashboard-user-indicators'
+    'dashboard-user-indicators',
+    'dashboard-schedules-title-link',
+    'dashboard-setlists-title-link',
+    'dashboard-unavailability-title-link'
   ].forEach(id => assert.match(html, new RegExp(`id="${id}"`)));
   assert.match(html, /Dashboard — IDE Music/);
+  assert.match(html, /class="ide-dashboard-card__title-link"/);
   assert.doesNotMatch(html, /dashboard-upcoming-events/);
   assert.doesNotMatch(html, /dashboard-quick-actions/);
   assert.doesNotMatch(html, /dashboard-admin-indicators/);
@@ -124,14 +128,20 @@ test('index.html contém somente as áreas pessoais solicitadas no Dashboard', (
   assert.doesNotMatch(html, /id="search-input"/);
 });
 
-test('Indicadores pessoais do Dashboard navegam com os filtros do usuário', () => {
+test('Indicadores e títulos pessoais do Dashboard navegam com os filtros do usuário', () => {
   const script = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'modules', 'dashboard-page.js'), 'utf8');
   const unavailability = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'modules', 'unavailability-page.js'), 'utf8');
 
   assert.match(script, /element\('a', 'ide-dashboard-indicator'\)/);
+  assert.match(script, /function personalDestinations\(profile\)/);
   assert.match(script, /module\.html\?section=schedules&person=\$\{encodeURIComponent\(userId\)\}&from=\$\{today\}/);
   assert.match(script, /setlists\.html\?view=upcoming&participant=\$\{encodeURIComponent\(participant\)\}/);
   assert.match(script, /module\.html\?section=unavailability&user=\$\{encodeURIComponent\(userId\)\}&future=1/);
+  assert.match(script, /function configureSectionLinks\(profile\)/);
+  assert.match(script, /dashboard-schedules-title-link/);
+  assert.match(script, /dashboard-setlists-title-link/);
+  assert.match(script, /dashboard-unavailability-title-link/);
+  assert.match(script, /configureSectionLinks\(viewModel\.profile\)/);
   assert.match(script, /renderUserIndicators\(viewModel\.userIndicators, viewModel\.profile\)/);
 
   assert.match(unavailability, /const params = new URLSearchParams\(scope\.location\.search\)/);
@@ -146,6 +156,8 @@ test('Dashboard possui layout responsivo e usa tokens do Design System', () => {
   assert.match(css, /@media \(max-width: 520px\)/);
   assert.match(css, /var\(--ide-background\)/);
   assert.match(css, /\.ide-dashboard-indicator:hover/);
+  assert.match(css, /\.ide-dashboard-card__title-link:hover/);
+  assert.match(css, /\.ide-dashboard-card__title-link:focus-visible/);
   assert.match(css, /cursor: pointer/);
   assert.doesNotMatch(css, /#[0-9a-f]{3,8}\b/i);
 });
