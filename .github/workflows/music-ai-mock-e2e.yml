@@ -1,0 +1,91 @@
+name: 🤖 Music AI Mock E2E
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'src/js/pages/song-form.js'
+      - 'src/services/music-ai-*.js'
+      - 'src/styles/music-ai-import.css'
+      - 'src/repositories/music-repository.js'
+      - 'tests/music-ai-*.js'
+      - 'tests/music-ai-*.cjs'
+      - '.github/workflows/music-ai-mock-e2e.yml'
+      - 'Makefile'
+
+concurrency:
+  group: music-ai-mock-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  music_ai_mock_e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: 📂 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔑 Authenticate Firebase service account
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
+
+      - name: 🏗️ Build branch under test
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          VITE_FIREBASE_APPCHECK_SITE_KEY: ''
+          VITE_FIREBASE_AI_MODEL: gemini-3.5-flash-lite
+        run: npm run build
+
+      - name: 🌐 Install Playwright E2E dependencies
+        run: |
+          set -euo pipefail
+          npm install --no-save playwright@1.55.0 firebase-admin@13.4.0
+          npx playwright install --with-deps chromium
+
+      - name: 🔥 Start local Hosting preview
+        run: |
+          set -euo pipefail
+          npx firebase serve --only hosting --project louvor-ide --host 127.0.0.1 --port 5000 > /tmp/music-ai-firebase.log 2>&1 &
+          echo $! > /tmp/music-ai-firebase.pid
+          for attempt in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:5000/login.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/music-ai-firebase.log
+          exit 1
+
+      - name: 🎭 Run mocked provider E2E
+        env:
+          E2E_BASE_URL: http://127.0.0.1:5000
+          FIREBASE_PROJECT_ID: louvor-ide
+        run: node tests/music-ai-mock.e2e.cjs
+
+      - name: 📜 Print Hosting preview log on failure
+        if: failure()
+        run: cat /tmp/music-ai-firebase.log || true
+
+      - name: 🧹 Stop local Hosting preview
+        if: always()
+        run: |
+          if [ -f /tmp/music-ai-firebase.pid ]; then
+            kill "$(cat /tmp/music-ai-firebase.pid)" 2>/dev/null || true
+          fi
