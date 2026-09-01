@@ -62,13 +62,15 @@
       const uid = String(input.uid || '').trim();
       if (!uid) throw new TypeError('uid é obrigatório.');
       const now = this.clock();
+      const accessProfile = String(input.accessProfile || 'PARTICIPANT').trim().toUpperCase();
       const document = {
         uid,
         name: String(input.name || '').trim(),
         email: normalizeEmail(input.email),
         photoURL: input.photoURL || null,
         active: input.active !== false,
-        role: 'MEMBER',
+        role: accessProfile === 'ADMINISTRATOR' ? 'ADMIN' : 'MEMBER',
+        accessProfile,
         createdAt: now,
         updatedAt: now,
         lastAccessAt: input.lastAccessAt || null
@@ -79,7 +81,7 @@
     }
 
     async updateUser(id, patch) {
-      const allowed = ['name', 'email', 'photoURL', 'active'];
+      const allowed = ['name', 'email', 'photoURL', 'active', 'accessProfile', 'role'];
       const safe = {};
       allowed.forEach(key => {
         if (Object.prototype.hasOwnProperty.call(patch, key)) safe[key] = patch[key];
@@ -89,6 +91,7 @@
         safe.name = String(safe.name).trim();
         if (!safe.name) throw new TypeError('name é obrigatório.');
       }
+      if (safe.accessProfile != null) safe.accessProfile = String(safe.accessProfile).trim().toUpperCase();
       safe.updatedAt = this.clock();
       await this.users().doc(id).update(safe);
       return this.getUser(id);
@@ -136,14 +139,21 @@
       return [...desired];
     }
 
-    async replaceInitialPermissions(userId, permissionMap = {}) {
-      const now = this.clock();
+    normalizePermissionMap(permissionMap = {}) {
       const normalized = {};
-      const writes = [];
       for (const moduleName of PERMISSION_MODULES) {
         const requested = String(permissionMap[moduleName] || 'NONE').toUpperCase();
-        const level = PERMISSION_LEVELS.includes(requested) ? requested : 'NONE';
-        normalized[moduleName] = level;
+        normalized[moduleName] = PERMISSION_LEVELS.includes(requested) ? requested : 'NONE';
+      }
+      return normalized;
+    }
+
+    async replaceInitialPermissions(userId, permissionMap = {}) {
+      const now = this.clock();
+      const normalized = this.normalizePermissionMap(permissionMap);
+      const writes = [];
+      for (const moduleName of PERMISSION_MODULES) {
+        const level = normalized[moduleName];
         const id = permissionDocumentId(userId, moduleName);
         if (level === 'NONE') {
           writes.push(this.permissions().doc(id).delete().catch(error => {
@@ -166,6 +176,40 @@
       writes.push(this.users().doc(userId).update({ permissions: profilePermissions, updatedAt: now }));
       await Promise.all(writes);
       return normalized;
+    }
+
+    async assignAccessProfile(userId, accessProfile, permissionMap = {}) {
+      const profileId = String(accessProfile || '').trim().toUpperCase();
+      if (!profileId) throw new TypeError('accessProfile é obrigatório.');
+      const current = await this.getUser(userId);
+      if (!current) throw new Error('Usuário não encontrado.');
+
+      const normalized = this.normalizePermissionMap(permissionMap);
+      const now = this.clock();
+      const batch = this.db.batch();
+
+      for (const moduleName of PERMISSION_MODULES) {
+        const level = normalized[moduleName];
+        const ref = this.permissions().doc(permissionDocumentId(userId, moduleName));
+        if (level === 'NONE') batch.delete(ref);
+        else batch.set(ref, { userId, module: moduleName, level, createdAt: now, updatedAt: now }, { merge: true });
+      }
+
+      const profilePermissions = Object.fromEntries(
+        Object.entries(normalized).filter(([, level]) => level !== 'NONE')
+      );
+      const role = current.role === 'SUPER_ADMIN'
+        ? 'SUPER_ADMIN'
+        : profileId === 'ADMINISTRATOR' ? 'ADMIN' : 'MEMBER';
+
+      batch.update(this.users().doc(userId), {
+        accessProfile: profileId,
+        role,
+        permissions: profilePermissions,
+        updatedAt: now
+      });
+      await batch.commit();
+      return this.getUser(userId);
     }
 
     async addAuditLog(actorUserId, action, entityId, details = {}) {
