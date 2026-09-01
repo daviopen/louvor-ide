@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 
 const { EventService } = require('../src/services/event-service');
 
-test('EventService.remove deletes a populated confirmed event when linked permissions allow it', async () => {
+test('EventService.remove deletes a populated confirmed event with edit access to Events', async () => {
   const deleted = [];
   const repository = {
     async getById(id) {
@@ -13,7 +13,7 @@ test('EventService.remove deletes a populated confirmed event when linked permis
   };
   const service = new EventService(repository);
   const result = await service.remove('e1', { uid: 'admin' }, null, {
-    access: { canManageLinked: true }
+    access: { canEdit: true, canManageLinked: true }
   });
 
   assert.equal(result, true);
@@ -29,14 +29,14 @@ test('EventService.remove also allows final events because deletion is explicit 
     async deleteEventBundle() { called = true; }
   };
   const service = new EventService(repository);
-  await service.remove('e2', { uid: 'admin' }, null, { access: { canManageLinked: true } });
+  await service.remove('e2', { uid: 'admin' }, null, { access: { canEdit: true, canManageLinked: true } });
   assert.equal(called, true);
 });
 
-test('EventService.remove still requires edit access to events, schedules and setlists', async () => {
+test('EventService.remove requires edit access to Events, without requiring manual edit in linked modules', async () => {
   const service = new EventService({});
   await assert.rejects(
-    () => service.remove('e1', { uid: 'user' }, null, { access: { canManageLinked: false } }),
-    /Excluir evento exige permissão de edição em Eventos, Escalas e Setlists/
+    () => service.remove('e1', { uid: 'user' }, null, { access: { canEdit: false, canManageLinked: false } }),
+    /Você não possui permissão de edição em Eventos/
   );
 });
