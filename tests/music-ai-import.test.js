@@ -124,7 +124,7 @@ test('detalha estrofe longa por blocos sem copiar a letra inteira', () => {
   ].join('\n'));
 });
 
-test('detalha refrão com mais de 5 acordes em pequenas frases', () => {
+test('detalha refrão com mais de 5 acordes em pequenas frases e elimina progressão consecutiva repetida', () => {
   const compact = compactSectionContent([
     'B',
     'No altar de adoração',
@@ -147,8 +147,7 @@ test('detalha refrão com mais de 5 acordes em pequenas frases', () => {
     'Jesus, Filho - E  B/D#  F#4',
     '',
     'Deixou a Sua - G#m  F#/A#  B',
-    'Jesus, Filho - E  B/D#  F#4',
-    'Tu és - E  B/D#  F#4'
+    'Jesus, Filho - E  B/D#  F#4'
   ].join('\n'));
 });
 
