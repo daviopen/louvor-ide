@@ -233,13 +233,27 @@ test('detalha estrofe longa preservando as mudanças harmônicas por frase', () 
     'Tu és - G',
     'És o Senhor - F9  Dm7',
     '',
-    'Tu és a - Am7',
+    'Tu és - Am7',
     'Esperança para - G',
-    'Tu és a - F9  Dm7'
+    'Tu és - F9  Dm7'
   ].join('\n'));
 });
 
-test('detalha refrão com mais de 5 acordes mantendo pista e acorde correspondentes', () => {
+test('detalha parte com mais de 5 acordes mantendo pista e acorde correspondentes', () => {
+  const compact = compactSectionContent([
+    'C9  G  F9',
+    'Ninguém é como nosso Deus',
+    'Am7  G  F9  G',
+    'Ninguém é como nosso Deus'
+  ].join('\n'), 'Pré-Refrão');
+
+  assert.equal(compact, [
+    'Ninguém é - C9  G  F9',
+    'Ninguém é - Am7  G  F9  G'
+  ].join('\n'));
+});
+
+test('mantém seção vocal com até 5 acordes em uma linha compacta', () => {
   const compact = compactSectionContent([
     'F9',
     'Grandes coisas estão por vir',
@@ -249,11 +263,7 @@ test('detalha refrão com mais de 5 acordes mantendo pista e acorde corresponden
     'Nesse lugar'
   ].join('\n'), 'Refrão');
 
-  assert.equal(compact, [
-    'Grandes coisas - F9',
-    'Grandes coisas - G',
-    'Nesse lugar - C9  G/B  F9'
-  ].join('\n'));
+  assert.equal(compact, 'Grandes coisas - F9  G  C9  G/B  F9');
 });
 
 test('preserva repetição instrumental relevante para execução', () => {
@@ -266,7 +276,7 @@ test('formata cabeçalho de capotraste com a forma da cifra', () => {
   assert.equal(formatCapoHeader({ capoFret: null, chordFormKey: 'C' }), '');
 });
 
-test('monta cifra compacta do IDE Music com capotraste e remove estruturas repetidas', () => {
+test('monta cifra do IDE Music com capotraste, detalhe por limite e sem estrutura duplicada', () => {
   const chordSheet = composeChordSheet({
     originalKey: 'Db',
     chordFormKey: 'C',
@@ -274,7 +284,8 @@ test('monta cifra compacta do IDE Music com capotraste e remove estruturas repet
     chordSheet: 'MENU DO SITE\nCifra copiada sem tratamento',
     sections: [
       { type: 'intro', label: 'Intro', content: 'Intro:\nAm7  G  F\nAm7  G  F' },
-      { type: 'verse', label: 'Verse', content: 'Am7\nTu és o Deus dessa terra\nG\nTu és Rei desse povo\nF9  Dm7\nÉs o Senhor da nação' },
+      { type: 'verse', label: 'Verse', content: 'Am7\nTu és o Deus dessa terra\nG\nTu és Rei desse povo\nF9  Dm7\nÉs o Senhor da nação\n\nAm7\nTu és a luz desse mundo\nG\nEsperança para os perdidos\nF9  Dm7\nTu és a paz pra os cansados' },
+      { type: 'pre_chorus', label: 'Pre-Chorus', content: 'C9  G  F9\nNinguém é como nosso Deus\nAm7  G  F9  G\nNinguém é como nosso Deus' },
       { type: 'chorus', label: 'Chorus', content: 'F9\nGrandes coisas estão por vir\nG\nGrandes coisas vão acontecer\nC9  G/B  F9\nNesse lugar' },
       { type: 'chorus', label: 'Chorus', content: 'F9\nGrandes coisas estão por vir\nG\nGrandes coisas vão acontecer\nC9  G/B  F9\nNesse lugar' }
     ]
@@ -283,8 +294,9 @@ test('monta cifra compacta do IDE Music com capotraste e remove estruturas repet
   assert.equal(chordSheet, [
     'Capotraste: 1ª casa (forma de C)',
     'Intro:\nAm7  G  F  Am7  G  F',
-    'Estrofe:\nTu és - Am7\nTu és - G\nÉs o Senhor - F9  Dm7',
-    'Refrão:\nGrandes coisas - F9\nGrandes coisas - G\nNesse lugar - C9  G/B  F9'
+    'Estrofe:\nTu és - Am7\nTu és - G\nÉs o Senhor - F9  Dm7\n\nTu és - Am7\nEsperança para - G\nTu és - F9  Dm7',
+    'Pré-Refrão:\nNinguém é - C9  G  F9\nNinguém é - Am7  G  F9  G',
+    'Refrão:\nGrandes coisas - F9  G  C9  G/B  F9'
   ].join('\n\n'));
   assert.doesNotMatch(chordSheet, /MENU DO SITE/);
   assert.equal((chordSheet.match(/Refrão:/g) || []).length, 1);
