@@ -13,6 +13,12 @@
   function entities(snapshot) { return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); }
   function setlistIdForSchedule(scheduleId) { return `setlist_${String(scheduleId || '').replace(/^schedule_/, '')}`; }
   function cloneItems(items) { return (items || []).map(item => ({ ...item })); }
+  function auditTimestamp(clock) {
+    const firebaseApi = typeof globalThis !== 'undefined' ? globalThis.firebase : null;
+    const fieldValue = firebaseApi && firebaseApi.firestore && firebaseApi.firestore.FieldValue;
+    if (fieldValue && typeof fieldValue.serverTimestamp === 'function') return fieldValue.serverTimestamp();
+    return clock();
+  }
 
   class SetlistRepository {
     constructor(database, options = {}) {
@@ -178,7 +184,7 @@
         entityType: 'setlist',
         entityId: setlistId,
         details: { scheduleId: current.scheduleId, eventId: current.eventId, songCount: songs.length },
-        createdAt: now
+        createdAt: auditTimestamp(this.clock)
       });
       await batch.commit();
       return { ...current, ...patch, id: setlistId, totalMusicas: songs.length, updatedBy: actorUserId, updatedAt: now };
