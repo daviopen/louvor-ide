@@ -3,7 +3,7 @@ export const MUSIC_AI_SCHEMA_VERSION = '1.0.0';
 export const MUSIC_AI_RESPONSE_JSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['schemaVersion', 'title', 'artist', 'originalKey', 'chordFormKey', 'capoFret', 'chordSheet', 'lyrics', 'sections', 'timeSignature', 'bpm', 'video', 'provenance'],
+  required: ['schemaVersion', 'title', 'artist', 'originalKey', 'chordFormKey', 'capoFret', 'theme', 'chordSheet', 'lyrics', 'sections', 'timeSignature', 'bpm', 'video', 'provenance'],
   properties: {
     schemaVersion: { type: 'string' },
     title: { type: ['string', 'null'] },
@@ -11,6 +11,10 @@ export const MUSIC_AI_RESPONSE_JSON_SCHEMA = {
     originalKey: { type: ['string', 'null'] },
     chordFormKey: { type: ['string', 'null'] },
     capoFret: { type: ['integer', 'null'], minimum: 0, maximum: 12 },
+    theme: {
+      type: ['string', 'null'],
+      description: 'Tema central da música em poucas palavras, inferido apenas quando houver evidência suficiente no conteúdo analisado.'
+    },
     chordSheet: { type: ['string', 'null'] },
     lyrics: { type: ['string', 'null'] },
     sections: {
@@ -43,7 +47,7 @@ export const MUSIC_AI_RESPONSE_JSON_SCHEMA = {
       additionalProperties: false,
       properties: {
         title: { type: ['string', 'null'] }, artist: { type: ['string', 'null'] }, originalKey: { type: ['string', 'null'] },
-        chordFormKey: { type: ['string', 'null'] }, capoFret: { type: ['string', 'null'] },
+        chordFormKey: { type: ['string', 'null'] }, capoFret: { type: ['string', 'null'] }, theme: { type: ['string', 'null'] },
         chordSheet: { type: ['string', 'null'] }, lyrics: { type: ['string', 'null'] }, timeSignature: { type: ['string', 'null'] }, bpm: { type: ['string', 'null'] }, video: { type: ['string', 'null'] }
       }
     }
@@ -111,6 +115,7 @@ export function normalizeMusicAIResponse(raw = {}) {
     originalKey: normalizeMusicalKey(raw.originalKey),
     chordFormKey: normalizeMusicalKey(raw.chordFormKey),
     capoFret: normalizeCapoFret(raw.capoFret),
+    theme: String(raw.theme || '').trim() || null,
     chordSheet: String(raw.chordSheet || '').trim() || null,
     lyrics: String(raw.lyrics || '').trim() || null,
     sections: Array.isArray(raw.sections) ? raw.sections.filter(Boolean).map(section => ({ type: section.type || 'other', label: String(section.label || '').trim() || null, content: String(section.content || '').trim() || null })) : [],
