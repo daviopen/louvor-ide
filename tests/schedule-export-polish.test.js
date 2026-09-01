@@ -42,6 +42,11 @@ test('schedule PDF footer is neutral, transparent and detached from generic foot
   assert.match(source, /PÁG\. ' counter\(ide-export-page\) ' • COMUNIDADE IDE/);
 });
 
+test('PDF footer Music uses the official IDE Music secondary violet', () => {
+  assert.match(source, /violet:\s*\[132,\s*120,\s*255\]/);
+  assert.match(source, /var\(--ide-color-violet-500,#8478ff\)/);
+});
+
 test('unavailability export groups repeated records by person with denser pagination and spacing', () => {
   assert.match(source, /const ABSENCE_PEOPLE_PER_PAGE = 10/);
   assert.match(source, /const groups = new Map\(\)/);
