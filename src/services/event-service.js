@@ -156,7 +156,9 @@
         ...levels,
         canRead: canReadLevel(levels.events),
         canEdit: levels.events === 'EDIT',
-        canManageLinked: levels.events === 'EDIT' && levels.schedules === 'EDIT' && levels.setlists === 'EDIT'
+        // O módulo Eventos é o proprietário do ciclo de vida automático do bundle.
+        // Isso não concede edição manual nos módulos Escalas ou Setlists.
+        canManageLinked: levels.events === 'EDIT'
       };
     }
 
@@ -170,9 +172,6 @@
       const id = actorId(actor);
       const access = options.access || await this.resolveAccess(actor, profile);
       if (!access.canEdit) throw new Error('Você não possui permissão de edição em Eventos.');
-      if (!access.canManageLinked) {
-        throw new Error('Criar evento exige permissão de edição em Eventos, Escalas e Setlists, pois as estruturas vinculadas são criadas automaticamente.');
-      }
       const document = normalizeEventInput(input, { forCreate: true });
       const requestId = requiredText(options.requestId || input.requestId, 'Identificador da criação', 100);
       return this.repository.createEventBundle(document, id, requestId);
@@ -202,9 +201,6 @@
         || String(current.status || 'PLANNED').toUpperCase() !== normalized.status
         || !current.scheduleId
         || !current.setlistId;
-      if (linkedChange && !access.canManageLinked) {
-        throw new Error('Alterar data, horário ou status exige permissão de edição em Eventos, Escalas e Setlists.');
-      }
       return this.repository.updateEventBundle(eventId, normalized, id, { syncLinked: linkedChange });
     }
 
@@ -217,9 +213,7 @@
     async remove(eventId, actor, profile, options = {}) {
       const id = actorId(actor);
       const access = options.access || await this.resolveAccess(actor, profile);
-      if (!access.canManageLinked) {
-        throw new Error('Excluir evento exige permissão de edição em Eventos, Escalas e Setlists.');
-      }
+      if (!access.canEdit) throw new Error('Você não possui permissão de edição em Eventos.');
       const current = await this.repository.getById(eventId);
       if (!current) throw new Error('Evento não encontrado.');
       await this.repository.deleteEventBundle(current, id);
