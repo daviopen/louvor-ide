@@ -9,6 +9,15 @@ const FIREBASE_AI_SDK_VERSION = '12.18.0';
 const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 const DEFAULT_TIMEOUT_MS = 30000;
 const REQUEST_COOLDOWN_MS = 3500;
+const TEXT_FALLBACK_BLOCKED_CODES = new Set([
+  'QUOTA',
+  'APP_CHECK',
+  'APP_CHECK_CONFIGURATION',
+  'CONFIGURATION',
+  'TIMEOUT',
+  'DUPLICATE',
+  'VALIDATION'
+]);
 
 let sdkPromise = null;
 
@@ -98,6 +107,12 @@ function classifyProviderError(error) {
     return new MusicAIProviderError('UNAVAILABLE', 'A IA está indisponível no momento. Continue pelo cadastro manual.', error);
   }
   return new MusicAIProviderError('FAILED', 'Não foi possível analisar a música com IA. Continue pelo cadastro manual.', error);
+}
+
+function canFallbackToPastedText(error, input) {
+  if (!input.sourceUrl || !input.pastedText) return false;
+  const classified = classifyProviderError(error);
+  return !TEXT_FALLBACK_BLOCKED_CODES.has(classified.code);
 }
 
 function requestFingerprint(input) {
@@ -308,7 +323,7 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
         try {
           return await this.analyzeOnce(normalizedInput);
         } catch (error) {
-          if (normalizedInput.sourceUrl && normalizedInput.pastedText) {
+          if (canFallbackToPastedText(error, normalizedInput)) {
             const fallbackInput = { ...normalizedInput, sourceUrl: '' };
             const fallback = await this.analyzeOnce(fallbackInput, { fallbackUsed: true });
             fallback.warnings = [
@@ -317,7 +332,7 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
             ];
             return fallback;
           }
-          throw error;
+          throw classifyProviderError(error);
         }
       } catch (error) {
         throw classifyProviderError(error);
