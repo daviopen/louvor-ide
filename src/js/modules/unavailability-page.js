@@ -20,7 +20,7 @@
 
   function el(id) { return scope.document.getElementById(id); }
   function escapeHtml(value) {
-    return String(value == null ? '' : value).replace(/[&<>'"]/g, char => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[char]));
+    return String(value == null ? '' : value).replace(/[&<>'\"]/g, char => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;' }[char]));
   }
   function toDate(value) { return scope.MusicIdeUnavailabilityService.toDate(value); }
   function dateKey(value) { return scope.MusicIdeUnavailabilityService.dateKey(value); }
@@ -114,6 +114,44 @@
     if (state.filterMonthKey) return records.filter(record => recordOverlapsMonth(record, state.filterMonthKey));
     const now = new Date();
     return records.filter(record => scope.MusicIdeUnavailabilityService.isFutureRecord(record, now));
+  }
+  function nextFutureOccurrence(records, now = new Date()) {
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
+    const horizon = new Date(today);
+    horizon.setMonth(horizon.getMonth() + 24);
+    let earliest = null;
+
+    records.forEach(record => {
+      if (!scope.MusicIdeUnavailabilityService.isFutureRecord(record, now)) return;
+      const start = toDate(record?.date);
+      const end = toDate(record?.endAt || record?.date);
+      if (!start || !end) return;
+
+      let probe = new Date(Math.max(
+        new Date(start.getFullYear(), start.getMonth(), start.getDate(), 12, 0, 0, 0).getTime(),
+        today.getTime()
+      ));
+      const recordEnd = isRecurring(record) && record.recurrence.openEnded
+        ? horizon
+        : new Date(end.getFullYear(), end.getMonth(), end.getDate(), 12, 0, 0, 0);
+      const limit = recordEnd < horizon ? recordEnd : horizon;
+      const maxSteps = isRecurring(record) ? 8 : 1;
+
+      for (let step = 0; step < maxSteps && probe <= limit; step += 1) {
+        if (scope.MusicIdeUnavailabilityService.dateInRange(record, probe)) {
+          if (!earliest || probe < earliest) earliest = new Date(probe);
+          break;
+        }
+        probe.setDate(probe.getDate() + 1);
+      }
+    });
+
+    return earliest;
+  }
+  function focusCalendarOnNextFutureRecord() {
+    const next = nextFutureOccurrence(personFilteredRecords());
+    if (!next) return;
+    state.month = new Date(next.getFullYear(), next.getMonth(), 1);
   }
   function toast(message, type = 'success') {
     const node = el('unavailability-toast');
@@ -542,6 +580,7 @@
     try {
       state.records = await service.list(scope.currentMusicIdeUser, scope.currentMusicIdeProfile, { access: state.access, all: state.access.canManageOthers });
       refreshMonthOptions({ autoSelect: initial });
+      if (!initial && keepAllFuture && !state.filterMonthKey) focusCalendarOnNextFutureRecord();
       renderList();
       renderCalendar();
     } catch (error) {
