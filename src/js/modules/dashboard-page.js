@@ -106,20 +106,28 @@
     });
   }
 
+  function indicatorLink(label, value, iconName, href) {
+    const link = element('a', 'ide-dashboard-indicator');
+    link.href = href;
+    link.setAttribute('aria-label', `${label}: ${value}. Abrir tela correspondente.`);
+    const arrow = element('i', 'fa-solid fa-chevron-right ide-dashboard-indicator__arrow');
+    arrow.setAttribute('aria-hidden', 'true');
+    link.append(icon(iconName), element('strong', '', value), element('span', '', label), arrow);
+    return link;
+  }
+
   function renderUserIndicators(indicators) {
     const container = scope.document.getElementById('dashboard-user-indicators');
     if (!container) return;
     container.textContent = '';
     const cards = [
-      ['Próximas escalas', indicators.upcomingSchedules, 'fa-people-group'],
-      ['Escalas pendentes', indicators.draftSchedules, 'fa-user-clock'],
-      ['Próximos setlists', indicators.upcomingSetlists, 'fa-list-check'],
-      ['Indisponibilidades futuras', indicators.upcomingUnavailability, 'fa-calendar-xmark']
+      ['Próximas escalas', indicators.upcomingSchedules, 'fa-people-group', 'module.html?section=schedules'],
+      ['Escalas pendentes', indicators.draftSchedules, 'fa-user-clock', 'module.html?section=schedules'],
+      ['Próximos setlists', indicators.upcomingSetlists, 'fa-list-check', 'setlists.html?view=upcoming'],
+      ['Indisponibilidades futuras', indicators.upcomingUnavailability, 'fa-calendar-xmark', 'module.html?section=unavailability']
     ];
-    cards.forEach(([label, value, iconName]) => {
-      const card = element('article', 'ide-dashboard-indicator');
-      card.append(icon(iconName), element('strong', '', value), element('span', '', label));
-      container.appendChild(card);
+    cards.forEach(([label, value, iconName, href]) => {
+      container.appendChild(indicatorLink(label, value, iconName, href));
     });
   }
 
