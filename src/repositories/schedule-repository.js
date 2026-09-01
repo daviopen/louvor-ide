@@ -81,6 +81,13 @@
     return slots;
   }
 
+  function auditTimestamp(clock) {
+    const firebaseApi = typeof globalThis !== 'undefined' ? globalThis.firebase : null;
+    const fieldValue = firebaseApi && firebaseApi.firestore && firebaseApi.firestore.FieldValue;
+    if (fieldValue && typeof fieldValue.serverTimestamp === 'function') return fieldValue.serverTimestamp();
+    return clock();
+  }
+
   class ScheduleRepository {
     constructor(database, options = {}) {
       if (!database || typeof database.collection !== 'function') throw new Error('Firestore é obrigatório para ScheduleRepository.');
@@ -230,7 +237,7 @@
     }
 
     async addAuditLog(actorUserId, action, entityId, details = {}) {
-      const createdAt = this.clock();
+      const createdAt = auditTimestamp(this.clock);
       const ref = await this.auditLogs().add({
         actorUserId,
         action,
