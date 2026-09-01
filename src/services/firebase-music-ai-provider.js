@@ -64,6 +64,13 @@ function hasVideoCandidate(data) {
   return Boolean(data?.video?.url || data?.video?.videoId);
 }
 
+function hasChordContent(data) {
+  return Boolean(
+    String(data?.chordSheet || '').trim()
+    || (Array.isArray(data?.sections) && data.sections.some(section => String(section?.content || '').trim()))
+  );
+}
+
 function hostnameOf(value) {
   try {
     return new URL(value).hostname.toLowerCase().replace(/^www\./, '');
@@ -88,6 +95,37 @@ function titleFromSlug(value) {
     .replace(/\s+/g, ' ')
     .trim()
     .replace(/(^|\s)(\p{L})/gu, (_, prefix, letter) => `${prefix}${letter.toLocaleUpperCase('pt-BR')}`);
+}
+
+export function slugifyChordPath(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+    .replace(/['’`´]/g, '')
+    .replace(/&/g, ' e ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-');
+}
+
+export function buildChordSourceCandidates(identity = {}) {
+  const artistSlug = slugifyChordPath(identity.artist);
+  const titleSlug = slugifyChordPath(identity.title);
+  if (!artistSlug || !titleSlug) return [];
+  const artistInitial = artistSlug.charAt(0);
+  return [
+    {
+      provider: 'cifraclub',
+      label: 'Cifra Club',
+      url: `https://www.cifraclub.com.br/${artistSlug}/${titleSlug}/`
+    },
+    {
+      provider: 'bananacifras',
+      label: 'Banana Cifras',
+      url: `https://www.bananacifras.com/cifra/${artistInitial}/${artistSlug}/${titleSlug}`
+    }
+  ];
 }
 
 export function extractSongIdentityFromChordUrl(value) {
@@ -125,6 +163,43 @@ export function shouldRetryEmbeddedVideoLookup({ input = {}, data = {} } = {}) {
   );
 }
 
+function comparableIdentity(value) {
+  return slugifyChordPath(value);
+}
+
+export function chordResultMatchesIdentity(data = {}, identity = {}) {
+  const expectedTitle = comparableIdentity(identity.title);
+  const expectedArtist = comparableIdentity(identity.artist);
+  if (!expectedTitle || !expectedArtist) return false;
+
+  const actualTitle = comparableIdentity(data.title);
+  const actualArtist = comparableIdentity(data.artist);
+  if (actualTitle && actualTitle !== expectedTitle) return false;
+  if (actualArtist && actualArtist !== expectedArtist) return false;
+  return true;
+}
+
+function normalizeUrlForComparison(value) {
+  try {
+    const url = new URL(value);
+    url.hash = '';
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return String(value || '').replace(/\/$/, '');
+  }
+}
+
+export function urlContextRetrievedSuccessfully(metadata, expectedUrl = '') {
+  const items = Array.isArray(metadata?.urlMetadata) ? metadata.urlMetadata : [];
+  const expected = normalizeUrlForComparison(expectedUrl);
+  return items.some(item => {
+    const status = String(item?.urlRetrievalStatus || '').toUpperCase();
+    const retrieved = normalizeUrlForComparison(item?.retrievedUrl || '');
+    const matches = !expected || !retrieved || retrieved === expected;
+    return status.includes('SUCCESS') && matches;
+  });
+}
+
 function videoFromLookup(fallback = {}) {
   if (hasVideoCandidate(fallback)) return fallback.video;
   const candidateUrl = String(fallback.videoUrl || '').trim() || null;
@@ -151,6 +226,36 @@ export function mergeEmbeddedVideoLookup(primary = {}, fallback = {}) {
   };
 }
 
+export function mergeVideoAndChordSource(videoData = {}, chordData = {}, source = {}) {
+  const sourceUrl = String(source?.url || '').trim() || null;
+  const sourceLabel = String(source?.label || '').trim() || 'fonte de cifra';
+  const chordSections = Array.isArray(chordData.sections) && chordData.sections.some(section => String(section?.content || '').trim())
+    ? chordData.sections
+    : videoData.sections;
+
+  return {
+    ...videoData,
+    title: videoData.title || chordData.title || null,
+    artist: videoData.artist || chordData.artist || null,
+    originalKey: chordData.originalKey || videoData.originalKey || null,
+    chordSheet: chordData.chordSheet || videoData.chordSheet || null,
+    sections: chordSections || [],
+    timeSignature: videoData.timeSignature || chordData.timeSignature || null,
+    bpm: videoData.bpm || chordData.bpm || null,
+    bpmSource: videoData.bpm ? (videoData.bpmSource || 'análise do vídeo') : (chordData.bpmSource || null),
+    lyrics: videoData.lyrics || null,
+    video: videoData.video || chordData.video || null,
+    chordSourceUrl: sourceUrl,
+    chordSourceProvider: source?.provider || null,
+    provenance: {
+      ...(videoData.provenance || {}),
+      ...(chordData.provenance || {}),
+      ...(sourceUrl ? { chordSheet: `${sourceLabel}: ${sourceUrl}` } : {}),
+      ...(sourceUrl && chordData.originalKey ? { originalKey: `${sourceLabel}: ${sourceUrl}` } : {})
+    }
+  };
+}
+
 function ensureExplicitYoutubeVideo(data = {}, input = {}) {
   if (!input.youtubeUrl) return data;
   const videoId = extractYouTubeVideoId(input.youtubeUrl);
@@ -167,6 +272,13 @@ function ensureExplicitYoutubeVideo(data = {}, input = {}) {
       video: 'URL do YouTube informada pelo usuário'
     }
   };
+}
+
+function notifyProgress(input, stage, message) {
+  if (typeof input?.onProgress !== 'function') return;
+  try {
+    input.onProgress({ stage, message });
+  } catch {}
 }
 
 function emptyMusicResponse(overrides = {}) {
@@ -187,15 +299,25 @@ function emptyMusicResponse(overrides = {}) {
   };
 }
 
-async function generateStructuredJson(model, content) {
+async function generateStructuredResult(model, content) {
   const result = await model.generateContent(content);
   const text = result?.response?.text?.() || '';
   if (!text) throw new MusicAIProviderError('INVALID_RESPONSE', 'A IA retornou uma resposta vazia.');
+  let data;
   try {
-    return JSON.parse(text);
+    data = JSON.parse(text);
   } catch (error) {
     throw new MusicAIProviderError('INVALID_RESPONSE', 'A IA retornou uma resposta que não pôde ser validada.', error);
   }
+  return {
+    data,
+    urlContextMetadata: result?.response?.candidates?.[0]?.urlContextMetadata || null
+  };
+}
+
+async function generateStructuredJson(model, content) {
+  const result = await generateStructuredResult(model, content);
+  return result.data;
 }
 
 function buildSystemInstruction() {
@@ -309,6 +431,7 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
           mimeType: 'video/*'
         }
       };
+      notifyProgress(input, 'video-analysis', 'Analisando o vídeo para identificar música, artista, tom e andamento…');
       const data = await generateStructuredJson(model, [videoPart, prompt]);
       return ensureExplicitYoutubeVideo(data, input);
     }
@@ -358,6 +481,50 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
     }
   }
 
+  async _readChordCandidate(candidate, identity, input) {
+    const model = await this._loadModel('url');
+    notifyProgress(input, 'chord-source', `Procurando uma cifra compatível em ${candidate.label}…`);
+    const prompt = [
+      `Leia esta URL como possível cifra para ${identity.title} — ${identity.artist}: ${candidate.url}`,
+      'Use exclusivamente o conteúdo realmente recuperado da URL para a estrutura harmônica.',
+      'Se a página não corresponder à música e ao artista esperados, retorne chordSheet null, sections vazias e originalKey null.',
+      'Se corresponder, extraia o tom original e organize a cifra no padrão compacto do IDE Music. Não copie a letra completa.'
+    ].join('\n\n');
+    const result = await generateStructuredResult(model, prompt);
+    if (!urlContextRetrievedSuccessfully(result.urlContextMetadata, candidate.url)) return null;
+    if (!chordResultMatchesIdentity(result.data, identity)) return null;
+    if (!hasChordContent(result.data)) return null;
+    return result.data;
+  }
+
+  async _enrichVideoWithChordSource(input, primary) {
+    const identity = {
+      title: String(primary?.title || '').trim(),
+      artist: String(primary?.artist || '').trim()
+    };
+    if (!identity.title || !identity.artist) {
+      notifyProgress(input, 'chord-fallback', 'Não foi possível identificar música e artista com segurança; mantendo a análise do vídeo.');
+      return primary;
+    }
+
+    notifyProgress(input, 'song-identified', `Música identificada: ${identity.title} — ${identity.artist}. Agora procurando uma cifra de referência…`);
+    const candidates = buildChordSourceCandidates(identity);
+
+    for (const candidate of candidates) {
+      try {
+        const chordData = await this._readChordCandidate(candidate, identity, input);
+        if (!chordData) continue;
+        notifyProgress(input, 'chord-found', `Cifra encontrada em ${candidate.label}. Organizando os dados no padrão do IDE Music…`);
+        return mergeVideoAndChordSource(primary, chordData, candidate);
+      } catch (error) {
+        console.warn(`Fonte de cifra indisponível (${candidate.label}):`, error?.code || error?.message || error);
+      }
+    }
+
+    notifyProgress(input, 'chord-fallback', 'Nenhuma cifra externa acessível foi confirmada. Usando a estrutura identificada diretamente no vídeo.');
+    return primary;
+  }
+
   async analyzeSong(input) {
     const strategy = selectMusicAIStrategy(input);
     try {
@@ -370,7 +537,10 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
         primary = await this._fallbackFromChordUrl(input, error);
       }
 
-      if (strategy === 'video') return ensureExplicitYoutubeVideo(primary, input);
+      if (strategy === 'video') {
+        const videoData = ensureExplicitYoutubeVideo(primary, input);
+        return this._enrichVideoWithChordSource(input, videoData);
+      }
       if (strategy === 'url') return this._lookupEmbeddedVideo(input, primary);
       return primary;
     } catch (error) {
