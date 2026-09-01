@@ -1,6 +1,14 @@
 import { BaseRepository } from './base-repository.js';
 import { COLLECTIONS } from '../constants/collections.js';
 
+function auditTimestamp() {
+  const fieldValue = typeof globalThis !== 'undefined'
+    ? globalThis.firebase?.firestore?.FieldValue
+    : null;
+  if (fieldValue && typeof fieldValue.serverTimestamp === 'function') return fieldValue.serverTimestamp();
+  return new Date();
+}
+
 /** Persistência canônica de músicas em `songs`. */
 export class MusicRepository extends BaseRepository {
   constructor(database = null) {
@@ -210,7 +218,7 @@ export class MusicRepository extends BaseRepository {
 
   async addAuditLog(actorUserId, action, entityId, details = {}) {
     const database = await this.getDatabase();
-    const createdAt = new Date();
+    const createdAt = auditTimestamp();
     const ref = await database.collection(COLLECTIONS.AUDIT_LOGS).add({
       actorUserId,
       action,
