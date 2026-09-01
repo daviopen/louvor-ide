@@ -4,6 +4,9 @@ import { normalizeMusicAIResponse, normalizeBpm, extractYouTubeVideoId } from '.
 const DUPLICATE_WINDOW_MS = 5000;
 const RATE_WINDOW_MS = 60000;
 const MAX_REQUESTS_PER_WINDOW = 4;
+const RETRY_DELAY_MS = 700;
+const FALLBACK_MODEL = 'gemini-3.7-flash';
+const RETRYABLE_PROVIDER_CODES = new Set(['UNAVAILABLE', 'TIMEOUT']);
 let activeRequest = null;
 let lastFingerprint = '';
 let lastStartedAt = 0;
@@ -177,9 +180,28 @@ function enrichNormalizedData(data, input) {
   return enriched;
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function notifyProgress(input, stage, message) {
+  if (typeof input?.onProgress !== 'function') return;
+  try {
+    input.onProgress({ stage, message });
+  } catch {}
+}
+
+function isRetryableProviderError(error) {
+  return RETRYABLE_PROVIDER_CODES.has(String(error?.code || '').toUpperCase());
+}
+
 export class MusicAIService {
-  constructor(provider = new FirebaseMusicAIProvider()) {
+  constructor(provider = new FirebaseMusicAIProvider(), { fallbackProvider = null } = {}) {
     this.provider = provider;
+    this.fallbackProvider = fallbackProvider;
+    if (!this.fallbackProvider && provider?.constructor === FirebaseMusicAIProvider) {
+      this.fallbackProvider = new FirebaseMusicAIProvider({ model: FALLBACK_MODEL });
+    }
   }
 
   validateInput(input = {}) {
@@ -216,6 +238,29 @@ export class MusicAIService {
     };
   }
 
+  async _analyzeWithResilience(providerInput) {
+    try {
+      const raw = await this.provider.analyzeSong(providerInput);
+      return { raw, provider: this.provider };
+    } catch (firstError) {
+      if (!isRetryableProviderError(firstError)) throw firstError;
+
+      notifyProgress(providerInput, 'retry', 'O serviço de IA respondeu com instabilidade. Tentando novamente…');
+      await sleep(RETRY_DELAY_MS);
+
+      try {
+        const raw = await this.provider.analyzeSong(providerInput);
+        return { raw, provider: this.provider };
+      } catch (secondError) {
+        if (!isRetryableProviderError(secondError) || !this.fallbackProvider) throw secondError;
+
+        notifyProgress(providerInput, 'fallback-model', 'A instabilidade continua. Tentando um modelo alternativo estável…');
+        const raw = await this.fallbackProvider.analyzeSong(providerInput);
+        return { raw, provider: this.fallbackProvider };
+      }
+    }
+  }
+
   async analyze(input = {}) {
     const { errors, normalized } = this.validateInput(input);
     if (errors.length) {
@@ -242,10 +287,10 @@ export class MusicAIService {
       ? { ...normalized, onProgress: input.onProgress }
       : normalized;
 
-    activeRequest = this.provider.analyzeSong(providerInput)
-      .then(raw => {
+    activeRequest = this._analyzeWithResilience(providerInput)
+      .then(({ raw, provider }) => {
         const data = enrichNormalizedData(normalizeMusicAIResponse(raw), normalized);
-        return { data, provider: this.provider.getMetadata(), input: normalized };
+        return { data, provider: provider.getMetadata(), input: normalized };
       })
       .finally(() => { activeRequest = null; });
     return activeRequest;
