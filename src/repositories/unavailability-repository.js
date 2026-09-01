@@ -3,16 +3,22 @@
  * Mantém detalhes do Firebase fora da página e do service.
  */
 (function initUnavailabilityRepository(globalScope, factory) {
-  const api = factory();
+  const api = factory(globalScope);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (globalScope) globalScope.MusicIdeUnavailabilityRepository = api;
-})(typeof window !== 'undefined' ? window : null, function createModule() {
+})(typeof window !== 'undefined' ? window : null, function createModule(globalScope) {
   function snapshotToEntity(snapshot) {
     return snapshot && snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null;
   }
 
   function mapSnapshot(snapshot) {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  }
+
+  function defaultServerTimestamp(clock) {
+    const fieldValue = globalScope?.firebase?.firestore?.FieldValue;
+    if (fieldValue && typeof fieldValue.serverTimestamp === 'function') return fieldValue.serverTimestamp();
+    return clock();
   }
 
   class UnavailabilityRepository {
@@ -22,6 +28,7 @@
       }
       this.db = database;
       this.clock = options.clock || (() => new Date());
+      this.serverTimestamp = options.serverTimestamp || (() => defaultServerTimestamp(this.clock));
     }
 
     collection() { return this.db.collection('unavailability'); }
@@ -81,16 +88,18 @@
     }
 
     async addAuditLog(actorUserId, action, entityId, details = {}) {
-      const now = this.clock();
+      // As Firestore Rules exigem createdAt == request.time. Usar Date do cliente
+      // faz a gravação principal ocorrer e a auditoria falhar com permission-denied.
+      const createdAt = this.serverTimestamp();
       const ref = await this.db.collection('auditLogs').add({
         actorUserId,
         action,
         entityType: 'unavailability',
         entityId,
         details,
-        createdAt: now
+        createdAt
       });
-      return { id: ref.id, actorUserId, action, entityType: 'unavailability', entityId, details, createdAt: now };
+      return { id: ref.id, actorUserId, action, entityType: 'unavailability', entityId, details, createdAt };
     }
   }
 
