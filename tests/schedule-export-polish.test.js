@@ -76,9 +76,9 @@ test('unavailability periods are clipped to the selected export month', () => {
   assert.equal(api.normalizeAbsencePeriod('19/09/2026', '2026-09'), '19/09/2026');
 });
 
-test('Exportar and Participações are permanent schedule navigation items', () => {
+test('Exportar permanece sob Escalas e Participações é restrito a administrador', () => {
   assert.match(appShell, /id: 'schedules-export'.*label: 'Exportar escalas'.*view=export.*permission: 'schedules'/s);
-  assert.match(appShell, /id: 'schedules-participation'.*label: 'Participações'.*view=participation.*permission: 'schedules'/s);
+  assert.match(appShell, /id: 'schedules-participation'.*label: 'Participações'.*view=participation.*adminOnly: true/s);
   assert.match(appShell, /scheduleView === 'export'\) return 'schedules-export'/);
   assert.match(appShell, /scheduleView === 'participation'\) return 'schedules-participation'/);
 });
