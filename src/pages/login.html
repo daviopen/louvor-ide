@@ -173,7 +173,7 @@
       transform: translateY(-1px);
     }
 
-    .google-button:focus-visible, .email-button:focus-visible, .forgot-button:focus-visible {
+    .google-button:focus-visible, .email-button:focus-visible, .forgot-button:focus-visible, .install-guide summary:focus-visible {
       outline: 3px solid var(--ide-primary-ring);
       outline-offset: 3px;
     }
@@ -286,8 +286,82 @@
       background: rgba(216, 255, 69, 0.38);
     }
 
+    .install-guide {
+      margin-top: var(--ide-space-6);
+      border: 1px solid rgba(17, 20, 21, 0.12);
+      border-radius: var(--ide-radius-lg);
+      background: var(--ide-color-neutral-50);
+      overflow: hidden;
+    }
+
+    .install-guide summary {
+      display: flex;
+      min-height: 52px;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--ide-space-3);
+      padding: 14px 16px;
+      color: var(--ide-color-neutral-900);
+      font-size: var(--ide-font-size-sm);
+      font-weight: var(--ide-font-weight-bold);
+      list-style: none;
+      cursor: pointer;
+    }
+
+    .install-guide summary::-webkit-details-marker { display: none; }
+    .install-guide summary::after {
+      content: "+";
+      flex: 0 0 auto;
+      color: var(--ide-color-neutral-600);
+      font-size: 1.35rem;
+      line-height: 1;
+    }
+
+    .install-guide[open] summary::after { content: "−"; }
+
+    .install-guide-intro {
+      display: block;
+      margin-top: 2px;
+      color: var(--ide-color-neutral-600);
+      font-size: var(--ide-font-size-xs);
+      font-weight: var(--ide-font-weight-medium);
+      line-height: var(--ide-line-height-normal);
+    }
+
+    .install-guide-content {
+      display: grid;
+      gap: var(--ide-space-5);
+      padding: 0 16px 16px;
+      border-top: 1px solid rgba(17, 20, 21, 0.08);
+    }
+
+    .install-platform { padding-top: var(--ide-space-4); }
+    .install-platform h3 {
+      margin: 0 0 var(--ide-space-3);
+      color: var(--ide-color-neutral-900);
+      font-size: var(--ide-font-size-sm);
+      font-weight: var(--ide-font-weight-extrabold);
+    }
+
+    .install-platform ol {
+      display: grid;
+      gap: 8px;
+      padding-left: 1.25rem;
+      color: var(--ide-color-neutral-700);
+      font-size: var(--ide-font-size-xs);
+      line-height: var(--ide-line-height-relaxed);
+    }
+
+    .install-platform a {
+      color: var(--ide-color-neutral-900);
+      font-weight: var(--ide-font-weight-bold);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      overflow-wrap: anywhere;
+    }
+
     .privacy-note {
-      margin-top: var(--ide-space-6) !important;
+      margin-top: var(--ide-space-5) !important;
       margin-bottom: 0 !important;
       color: var(--ide-color-neutral-700) !important;
       font-size: var(--ide-font-size-xs) !important;
@@ -304,6 +378,7 @@
       .brand-copy p { font-size: var(--ide-font-size-sm); }
       .access-panel { padding: 38px 28px 44px; }
       .access-panel > p { margin-bottom: var(--ide-space-6); }
+      .install-guide { margin-top: var(--ide-space-5); }
       .privacy-note { margin-top: var(--ide-space-5) !important; }
     }
 
@@ -353,6 +428,42 @@
       </form>
 
       <div id="auth-message" role="status" aria-live="polite" hidden></div>
+
+      <details class="install-guide">
+        <summary>
+          <span>
+            Instale o IDE Music no celular
+            <span class="install-guide-intro">Use como aplicativo, com ícone na tela inicial.</span>
+          </span>
+        </summary>
+        <div class="install-guide-content">
+          <section class="install-platform" aria-labelledby="install-ios-title">
+            <h3 id="install-ios-title">iPhone / iPad</h3>
+            <ol>
+              <li>Exclua o atalho antigo do IDE Music.</li>
+              <li>Abra <a href="https://louvor-ide.web.app/help.html">louvor-ide.web.app/help.html</a> no Safari.</li>
+              <li>Toque em <strong>Compartilhar</strong>.</li>
+              <li>Escolha <strong>Adicionar à Tela de Início</strong>.</li>
+              <li>Confirme o nome <strong>IDE Music</strong> e verifique a prévia da logo.</li>
+              <li>Toque em <strong>Adicionar</strong>.</li>
+              <li>Abra pela nova logo e confirme que o sistema inicia em tela cheia, sem a barra do Safari.</li>
+            </ol>
+          </section>
+
+          <section class="install-platform" aria-labelledby="install-android-title">
+            <h3 id="install-android-title">Android</h3>
+            <ol>
+              <li>Desinstale o app ou atalho antigo.</li>
+              <li>Abra <a href="https://louvor-ide.web.app/help.html">louvor-ide.web.app/help.html</a> no Chrome.</li>
+              <li>Toque no menu <strong>⋮</strong>.</li>
+              <li>Selecione <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</li>
+              <li>Confirme <strong>IDE Music</strong>.</li>
+              <li>Abra pelo novo ícone e confira se inicia como aplicativo.</li>
+            </ol>
+          </section>
+        </div>
+      </details>
+
       <p class="privacy-note">O acesso é mantido pelo Firebase Authentication. Novas contas são liberadas somente pela liderança.</p>
     </section>
   </main>
