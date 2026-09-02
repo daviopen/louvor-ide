@@ -25,6 +25,7 @@ const NOTE_INDEX = Object.freeze({
   'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11
 });
 const CHORD_TOKEN_RE = /^(?:[A-G](?:#|b)?)(?:(?:m|maj|min|dim|aug|sus|add|M)?(?:\d{0,2})?(?:[#b+\-º°()]*)?)(?:\/[A-G](?:#|b)?)?$/u;
+let pendingTheme = null;
 
 export { getMusicAIImportMetadata };
 
@@ -158,6 +159,7 @@ class EnhancedMusicAIService {
   async analyze(input) {
     const result = await this.service.analyze(input);
     const data = result?.data || {};
+    pendingTheme = String(data.theme || '').trim() || null;
     const sourceChordSheet = String(data.chordSheet || '').trim() || null;
     const canonicalChordSheet = escapeCueSeparatorsForLegacyFormatter(composeIdeMusicChordSheet(data));
 
@@ -198,10 +200,29 @@ function preserveCueSeparator() {
   });
 }
 
+function applyThemeAfterConfirmation() {
+  const panel = document.querySelector('.ai-import');
+  const applyButton = panel?.querySelector('.ai-import__apply');
+  const input = panel?.querySelector('#ai-universal-input');
+  if (!applyButton) return;
+
+  applyButton.addEventListener('click', () => {
+    const themeField = document.getElementById('tema');
+    if (pendingTheme && themeField) {
+      themeField.value = pendingTheme;
+      themeField.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    pendingTheme = null;
+  });
+
+  input?.addEventListener('input', () => { pendingTheme = null; });
+}
+
 export function mountMusicAIImport({ service = new MusicAIService() } = {}) {
   mountBaseMusicAIImport({ service: new EnhancedMusicAIService(service) });
   tunePanelForCifraClub();
   preserveCueSeparator();
+  applyThemeAfterConfirmation();
 }
 
 export default mountMusicAIImport;
