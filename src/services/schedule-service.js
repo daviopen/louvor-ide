@@ -63,6 +63,17 @@
     return ['NONE', 'READ', 'EDIT'].includes(level) ? level : 'NONE';
   }
 
+  async function readDependency(label, operation) {
+    try {
+      return await operation();
+    } catch (error) {
+      const contextual = new Error(`Não foi possível consultar ${label}: ${error?.message || 'acesso negado'}`);
+      contextual.code = error?.code;
+      contextual.cause = error;
+      throw contextual;
+    }
+  }
+
   function scheduleCompleteness(schedule, members) {
     const slots = Array.isArray(schedule?.slots) ? schedule.slots : [];
     const active = (members || []).filter(item => item.active !== false);
@@ -110,8 +121,12 @@
       const access = await this.resolveAccess(user, profile);
       if (!access.canRead) throw new Error('Você não possui permissão para consultar escalas.');
       const [schedules, users, functions, userFunctions, unavailability, members] = await Promise.all([
-        this.repository.listSchedules(), this.repository.listActiveUsers(), this.repository.listActiveFunctions(),
-        this.repository.listUserFunctions(), this.repository.listUnavailability(), this.repository.listAllMembers()
+        readDependency('escalas e eventos', () => this.repository.listSchedules()),
+        readDependency('pessoas da escala', () => this.repository.listActiveUsers()),
+        readDependency('funções ministeriais', () => this.repository.listActiveFunctions()),
+        readDependency('vínculos entre pessoas e funções', () => this.repository.listUserFunctions()),
+        readDependency('indisponibilidades', () => this.repository.listUnavailability()),
+        readDependency('participantes das escalas', () => this.repository.listAllMembers())
       ]);
       const membersBySchedule = new Map();
       members.forEach(member => {
