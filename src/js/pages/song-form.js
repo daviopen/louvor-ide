@@ -134,13 +134,25 @@ function getMinisterSelection() {
     .filter(item => item.selected);
 }
 
+function persistableAiMetadata(metadata) {
+  if (!metadata) return { importMethod: 'manual' };
+  const {
+    sourceChordSheet: _sourceChordSheet,
+    canonicalChordSheet: _canonicalChordSheet,
+    fieldConfidence: _fieldConfidence,
+    harmonicValidation: _harmonicValidation,
+    ...persistable
+  } = metadata;
+  return persistable;
+}
+
 function getData() {
   const selection = getMinisterSelection();
   const tomMinistro = {};
   selection.forEach(item => {
     if (item.preferredKey) tomMinistro[item.name] = item.preferredKey;
   });
-  const aiMetadata = getMusicAIImportMetadata();
+  const aiMetadata = persistableAiMetadata(getMusicAIImportMetadata());
 
   return {
     titulo: document.getElementById('titulo').value.trim(),
@@ -155,7 +167,7 @@ function getData() {
     ministros: selection.map(item => item.name),
     ministerUserIds: selection.map(item => item.userId),
     tomMinistro: Object.keys(tomMinistro).length ? tomMinistro : null,
-    ...(aiMetadata || { importMethod: 'manual' })
+    ...aiMetadata
   };
 }
 
