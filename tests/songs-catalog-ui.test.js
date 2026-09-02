@@ -69,4 +69,5 @@ test('catálogo oculta criação de música para perfil somente leitura', () => 
   assert.match(pageJs, /applyAccessUI\(profile/);
   assert.match(pageJs, /link\.hidden = !canEdit/);
   assert.match(pageJs, /this\.applyAccessUI\(readyProfile\)/);
+  assert.match(html, /\.songs-new-button\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
 });
