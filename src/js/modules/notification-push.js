@@ -60,13 +60,11 @@
     const tokenHash = await digest(token);
     const id = `${user.uid}__${tokenHash}`;
     const serverTimestamp = scope.firebase.firestore.FieldValue.serverTimestamp();
-    const ref = scope.firebase.firestore().collection('pushSubscriptions').doc(id);
-    const current = await ref.get();
-    await ref.set({
+    await scope.firebase.firestore().collection('pushSubscriptions').doc(id).set({
       userId: user.uid,
       token,
       enabled: true,
-      createdAt: current.exists ? current.data().createdAt || serverTimestamp : serverTimestamp,
+      createdAt: serverTimestamp,
       updatedAt: serverTimestamp
     }, { merge: true });
     return id;
@@ -76,7 +74,6 @@
     if (!supported()) return { status: 'UNSUPPORTED' };
     const user = scope.firebase.auth().currentUser;
     if (!user) return { status: 'NO_USER' };
-
     if (scope.Notification.permission === 'denied') return { status: 'DENIED' };
     if (scope.Notification.permission !== 'granted') {
       if (!options.requestPermission) return { status: 'PERMISSION_REQUIRED' };
