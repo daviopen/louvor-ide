@@ -1,31 +1,56 @@
-name: 🎭 Full-system Playwright E2E
+name: 🎭 Full-system Playwright E2E (staging only)
 
-# Executa produção real e consome Firestore/Auth. Somente sob solicitação explícita.
+# Este E2E cria/apaga fixtures e portanto é proibido contra produção.
+# Configure vars.E2E_BASE_URL, vars.E2E_FIREBASE_PROJECT_ID e
+# secrets.FIREBASE_SERVICE_ACCOUNT_E2E para um projeto de staging/teste.
 on:
   workflow_dispatch:
 
 concurrency:
-  group: full-system-playwright-e2e
+  group: full-system-playwright-e2e-staging
   cancel-in-progress: false
 
 jobs:
   full_system_e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      E2E_BASE_URL: ${{ vars.E2E_BASE_URL }}
+      FIREBASE_PROJECT_ID: ${{ vars.E2E_FIREBASE_PROJECT_ID }}
+      E2E_ARTIFACTS_DIR: test-results/full-system
 
     steps:
       - name: 📂 Checkout versão a validar
         uses: actions/checkout@v4
+
+      - name: 🛡️ Bloquear produção e validar staging
+        run: |
+          set -euo pipefail
+          test -n "${E2E_BASE_URL:-}" || { echo '❌ Configure a variável E2E_BASE_URL'; exit 1; }
+          test -n "${FIREBASE_PROJECT_ID:-}" || { echo '❌ Configure a variável E2E_FIREBASE_PROJECT_ID'; exit 1; }
+          if [ "${FIREBASE_PROJECT_ID}" = "louvor-ide" ]; then
+            echo '❌ E2E mutável bloqueado: projeto louvor-ide é produção.'
+            exit 1
+          fi
+          case "${E2E_BASE_URL}" in
+            *louvor-ide.web.app*|*louvor-ide.firebaseapp.com*)
+              echo '❌ E2E mutável bloqueado: URL de produção detectada.'
+              exit 1
+              ;;
+          esac
+          echo "✅ Alvo isolado: ${FIREBASE_PROJECT_ID} / ${E2E_BASE_URL}"
 
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: 🔑 Autenticar service account Firebase
+      - name: 🔑 Autenticar service account do ambiente E2E
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_E2E }}
 
       - name: 🌐 Instalar Playwright e dependências E2E
         run: |
@@ -33,11 +58,7 @@ jobs:
           npm install --no-save playwright@1.55.0 firebase-admin@13.4.0
           npx playwright install --with-deps chromium
 
-      - name: 🎭 Executar simulação completa do sistema publicado
-        env:
-          E2E_BASE_URL: https://louvor-ide.web.app
-          FIREBASE_PROJECT_ID: louvor-ide
-          E2E_ARTIFACTS_DIR: test-results/full-system
+      - name: 🎭 Executar simulação completa no ambiente isolado
         run: node tests/production-full-system-v2.e2e.cjs
 
       - name: 📦 Publicar relatório, screenshot e trace do Playwright
