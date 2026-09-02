@@ -55,6 +55,14 @@ test('perfil Ministro preserva exatamente os acessos de leitura e edição esper
   });
 });
 
+test('somente Líder e Administrador editam escalas', () => {
+  assert.equal(profiles.MATRIX.PARTICIPANT.schedules, 'READ');
+  assert.equal(profiles.MATRIX.MINISTER.schedules, 'READ');
+  assert.equal(profiles.MATRIX.DM.schedules, 'READ');
+  assert.equal(profiles.MATRIX.LEADER.schedules, 'EDIT');
+  assert.equal(profiles.MATRIX.ADMINISTRATOR.schedules, 'EDIT');
+});
+
 test('migração materializa a matriz do perfil nos documentos técnicos de permissão', () => {
   const migration = read('src/scripts/migrate-access-profiles.cjs');
   assert.match(migration, /profiles\.permissionsFor\(profileId\)/);
