@@ -37,9 +37,7 @@
     const participant = profileParticipantName(profile);
     const today = dateInputValue();
     return {
-      schedules: userId
-        ? `module.html?section=schedules&person=${encodeURIComponent(userId)}&from=${today}`
-        : `module.html?section=schedules&from=${today}`,
+      schedules: `module.html?section=schedules&from=${today}`,
       setlists: participant
         ? `setlists.html?view=upcoming&participant=${encodeURIComponent(participant)}`
         : 'setlists.html?view=upcoming',

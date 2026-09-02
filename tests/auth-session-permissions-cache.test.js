@@ -100,3 +100,26 @@ test('cache nunca libera perfil inativo', () => {
 
   assert.equal(readAuthorizationCache(scope, 'member-1'), null);
 });
+
+test('alteração do perfil invalida permissões antigas da sessão', async () => {
+  const userId = 'member-1';
+  let permissionReads = 0;
+  const database = {
+    collection(name) {
+      if (name === 'users') return { doc: () => ({ get: async () => snapshot(true, {
+        uid: userId, active: true, role: 'MEMBER', accessProfile: 'PARTICIPANT',
+        permissions: { dashboard: 'READ', schedules: 'READ' }, updatedAt: { seconds: 2, nanoseconds: 0 }
+      }) }) };
+      if (name === 'permissions') return { doc: () => ({ get: async () => { permissionReads += 1; return snapshot(false); } }) };
+      throw new Error(`collection inesperada: ${name}`);
+    }
+  };
+  const cachedProfile = {
+    uid: userId, active: true, role: 'MEMBER', accessProfile: 'MINISTER',
+    permissions: { dashboard: 'READ' }, updatedAt: { seconds: 1, nanoseconds: 0 }
+  };
+  const authorization = await resolveAuthorizedProfile({ firebase: { firestore: () => database } }, { uid: userId }, { cachedProfile });
+  assert.equal(authorization.permissionsFromCache, false);
+  assert.equal(authorization.profile.permissions.schedules, 'READ');
+  assert.equal(permissionReads, 9);
+});

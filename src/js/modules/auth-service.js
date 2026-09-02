@@ -132,6 +132,15 @@
     return Boolean(profile && profile.active === true);
   }
 
+  function profileRevision(profile) {
+    const updatedAt = profile && profile.updatedAt;
+    if (!updatedAt) return '';
+    const seconds = updatedAt.seconds ?? updatedAt._seconds;
+    const nanoseconds = updatedAt.nanoseconds ?? updatedAt._nanoseconds;
+    if (seconds != null) return `${seconds}:${nanoseconds || 0}`;
+    return String(updatedAt);
+  }
+
   function readAuthorizationCache(scope, userId) {
     try {
       if (!scope || !scope.sessionStorage || !userId) return null;
@@ -323,7 +332,7 @@
     }
   }
 
-  async function loadEffectivePermissions(scope, userId) {
+  async function loadEffectivePermissions(scope, userId, mirroredPermissions = {}) {
     const database = scope.firebase.firestore();
     const permissionsCollection = database.collection('permissions');
     const entries = await Promise.all(PERMISSION_MODULES.map(async moduleName => {
@@ -335,7 +344,17 @@
       if (!['READ', 'EDIT'].includes(level)) return null;
       return [moduleName, level];
     }));
-    return Object.fromEntries(entries.filter(Boolean));
+    const rank = { NONE: 0, READ: 1, EDIT: 2 };
+    const effective = {};
+    for (const moduleName of PERMISSION_MODULES) {
+      const mirrored = mirroredPermissions?.[moduleName];
+      const mirroredValue = mirrored && typeof mirrored === 'object' ? mirrored.level || mirrored.access : mirrored;
+      const mirroredLevel = String(mirroredValue || 'NONE').toUpperCase();
+      const technicalLevel = entries.find(entry => entry && entry[0] === moduleName)?.[1] || 'NONE';
+      const level = rank[technicalLevel] > rank[mirroredLevel] ? technicalLevel : mirroredLevel;
+      if (level === 'READ' || level === 'EDIT') effective[moduleName] = level;
+    }
+    return effective;
   }
 
   async function resolveAuthorizedProfile(scope, user, options = {}) {
@@ -357,6 +376,8 @@
       cachedProfile
       && isActiveProfile(cachedProfile)
       && String(cachedProfile.role || '') === String(profile.role || '')
+      && String(cachedProfile.accessProfile || '') === String(profile.accessProfile || '')
+      && profileRevision(cachedProfile) === profileRevision(profile)
       && cachedProfile.permissions
       && typeof cachedProfile.permissions === 'object'
     );
@@ -364,7 +385,7 @@
       ? {}
       : canReusePermissions
         ? cachedProfile.permissions
-        : await loadEffectivePermissions(scope, user.uid);
+        : await loadEffectivePermissions(scope, user.uid, profile.permissions);
 
     return {
       authorized: true,

@@ -128,13 +128,14 @@ test('index.html contém somente as áreas pessoais solicitadas no Dashboard', (
   assert.doesNotMatch(html, /id="search-input"/);
 });
 
-test('Indicadores e títulos pessoais do Dashboard navegam com os filtros do usuário', () => {
+test('Dashboard mantém dados pessoais, mas abre a consulta geral de escalas', () => {
   const script = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'modules', 'dashboard-page.js'), 'utf8');
   const unavailability = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'modules', 'unavailability-page.js'), 'utf8');
 
   assert.match(script, /element\('a', 'ide-dashboard-indicator'\)/);
   assert.match(script, /function personalDestinations\(profile\)/);
-  assert.match(script, /module\.html\?section=schedules&person=\$\{encodeURIComponent\(userId\)\}&from=\$\{today\}/);
+  assert.match(script, /schedules: `module\.html\?section=schedules&from=\$\{today\}`/);
+  assert.doesNotMatch(script, /section=schedules&person=/);
   assert.match(script, /setlists\.html\?view=upcoming&participant=\$\{encodeURIComponent\(participant\)\}/);
   assert.match(script, /module\.html\?section=unavailability&user=\$\{encodeURIComponent\(userId\)\}&future=1/);
   assert.match(script, /function configureSectionLinks\(profile\)/);

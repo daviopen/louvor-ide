@@ -63,6 +63,16 @@
     return ['NONE', 'READ', 'EDIT'].includes(level) ? level : 'NONE';
   }
 
+  function profilePermissionLevel(profile, moduleName) {
+    const permission = profile?.permissions?.[moduleName];
+    return normalizeLevel(permission && typeof permission === 'object' ? permission.level || permission.access : permission);
+  }
+
+  function strongestLevel(...levels) {
+    const rank = { NONE: 0, READ: 1, EDIT: 2 };
+    return levels.map(normalizeLevel).sort((left, right) => rank[right] - rank[left])[0] || 'NONE';
+  }
+
   async function readDependency(label, operation) {
     try {
       return await operation();
@@ -113,7 +123,8 @@
       const userId = this.actorId(user);
       const role = String(profile?.role || '').toUpperCase();
       if (role === 'SUPER_ADMIN' || profile?.isSuperAdmin === true) return { level: 'EDIT', canRead: true, canEdit: true };
-      const level = normalizeLevel(await this.repository.getPermissionLevel(userId, 'schedules'));
+      const persistedLevel = await this.repository.getPermissionLevel(userId, 'schedules');
+      const level = strongestLevel(profilePermissionLevel(profile, 'schedules'), persistedLevel);
       return { level, canRead: level === 'READ' || level === 'EDIT', canEdit: level === 'EDIT' };
     }
 

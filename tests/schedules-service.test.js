@@ -81,6 +81,16 @@ test('carrega integrantes de todas as escalas em uma única leitura em lote', as
   assert.equal(data.schedules[0].completeness.complete, true);
 });
 
+test('permite consulta pela permissão READ materializada no perfil', async () => {
+  const repository = fakeRepository();
+  repository.getPermissionLevel = async () => 'NONE';
+  const service = new ScheduleService(repository);
+  const data = await service.load({ uid: 'member' }, { role: 'MEMBER', permissions: { schedules: 'READ' } });
+  assert.equal(data.access.canRead, true);
+  assert.equal(data.access.canEdit, false);
+  assert.equal(data.schedules.length, 1);
+});
+
 test('lista elegíveis apenas ativos, com função e disponíveis', async () => {
   const repository = fakeRepository();
   const service = new ScheduleService(repository);
