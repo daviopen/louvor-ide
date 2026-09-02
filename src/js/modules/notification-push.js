@@ -20,6 +20,7 @@
       scope.isSecureContext
       && 'serviceWorker' in scope.navigator
       && 'Notification' in scope
+      && scope.crypto?.subtle
       && scope.firebase?.auth
       && scope.firebase?.firestore
     );
@@ -75,8 +76,6 @@
     if (!supported()) return { status: 'UNSUPPORTED' };
     const user = scope.firebase.auth().currentUser;
     if (!user) return { status: 'NO_USER' };
-    const key = vapidKey();
-    if (!key) return { status: 'NOT_CONFIGURED' };
 
     if (scope.Notification.permission === 'denied') return { status: 'DENIED' };
     if (scope.Notification.permission !== 'granted') {
@@ -88,7 +87,10 @@
     await loadMessagingSdk();
     const registration = await scope.navigator.serviceWorker.ready;
     const messaging = scope.firebase.messaging();
-    const token = await messaging.getToken({ vapidKey: key, serviceWorkerRegistration: registration });
+    const tokenOptions = { serviceWorkerRegistration: registration };
+    const key = vapidKey();
+    if (key) tokenOptions.vapidKey = key;
+    const token = await messaging.getToken(tokenOptions);
     if (!token) throw new Error('FCM não retornou token para este dispositivo.');
     await saveToken(user, token);
     return { status: 'ENABLED' };
@@ -125,7 +127,7 @@
   }
 
   function mountButton() {
-    if (!supported() || !vapidKey() || scope.document.getElementById(BUTTON_ID)) return;
+    if (!supported() || scope.document.getElementById(BUTTON_ID)) return;
     const account = scope.document.getElementById('ide-sidebar-account');
     if (!account) return;
     const button = scope.document.createElement('button');
@@ -142,7 +144,7 @@
 
   async function bootstrapForUser() {
     mountButton();
-    if (!supported() || !vapidKey() || scope.Notification.permission !== 'granted') return;
+    if (!supported() || scope.Notification.permission !== 'granted') return;
     if (registrationPromise) return registrationPromise;
     registrationPromise = registerCurrentDevice({ requestPermission: false })
       .then(result => {
