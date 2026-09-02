@@ -43,10 +43,20 @@ service cloud.firestore {
     }
     function explicitPermission(moduleName, acceptedLevels) {
       return activeUser()
-        && exists(permissionPath(moduleName))
-        && get(permissionPath(moduleName)).data.userId == request.auth.uid
-        && get(permissionPath(moduleName)).data.module == moduleName
-        && get(permissionPath(moduleName)).data.level in acceptedLevels;
+        && (
+          (
+            exists(permissionPath(moduleName))
+            && get(permissionPath(moduleName)).data.userId == request.auth.uid
+            && get(permissionPath(moduleName)).data.module == moduleName
+            && get(permissionPath(moduleName)).data.level in acceptedLevels
+          )
+          || (
+            'permissions' in profile().data
+            && profile().data.permissions is map
+            && moduleName in profile().data.permissions
+            && profile().data.permissions[moduleName] in acceptedLevels
+          )
+        );
     }
     function canRead(moduleName) { return isSuperAdmin() || explicitPermission(moduleName, ['READ', 'EDIT']); }
     function canEdit(moduleName) { return isSuperAdmin() || explicitPermission(moduleName, ['EDIT']); }

@@ -41,6 +41,15 @@ test('permissões usam níveis READ e EDIT e documento por usuário/módulo', ()
   assert.doesNotMatch(rules, /activeUser\(\) && moduleName in \['setlists', 'songs'\]/);
 });
 
+test('perfil legado usa espelho protegido quando o documento técnico ainda não foi materializado', () => {
+  assert.match(rules, /'permissions' in profile\(\)\.data/);
+  assert.match(rules, /profile\(\)\.data\.permissions is map/);
+  assert.match(rules, /moduleName in profile\(\)\.data\.permissions/);
+  assert.match(rules, /profile\(\)\.data\.permissions\[moduleName\] in acceptedLevels/);
+  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['role', 'active', 'uid', 'permissions'\]\)/);
+  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['role', 'permissions'\]\)/);
+});
+
 test('operações administrativas impedem exclusão física de usuário', () => {
   const users = extractMatch('users/{userId}');
   assert.match(users, /allow delete: if false;/);
