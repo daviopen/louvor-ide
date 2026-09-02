@@ -13,6 +13,8 @@ const PWA_HEAD = `  <link rel="manifest" href="/manifest.webmanifest" ${PWA_HEAD
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="IDE Music">
   <script src="/pwa-runtime.js" defer></script>
+  <script src="/repositories/notification-outbox-repository.js?v=20260902-notifications" defer></script>
+  <script src="/js/modules/notification-domain-hooks.js?v=20260902-notifications" defer></script>
   <script src="/js/modules/notification-push.js?v=20260902-notifications" defer></script>`;
 
 function injectPwaHead(html) {
