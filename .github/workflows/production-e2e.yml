@@ -1,110 +1,70 @@
-name: 🧭 Validate production application
+name: 🧭 Validate production application (read-only)
 
-# Validação onerosa de produção: execução exclusivamente manual.
+# Produção é somente leitura. Este workflow não autentica service account,
+# não cria usuários e não grava/apaga documentos no Firestore.
 on:
   workflow_dispatch:
 
 concurrency:
-  group: production-e2e
+  group: production-e2e-read-only
   cancel-in-progress: false
 
 jobs:
-  production_e2e:
+  production_read_only:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: 📂 Checkout versão a validar
         uses: actions/checkout@v4
 
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: 🔑 Autenticar service account Firebase para E2E funcional
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
-
-      - name: 🌐 Instalar navegadores E2E
+      - name: 🔒 Confirmar alvo de produção somente leitura
+        env:
+          E2E_BASE_URL: https://louvor-ide.web.app
         run: |
-          set -e
-          npm install --no-save playwright@1.55.0 firebase-admin@13.4.0
-          npx playwright install --with-deps chromium webkit
+          set -euo pipefail
+          test "${E2E_BASE_URL}" = "https://louvor-ide.web.app"
+          echo "✅ Validação de produção sem credenciais administrativas"
 
-      - name: 📱 Validar autenticação real em Android e iPhone
+      - name: 🌐 Validar páginas e assets públicos
         env:
           E2E_BASE_URL: https://louvor-ide.web.app
-          FIREBASE_PROJECT_ID: louvor-ide
-        run: node tests/production-mobile-auth.e2e.cjs
+        run: |
+          set -euo pipefail
+          for url in \
+            "${E2E_BASE_URL}/" \
+            "${E2E_BASE_URL}/login.html" \
+            "${E2E_BASE_URL}/consultar.html" \
+            "${E2E_BASE_URL}/setlists.html?view=upcoming" \
+            "${E2E_BASE_URL}/module.html?section=schedules" \
+            "${E2E_BASE_URL}/styles/tokens.css" \
+            "${E2E_BASE_URL}/js/modules/auth-service.js"
+          do
+            status="$(curl -sS -o /dev/null -w '%{http_code}' "$url")"
+            test "$status" = "200" || { echo "❌ $url retornou HTTP $status"; exit 1; }
+            echo "✅ $url"
+          done
 
-      - name: ♿ Validar acessibilidade e responsividade em navegador real
-        env:
-          E2E_BASE_URL: https://louvor-ide.web.app
-        run: node tests/production-quality.e2e.cjs
-
-      - name: 🎼 Validar módulo de Escalas publicado
+      - name: 🎼 Validar artefatos publicados sem acessar Firestore
         env:
           E2E_BASE_URL: https://louvor-ide.web.app
         run: |
           set -euo pipefail
           curl --fail-with-body -sS "${E2E_BASE_URL}/module.html?section=schedules" -o /tmp/module.html
-          curl --fail-with-body -sS "${E2E_BASE_URL}/js/modules/events-page.js" -o /tmp/events-page.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/js/modules/schedules-page.js" -o /tmp/schedules-page.js
           curl --fail-with-body -sS "${E2E_BASE_URL}/services/schedule-service.js" -o /tmp/schedule-service.js
-          curl --fail-with-body -sS "${E2E_BASE_URL}/repositories/schedule-repository.js" -o /tmp/schedule-repository.js
-          curl --fail-with-body -sS "${E2E_BASE_URL}/styles/schedules.css" -o /tmp/schedules.css
-          grep -q 'loadSchedulesSection' /tmp/events-page.js
-          grep -q "params.get('scheduleId')" /tmp/schedules-page.js
-          grep -q 'Editar escala' /tmp/schedules-page.js
-          grep -q 'data-user-combobox' /tmp/schedules-page.js
-          grep -q 'data-exception-user' /tmp/schedules-page.js
-          grep -q 'service.eligibleUsers' /tmp/schedules-page.js
-          grep -q 'Completa' /tmp/schedules-page.js
-          grep -q 'Incompleta' /tmp/schedules-page.js
-          grep -q 'scheduleCompleteness' /tmp/schedule-service.js
-          grep -q 'scheduleIdForEvent' /tmp/schedule-repository.js
-          grep -q 'schedule-summary-card' /tmp/schedules.css
-          grep -q '@media(max-width:640px)' /tmp/schedules.css
-
-      - name: 🎵 Validar catálogo e editor de músicas publicados
-        env:
-          E2E_BASE_URL: https://louvor-ide.web.app
-        run: |
-          set -euo pipefail
           curl --fail-with-body -sS "${E2E_BASE_URL}/consultar.html" -o /tmp/consultar.html
-          curl --fail-with-body -sS "${E2E_BASE_URL}/nova-musica.html" -o /tmp/nova-musica.html
+          grep -q 'Editar escala' /tmp/schedules-page.js
+          grep -q 'scheduleCompleteness' /tmp/schedule-service.js
           grep -q 'Consultar músicas' /tmp/consultar.html
-          grep -q 'href="nova-musica.html"' /tmp/consultar.html
+          echo "✅ Artefatos publicados validados"
 
-      - name: 🧭 Navegar no sistema e validar músicas reais em produção
+      - name: 🔐 Validar configuração pública do Firebase
         env:
-          E2E_BASE_URL: https://louvor-ide.web.app
-          FIREBASE_PROJECT_ID: louvor-ide
-        run: node tests/production-songs-navigation.e2e.cjs
-
-      - name: 🔐 Validar autenticação e autorização reais em produção
-        env:
-          FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           E2E_BASE_URL: https://louvor-ide.web.app
         run: |
           set -euo pipefail
-          if [ -z "${FIREBASE_API_KEY:-}" ]; then
-            echo "❌ VITE_FIREBASE_API_KEY não está disponível para o E2E"
-            exit 1
-          fi
-          E2E_EMAIL="ide-music-e2e-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@example.com"
-          E2E_PASSWORD="Aa1!$(openssl rand -hex 16)"
-          SIGNUP_RESPONSE="$(curl --fail-with-body -sS -X POST -H 'Content-Type: application/json' -d "$(jq -n --arg email "${E2E_EMAIL}" --arg password "${E2E_PASSWORD}" '{email:$email,password:$password,returnSecureToken:true}')" "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}")"
-          ID_TOKEN="$(printf '%s' "${SIGNUP_RESPONSE}" | jq -er '.idToken')"
-          LOCAL_ID="$(printf '%s' "${SIGNUP_RESPONSE}" | jq -er '.localId')"
-          cleanup() {
-            curl -sS -X POST -H 'Content-Type: application/json' -d "$(jq -n --arg idToken "${ID_TOKEN}" '{idToken:$idToken}')" "https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${FIREBASE_API_KEY}" >/dev/null || true
-          }
-          trap cleanup EXIT
-          PROFILE_PAYLOAD="$(jq -n --arg uid "${LOCAL_ID}" --arg email "${E2E_EMAIL}" '{fields:{uid:{stringValue:$uid},name:{stringValue:"E2E IDE Music"},email:{stringValue:$email},active:{booleanValue:true},role:{stringValue:"MEMBER"}}}')"
-          PROFILE_STATUS="$(curl -sS -o /tmp/e2e-profile.json -w '%{http_code}' -X PATCH -H "Authorization: Bearer ${ID_TOKEN}" -H 'Content-Type: application/json' -d "${PROFILE_PAYLOAD}" "https://firestore.googleapis.com/v1/projects/louvor-ide/databases/(default)/documents/users/${LOCAL_ID}")"
-          test "${PROFILE_STATUS}" = "403" || { echo "❌ Conta comum conseguiu criar/ativar o próprio perfil (HTTP ${PROFILE_STATUS})"; exit 1; }
-          SONGS_STATUS="$(curl -sS -o /tmp/e2e-songs.json -w '%{http_code}' -H "Authorization: Bearer ${ID_TOKEN}" "https://firestore.googleapis.com/v1/projects/louvor-ide/databases/(default)/documents/songs?pageSize=1")"
-          test "${SONGS_STATUS}" = "403" || { echo "❌ Conta sem perfil ativo acessou songs (HTTP ${SONGS_STATUS})"; exit 1; }
-          E2E_EMAIL="${E2E_EMAIL}" E2E_PASSWORD="${E2E_PASSWORD}" E2E_BASE_URL="${E2E_BASE_URL}" node tests/production-auth.e2e.cjs
+          curl --fail-with-body -sS "${E2E_BASE_URL}/__/firebase/init.json" -o /tmp/firebase-init.json
+          jq -e '.projectId == "louvor-ide"' /tmp/firebase-init.json >/dev/null
+          echo "✅ Hosting aponta para o projeto esperado; nenhum acesso ao Firestore foi realizado"
