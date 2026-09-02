@@ -56,15 +56,16 @@ test('perfil legado usa espelho protegido quando o documento técnico ainda não
   assert.match(rules, /profile\(\)\.data\.permissions is map/);
   assert.match(rules, /moduleName in profile\(\)\.data\.permissions/);
   assert.match(rules, /profile\(\)\.data\.permissions\[moduleName\] in acceptedLevels/);
-  assert.match(rules, /affectedKeys\(\)\.hasOnly\(\['name', 'phone', 'birthDate', 'photoURL', 'updatedAt'\]\)/);
+  assert.match(rules, /affectedKeys\(\)\.hasOnly\(\['name', 'phone', 'birthDate', 'photoURL', 'updatedAt', 'lastAccessAt'\]\)/);
   assert.match(rules, /affectedKeys\(\)\.hasAny\(\['uid', 'role', 'permissions', 'accessProfile'\]\)/);
 });
 
-test('usuário só pode editar os próprios campos pessoais e não pode elevar privilégio', () => {
+test('usuário só pode editar os próprios campos pessoais e metadados operacionais seguros', () => {
   const users = extractMatch('users/{userId}');
   assert.match(rules, /function validSelfProfileUpdate\(\)/);
-  assert.match(rules, /hasOnly\(\['name', 'phone', 'birthDate', 'photoURL', 'updatedAt'\]\)/);
+  assert.match(rules, /hasOnly\(\['name', 'phone', 'birthDate', 'photoURL', 'updatedAt', 'lastAccessAt'\]\)/);
   assert.match(rules, /request\.resource\.data\.updatedAt == request\.time/);
+  assert.match(rules, /request\.resource\.data\.lastAccessAt == request\.time/);
   assert.match(rules, /res\.cloudinary\.com\/vqyuxscx/);
   assert.match(users, /ownsUserDocument\(userId\) && validSelfProfileUpdate\(\)/);
   assert.doesNotMatch(rules, /unchangedAuthorizationFields/);
