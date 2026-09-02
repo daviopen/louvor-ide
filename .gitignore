@@ -41,8 +41,9 @@ coverage/
 dist/
 build/
 
-# Graphify - knowledge graph local/derivado
-graphify-out/
+# Graphify
+# graphify-out/ é intencionalmente versionável para compartilhar o knowledge graph
+# entre desenvolvedores e assistentes de código. Nunca inclua secrets nesse diretório.
 
 # Arquivos copiados durante o build (exceto os que devem estar na raiz)
 # Ignorar todos os HTMLs copiados do src/pages durante o build
