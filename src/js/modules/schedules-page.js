@@ -284,16 +284,45 @@
         return;
       }
       if(button.dataset.action==='remove-slot'){
-        if(!scope.confirm('Remover esta função da escala? A pessoa vinculada, se houver, será removida preservando o histórico.'))return;
-        await service.removeSlot(schedule.id,slotNode.dataset.slotId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile);
-        schedule.slots=schedule.slots.filter(item=>item.id!==slotNode.dataset.slotId);
-        schedule.members=schedule.members.filter(item=>item.slotId!==slotNode.dataset.slotId);
-        recomputeSchedule(schedule); renderEditorView(); toast('Função removida.'); return;
+        if(!slotNode||!scope.confirm('Remover esta função da escala? A pessoa vinculada, se houver, será removida preservando o histórico.'))return;
+        const slotId=slotNode.dataset.slotId;
+        const beforeSlots=[...(schedule.slots||[])];
+        const beforeMembers=[...(schedule.members||[])];
+        button.disabled=true;
+        schedule.slots=beforeSlots.filter(item=>item.id!==slotId);
+        schedule.members=beforeMembers.filter(item=>item.slotId!==slotId);
+        recomputeSchedule(schedule);
+        renderEditorView();
+        try{
+          await service.removeSlot(schedule.id,slotId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile);
+          toast('Função removida.');
+        }catch(error){
+          schedule.slots=beforeSlots;
+          schedule.members=beforeMembers;
+          orderScheduleSlots(schedule);
+          recomputeSchedule(schedule);
+          renderEditorView();
+          throw error;
+        }
+        return;
       }
       if(button.dataset.action==='remove-member'){
-        await service.removeMember(schedule.id,button.dataset.memberId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile);
-        schedule.members=schedule.members.filter(item=>item.id!==button.dataset.memberId);
-        recomputeSchedule(schedule); renderEditorView(); toast('Pessoa removida.'); return;
+        const memberId=button.dataset.memberId;
+        const beforeMembers=[...(schedule.members||[])];
+        button.disabled=true;
+        schedule.members=beforeMembers.filter(item=>item.id!==memberId);
+        recomputeSchedule(schedule);
+        renderEditorView();
+        try{
+          await service.removeMember(schedule.id,memberId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile);
+          toast('Pessoa removida.');
+        }catch(error){
+          schedule.members=beforeMembers;
+          recomputeSchedule(schedule);
+          renderEditorView();
+          throw error;
+        }
+        return;
       }
     }catch(error){console.error(error);toast(error.message||'Não foi possível atualizar a escala.','error');if(button)button.disabled=false;}
   }
