@@ -16,11 +16,11 @@
     Object.freeze({ id: 'schedules', label: 'Escalas', href: 'module.html?section=schedules', icon: 'fa-calendar-check', groupId: 'schedules', groupLabel: 'Escalas', permission: 'schedules', menu: true }),
     Object.freeze({ id: 'schedules-export', label: 'Exportar escalas', href: 'module.html?section=schedules&view=export', icon: 'fa-file-pdf', groupId: 'schedules', groupLabel: 'Escalas', permission: 'schedules', menu: true }),
     Object.freeze({ id: 'schedules-participation', label: 'Participações', href: 'module.html?section=schedules&view=participation', icon: 'fa-chart-column', groupId: 'schedules', groupLabel: 'Escalas', permission: 'schedules', menu: true }),
-    Object.freeze({ id: 'setlists-upcoming', label: 'Próximos', mobileLabel: 'Setlists', href: 'setlists.html?view=upcoming', icon: 'fa-list-check', groupId: 'setlists', groupLabel: 'Setlists', permission: 'setlists', menu: true }),
-    Object.freeze({ id: 'setlists-history', label: 'Histórico', href: 'setlists.html?view=history', icon: 'fa-clock-rotate-left', groupId: 'setlists', groupLabel: 'Setlists', permission: 'setlists', menu: true }),
+    Object.freeze({ id: 'setlists-upcoming', label: 'Próximos Setlists', href: 'setlists.html?view=upcoming', icon: 'fa-list-check', groupId: 'setlists', groupLabel: 'Setlists', permission: 'setlists', menu: true }),
+    Object.freeze({ id: 'setlists-history', label: 'Histórico de Setlists', href: 'setlists.html?view=history', icon: 'fa-clock-rotate-left', groupId: 'setlists', groupLabel: 'Setlists', permission: 'setlists', menu: true }),
     Object.freeze({ id: 'setlist-view', label: 'Visualizar Setlist', href: 'setlist-view.html?id=:id', icon: 'fa-eye', groupId: 'setlists', groupLabel: 'Setlists', permission: 'setlists', menu: false }),
     Object.freeze({ id: 'setlist-edit', label: 'Editar Setlist', href: 'setlist.html?id=:id', icon: 'fa-pen', groupId: 'setlists', groupLabel: 'Setlists', permission: 'setlists', minLevel: 'edit', menu: false }),
-    Object.freeze({ id: 'songs', label: 'Consultar', mobileLabel: 'Músicas', href: 'consultar.html', icon: 'fa-music', groupId: 'songs', groupLabel: 'Músicas', permission: 'songs', menu: true }),
+    Object.freeze({ id: 'songs', label: 'Consultar músicas', href: 'consultar.html', icon: 'fa-music', groupId: 'songs', groupLabel: 'Músicas', permission: 'songs', menu: true }),
     Object.freeze({ id: 'song-view', label: 'Visualizar música', href: 'ver.html?id=:id', icon: 'fa-eye', groupId: 'songs', groupLabel: 'Músicas', permission: 'songs', menu: false }),
     Object.freeze({ id: 'new-song', label: 'Nova Música', href: 'nova-musica.html', icon: 'fa-circle-plus', groupId: 'songs', groupLabel: 'Músicas', permission: 'songs', minLevel: 'edit', menu: true }),
     Object.freeze({ id: 'audit', label: 'Auditoria', href: 'module.html?section=audit', icon: 'fa-clipboard-list', groupId: 'administration', groupLabel: 'Administração', permission: 'audit', menu: true }),
@@ -54,7 +54,7 @@
     if (scope.document.querySelector('script[data-ide-settings-page]')) return;
     const script = scope.document.createElement('script');
     script.src = params.get('tab') === 'routes'
-      ? '../js/modules/route-access-page.js?v=20260901-route-catalog'
+      ? '../js/modules/route-access-page.js?v=20260902-firestore-access'
       : '../js/modules/settings-page.js?v=20260827-settings-submenus';
     script.defer = true;
     script.setAttribute('data-ide-settings-page', 'true');
@@ -265,14 +265,11 @@
     const link = element('a', compact ? 'ide-mobile-nav-item' : 'ide-sidebar-link');
     link.href = item.href;
     link.dataset.navId = item.id;
-    const label = compact && item.mobileLabel ? item.mobileLabel : item.label;
-    link.dataset.tooltip = label;
+    link.dataset.tooltip = item.label;
     const icon = element('i', `fa-solid ${item.icon}`);
     icon.setAttribute('aria-hidden', 'true');
-    link.append(icon, element('span', compact ? 'ide-mobile-nav-label' : 'ide-sidebar-label', label));
-    const activeItem = ROUTE_CATALOG.find(route => route.id === activeId);
-    const isActive = item.id === activeId || (compact && item.mobileLabel && item.groupId === activeItem?.groupId);
-    if (isActive) {
+    link.append(icon, element('span', compact ? 'ide-mobile-nav-label' : 'ide-sidebar-label', item.label));
+    if (item.id === activeId) {
       link.classList.add('active');
       link.setAttribute('aria-current', 'page');
     }
