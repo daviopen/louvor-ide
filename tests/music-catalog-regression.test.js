@@ -43,9 +43,9 @@ test('music catalog usa o primeiro snapshot em tempo real sem leitura completa d
 test('music repository reads only canonical songs after production migration', () => {
   const source = read('src/repositories/music-repository.js');
 
-  assert.match(source, /COLLECTIONS\.SONGS/);
-  assert.match(source, /canonical\.onSnapshot/);
+  assert.match(source, /this\.getCollection\(COLLECTIONS\.SONGS\)/);
+  assert.match(source, /songs\.onSnapshot/);
   assert.doesNotMatch(source, /legacyCollectionName|legacy\.onSnapshot|COLLECTIONS\.MUSICS|['"]musicas['"]/);
-  assert.doesNotMatch(source, /canonical\.orderBy\('titulo'\)/);
+  assert.doesNotMatch(source, /\.orderBy\('titulo'\)/);
   assert.match(source, /data\?\.titulo \|\| data\?\.title \|\| data\?\.nome \|\| data\?\.name/);
 });
