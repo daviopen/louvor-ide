@@ -54,7 +54,7 @@
     if (scope.document.querySelector('script[data-ide-settings-page]')) return;
     const script = scope.document.createElement('script');
     script.src = params.get('tab') === 'routes'
-      ? '../js/modules/route-access-page.js?v=20260901-route-catalog'
+      ? '../js/modules/route-access-page.js?v=20260902-firestore-access'
       : '../js/modules/settings-page.js?v=20260827-settings-submenus';
     script.defer = true;
     script.setAttribute('data-ide-settings-page', 'true');
