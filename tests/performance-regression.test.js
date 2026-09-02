@@ -20,15 +20,12 @@ test('Setlist reutiliza apenas catálogos auxiliares e mantém dados operacionai
   assert.match(source, /setlistSongs\(\)\.where\('setlistId', '==', setlistId\)\.get\(\)/);
 });
 
-test('Permissões evita consultas repetidas e descarta respostas fora de ordem', () => {
+test('rota legada de permissões não consulta Firestore e apenas redireciona', () => {
   const source = read('src/js/modules/permissions-page.js');
 
-  assert.match(source, /PERMISSION_CACHE_TTL_MS = 30000/);
-  assert.match(source, /permissionCache = new Map\(\)/);
-  assert.match(source, /permissionRequests = new Map\(\)/);
-  assert.match(source, /const version = \+\+selectionVersion/);
-  assert.match(source, /if \(version !== selectionVersion\) return/);
-  assert.match(source, /invalidatePermissions\(changes\[0\]\.userId\)/);
+  assert.match(source, /section'\) !== 'permissions'/);
+  assert.match(source, /scope\.location\.replace\('module\.html\?section=settings&tab=routes'\)/);
+  assert.doesNotMatch(source, /firebase|firestore|collection\(|\.get\(\)|\.set\(|\.update\(/i);
 });
 
 test('Auditoria limita o custo de DOM sem reduzir a fidelidade do conjunto consultado', () => {
