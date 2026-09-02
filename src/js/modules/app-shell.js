@@ -10,7 +10,6 @@
   const ROUTE_CATALOG = Object.freeze([
     Object.freeze({ id: 'dashboard', label: 'Dashboard', href: 'index.html', icon: 'fa-house', groupId: 'dashboard', groupLabel: '', permission: 'dashboard', menu: true }),
     Object.freeze({ id: 'users', label: 'Usuários', href: 'users.html', icon: 'fa-users', groupId: 'users', groupLabel: 'Usuários', permission: 'users', menu: true }),
-    Object.freeze({ id: 'permissions', label: 'Permissões', href: 'module.html?section=permissions', icon: 'fa-lock', groupId: 'users', groupLabel: 'Usuários', permission: 'permissions', menu: true }),
     Object.freeze({ id: 'unavailability', label: 'Indisponibilidade', href: 'module.html?section=unavailability', icon: 'fa-calendar-xmark', groupId: 'schedules', groupLabel: 'Escalas', permission: 'unavailability', menu: true }),
     Object.freeze({ id: 'events', label: 'Eventos', href: 'module.html?section=events', icon: 'fa-calendar-days', groupId: 'schedules', groupLabel: 'Escalas', permission: 'events', menu: true }),
     Object.freeze({ id: 'schedules', label: 'Escalas', href: 'module.html?section=schedules', icon: 'fa-calendar-check', groupId: 'schedules', groupLabel: 'Escalas', permission: 'schedules', menu: true }),
@@ -34,7 +33,7 @@
     Object.freeze({ id: 'consent', label: 'Consentimento', href: 'consentimento.html', icon: 'fa-check-double', groupId: 'public', groupLabel: 'Públicas', public: true, menu: false })
   ]);
   const navigationGroups = Object.freeze([...new Map(ROUTE_CATALOG.filter(route => route.menu === true).map(route => [route.groupId, route.groupLabel])).entries()].map(([id, label]) => Object.freeze({ id, label, items: ROUTE_CATALOG.filter(route => route.menu === true && route.groupId === id) })));
-  const moduleSections = new Set(['permissions', 'unavailability', 'events', 'schedules', 'audit', 'settings']);
+  const moduleSections = new Set(['unavailability', 'events', 'schedules', 'audit', 'settings']);
 
   function initializeObservability() {
     if (scope.MusicIdeObservability) return;
