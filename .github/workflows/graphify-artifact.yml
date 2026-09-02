@@ -1,0 +1,63 @@
+name: 🕸️ Graphify Knowledge Graph
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - 'graphify-out/**'
+      - '.github/workflows/graphify-artifact.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: graphify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: publish-graph
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate shared graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            graphify-out/graph.json
+            graphify-out/graph.html
+            graphify-out/GRAPH_REPORT.md
+          )
+
+          missing=0
+          for file in "${required[@]}"; do
+            if [ ! -s "$file" ]; then
+              echo "Missing or empty Graphify artifact: $file"
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            echo "Generate the graph in a supported coding assistant with /graphify . and commit graphify-out/."
+            exit 1
+          fi
+
+          if grep -RInE --exclude='graph.html' '(BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|FIREBASE_SERVICE_ACCOUNT|accessToken[[:space:]]*[:=]|password[[:space:]]*[:=])' graphify-out/; then
+            echo 'Potential secret-like material found in graphify-out/. Review before publishing.'
+            exit 1
+          fi
+
+          echo 'Graphify shared graph validated.'
+
+      - name: Upload Graphify knowledge graph
+        uses: actions/upload-artifact@v4
+        with:
+          name: graphify-knowledge-graph-${{ github.sha }}
+          path: graphify-out/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
