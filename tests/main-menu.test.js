@@ -25,13 +25,13 @@ test('menu principal usa ícones compatíveis nas funcionalidades visíveis', ()
   assert.match(shell, /id: 'permissions'.*icon: 'fa-lock'/);
   assert.match(shell, /id: 'schedules'.*icon: 'fa-calendar-check'/s);
   assert.match(shell, /id: 'help'.*icon: 'fa-circle-question'/s);
-  assert.doesNotMatch(shell, /fa-shield-halved|fa-people-group/);
+  assert.match(shell, /id: 'users'.*icon: 'fa-users'/s);
 });
 
 test('configurações segue o mesmo padrão de grupo usado por Escalas e Setlist', () => {
-  assert.match(shell, /id: 'settings', label: 'Configurações', items:/);
-  assert.match(shell, /id: 'settings-template'.*Template de Escala/s);
-  assert.match(shell, /id: 'settings-functions'.*Funções Ministeriais/s);
+  assert.match(shell, /id: 'settings-template'.*groupId: 'settings'.*groupLabel: 'Configurações'/s);
+  assert.match(shell, /id: 'settings-functions'.*groupId: 'settings'.*groupLabel: 'Configurações'/s);
+  assert.match(shell, /id: 'settings-routes'.*groupId: 'settings'.*groupLabel: 'Configurações'/s);
   assert.doesNotMatch(shell, /createNavBranch|children:/);
   assert.doesNotMatch(css, /ide-sidebar-submenu|ide-sidebar-sublink/);
 });

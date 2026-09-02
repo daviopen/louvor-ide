@@ -77,7 +77,7 @@ test('unavailability periods are clipped to the selected export month', () => {
 });
 
 test('Exportar and Participações are permanent schedule navigation items', () => {
-  assert.match(appShell, /id: 'schedules-export'.*label: 'Exportar'.*view=export.*permission: 'schedules'/s);
+  assert.match(appShell, /id: 'schedules-export'.*label: 'Exportar escalas'.*view=export.*permission: 'schedules'/s);
   assert.match(appShell, /id: 'schedules-participation'.*label: 'Participações'.*view=participation.*permission: 'schedules'/s);
   assert.match(appShell, /scheduleView === 'export'\) return 'schedules-export'/);
   assert.match(appShell, /scheduleView === 'participation'\) return 'schedules-participation'/);
