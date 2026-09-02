@@ -9,7 +9,17 @@ function fakeRepository() {
   const users = [{ id: 'u1', name: 'Ana', active: true }, { id: 'u2', name: 'Bia', active: true }];
   const userFunctions = [{ userId: 'u1', functionId: 'fn_back', active: true }, { userId: 'u1', functionId: 'fn_keys', active: true }, { userId: 'u2', functionId: 'fn_back', active: true }];
   const unavailability = [{ id: 'un1', userId: 'u2', date: '2026-09-01', period: 'EVENING' }];
-  const calls = { listSchedules: 0, listAllMembers: 0, listMembers: 0, getUser: 0, listUserFunctionsForUser: 0, listUnavailabilityForUser: 0 };
+  const calls = {
+    listSchedules: 0,
+    listAllMembers: 0,
+    listMembersForSchedules: 0,
+    listMembers: 0,
+    getUser: 0,
+    listUserFunctionsForUsers: 0,
+    listUserFunctionsForUser: 0,
+    listUnavailabilityForUsers: 0,
+    listUnavailabilityForUser: 0
+  };
   return {
     schedules, members, audit, calls,
     async getPermissionLevel() { return 'EDIT'; },
@@ -17,10 +27,13 @@ function fakeRepository() {
     async listActiveUsers() { return users.map(item => ({ ...item })); },
     async listActiveFunctions() { return [{ id: 'fn_back', name: 'Back Vocal', active: true, order: 10 }, { id: 'fn_keys', name: 'Teclado', active: true, order: 20 }]; },
     async listUserFunctions() { return userFunctions.map(item => ({ ...item })); },
+    async listUserFunctionsForUsers(userIds) { calls.listUserFunctionsForUsers += 1; return userFunctions.filter(item => userIds.includes(item.userId)).map(item => ({ ...item })); },
     async listUserFunctionsForUser(userId) { calls.listUserFunctionsForUser += 1; return userFunctions.filter(item => item.userId === userId).map(item => ({ ...item })); },
     async listUnavailability() { return unavailability.map(item => ({ ...item })); },
+    async listUnavailabilityForUsers(userIds) { calls.listUnavailabilityForUsers += 1; return unavailability.filter(item => userIds.includes(item.userId)).map(item => ({ ...item })); },
     async listUnavailabilityForUser(userId) { calls.listUnavailabilityForUser += 1; return unavailability.filter(item => item.userId === userId).map(item => ({ ...item })); },
     async listAllMembers() { calls.listAllMembers += 1; return members.filter(item => item.active !== false); },
+    async listMembersForSchedules(scheduleIds) { calls.listMembersForSchedules += 1; return members.filter(item => scheduleIds.includes(item.scheduleId) && item.active !== false); },
     async listMembers() { calls.listMembers += 1; return members.filter(item => item.active !== false); },
     async getSchedule(id) { return schedules.get(id) || null; },
     async getEvent() { return { id: 'event_1', name: 'Culto', date: '2026-09-01', time: '20:00' }; },
@@ -70,13 +83,16 @@ test('completude depende de todos os slots possuírem integrante ativo', () => {
   assert.equal(scheduleCompleteness(schedule, [{ slotId: 'a', active: true }, { slotId: 'b', active: true }]).complete, true);
 });
 
-test('carrega integrantes de todas as escalas em uma única leitura em lote', async () => {
+test('carrega somente integrantes das escalas exibidas em leitura segmentada', async () => {
   const repository = fakeRepository();
   repository.members.push({ id: 'm1', scheduleId: 'schedule_event_1', slotId: 'slot_a', userId: 'u1', functionId: 'fn_back', active: true });
   const service = new ScheduleService(repository);
   const data = await service.load({ uid: 'admin' }, { role: 'SUPER_ADMIN' });
-  assert.equal(repository.calls.listAllMembers, 1);
+  assert.equal(repository.calls.listMembersForSchedules, 1);
+  assert.equal(repository.calls.listAllMembers, 0);
   assert.equal(repository.calls.listMembers, 0);
+  assert.equal(repository.calls.listUserFunctionsForUsers, 1);
+  assert.equal(repository.calls.listUnavailabilityForUsers, 1);
   assert.equal(data.schedules[0].members.length, 1);
   assert.equal(data.schedules[0].completeness.complete, true);
 });
