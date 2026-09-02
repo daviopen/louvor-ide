@@ -207,7 +207,6 @@ louvor-ide/
 │   └── utils/            # Utilitários puros
 ├── tests/                # Suíte automatizada
 ├── AGENTS.md             # Regras de engenharia do projeto
-├── ROADMAP.md            # Roadmap oficial
 ├── firebase.json         # Hosting e Firestore Rules
 ├── firestore.rules       # Regras de segurança do Firestore
 ├── Makefile              # Comandos padronizados
@@ -402,18 +401,9 @@ A aplicação deve preservar:
 - estados padronizados de loading, erro e vazio;
 - botões, formulários, filtros, modais e tabelas consistentes entre as telas.
 
-## Roadmap
-
-O planejamento oficial e o status detalhado das funcionalidades ficam em:
-
-[`ROADMAP.md`](ROADMAP.md)
-
-Um item só deve ser marcado como concluído depois de implementado, testado e validado.
-
 ## Documentação adicional
 
 - [`AGENTS.md`](AGENTS.md) — arquitetura, padrões e regras de engenharia;
-- [`ROADMAP.md`](ROADMAP.md) — evolução funcional do produto;
 - [`docs/GOOGLE-AUTH-SETUP.md`](docs/GOOGLE-AUTH-SETUP.md) — configuração do login Google, quando aplicável.
 
 ## Licença
