@@ -8,52 +8,35 @@
   if (globalScope) globalScope.MusicIdeEventRepository = api;
 })(typeof window !== 'undefined' ? window : null, function createModule() {
   const FALLBACK_TEMPLATE = Object.freeze([
-    { slug: 'back-vocal', quantity: 4 },
-    { slug: 'ministro', quantity: 2 },
-    { slug: 'guitarra', quantity: 1 },
-    { slug: 'violao', quantity: 1 },
-    { slug: 'baixo', quantity: 1 },
-    { slug: 'bateria', quantity: 1 },
-    { slug: 'teclado', quantity: 1 }
+    { slug: 'back-vocal', quantity: 4 }, { slug: 'ministro', quantity: 2 },
+    { slug: 'guitarra', quantity: 1 }, { slug: 'violao', quantity: 1 },
+    { slug: 'baixo', quantity: 1 }, { slug: 'bateria', quantity: 1 }, { slug: 'teclado', quantity: 1 }
   ]);
+  const DEFAULT_EVENT_LIMIT = 150;
+  const PERMISSION_TTL_MS = 2 * 60 * 1000;
+  const TEMPLATE_TTL_MS = 5 * 60 * 1000;
 
-  function snapshotToEntity(snapshot) {
-    return snapshot && snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null;
-  }
-
-  function mapSnapshot(snapshot) {
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  }
-
+  function snapshotToEntity(snapshot) { return snapshot && snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null; }
+  function mapSnapshot(snapshot) { return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); }
   function safeRequestId(value) {
     const normalized = String(value || '').trim().replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 100);
     if (!normalized) throw new Error('Identificador de criação inválido.');
     return normalized;
   }
-
   function eventDocumentId(requestId) { return `event_${safeRequestId(requestId)}`; }
   function scheduleDocumentId(eventId) { return `schedule_${String(eventId)}`; }
   function setlistDocumentId(eventId) { return `setlist_${String(eventId)}`; }
-
-  function activeScheduleStatus(currentStatus) {
-    return ['DRAFT', 'COMPLETE'].includes(String(currentStatus || '').toUpperCase()) ? String(currentStatus).toUpperCase() : 'DRAFT';
-  }
-
-  function activeSetlistStatus(currentStatus) {
-    return ['DRAFT', 'READY'].includes(String(currentStatus || '').toUpperCase()) ? String(currentStatus).toUpperCase() : 'DRAFT';
-  }
-
+  function activeScheduleStatus(currentStatus) { return ['DRAFT', 'COMPLETE'].includes(String(currentStatus || '').toUpperCase()) ? String(currentStatus).toUpperCase() : 'DRAFT'; }
+  function activeSetlistStatus(currentStatus) { return ['DRAFT', 'READY'].includes(String(currentStatus || '').toUpperCase()) ? String(currentStatus).toUpperCase() : 'DRAFT'; }
   function linkedStatuses(eventStatus, scheduleStatus, setlistStatus) {
     const normalized = String(eventStatus || 'PLANNED').toUpperCase();
     if (normalized === 'CANCELLED') return { schedule: 'CANCELLED', setlist: 'CANCELLED' };
     if (normalized === 'COMPLETED') return { schedule: 'COMPLETED', setlist: 'COMPLETED' };
     return { schedule: activeScheduleStatus(scheduleStatus), setlist: activeSetlistStatus(setlistStatus) };
   }
-
   function safeSlotPart(value) {
     return String(value || 'funcao').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'funcao';
   }
-
   function buildScheduleSlots(functions, configuredTemplate) {
     const activeFunctions = (functions || []).filter(item => item.active !== false);
     const byId = new Map(activeFunctions.map(item => [String(item.id), item]));
@@ -66,13 +49,10 @@
     source.forEach(entry => {
       if (!entry.function || !Number.isInteger(entry.quantity) || entry.quantity <= 0) return;
       const base = safeSlotPart(entry.function.slug || entry.function.id);
-      for (let index = 1; index <= entry.quantity; index += 1) {
-        slots.push({ id: `slot_${base}_${index}`, functionId: entry.function.id });
-      }
+      for (let index = 1; index <= entry.quantity; index += 1) slots.push({ id: `slot_${base}_${index}`, functionId: entry.function.id });
     });
     return slots;
   }
-
   function auditTimestamp(clock) {
     const firebaseApi = typeof globalThis !== 'undefined' ? globalThis.firebase : null;
     const fieldValue = firebaseApi && firebaseApi.firestore && firebaseApi.firestore.FieldValue;
@@ -85,8 +65,9 @@
       if (!database || typeof database.collection !== 'function') throw new Error('Firestore é obrigatório para EventRepository.');
       this.db = database;
       this.clock = options.clock || (() => new Date());
+      this.permissionCache = new Map();
+      this.templateCache = null;
     }
-
     events() { return this.db.collection('events'); }
     schedules() { return this.db.collection('schedules'); }
     setlists() { return this.db.collection('setlists'); }
@@ -94,29 +75,32 @@
 
     async getById(id) { return snapshotToEntity(await this.events().doc(id).get()); }
 
-    async listAll() {
-      const snapshot = await this.events().orderBy('date', 'asc').get();
+    async listAll(limit = DEFAULT_EVENT_LIMIT) {
+      const safeLimit = Math.max(1, Math.min(250, Number(limit) || DEFAULT_EVENT_LIMIT));
+      const snapshot = await this.events().orderBy('date', 'desc').limit(safeLimit).get();
       return mapSnapshot(snapshot);
     }
 
     async getPermissionLevel(userId, moduleName) {
-      const snapshot = await this.db.collection('permissions').doc(`${userId}__${moduleName}`).get();
-      if (!snapshot.exists) return 'NONE';
-      return String(snapshot.data()?.level || 'NONE').toUpperCase();
+      const key = `${userId}__${moduleName}`;
+      const current = this.permissionCache.get(key);
+      if (current && Date.now() - current.loadedAt < PERMISSION_TTL_MS) return current.level;
+      const snapshot = await this.db.collection('permissions').doc(key).get();
+      const level = snapshot.exists ? String(snapshot.data()?.level || 'NONE').toUpperCase() : 'NONE';
+      this.permissionCache.set(key, { level, loadedAt: Date.now() });
+      return level;
     }
 
     async loadScheduleTemplate() {
+      if (this.templateCache && Date.now() - this.templateCache.loadedAt < TEMPLATE_TTL_MS) return this.templateCache.value;
       const [functionsSnapshot, templateSnapshot] = await Promise.all([
-        this.db.collection('ministryFunctions').get(),
-        this.db.collection('settings').doc('scheduleTemplate').get()
+        this.db.collection('ministryFunctions').get(), this.db.collection('settings').doc('scheduleTemplate').get()
       ]);
       const functions = mapSnapshot(functionsSnapshot);
       const template = templateSnapshot.exists ? { id: templateSnapshot.id, ...templateSnapshot.data() } : null;
-      return {
-        slots: buildScheduleSlots(functions, template),
-        version: Number(template?.version || 0),
-        source: template ? 'CONFIGURED' : 'FALLBACK'
-      };
+      const value = { slots: buildScheduleSlots(functions, template), version: Number(template?.version || 0), source: template ? 'CONFIGURED' : 'FALLBACK' };
+      this.templateCache = { loadedAt: Date.now(), value };
+      return value;
     }
 
     async createEventBundle(data, actorUserId, requestId) {
@@ -135,58 +119,22 @@
       return this.db.runTransaction(async transaction => {
         const existing = await transaction.get(eventRef);
         if (existing.exists) return { id: existing.id, ...existing.data(), idempotent: true };
-
-        const eventDocument = {
-          ...data,
-          scheduleId,
-          setlistId,
-          createdBy: actorUserId,
-          updatedBy: actorUserId,
-          createdAt: now,
-          updatedAt: now
-        };
+        const eventDocument = { ...data, scheduleId, setlistId, createdBy: actorUserId, updatedBy: actorUserId, createdAt: now, updatedAt: now };
         const scheduleDocument = {
-          eventId,
-          status: 'DRAFT',
-          slots: scheduleTemplate.slots,
-          defaultTemplateVersion: scheduleTemplate.version,
-          templateSource: scheduleTemplate.source,
-          eventDate: data.date,
-          eventTime: data.time || null,
-          createdBy: actorUserId,
-          updatedBy: actorUserId,
-          createdAt: now,
-          updatedAt: now
+          eventId, status: 'DRAFT', slots: scheduleTemplate.slots, defaultTemplateVersion: scheduleTemplate.version,
+          templateSource: scheduleTemplate.source, eventDate: data.date, eventTime: data.time || null,
+          createdBy: actorUserId, updatedBy: actorUserId, createdAt: now, updatedAt: now
         };
         const setlistDocument = {
-          eventId,
-          scheduleId,
-          status: 'DRAFT',
-          eventDate: data.date,
-          eventTime: data.time || null,
-          createdBy: actorUserId,
-          updatedBy: actorUserId,
-          createdAt: now,
-          updatedAt: now
+          eventId, scheduleId, status: 'DRAFT', eventDate: data.date, eventTime: data.time || null,
+          createdBy: actorUserId, updatedBy: actorUserId, createdAt: now, updatedAt: now
         };
         transaction.set(eventRef, eventDocument);
         transaction.set(scheduleRef, scheduleDocument);
         transaction.set(setlistRef, setlistDocument);
         transaction.set(auditRef, {
-          actorUserId,
-          action: 'EVENT_CREATED',
-          entityType: 'event',
-          entityId: eventId,
-          details: {
-            scheduleId,
-            setlistId,
-            status: data.status,
-            date: data.date,
-            time: data.time || null,
-            scheduleTemplateVersion: scheduleTemplate.version,
-            scheduleTemplateSource: scheduleTemplate.source,
-            schedulePositions: scheduleTemplate.slots.length
-          },
+          actorUserId, action: 'EVENT_CREATED', entityType: 'event', entityId: eventId,
+          details: { scheduleId, setlistId, status: data.status, date: data.date, time: data.time || null, scheduleTemplateVersion: scheduleTemplate.version, scheduleTemplateSource: scheduleTemplate.source, schedulePositions: scheduleTemplate.slots.length },
           createdAt: auditCreatedAt
         });
         return { id: eventId, ...eventDocument, idempotent: false };
@@ -207,58 +155,18 @@
         scheduleCurrent = snapshotToEntity(scheduleSnapshot);
         setlistCurrent = snapshotToEntity(setlistSnapshot);
       }
-
       const now = this.clock();
       const auditCreatedAt = auditTimestamp(this.clock);
       const batch = this.db.batch();
-      batch.set(this.events().doc(eventId), {
-        ...data,
-        scheduleId,
-        setlistId,
-        createdBy: current.createdBy || actorUserId,
-        updatedBy: actorUserId,
-        createdAt: current.createdAt || now,
-        updatedAt: now
-      }, { merge: true });
-
+      batch.set(this.events().doc(eventId), { ...data, scheduleId, setlistId, createdBy: current.createdBy || actorUserId, updatedBy: actorUserId, createdAt: current.createdAt || now, updatedAt: now }, { merge: true });
       if (options.syncLinked) {
         const statuses = linkedStatuses(data.status, scheduleCurrent?.status, setlistCurrent?.status);
-        batch.set(scheduleRef, {
-          eventId,
-          status: statuses.schedule,
-          eventDate: data.date,
-          eventTime: data.time || null,
-          createdBy: scheduleCurrent?.createdBy || actorUserId,
-          updatedBy: actorUserId,
-          createdAt: scheduleCurrent?.createdAt || now,
-          updatedAt: now
-        }, { merge: true });
-        batch.set(setlistRef, {
-          eventId,
-          scheduleId,
-          status: statuses.setlist,
-          eventDate: data.date,
-          eventTime: data.time || null,
-          createdBy: setlistCurrent?.createdBy || actorUserId,
-          updatedBy: actorUserId,
-          createdAt: setlistCurrent?.createdAt || now,
-          updatedAt: now
-        }, { merge: true });
+        batch.set(scheduleRef, { eventId, status: statuses.schedule, eventDate: data.date, eventTime: data.time || null, createdBy: scheduleCurrent?.createdBy || actorUserId, updatedBy: actorUserId, createdAt: scheduleCurrent?.createdAt || now, updatedAt: now }, { merge: true });
+        batch.set(setlistRef, { eventId, scheduleId, status: statuses.setlist, eventDate: data.date, eventTime: data.time || null, createdBy: setlistCurrent?.createdBy || actorUserId, updatedBy: actorUserId, createdAt: setlistCurrent?.createdAt || now, updatedAt: now }, { merge: true });
       }
-
-      const auditRef = this.auditLogs().doc();
-      batch.set(auditRef, {
-        actorUserId,
-        action: 'EVENT_UPDATED',
-        entityType: 'event',
-        entityId: eventId,
-        details: {
-          previousStatus: current.status,
-          status: data.status,
-          date: data.date,
-          time: data.time || null,
-          linkedSynchronized: Boolean(options.syncLinked)
-        },
+      batch.set(this.auditLogs().doc(), {
+        actorUserId, action: 'EVENT_UPDATED', entityType: 'event', entityId: eventId,
+        details: { previousStatus: current.status, status: data.status, date: data.date, time: data.time || null, linkedSynchronized: Boolean(options.syncLinked) },
         createdAt: auditCreatedAt
       });
       await batch.commit();
@@ -286,7 +194,6 @@
       ]);
       const childCount = membersSnapshot.docs.length + songsSnapshot.docs.length;
       if (childCount > 490) throw new Error('O evento possui vínculos demais para exclusão segura em uma única operação. Procure um administrador.');
-
       const batch = this.db.batch();
       membersSnapshot.docs.forEach(doc => batch.delete(doc.ref));
       songsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
@@ -294,18 +201,8 @@
       batch.delete(this.schedules().doc(scheduleId));
       batch.delete(this.setlists().doc(setlistId));
       batch.set(this.auditLogs().doc(), {
-        actorUserId,
-        action: 'EVENT_DELETED',
-        entityType: 'event',
-        entityId: eventId,
-        details: {
-          name: event.name,
-          scheduleId,
-          setlistId,
-          status: event.status,
-          deletedScheduleMembers: membersSnapshot.docs.length,
-          deletedSetlistSongs: songsSnapshot.docs.length
-        },
+        actorUserId, action: 'EVENT_DELETED', entityType: 'event', entityId: eventId,
+        details: { name: event.name, scheduleId, setlistId, status: event.status, deletedScheduleMembers: membersSnapshot.docs.length, deletedSetlistSongs: songsSnapshot.docs.length },
         createdAt: auditCreatedAt
       });
       await batch.commit();
@@ -313,15 +210,5 @@
     }
   }
 
-  return Object.freeze({
-    EventRepository,
-    snapshotToEntity,
-    safeRequestId,
-    eventDocumentId,
-    scheduleDocumentId,
-    setlistDocumentId,
-    linkedStatuses,
-    buildScheduleSlots,
-    FALLBACK_TEMPLATE
-  });
+  return Object.freeze({ EventRepository, snapshotToEntity, safeRequestId, eventDocumentId, scheduleDocumentId, setlistDocumentId, linkedStatuses, buildScheduleSlots, FALLBACK_TEMPLATE, DEFAULT_EVENT_LIMIT });
 });
