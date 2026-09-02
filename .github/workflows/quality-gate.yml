@@ -49,6 +49,9 @@ jobs:
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
         run: npm run build
 
+      - name: Compose notification Firestore rules
+        run: node src/scripts/build-firestore-rules.cjs firestore.rules firestore.notifications.rules firestore.rules
+
       - name: Firestore Rules tests
         run: npx firebase emulators:exec --only firestore --project demo-louvor-ide "node --test tests/firestore-rules.test.js"
 
