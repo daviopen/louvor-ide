@@ -9,6 +9,7 @@
   const getView=()=>new URLSearchParams(location.search).get('view')==='history'?'history':'upcoming';
   async function user(){return new Promise((resolve,reject)=>firebase.auth().onAuthStateChanged(u=>u?resolve(u):reject(new Error('Faça login para consultar Setlists.'))));}
   const docs=snap=>snap.docs.map(d=>({id:d.id,...d.data()}));
+  const read=async(label,operation)=>{try{return await operation();}catch(error){const contextual=new Error(`Não foi possível consultar ${label}: ${error?.message||'acesso negado'}`);contextual.code=error?.code;contextual.cause=error;throw contextual;}};
   const filterIds=['filter-from','filter-to','filter-event','filter-minister','filter-status','filter-participant','filter-song','filter-theme'];
   const filterParams={
     'filter-from':'from','filter-to':'to','filter-event':'event','filter-minister':'minister',
@@ -140,12 +141,12 @@
     try{
       if(!firebase.apps.length) firebase.initializeApp(firebaseConfig); const db=firebase.firestore(); await user(); configureView(); bind();
       const [setlistSnap,eventSnap,setlistSongSnap,userSnap,songSnap,scheduleMemberSnap]=await Promise.all([
-        db.collection('setlists').get(),
-        db.collection('events').get(),
-        db.collection('setlistSongs').get(),
-        db.collection('users').get(),
-        db.collection('songs').get(),
-        db.collection('scheduleMembers').get()
+        read('Setlists',()=>db.collection('setlists').get()),
+        read('eventos dos Setlists',()=>db.collection('events').get()),
+        read('músicas vinculadas aos Setlists',()=>db.collection('setlistSongs').get()),
+        read('pessoas dos Setlists',()=>db.collection('users').get()),
+        read('biblioteca de músicas',()=>db.collection('songs').get()),
+        read('participantes das escalas',()=>db.collection('scheduleMembers').get())
       ]);
       const events=new Map(docs(eventSnap).map(item=>[item.id,item]));
       const users=new Map(docs(userSnap).map(item=>[item.id,item]));
