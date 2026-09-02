@@ -1,0 +1,99 @@
+    // Regras do módulo de notificações. Este fragmento é incorporado ao ruleset
+    // final por src/scripts/build-firestore-rules.cjs antes da publicação.
+    function validPushSubscription() {
+      return activeUser()
+        && request.resource.data.keys().hasAll(['userId', 'endpoint', 'keys', 'enabled', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['userId', 'endpoint', 'keys', 'enabled', 'createdAt', 'updatedAt'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.endpoint is string
+        && request.resource.data.endpoint.size() >= 20
+        && request.resource.data.endpoint.size() <= 4096
+        && request.resource.data.keys is map
+        && request.resource.data.keys.keys().hasAll(['p256dh', 'auth'])
+        && request.resource.data.keys.keys().hasOnly(['p256dh', 'auth'])
+        && request.resource.data.keys.p256dh is string
+        && request.resource.data.keys.auth is string
+        && request.resource.data.enabled is bool
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validNotificationChannels() {
+      return request.resource.data.channels is map
+        && request.resource.data.channels.keys().hasAll(['push', 'email', 'calendar'])
+        && request.resource.data.channels.keys().hasOnly(['push', 'email', 'calendar'])
+        && request.resource.data.channels.push is bool
+        && request.resource.data.channels.email is bool
+        && request.resource.data.channels.calendar is bool;
+    }
+
+    function validNotificationOutbox() {
+      return activeUser()
+        && request.resource.data.keys().hasAll([
+          'type', 'aggregateType', 'scheduleId', 'eventId', 'setlistId', 'targetUserIds',
+          'channels', 'payload', 'actorUserId', 'status', 'attempts', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'type', 'aggregateType', 'scheduleId', 'eventId', 'setlistId', 'targetUserIds',
+          'channels', 'payload', 'actorUserId', 'status', 'attempts', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.type in [
+          'SCHEDULE_MEMBER_ASSIGNED', 'SCHEDULE_MEMBER_REMOVED', 'SCHEDULE_UPDATED', 'SETLIST_UPDATED'
+        ]
+        && request.resource.data.aggregateType in ['schedule', 'setlist']
+        && request.resource.data.scheduleId is string
+        && request.resource.data.scheduleId.size() > 0
+        && (request.resource.data.eventId == null || request.resource.data.eventId is string)
+        && (request.resource.data.setlistId == null || request.resource.data.setlistId is string)
+        && request.resource.data.targetUserIds is list
+        && request.resource.data.targetUserIds.size() <= 100
+        && validNotificationChannels()
+        && request.resource.data.payload is map
+        && request.resource.data.actorUserId == request.auth.uid
+        && request.resource.data.status == 'PENDING'
+        && request.resource.data.attempts == 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && (
+          (request.resource.data.aggregateType == 'schedule'
+            && request.resource.data.type in ['SCHEDULE_MEMBER_ASSIGNED', 'SCHEDULE_MEMBER_REMOVED', 'SCHEDULE_UPDATED']
+            && canEdit('schedules'))
+          || (request.resource.data.aggregateType == 'setlist'
+            && request.resource.data.type == 'SETLIST_UPDATED'
+            && canEdit('setlists'))
+        );
+    }
+
+    match /notificationConfig/{documentId} {
+      allow get: if activeUser();
+      allow list, create, update, delete: if false;
+    }
+
+    // Chaves privadas VAPID são gravadas e lidas apenas pelo Admin SDK no Actions.
+    match /notificationSecrets/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /pushSubscriptions/{documentId} {
+      allow read: if false;
+      allow create: if validPushSubscription();
+      allow update: if resource.data.userId == request.auth.uid && validPushSubscription();
+      allow delete: if activeUser() && resource.data.userId == request.auth.uid;
+    }
+
+    match /notificationOutbox/{documentId} {
+      allow create: if validNotificationOutbox();
+      allow read, update, delete: if false;
+    }
+
+    match /notifications/{documentId} {
+      allow get, list: if activeUser() && resource.data.userId == request.auth.uid;
+      allow create, delete: if false;
+      allow update: if activeUser()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt', 'updatedAt'])
+        && request.resource.data.read is bool
+        && request.resource.data.updatedAt == request.time
+        && (!('readAt' in request.resource.data) || request.resource.data.readAt == null || request.resource.data.readAt == request.time);
+    }

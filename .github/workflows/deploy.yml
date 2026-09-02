@@ -54,6 +54,9 @@ jobs:
       - name: 🎨 Normalizar cores legadas do artefato
         run: node src/scripts/normalize-built-html-colors.js .
 
+      - name: 🔔 Compor regras do módulo de notificações
+        run: node src/scripts/build-firestore-rules.cjs firestore.rules firestore.notifications.rules /tmp/firestore.rules
+
       - name: 🔑 Autenticar service account Firebase
         uses: google-github-actions/auth@v2
         with:
@@ -63,7 +66,7 @@ jobs:
         run: |
           set -euo pipefail
           ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"
-          RULESET_PAYLOAD="$(jq -n --rawfile content firestore.rules '{source:{files:[{name:"firestore.rules",content:$content}]}}')"
+          RULESET_PAYLOAD="$(jq -n --rawfile content /tmp/firestore.rules '{source:{files:[{name:"firestore.rules",content:$content}]}}')"
           RULESET_RESPONSE="$(curl --fail-with-body -sS \
             -X POST \
             -H "Authorization: Bearer ${ACCESS_TOKEN}" \
@@ -118,7 +121,9 @@ jobs:
             https://louvor-ide.web.app/login.html \
             https://louvor-ide.web.app/styles/tokens.css \
             https://louvor-ide.web.app/js/modules/auth-service.js \
-            https://louvor-ide.web.app/js/modules/mobile-auth-compat.js
+            https://louvor-ide.web.app/js/modules/mobile-auth-compat.js \
+            https://louvor-ide.web.app/js/modules/notification-push.js \
+            https://louvor-ide.web.app/repositories/notification-outbox-repository.js
           do
             status="$(curl -sS -o /dev/null -w '%{http_code}' "$url")"
             test "$status" = "200" || { echo "❌ $url retornou HTTP $status"; exit 1; }

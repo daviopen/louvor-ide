@@ -12,6 +12,9 @@ export const COLLECTIONS = Object.freeze({
   SETLIST_SONGS: 'setlistSongs',
   SONGS: 'songs',
   SONG_MINISTER_KEYS: 'songMinisterKeys',
+  NOTIFICATION_OUTBOX: 'notificationOutbox',
+  NOTIFICATIONS: 'notifications',
+  PUSH_SUBSCRIPTIONS: 'pushSubscriptions',
   AUDIT_LOGS: 'auditLogs',
   LGPD_CONSENTS: 'lgpdConsents'
 });
