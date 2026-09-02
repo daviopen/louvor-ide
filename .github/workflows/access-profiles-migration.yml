@@ -8,11 +8,27 @@ on:
         required: true
         default: false
         type: boolean
+      confirm_production:
+        description: 'Para apply=true, digite LOUVOR-IDE-PRODUCTION'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   migrate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
+      - name: 🛡️ Confirmar escrita em produção
+        if: inputs.apply
+        run: |
+          set -euo pipefail
+          test "${{ inputs.confirm_production }}" = "LOUVOR-IDE-PRODUCTION" || {
+            echo '❌ Migração bloqueada. Informe LOUVOR-IDE-PRODUCTION em confirm_production.'
+            exit 1
+          }
+
       - name: 📂 Checkout
         uses: actions/checkout@v4
 

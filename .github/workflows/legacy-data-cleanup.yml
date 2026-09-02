@@ -13,6 +13,11 @@ on:
           - dry-run
           - apply
           - restore
+      confirm_production:
+        description: 'Para apply/restore, digite LOUVOR-IDE-PRODUCTION'
+        required: false
+        default: ''
+        type: string
 
 concurrency:
   group: legacy-data-cleanup-production
@@ -24,6 +29,15 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: 🛡️ Confirmar operação mutável em produção
+        if: inputs.mode == 'apply' || inputs.mode == 'restore'
+        run: |
+          set -euo pipefail
+          test "${{ inputs.confirm_production }}" = "LOUVOR-IDE-PRODUCTION" || {
+            echo '❌ Operação bloqueada. Informe LOUVOR-IDE-PRODUCTION em confirm_production.'
+            exit 1
+          }
+
       - name: Checkout
         uses: actions/checkout@v4
 

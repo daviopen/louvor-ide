@@ -1,6 +1,7 @@
-name: 🖼️ Visual audit production
+name: 🖼️ Visual audit (staging only)
 
-# Auditoria extensa de produção; executar apenas quando solicitada.
+# A auditoria cria um usuário temporário para navegar por rotas protegidas.
+# Por isso ela nunca deve executar contra o Firebase de produção.
 on:
   workflow_dispatch:
 
@@ -9,21 +10,43 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      BASE_URL: ${{ vars.E2E_BASE_URL }}
+      FIREBASE_PROJECT_ID: ${{ vars.E2E_FIREBASE_PROJECT_ID }}
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: 🛡️ Bloquear produção e validar staging
+        run: |
+          set -euo pipefail
+          test -n "${BASE_URL:-}" || { echo '❌ Configure a variável E2E_BASE_URL'; exit 1; }
+          test -n "${FIREBASE_PROJECT_ID:-}" || { echo '❌ Configure a variável E2E_FIREBASE_PROJECT_ID'; exit 1; }
+          if [ "${FIREBASE_PROJECT_ID}" = "louvor-ide" ]; then
+            echo '❌ Auditoria mutável bloqueada: projeto de produção detectado.'
+            exit 1
+          fi
+          case "${BASE_URL}" in
+            *louvor-ide.web.app*|*louvor-ide.firebaseapp.com*)
+              echo '❌ Auditoria mutável bloqueada: URL de produção detectada.'
+              exit 1
+              ;;
+          esac
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+
       - uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_E2E }}
+
       - name: Install audit dependencies
         run: |
           npm install --no-save playwright@1.55.0 @axe-core/playwright@4.10.2 firebase-admin@13.4.0
           npx playwright install chromium
+
       - name: Capture desktop/mobile and audit UI
-        env:
-          BASE_URL: https://louvor-ide.web.app
         run: |
           cat > visual-audit.cjs <<'NODE'
           const fs = require('fs');
@@ -32,9 +55,10 @@ jobs:
           const { chromium } = require('playwright');
           const { AxeBuilder } = require('@axe-core/playwright');
           const baseUrl = process.env.BASE_URL;
+          const projectId = process.env.FIREBASE_PROJECT_ID;
           const out = path.resolve('visual-audit');
           fs.mkdirSync(out, { recursive: true });
-          admin.initializeApp({ credential: admin.credential.applicationDefault(), projectId: 'louvor-ide' });
+          admin.initializeApp({ credential: admin.credential.applicationDefault(), projectId });
           const db = admin.firestore();
           const auth = admin.auth();
           const email = `visual.audit.${Date.now()}@louvor-ide.app`;
@@ -57,7 +81,7 @@ jobs:
             const contrast=axe.violations.flatMap(v=>v.nodes.map(n=>({impact:v.impact,help:v.help,target:n.target})));
             return {...x,contrast};
           }
-          (async()=>{const report={generatedAt:new Date().toISOString(),baseUrl,items:[]};try{
+          (async()=>{const report={generatedAt:new Date().toISOString(),baseUrl,projectId,items:[]};try{
             user=await auth.createUser({email,password,displayName:'Visual Audit',emailVerified:true});
             await auth.setCustomUserClaims(user.uid,{superAdmin:true,role:'SUPER_ADMIN'});
             await db.collection('users').doc(user.uid).set({uid:user.uid,email,name:'Visual Audit',displayName:'Visual Audit',role:'SUPER_ADMIN',active:true,lgpdConsentVersion:consentVersion,createdAt:admin.firestore.FieldValue.serverTimestamp(),updatedAt:admin.firestore.FieldValue.serverTimestamp()});
@@ -82,10 +106,11 @@ jobs:
           }finally{if(browser)await browser.close().catch(()=>{});if(user){await db.collection('users').doc(user.uid).delete().catch(()=>{});await auth.deleteUser(user.uid).catch(()=>{})}await admin.app().delete().catch(()=>{})}})().catch(e=>{console.error(e);process.exit(1)});
           NODE
           node visual-audit.cjs
+
       - name: Upload screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: visual-audit-production
+          name: visual-audit-staging
           path: visual-audit/
           retention-days: 7

@@ -1,8 +1,13 @@
 name: 🎼 Schedule Template Backfill
 
-# Backfill em produção: executar somente quando solicitado.
+# Backfill em produção: executar somente quando solicitado e confirmado.
 on:
   workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: 'Digite LOUVOR-IDE-PRODUCTION para confirmar o backfill'
+        required: true
+        type: string
 
 concurrency:
   group: schedule-template-backfill-production
@@ -14,6 +19,14 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: 🛡️ Confirmar escrita em produção
+        run: |
+          set -euo pipefail
+          test "${{ inputs.confirm_production }}" = "LOUVOR-IDE-PRODUCTION" || {
+            echo '❌ Backfill bloqueado. Digite LOUVOR-IDE-PRODUCTION para continuar.'
+            exit 1
+          }
+
       - name: Checkout
         uses: actions/checkout@v4
 

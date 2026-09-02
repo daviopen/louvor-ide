@@ -12,6 +12,11 @@ on:
           - dry-run
           - apply
           - verify
+      confirm_production:
+        description: 'Para apply, digite LOUVOR-IDE-PRODUCTION'
+        required: false
+        default: ''
+        type: string
 
 concurrency:
   group: data-migration-production
@@ -23,6 +28,15 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: 🛡️ Confirmar escrita em produção
+        if: inputs.mode == 'apply'
+        run: |
+          set -euo pipefail
+          test "${{ inputs.confirm_production }}" = "LOUVOR-IDE-PRODUCTION" || {
+            echo '❌ Apply bloqueado. Informe LOUVOR-IDE-PRODUCTION em confirm_production.'
+            exit 1
+          }
+
       - name: Checkout
         uses: actions/checkout@v4
 

@@ -3,6 +3,11 @@ name: 🔗 Reconcile Firebase auth identities
 # Operação administrativa sobre dados reais. Nunca executar automaticamente após deploy.
 on:
   workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: 'Digite LOUVOR-IDE-PRODUCTION para confirmar a operação'
+        required: true
+        type: string
 
 concurrency:
   group: reconcile-firebase-auth-identities
@@ -11,8 +16,18 @@ concurrency:
 jobs:
   reconcile_auth:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
+      - name: 🛡️ Confirmar operação em produção
+        run: |
+          set -euo pipefail
+          test "${{ inputs.confirm_production }}" = "LOUVOR-IDE-PRODUCTION" || {
+            echo '❌ Operação bloqueada. Digite LOUVOR-IDE-PRODUCTION para continuar.'
+            exit 1
+          }
+
       - name: 📂 Checkout código
         uses: actions/checkout@v4
 
