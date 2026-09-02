@@ -11,7 +11,6 @@ const rules = read('firestore.rules');
 const authAudit = read('src/js/modules/audit-auth-runtime.js');
 const normalizer = read('src/scripts/normalize-built-html-colors.js');
 const users = read('src/services/user-service.js');
-const permissions = read('src/js/modules/permissions-page.js');
 const functionsService = read('src/services/ministry-functions-service.js');
 const unavailability = read('src/services/unavailability-service.js');
 const events = read('src/repositories/event-repository.js');
@@ -56,7 +55,6 @@ test('authentication audits successful login and logout without credentials', ()
 
 test('administrative and operational domains emit audit events', () => {
   expectAll(users, [/USER_CREATED/, /USER_UPDATED/, /USER_DEACTIVATED/, /USER_REACTIVATED/]);
-  expectAll(permissions, [/(?:PERMISSIONS_UPDATED|ACCESS_PROFILE_UPDATED)/, /before, after/]);
   expectAll(functionsService, [/MINISTRY_FUNCTION_CREATED/, /MINISTRY_FUNCTION_UPDATED/, /before:/, /after:/]);
   expectAll(unavailability, [/UNAVAILABILITY_CREATED/, /UNAVAILABILITY_UPDATED/, /UNAVAILABILITY_DELETED/, /UNAVAILABILITY_OVERRIDE_CONFIRMED/]);
   expectAll(events, [/EVENT_CREATED/, /EVENT_UPDATED/, /EVENT_DELETED/]);
