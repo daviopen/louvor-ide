@@ -122,10 +122,15 @@
     async resolveAccess(user, profile = null) {
       const userId = this.actorId(user);
       const role = String(profile?.role || '').toUpperCase();
+      const accessProfile = String(profile?.accessProfile || '').toUpperCase();
       if (role === 'SUPER_ADMIN' || profile?.isSuperAdmin === true) return { level: 'EDIT', canRead: true, canEdit: true };
+      if (accessProfile === 'LEADER' || accessProfile === 'ADMINISTRATOR') {
+        return { level: 'EDIT', canRead: true, canEdit: true };
+      }
       const persistedLevel = await this.repository.getPermissionLevel(userId, 'schedules');
-      const level = strongestLevel(profilePermissionLevel(profile, 'schedules'), persistedLevel);
-      return { level, canRead: level === 'READ' || level === 'EDIT', canEdit: level === 'EDIT' };
+      const requestedLevel = strongestLevel(profilePermissionLevel(profile, 'schedules'), persistedLevel);
+      const level = requestedLevel === 'EDIT' ? 'READ' : requestedLevel;
+      return { level, canRead: level === 'READ', canEdit: false };
     }
 
     async load(user, profile = null) {
