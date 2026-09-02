@@ -2,6 +2,11 @@ name: 👤 User Last Access Backfill
 
 on:
   workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: 'Digite LOUVOR-IDE-PRODUCTION para confirmar o backfill'
+        required: true
+        type: string
 
 concurrency:
   group: user-last-access-backfill-production
@@ -13,6 +18,14 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: 🛡️ Confirmar escrita em produção
+        run: |
+          set -euo pipefail
+          test "${{ inputs.confirm_production }}" = "LOUVOR-IDE-PRODUCTION" || {
+            echo '❌ Backfill bloqueado. Digite LOUVOR-IDE-PRODUCTION para continuar.'
+            exit 1
+          }
+
       - name: Checkout
         uses: actions/checkout@v4
 
