@@ -67,6 +67,8 @@
         uid,
         name: String(input.name || '').trim(),
         email: normalizeEmail(input.email),
+        phone: input.phone || null,
+        birthDate: input.birthDate || null,
         photoURL: input.photoURL || null,
         active: input.active !== false,
         role: accessProfile === 'ADMINISTRATOR' ? 'ADMIN' : 'MEMBER',
@@ -81,7 +83,7 @@
     }
 
     async updateUser(id, patch) {
-      const allowed = ['name', 'email', 'photoURL', 'active', 'accessProfile', 'role'];
+      const allowed = ['name', 'email', 'phone', 'birthDate', 'photoURL', 'active', 'accessProfile', 'role'];
       const safe = {};
       allowed.forEach(key => {
         if (Object.prototype.hasOwnProperty.call(patch, key)) safe[key] = patch[key];
@@ -91,6 +93,8 @@
         safe.name = String(safe.name).trim();
         if (!safe.name) throw new TypeError('name é obrigatório.');
       }
+      if (safe.phone != null) safe.phone = String(safe.phone).trim() || null;
+      if (safe.birthDate != null) safe.birthDate = String(safe.birthDate).trim() || null;
       if (safe.accessProfile != null) safe.accessProfile = String(safe.accessProfile).trim().toUpperCase();
       safe.updatedAt = this.clock();
       await this.users().doc(id).update(safe);
