@@ -9,6 +9,21 @@ test('editor usa carregamento direcionado em vez da listagem completa', () => {
   assert.match(source, /service\.loadEditor\(state\.scheduleId/);
 });
 
+test('remoções atualizam a interface antes de aguardar o Firestore', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../src/js/modules/schedules-page.js'), 'utf8');
+  const removeSlotOptimistic = source.indexOf('schedule.slots=beforeSlots.filter(item=>item.id!==slotId)');
+  const removeSlotPersist = source.indexOf('await service.removeSlot(schedule.id,slotId');
+  const removeMemberOptimistic = source.indexOf('schedule.members=beforeMembers.filter(item=>item.id!==memberId)');
+  const removeMemberPersist = source.indexOf('await service.removeMember(schedule.id,memberId');
+
+  assert.ok(removeSlotOptimistic >= 0, 'remoção otimista da função deve existir');
+  assert.ok(removeSlotPersist > removeSlotOptimistic, 'função deve sair da UI antes da persistência remota');
+  assert.ok(removeMemberOptimistic >= 0, 'remoção otimista da pessoa deve existir');
+  assert.ok(removeMemberPersist > removeMemberOptimistic, 'pessoa deve sair da UI antes da persistência remota');
+  assert.match(source, /schedule\.slots=beforeSlots;\s*schedule\.members=beforeMembers;/, 'falha ao remover função deve restaurar o estado anterior');
+  assert.match(source, /schedule\.members=beforeMembers;\s*recomputeSchedule\(schedule\);\s*renderEditorView\(\);\s*throw error;/, 'falha ao remover pessoa deve restaurar o estado anterior');
+});
+
 test('loadEditor não lê todas as escalas nem todos os integrantes', async () => {
   const calls = { listSchedules: 0, listAllMembers: 0, getSchedule: 0, listMembers: 0, getEvent: 0 };
   const repository = {
