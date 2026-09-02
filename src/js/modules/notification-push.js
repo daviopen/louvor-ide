@@ -2,10 +2,8 @@
   'use strict';
   if (!scope || !scope.document || !scope.navigator) return;
 
-  const SDK_URL = 'https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js';
   const BUTTON_ID = 'ide-enable-notifications';
   let registrationPromise = null;
-  let sdkPromise = null;
 
   function observabilityWarn(eventName, message, error) {
     if (scope.MusicIdeObservability?.warn) {
@@ -19,55 +17,46 @@
     return Boolean(
       scope.isSecureContext
       && 'serviceWorker' in scope.navigator
+      && 'PushManager' in scope
       && 'Notification' in scope
-      && scope.crypto?.subtle
       && scope.firebase?.auth
       && scope.firebase?.firestore
     );
   }
 
-  function vapidKey() {
-    return String(scope.ENV?.VITE_FIREBASE_VAPID_KEY || '').trim();
+  function base64UrlToUint8Array(value) {
+    const padding = '='.repeat((4 - (value.length % 4)) % 4);
+    const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = scope.atob(base64);
+    return Uint8Array.from([...raw].map(character => character.charCodeAt(0)));
   }
 
-  function loadMessagingSdk() {
-    if (scope.firebase?.messaging) return Promise.resolve();
-    if (sdkPromise) return sdkPromise;
-    sdkPromise = new Promise((resolve, reject) => {
-      const existing = scope.document.querySelector(`script[src="${SDK_URL}"]`);
-      if (existing) {
-        existing.addEventListener('load', resolve, { once: true });
-        existing.addEventListener('error', reject, { once: true });
-        return;
-      }
-      const script = scope.document.createElement('script');
-      script.src = SDK_URL;
-      script.async = true;
-      script.addEventListener('load', resolve, { once: true });
-      script.addEventListener('error', () => reject(new Error('Não foi possível carregar Firebase Messaging.')), { once: true });
-      scope.document.head.appendChild(script);
-    });
-    return sdkPromise;
+  async function publicVapidKey() {
+    const snapshot = await scope.firebase.firestore().collection('notificationConfig').doc('webPush').get();
+    if (!snapshot.exists || !snapshot.data()?.publicKey) throw new Error('Web Push ainda não foi inicializado.');
+    return String(snapshot.data().publicKey);
   }
 
-  async function digest(value) {
-    const bytes = new TextEncoder().encode(value);
-    const hash = await scope.crypto.subtle.digest('SHA-256', bytes);
-    return Array.from(new Uint8Array(hash)).map(byte => byte.toString(16).padStart(2, '0')).join('');
-  }
-
-  async function saveToken(user, token) {
-    const tokenHash = await digest(token);
-    const id = `${user.uid}__${tokenHash}`;
-    const serverTimestamp = scope.firebase.firestore.FieldValue.serverTimestamp();
+  async function saveSubscription(user, subscription) {
+    const json = subscription.toJSON();
+    if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) throw new Error('Assinatura Web Push incompleta.');
+    const id = `${user.uid}__${await endpointHash(json.endpoint)}`;
+    const now = scope.firebase.firestore.FieldValue.serverTimestamp();
     await scope.firebase.firestore().collection('pushSubscriptions').doc(id).set({
       userId: user.uid,
-      token,
+      endpoint: json.endpoint,
+      keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
       enabled: true,
-      createdAt: serverTimestamp,
-      updatedAt: serverTimestamp
+      createdAt: now,
+      updatedAt: now
     }, { merge: true });
     return id;
+  }
+
+  async function endpointHash(endpoint) {
+    const bytes = new TextEncoder().encode(endpoint);
+    const hash = await scope.crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(hash)).map(byte => byte.toString(16).padStart(2, '0')).join('');
   }
 
   async function registerCurrentDevice(options = {}) {
@@ -75,27 +64,30 @@
     const user = scope.firebase.auth().currentUser;
     if (!user) return { status: 'NO_USER' };
     if (scope.Notification.permission === 'denied') return { status: 'DENIED' };
+
     if (scope.Notification.permission !== 'granted') {
       if (!options.requestPermission) return { status: 'PERMISSION_REQUIRED' };
       const permission = await scope.Notification.requestPermission();
       if (permission !== 'granted') return { status: permission === 'denied' ? 'DENIED' : 'PERMISSION_REQUIRED' };
     }
 
-    await loadMessagingSdk();
     const registration = await scope.navigator.serviceWorker.ready;
-    const messaging = scope.firebase.messaging();
-    const tokenOptions = { serviceWorkerRegistration: registration };
-    const key = vapidKey();
-    if (key) tokenOptions.vapidKey = key;
-    const token = await messaging.getToken(tokenOptions);
-    if (!token) throw new Error('FCM não retornou token para este dispositivo.');
-    await saveToken(user, token);
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      const key = await publicVapidKey();
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64UrlToUint8Array(key)
+      });
+    }
+    await saveSubscription(user, subscription);
     return { status: 'ENABLED' };
   }
 
   function buttonLabel(status) {
     if (status === 'ENABLED') return 'Notificações ativadas';
     if (status === 'DENIED') return 'Notificações bloqueadas';
+    if (status === 'UNSUPPORTED') return 'Notificações indisponíveis';
     return 'Ativar notificações';
   }
 
@@ -104,7 +96,7 @@
     if (!button) return;
     const label = button.querySelector('span');
     if (label) label.textContent = buttonLabel(status);
-    button.disabled = status === 'ENABLED' || status === 'DENIED';
+    button.disabled = ['ENABLED', 'DENIED', 'UNSUPPORTED'].includes(status);
     button.setAttribute('aria-pressed', String(status === 'ENABLED'));
     button.dataset.notificationStatus = status;
   }
