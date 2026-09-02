@@ -62,8 +62,8 @@ ver.html
 # Diretórios copiados durante o build
 /js/
 /css/
-scripts/
-config/
+/scripts/
+/config/
 
 # Arquivo gerado automaticamente com variáveis de ambiente
 env-config.js
