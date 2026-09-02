@@ -163,7 +163,8 @@ build:
 	@echo "$(BLUE)🏗️ Preparando build para produção...$(NC)"
 	@echo "$(YELLOW)🧹 Limpando arquivos antigos...$(NC)"
 	@rm -f *.html 2>/dev/null || true
-	@rm -rf js/ css/ styles/ scripts/ config/ models/ repositories/ services/ constants/ core/ 2>/dev/null || true
+	@rm -rf js/ css/ styles/ scripts/ config/ models/ repositories/ services/ constants/ core/ icons/ 2>/dev/null || true
+	@rm -f manifest.webmanifest service-worker.js pwa-runtime.js 2>/dev/null || true
 	@echo "$(YELLOW)📁 Copiando arquivos do src para a raiz...$(NC)"
 	@cp -r src/pages/* ./ 2>/dev/null || true
 	@cp -r src/js ./ 2>/dev/null || true
@@ -176,9 +177,13 @@ build:
 	@cp -r src/services ./ 2>/dev/null || true
 	@cp -r src/constants ./ 2>/dev/null || true
 	@cp -r src/core ./ 2>/dev/null || true
+	@cp -r src/pwa/* ./ 2>/dev/null || true
+	@node src/scripts/inject-pwa-head.js .
 	@test -f styles/tokens.css
 	@test -f styles/design-system.css
 	@test -f core/app-error.js
+	@test -f manifest.webmanifest
+	@test -f icons/icon-512.png
 	@echo "$(YELLOW)🔧 Processando variáveis de ambiente...$(NC)"
 	@if [ "$$GITHUB_ACTIONS" = "true" ]; then \
 		echo "$(BLUE)🤖 Executando no GitHub Actions - usando variables/secrets$(NC)"; \
@@ -247,7 +252,8 @@ test:
 clean:
 	@echo "$(BLUE)🧹 Limpando arquivos gerados...$(NC)"
 	@rm -f *.html 2>/dev/null || true
-	@rm -rf js/ css/ styles/ scripts/ config/ models/ repositories/ services/ constants/ core/ 2>/dev/null || true
+	@rm -rf js/ css/ styles/ scripts/ config/ models/ repositories/ services/ constants/ core/ icons/ 2>/dev/null || true
+	@rm -f manifest.webmanifest service-worker.js pwa-runtime.js 2>/dev/null || true
 	@echo "$(GREEN)✅ Limpeza concluída!$(NC)"
 
 ## 🔍 Lint básico
