@@ -59,8 +59,8 @@ test('layout do catálogo contempla breakpoint mobile', () => {
 
 test('submenu e ação de nova música permanecem acessíveis', () => {
   const shell = fs.readFileSync(path.join(__dirname, '../src/js/modules/app-shell.js'), 'utf8');
-  assert.match(shell, /label: 'Músicas'/);
-  assert.match(shell, /label: 'Consultar', href: 'consultar\.html'/);
+  assert.match(shell, /groupLabel: 'Músicas'/);
+  assert.match(shell, /label: 'Consultar músicas', href: 'consultar\.html'/);
   assert.match(html, /href="nova-musica\.html"/);
   assert.match(html, />\s*Nova Música\s*</);
 });
