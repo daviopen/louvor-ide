@@ -209,17 +209,24 @@
       if (requestedEmail && normalize(requestedEmail) !== normalize(currentEmail)) {
         throw new Error('O e-mail de login não pode ser alterado após a criação do usuário.');
       }
-      const personalData = normalizePersonalData(input, this.clock());
 
-      const user = await this.repository.updateUser(id, {
+      const hasPhone = Object.prototype.hasOwnProperty.call(input, 'phone');
+      const hasBirthDate = Object.prototype.hasOwnProperty.call(input, 'birthDate');
+      const patch = {
         name: input.name,
         email: currentEmail,
-        phone: personalData.phone,
-        birthDate: personalData.birthDate,
         photoURL: input.photoURL || null
-      });
+      };
+      if (hasPhone) patch.phone = normalizePersonalData({ phone: input.phone }, this.clock()).phone;
+      if (hasBirthDate) patch.birthDate = validateBirthDate(input.birthDate, this.clock());
+
+      const user = await this.repository.updateUser(id, patch);
       await this.repository.replaceUserFunctions(id, input.functionIds || []);
-      await this.audit('USER_UPDATED', id, { functionIds: input.functionIds || [], emailChanged: false, personalDataUpdated: true });
+      await this.audit('USER_UPDATED', id, {
+        functionIds: input.functionIds || [],
+        emailChanged: false,
+        personalDataUpdated: hasPhone || hasBirthDate
+      });
       this.invalidateDirectoryCache();
       return { ...user, emailChanged: false };
     }
