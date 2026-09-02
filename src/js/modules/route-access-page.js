@@ -122,7 +122,7 @@
         const expected = profileId ? profiles.permissionsFor(profileId) : {};
         const mirror = user.permissions && typeof user.permissions === 'object' ? user.permissions : {};
         const technical = technicalByUser.get(user.id) || {};
-        const effective = Object.fromEntries(profiles.MODULES.map(moduleName => [moduleName, strongestLevel(mirror[moduleName], technical[moduleName])]));
+        const effective = Object.fromEntries(profiles.MODULES.map(moduleName => [moduleName, strongestLevel(expected[moduleName], mirror[moduleName], technical[moduleName])]));
         const expectedAdmin = profileId === 'ADMINISTRATOR';
         const effectiveAdmin = isAdministrator(user, profileId);
         const term = String(search.value || '').trim().toLocaleLowerCase('pt-BR');
@@ -149,7 +149,7 @@
         body.innerHTML = filtered.map(item => {
           const moduleName = item.route.permission || (item.route.adminOnly ? 'perfil administrativo' : 'pública');
           const stateLabel = item.state === 'OK' ? '<i class="fa-solid fa-circle-check"></i> Conferida' : '<i class="fa-solid fa-triangle-exclamation"></i> Divergente';
-          return `<tr data-status="${item.state}"><td class="route-access-route"><strong>${esc(item.route.label)}</strong><small>${esc(item.route.href)}</small></td><td>${esc(moduleName)}</td><td>${badge(item.expectedRoute)}</td><td>${badge(item.mirrorRoute)}</td><td>${badge(item.technicalRoute)}</td><td>${badge(item.effectiveRoute, 'Resultado usado pela navegação e pelas Rules')}</td><td><span class="route-access-state" data-state="${item.state}">${stateLabel}</span></td></tr>`;
+          return `<tr data-status="${item.state}"><td class="route-access-route"><strong>${esc(item.route.label)}</strong><small>${esc(item.route.href)}</small></td><td>${esc(moduleName)}</td><td>${badge(item.expectedRoute)}</td><td>${badge(item.mirrorRoute)}</td><td>${badge(item.technicalRoute)}</td><td>${badge(item.effectiveRoute, 'Maior acesso entre o perfil canônico e os espelhos aceitos pelas Rules')}</td><td><span class="route-access-state" data-state="${item.state}">${stateLabel}</span></td></tr>`;
         }).join('') || '<tr><td colspan="7">Nenhuma rota encontrada para os filtros informados.</td></tr>';
         scope.document.getElementById('route-access-summary').textContent = `${filtered.length} rota(s) exibida(s) de ${routes.length}; ${divergentCount} divergência(s) no usuário selecionado.`;
         const url = new URL(scope.location.href);

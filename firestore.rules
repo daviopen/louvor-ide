@@ -58,14 +58,33 @@ service cloud.firestore {
           )
         );
     }
-    function canRead(moduleName) { return isSuperAdmin() || explicitPermission(moduleName, ['READ', 'EDIT']); }
-    function canEdit(moduleName) { return isSuperAdmin() || explicitPermission(moduleName, ['EDIT']); }
+    function hasAccessProfile(profileIds) {
+      return activeUser()
+        && 'accessProfile' in profile().data
+        && profile().data.accessProfile in profileIds;
+    }
+    function profileCanRead(moduleName) {
+      return (moduleName in ['dashboard', 'unavailability', 'events', 'schedules', 'setlists', 'songs']
+          && hasAccessProfile(['PARTICIPANT', 'MINISTER', 'DM', 'LEADER', 'ADMINISTRATOR']))
+        || (moduleName in ['users', 'permissions', 'audit']
+          && hasAccessProfile(['LEADER', 'ADMINISTRATOR']));
+    }
+    function profileCanEdit(moduleName) {
+      return (moduleName == 'dashboard' && hasAccessProfile(['ADMINISTRATOR']))
+        || (moduleName in ['users', 'permissions', 'audit'] && hasAccessProfile(['ADMINISTRATOR']))
+        || (moduleName == 'unavailability' && hasAccessProfile(['PARTICIPANT', 'MINISTER', 'DM', 'LEADER', 'ADMINISTRATOR']))
+        || (moduleName == 'events' && hasAccessProfile(['LEADER', 'ADMINISTRATOR']))
+        || (moduleName == 'schedules' && hasAccessProfile(['DM', 'LEADER', 'ADMINISTRATOR']))
+        || (moduleName in ['setlists', 'songs'] && hasAccessProfile(['MINISTER', 'DM', 'LEADER', 'ADMINISTRATOR']));
+    }
+    function canRead(moduleName) { return isSuperAdmin() || profileCanRead(moduleName) || explicitPermission(moduleName, ['READ', 'EDIT']); }
+    function canEdit(moduleName) { return isSuperAdmin() || profileCanEdit(moduleName) || explicitPermission(moduleName, ['EDIT']); }
     function ownsUserDocument(userId) { return activeUser() && request.auth.uid == userId; }
     function unchangedAuthorizationFields() {
-      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'active', 'uid', 'permissions']);
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'active', 'uid', 'permissions', 'accessProfile']);
     }
     function adminKeepsPrivilegeFields() {
-      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'permissions']);
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'permissions', 'accessProfile']);
     }
     function validCreatedUser(userId) {
       return request.resource.data.uid == userId

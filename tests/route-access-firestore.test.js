@@ -11,7 +11,7 @@ test('tela de rotas compara perfil, espelho e documentos efetivos do Firestore',
   assert.match(source, /collection\('permissions'\)\.get\(\)/);
   assert.match(source, /users\.permissions/);
   assert.match(source, /Documento permissions/);
-  assert.match(source, /strongestLevel\(mirror\[moduleName\], technical\[moduleName\]\)/);
+  assert.match(source, /strongestLevel\(expected\[moduleName\], mirror\[moduleName\], technical\[moduleName\]\)/);
 });
 
 test('tela destaca diferenças de leitura, edição e papel administrativo', () => {

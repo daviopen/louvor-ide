@@ -37,8 +37,16 @@ test('permissões usam níveis READ e EDIT e documento por usuário/módulo', ()
   assert.match(rules, /permissions\/\$\(request\.auth\.uid \+ '__' \+ moduleName\)/);
   assert.match(rules, /\['READ', 'EDIT'\]/);
   assert.match(rules, /\['EDIT'\]/);
-  assert.match(rules, /function canRead\(moduleName\) \{ return isSuperAdmin\(\) \|\| explicitPermission\(moduleName, \['READ', 'EDIT'\]\); \}/);
+  assert.match(rules, /function canRead\(moduleName\) \{ return isSuperAdmin\(\) \|\| profileCanRead\(moduleName\) \|\| explicitPermission\(moduleName, \['READ', 'EDIT'\]\); \}/);
   assert.doesNotMatch(rules, /activeUser\(\) && moduleName in \['setlists', 'songs'\]/);
+});
+
+test('perfil canônico é fonte direta de autorização das Rules', () => {
+  assert.match(rules, /function profileCanRead\(moduleName\)/);
+  assert.match(rules, /moduleName in \['dashboard', 'unavailability', 'events', 'schedules', 'setlists', 'songs'\]/);
+  assert.match(rules, /hasAccessProfile\(\['PARTICIPANT', 'MINISTER', 'DM', 'LEADER', 'ADMINISTRATOR'\]\)/);
+  assert.match(rules, /moduleName == 'schedules' && hasAccessProfile\(\['DM', 'LEADER', 'ADMINISTRATOR'\]\)/);
+  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['role', 'active', 'uid', 'permissions', 'accessProfile'\]\)/);
 });
 
 test('perfil legado usa espelho protegido quando o documento técnico ainda não foi materializado', () => {
@@ -46,8 +54,8 @@ test('perfil legado usa espelho protegido quando o documento técnico ainda não
   assert.match(rules, /profile\(\)\.data\.permissions is map/);
   assert.match(rules, /moduleName in profile\(\)\.data\.permissions/);
   assert.match(rules, /profile\(\)\.data\.permissions\[moduleName\] in acceptedLevels/);
-  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['role', 'active', 'uid', 'permissions'\]\)/);
-  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['role', 'permissions'\]\)/);
+  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['role', 'active', 'uid', 'permissions', 'accessProfile'\]\)/);
+  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['role', 'permissions', 'accessProfile'\]\)/);
 });
 
 test('operações administrativas impedem exclusão física de usuário', () => {

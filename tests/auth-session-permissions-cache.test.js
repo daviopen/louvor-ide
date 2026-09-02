@@ -123,3 +123,21 @@ test('alteração do perfil invalida permissões antigas da sessão', async () =
   assert.equal(authorization.profile.permissions.schedules, 'READ');
   assert.equal(permissionReads, 9);
 });
+
+test('perfil canônico hidrata READ mesmo sem espelhos materializados', async () => {
+  const userId = 'participant-1';
+  const database = {
+    collection(name) {
+      if (name === 'users') return { doc: () => ({ get: async () => snapshot(true, {
+        uid: userId, active: true, role: 'MEMBER', accessProfile: 'PARTICIPANT'
+      }) }) };
+      if (name === 'permissions') return { doc: () => ({ get: async () => snapshot(false) }) };
+      throw new Error(`collection inesperada: ${name}`);
+    }
+  };
+  const accessProfiles = require('../src/js/modules/access-profiles.js');
+  const scope = { firebase: { firestore: () => database }, MusicIdeAccessProfiles: accessProfiles };
+  const authorization = await resolveAuthorizedProfile(scope, { uid: userId });
+  assert.equal(authorization.profile.permissions.schedules, 'READ');
+  assert.equal(authorization.profile.permissions.users, undefined);
+});

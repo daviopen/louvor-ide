@@ -44,5 +44,5 @@ test('Firestore diferencia READ de EDIT e somente SUPER_ADMIN altera a matriz', 
 
 test('snapshot de permissão não pode ser elevado por ADMIN comum', () => {
   assert.match(rules, /adminKeepsPrivilegeFields/);
-  assert.match(rules, /hasAny\(\['role', 'permissions'\]\)/);
+  assert.match(rules, /hasAny\(\['role', 'permissions', 'accessProfile'\]\)/);
 });

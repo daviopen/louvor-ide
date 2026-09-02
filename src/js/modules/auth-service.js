@@ -132,6 +132,21 @@
     return Boolean(profile && profile.active === true);
   }
 
+  async function loadAccessProfiles(scope) {
+    if (scope?.MusicIdeAccessProfiles) return scope.MusicIdeAccessProfiles;
+    if (!scope?.document) return null;
+    if (scope.__musicIdeAccessProfilesPromise) return scope.__musicIdeAccessProfilesPromise;
+    scope.__musicIdeAccessProfilesPromise = new Promise((resolve, reject) => {
+      const script = scope.document.createElement('script');
+      script.src = '../js/modules/access-profiles.js?v=20260902-rules-parity';
+      script.defer = true;
+      script.onload = () => resolve(scope.MusicIdeAccessProfiles || null);
+      script.onerror = () => reject(new Error('Não foi possível carregar os perfis de acesso.'));
+      scope.document.head.appendChild(script);
+    });
+    return scope.__musicIdeAccessProfilesPromise;
+  }
+
   function profileRevision(profile) {
     const updatedAt = profile && profile.updatedAt;
     if (!updatedAt) return '';
@@ -332,7 +347,7 @@
     }
   }
 
-  async function loadEffectivePermissions(scope, userId, mirroredPermissions = {}) {
+  async function loadEffectivePermissions(scope, userId, mirroredPermissions = {}, canonicalPermissions = {}) {
     const database = scope.firebase.firestore();
     const permissionsCollection = database.collection('permissions');
     const entries = await Promise.all(PERMISSION_MODULES.map(async moduleName => {
@@ -350,8 +365,11 @@
       const mirrored = mirroredPermissions?.[moduleName];
       const mirroredValue = mirrored && typeof mirrored === 'object' ? mirrored.level || mirrored.access : mirrored;
       const mirroredLevel = String(mirroredValue || 'NONE').toUpperCase();
+      const canonicalLevel = String(canonicalPermissions?.[moduleName] || 'NONE').toUpperCase();
       const technicalLevel = entries.find(entry => entry && entry[0] === moduleName)?.[1] || 'NONE';
-      const level = rank[technicalLevel] > rank[mirroredLevel] ? technicalLevel : mirroredLevel;
+      const level = [canonicalLevel, mirroredLevel, technicalLevel]
+        .filter(candidate => candidate in rank)
+        .sort((left, right) => rank[right] - rank[left])[0] || 'NONE';
       if (level === 'READ' || level === 'EDIT') effective[moduleName] = level;
     }
     return effective;
@@ -381,11 +399,14 @@
       && cachedProfile.permissions
       && typeof cachedProfile.permissions === 'object'
     );
+    const accessProfiles = await loadAccessProfiles(scope).catch(() => null);
+    const canonicalProfile = accessProfiles?.normalizeProfile(profile.accessProfile);
+    const canonicalPermissions = canonicalProfile ? accessProfiles.permissionsFor(canonicalProfile) : {};
     const permissions = profile.role === 'SUPER_ADMIN'
       ? {}
       : canReusePermissions
         ? cachedProfile.permissions
-        : await loadEffectivePermissions(scope, user.uid, profile.permissions);
+        : await loadEffectivePermissions(scope, user.uid, profile.permissions, canonicalPermissions);
 
     return {
       authorized: true,
