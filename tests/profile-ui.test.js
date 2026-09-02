@@ -20,7 +20,8 @@ test('foto informa salvamento automático e mantém ações independentes do for
   assert.match(html, /id="profile-photo-status"[^>]*>Foto salva automaticamente/);
   assert.match(js, /async function persistPhoto/);
   assert.match(js, /await state\.service\.savePhoto\(state\.user, photoURL\)/);
-  assert.match(js, /setPhotoStatus\('Foto atualizada'\)/);
+  assert.match(js, /setPhotoStatus\(successMessage\)/);
+  assert.match(js, /await persistPhoto\(result\.url, 'Foto atualizada'\)/);
 });
 
 test('formulário só habilita salvar quando existem alterações', () => {
