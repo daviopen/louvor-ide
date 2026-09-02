@@ -74,11 +74,15 @@ service cloud.firestore {
         || (moduleName in ['users', 'permissions', 'audit'] && hasAccessProfile(['ADMINISTRATOR']))
         || (moduleName == 'unavailability' && hasAccessProfile(['PARTICIPANT', 'MINISTER', 'DM', 'LEADER', 'ADMINISTRATOR']))
         || (moduleName == 'events' && hasAccessProfile(['LEADER', 'ADMINISTRATOR']))
-        || (moduleName == 'schedules' && hasAccessProfile(['DM', 'LEADER', 'ADMINISTRATOR']))
+        || (moduleName == 'schedules' && hasAccessProfile(['LEADER', 'ADMINISTRATOR']))
         || (moduleName in ['setlists', 'songs'] && hasAccessProfile(['MINISTER', 'DM', 'LEADER', 'ADMINISTRATOR']));
     }
     function canRead(moduleName) { return isSuperAdmin() || profileCanRead(moduleName) || explicitPermission(moduleName, ['READ', 'EDIT']); }
-    function canEdit(moduleName) { return isSuperAdmin() || profileCanEdit(moduleName) || explicitPermission(moduleName, ['EDIT']); }
+    function canEdit(moduleName) {
+      return isSuperAdmin()
+        || profileCanEdit(moduleName)
+        || (moduleName != 'schedules' && explicitPermission(moduleName, ['EDIT']));
+    }
     // All active product profiles can consult schedules, setlists and songs.
     // Those screens need the people directory while legacy permission mirrors
     // are being normalized, so the dependency cannot depend on those mirrors.
