@@ -63,8 +63,13 @@
 
     async listActiveUsers() {
       return this.cachedReference('activeUsers', 5 * 60 * 1000, async () => {
-        const snapshot = await this.db.collection('users').where('active', '==', true).get();
-        return mapSnapshot(snapshot).sort((a, b) => String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'pt-BR'));
+        // Compatibilidade: registros legados podem não possuir `active`.
+        // No modelo atual, ausência do campo significa ativo; por isso não usamos
+        // where('active', '==', true), que excluiria esses usuários silenciosamente.
+        const snapshot = await this.db.collection('users').get();
+        return mapSnapshot(snapshot)
+          .filter(item => item.active !== false)
+          .sort((a, b) => String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'pt-BR'));
       });
     }
 
