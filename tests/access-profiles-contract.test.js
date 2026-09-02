@@ -41,6 +41,29 @@ test('hierarquia operacional não perde acesso ao subir de perfil', () => {
   }
 });
 
+test('perfil Ministro preserva exatamente os acessos de leitura e edição esperados', () => {
+  assert.deepEqual(profiles.MATRIX.MINISTER, {
+    dashboard: 'READ',
+    users: 'NONE',
+    permissions: 'NONE',
+    unavailability: 'EDIT',
+    events: 'READ',
+    schedules: 'READ',
+    setlists: 'EDIT',
+    songs: 'EDIT',
+    audit: 'NONE'
+  });
+});
+
+test('migração materializa a matriz do perfil nos documentos técnicos de permissão', () => {
+  const migration = read('src/scripts/migrate-access-profiles.cjs');
+  assert.match(migration, /profiles\.permissionsFor\(profileId\)/);
+  assert.match(migration, /doc\(`\$\{userDoc\.id\}__\$\{moduleName\}`\)/);
+  assert.match(migration, /batch\.set\(permissionRef/);
+  assert.match(migration, /batch\.delete\(permissionRef\)/);
+  assert.match(migration, /permissions: materializedPermissionSnapshot\(profileId\)/);
+});
+
 test('tela usa perfil único e repositório materializa permissões atomicamente', () => {
   const integration = read('src/js/modules/user-permissions-integration.js');
   const repository = read('src/repositories/user-repository.js');
