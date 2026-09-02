@@ -15,7 +15,7 @@
     Object.freeze({ id: 'events', label: 'Eventos', href: 'module.html?section=events', icon: 'fa-calendar-days', groupId: 'schedules', groupLabel: 'Escalas', permission: 'events', menu: true }),
     Object.freeze({ id: 'schedules', label: 'Escalas', href: 'module.html?section=schedules', icon: 'fa-calendar-check', groupId: 'schedules', groupLabel: 'Escalas', permission: 'schedules', menu: true }),
     Object.freeze({ id: 'schedules-export', label: 'Exportar escalas', href: 'module.html?section=schedules&view=export', icon: 'fa-file-pdf', groupId: 'schedules', groupLabel: 'Escalas', permission: 'schedules', menu: true }),
-    Object.freeze({ id: 'schedules-participation', label: 'Participações', href: 'module.html?section=schedules&view=participation', icon: 'fa-chart-column', groupId: 'schedules', groupLabel: 'Escalas', permission: 'schedules', menu: true }),
+    Object.freeze({ id: 'schedules-participation', label: 'Participações', href: 'module.html?section=schedules&view=participation', icon: 'fa-chart-column', groupId: 'schedules', groupLabel: 'Escalas', adminOnly: true, menu: true }),
     Object.freeze({ id: 'setlists-upcoming', label: 'Próximos', mobileLabel: 'Setlists', href: 'setlists.html?view=upcoming', icon: 'fa-list-check', groupId: 'setlists', groupLabel: 'Setlists', permission: 'setlists', menu: true }),
     Object.freeze({ id: 'setlists-history', label: 'Histórico', href: 'setlists.html?view=history', icon: 'fa-clock-rotate-left', groupId: 'setlists', groupLabel: 'Setlists', permission: 'setlists', menu: true }),
     Object.freeze({ id: 'setlist-view', label: 'Visualizar Setlist', href: 'setlist-view.html?id=:id', icon: 'fa-eye', groupId: 'setlists', groupLabel: 'Setlists', permission: 'setlists', menu: false }),
