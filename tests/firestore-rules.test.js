@@ -56,7 +56,7 @@ test('perfil legado usa espelho protegido quando o documento técnico ainda não
   assert.match(rules, /profile\(\)\.data\.permissions is map/);
   assert.match(rules, /moduleName in profile\(\)\.data\.permissions/);
   assert.match(rules, /profile\(\)\.data\.permissions\[moduleName\] in acceptedLevels/);
-  assert.match(rules, /affectedKeys\(\)\.hasOnly\(\['name', 'phone', 'birthDate', 'photoURL', 'updatedAt', 'lastAccessAt'\]\)/);
+  assert.match(rules, /changed\.hasOnly\(\['name', 'phone', 'birthDate', 'photoURL', 'updatedAt', 'lastAccessAt'\]\)/);
   assert.match(rules, /affectedKeys\(\)\.hasAny\(\['uid', 'role', 'permissions', 'accessProfile'\]\)/);
 });
 
