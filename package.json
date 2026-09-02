@@ -14,7 +14,7 @@
     "migrate:dry-run": "node src/scripts/migrate-legacy-data.cjs --dry-run",
     "migrate:apply": "node src/scripts/migrate-legacy-data.cjs --apply",
     "migrate:verify": "node src/scripts/migrate-legacy-data.cjs --verify",
-    "setup": "./setup.sh",
+    "setup": "make setup",
     "dev": "make dev",
     "status": "make status",
     "clean": "make clean"
