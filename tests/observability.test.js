@@ -22,6 +22,78 @@ function createScope() {
   return { scope, listeners };
 }
 
+function createWatchdogScope() {
+  const { scope, listeners } = createScope();
+  const ids = new Map();
+  const rootClasses = new Set(['auth-pending']);
+  let scheduled = null;
+  let reloads = 0;
+  let replacedWith = null;
+
+  function makeNode(tagName) {
+    const nodeListeners = new Map();
+    const node = {
+      tagName,
+      id: '',
+      type: '',
+      textContent: '',
+      style: { cssText: '' },
+      children: [],
+      setAttribute() {},
+      addEventListener(name, handler) { nodeListeners.set(name, handler); },
+      append(...children) { this.children.push(...children); },
+      appendChild(child) { this.children.push(child); return child; },
+      remove() { if (this.id) ids.delete(this.id); },
+      trigger(name) { const handler = nodeListeners.get(name); if (handler) handler({ target: this }); }
+    };
+    return node;
+  }
+
+  const documentElement = makeNode('html');
+  documentElement.classList = {
+    contains(name) { return rootClasses.has(name); },
+    add(name) { rootClasses.add(name); },
+    remove(name) { rootClasses.delete(name); }
+  };
+  documentElement.appendChild = child => {
+    documentElement.children.push(child);
+    if (child.id) ids.set(child.id, child);
+    return child;
+  };
+
+  scope.document = {
+    documentElement,
+    createElement: makeNode,
+    getElementById(id) { return ids.get(id) || null; },
+    querySelector() { return null; },
+    head: { appendChild() {} }
+  };
+  scope.setTimeout = callback => { scheduled = callback; return 1; };
+  scope.clearTimeout = () => { scheduled = null; };
+  scope.location = {
+    pathname: '/module.html',
+    search: '?section=schedules',
+    hash: '',
+    reload() { reloads += 1; },
+    replace(value) { replacedWith = value; }
+  };
+  scope.sessionStorage = {
+    values: new Map(),
+    setItem(key, value) { this.values.set(key, value); },
+    getItem(key) { return this.values.get(key) || null; }
+  };
+
+  return {
+    scope,
+    listeners,
+    runTimer() { if (scheduled) scheduled(); },
+    removePending() { rootClasses.delete('auth-pending'); },
+    getRecovery() { return ids.get('music-ide-auth-recovery') || null; },
+    getReloads() { return reloads; },
+    getReplacedWith() { return replacedWith; }
+  };
+}
+
 function loadObservability() {
   const { scope, listeners } = createScope();
   vm.runInNewContext(source, scope, { filename: 'observability.js' });
@@ -70,6 +142,34 @@ test('global critical monitoring captures window and promise failures', () => {
   assert.equal(scope.__musicIdeCriticalErrors.length, 1);
   assert.equal(scope.__musicIdeCriticalErrors[0].event, 'window.error');
   assert.equal(scope.__musicIdeCriticalErrors[0].level, 'critical');
+});
+
+test('auth watchdog replaces an indefinitely hidden page with recovery actions', () => {
+  const harness = createWatchdogScope();
+  vm.runInNewContext(source, harness.scope, { filename: 'observability.js' });
+
+  harness.runTimer();
+  const recovery = harness.getRecovery();
+  assert.ok(recovery, 'recovery overlay must be rendered after auth timeout');
+  const card = recovery.children[0];
+  const actions = card.children[2];
+  const retry = actions.children[0];
+  const login = actions.children[1];
+
+  retry.trigger('click');
+  assert.equal(harness.getReloads(), 1);
+
+  login.trigger('click');
+  assert.equal(harness.getReplacedWith(), 'login.html');
+  assert.equal(harness.scope.sessionStorage.getItem('musicIdeReturnUrl'), 'module.html?section=schedules');
+});
+
+test('auth watchdog does not show recovery when auth-pending has already finished', () => {
+  const harness = createWatchdogScope();
+  vm.runInNewContext(source, harness.scope, { filename: 'observability.js' });
+  harness.removePending();
+  harness.runTimer();
+  assert.equal(harness.getRecovery(), null);
 });
 
 test('app shell bootstraps the observability module', () => {
