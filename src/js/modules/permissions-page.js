@@ -1,6 +1,7 @@
 /**
  * Legacy permissions route.
  * Permission administration now lives in Configurações > Rotas e Acessos.
+ * Kept only as a compatibility redirect for old bookmarks.
  */
 (function redirectLegacyPermissions(scope) {
   if (!scope || !scope.location) return;
