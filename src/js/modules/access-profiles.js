@@ -17,7 +17,7 @@
   const PROFILES = Object.freeze([
     Object.freeze({ id: 'PARTICIPANT', label: 'Participante', description: 'Acesso básico para acompanhar o ministério e registrar a própria indisponibilidade.' }),
     Object.freeze({ id: 'MINISTER', label: 'Ministro', description: 'Participante com edição de setlists e músicas.' }),
-    Object.freeze({ id: 'DM', label: 'DM', description: 'Direção musical com edição de escalas, setlists e músicas.' }),
+    Object.freeze({ id: 'DM', label: 'DM', description: 'Direção musical com consulta de escalas e edição de setlists e músicas.' }),
     Object.freeze({ id: 'LEADER', label: 'Líder', description: 'Gestão operacional de eventos, escalas, setlists e músicas, com consulta de usuários e auditoria.' }),
     Object.freeze({ id: 'ADMINISTRATOR', label: 'Administrador', description: 'Administração completa dos módulos da aplicação.' })
   ]);
@@ -33,7 +33,7 @@
     }),
     DM: Object.freeze({
       dashboard: 'READ', users: 'NONE', permissions: 'NONE', unavailability: 'EDIT',
-      events: 'READ', schedules: 'EDIT', setlists: 'EDIT', songs: 'EDIT', audit: 'NONE'
+      events: 'READ', schedules: 'READ', setlists: 'EDIT', songs: 'EDIT', audit: 'NONE'
     }),
     LEADER: Object.freeze({
       dashboard: 'READ', users: 'READ', permissions: 'READ', unavailability: 'EDIT',
