@@ -1,0 +1,73 @@
+name: 🕸️ Bootstrap Graphify Graph
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/graphify-bootstrap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          python-version: '3.12'
+
+      - name: Install Graphify
+        run: uv tool install graphifyy
+
+      - name: Build first structural graph
+        run: graphify extract . --code-only --out .
+
+      - name: Validate generated graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s graphify-out/graph.json
+          test -s graphify-out/graph.html
+          test -s graphify-out/GRAPH_REPORT.md
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('graphify-out/graph.json')
+          data = json.loads(p.read_text())
+          nodes = data.get('nodes', [])
+          links = data.get('links', data.get('edges', []))
+          if not nodes:
+              raise SystemExit('Graphify graph has no nodes')
+          print(f'Graphify graph: {len(nodes)} nodes / {len(links)} links')
+          PY
+
+      - name: Check graph for obvious secret material
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE --exclude='graph.html' '(BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|FIREBASE_SERVICE_ACCOUNT|accessToken[[:space:]]*[:=]|password[[:space:]]*[:=])' graphify-out/; then
+            echo 'Potential secret-like material found in graphify-out/. Refusing to commit.'
+            exit 1
+          fi
+
+      - name: Commit first shared graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add graphify-out/graph.json graphify-out/graph.html graphify-out/GRAPH_REPORT.md
+          if git diff --cached --quiet; then
+            echo 'No Graphify changes to commit.'
+            exit 0
+          fi
+          git commit -m 'chore(graphify): add initial knowledge graph'
+          git push origin HEAD:main
