@@ -84,21 +84,20 @@
     return { status: 'ENABLED' };
   }
 
-  function buttonLabel(status) {
-    if (status === 'ENABLED') return 'Notificações ativadas';
-    if (status === 'DENIED') return 'Notificações bloqueadas';
-    if (status === 'UNSUPPORTED') return 'Notificações indisponíveis';
-    return 'Ativar notificações';
+  function publishStatus(status) {
+    scope.document.dispatchEvent(new CustomEvent('ide:notification-push-status', { detail: { status } }));
   }
 
   function syncButton(status) {
     const button = scope.document.getElementById(BUTTON_ID);
-    if (!button) return;
-    const label = button.querySelector('span');
-    if (label) label.textContent = buttonLabel(status);
-    button.disabled = ['ENABLED', 'DENIED', 'UNSUPPORTED'].includes(status);
-    button.setAttribute('aria-pressed', String(status === 'ENABLED'));
-    button.dataset.notificationStatus = status;
+    if (button) {
+      const label = button.querySelector('span');
+      if (label) label.textContent = status === 'PERMISSION_REQUIRED' ? 'Ativar' : status === 'ENABLED' ? 'Ativadas' : 'Ativar';
+      button.disabled = status === 'ENABLED';
+      button.setAttribute('aria-pressed', String(status === 'ENABLED'));
+      button.dataset.notificationStatus = status;
+    }
+    publishStatus(status);
   }
 
   async function enableFromUserGesture() {
@@ -111,28 +110,26 @@
     } catch (error) {
       if (button) button.disabled = false;
       observabilityWarn('notifications.pushRegistrationFailed', 'Não foi possível ativar as notificações.', error);
+      publishStatus('FAILED');
       throw error;
     }
   }
 
-  function mountButton() {
-    if (!supported() || scope.document.getElementById(BUTTON_ID)) return;
-    const account = scope.document.getElementById('ide-sidebar-account');
-    if (!account) return;
-    const button = scope.document.createElement('button');
-    button.id = BUTTON_ID;
-    button.type = 'button';
-    button.className = 'ide-button ide-button--ghost ide-button--md';
-    button.style.width = '100%';
-    button.setAttribute('aria-pressed', 'false');
-    button.innerHTML = '<i class="fa-solid fa-bell" aria-hidden="true"></i><span>Ativar notificações</span>';
-    button.addEventListener('click', () => enableFromUserGesture().catch(() => {}));
-    account.prepend(button);
-    syncButton(scope.Notification.permission === 'granted' ? 'ENABLED' : scope.Notification.permission === 'denied' ? 'DENIED' : 'PERMISSION_REQUIRED');
+  function syncExistingControl() {
+    if (!supported()) {
+      publishStatus('UNSUPPORTED');
+      return;
+    }
+    const status = scope.Notification.permission === 'granted'
+      ? 'ENABLED'
+      : scope.Notification.permission === 'denied'
+        ? 'DENIED'
+        : 'PERMISSION_REQUIRED';
+    syncButton(status);
   }
 
   async function bootstrapForUser() {
-    mountButton();
+    syncExistingControl();
     if (!supported() || scope.Notification.permission !== 'granted') return;
     if (registrationPromise) return registrationPromise;
     registrationPromise = registerCurrentDevice({ requestPermission: false })
@@ -142,6 +139,7 @@
       })
       .catch(error => {
         observabilityWarn('notifications.pushRefreshFailed', 'Não foi possível atualizar o registro de notificações.', error);
+        publishStatus('FAILED');
         return { status: 'FAILED' };
       })
       .finally(() => { registrationPromise = null; });
@@ -149,18 +147,31 @@
   }
 
   function boot() {
-    if (!supported()) return;
+    if (!supported()) {
+      publishStatus('UNSUPPORTED');
+      return;
+    }
+
     scope.firebase.auth().onAuthStateChanged(user => {
       if (!user) return;
-      mountButton();
+      syncExistingControl();
       bootstrapForUser();
     });
-    const observer = new MutationObserver(() => mountButton());
+
+    const observer = new MutationObserver(() => {
+      if (scope.document.getElementById(BUTTON_ID)) syncExistingControl();
+    });
     if (scope.document.body) observer.observe(scope.document.body, { childList: true, subtree: true });
     scope.setTimeout(() => observer.disconnect(), 15000);
   }
 
-  scope.MusicIdeNotificationPush = Object.freeze({ supported, registerCurrentDevice, enable: enableFromUserGesture, bootstrapForUser });
+  scope.MusicIdeNotificationPush = Object.freeze({
+    supported,
+    registerCurrentDevice,
+    enable: enableFromUserGesture,
+    bootstrapForUser,
+    syncExistingControl
+  });
   if (scope.document.readyState === 'loading') scope.document.addEventListener('DOMContentLoaded', boot, { once: true });
   else boot();
 })(typeof window !== 'undefined' ? window : null);
