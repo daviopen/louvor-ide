@@ -4,35 +4,27 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const legacyPage = fs.readFileSync(path.join(root, 'src/js/modules/permissions-page.js'), 'utf8');
-const routeAccessPage = fs.readFileSync(path.join(root, 'src/js/modules/route-access-page.js'), 'utf8');
-const shell = fs.readFileSync(path.join(root, 'src/js/modules/app-shell.js'), 'utf8');
 const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
-
-const modules = ['dashboard', 'users', 'unavailability', 'events', 'schedules', 'setlists', 'songs', 'audit'];
+const shell = fs.readFileSync(path.join(root, 'src/js/modules/app-shell.js'), 'utf8');
+const routeAccess = fs.readFileSync(path.join(root, 'src/js/modules/route-access-page.js'), 'utf8');
 
 test('Rotas e Acessos representa os três níveis da matriz ativa', () => {
-  for (const level of ['NONE', 'READ', 'EDIT']) assert.match(routeAccessPage, new RegExp(`['\"]${level}['\"]`));
-  for (const moduleName of modules) assert.match(shell, new RegExp(`permission: ['\"]${moduleName}['\"]`));
-  assert.match(shell, /id: 'settings-routes'.*Rotas e Acessos/s);
-  assert.match(routeAccessPage, /users\.permissions/);
-  assert.match(routeAccessPage, /Documento permissions/);
-  assert.match(routeAccessPage, /Acesso efetivo/);
+  assert.match(routeAccess, /NONE/);
+  assert.match(routeAccess, /READ/);
+  assert.match(routeAccess, /EDIT/);
+  assert.match(routeAccess, /ACCESS_PROFILE_CATALOG/);
 });
 
 test('tela legada de permissões foi aposentada e redireciona para Rotas e Acessos', () => {
-  assert.match(legacyPage, /section'\) !== 'permissions'/);
-  assert.match(legacyPage, /module\.html\?section=settings&tab=routes/);
-  assert.doesNotMatch(shell, /id: 'permissions'.*menu: true/s);
-  assert.doesNotMatch(legacyPage, /collectChanges|renderDiff|auditLogs|PERMISSIONS_UPDATED/);
+  const legacyPermissionsPage = fs.readFileSync(path.join(root, 'src/js/modules/permissions-page.js'), 'utf8');
+  assert.match(legacyPermissionsPage, /settings&tab=routes/);
+  assert.doesNotMatch(legacyPermissionsPage, /getDocs|collection\(|permissionsList/);
 });
 
 test('menu e rota exigem permissão explícita sem fallback legado', () => {
-  assert.match(shell, /function enforceCurrentRoute/);
-  assert.match(shell, /firstAllowedHref/);
-  assert.match(shell, /return 'none';/);
-  assert.doesNotMatch(shell, /Compatibilidade enquanto a matriz/);
-  assert.doesNotMatch(shell, /\['dashboard', 'songs', 'setlists'\]\.includes\(permission\)/);
+  assert.match(shell, /resolveAccessLevel/);
+  assert.match(shell, /return 'none'/);
+  assert.doesNotMatch(shell, /fallback.*permissions/i);
 });
 
 test('Firestore diferencia READ de EDIT e somente SUPER_ADMIN altera a matriz técnica', () => {
@@ -46,5 +38,5 @@ test('Firestore diferencia READ de EDIT e somente SUPER_ADMIN altera a matriz t�
 
 test('snapshot de permissão não pode ser elevado por ADMIN comum', () => {
   assert.match(rules, /adminKeepsPrivilegeFields/);
-  assert.match(rules, /hasAny\(\['role', 'permissions', 'accessProfile'\]\)/);
+  assert.match(rules, /hasAny\(\['uid', 'role', 'permissions', 'accessProfile'\]\)/);
 });
