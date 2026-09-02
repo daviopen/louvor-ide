@@ -94,3 +94,15 @@ test('all authenticated user-facing pages load the shared IDE Music theme layer'
     assert.match(html, /app-shell\.js/, `${page} must load the authenticated shell`);
   }
 });
+
+test('dashboard has a Safari-safe auth loading state and cache-busted critical assets', () => {
+  const html = fs.readFileSync(path.join(root, 'src/pages/index.html'), 'utf8');
+  assert.match(html, /html\.auth-pending body\s*\{[\s\S]*opacity:\s*1\s*!important/);
+  assert.match(html, /html\.auth-pending body::before/);
+  assert.match(html, /Verificando seu acesso/);
+  assert.match(html, /ide-auth-inline-recovery/);
+  assert.match(html, /window\.setTimeout\(showRecovery,\s*7000\)/);
+  assert.match(html, /music-ide-theme\.css\?v=20260902-safari-auth-v2/);
+  assert.match(html, /auth-service\.js\?v=20260902-safari-auth-v2/);
+  assert.match(html, /app-shell\.js\?v=20260902-safari-auth-v2/);
+});
