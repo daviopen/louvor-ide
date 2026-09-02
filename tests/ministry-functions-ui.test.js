@@ -10,7 +10,7 @@ const shell = fs.readFileSync(path.join(root, 'src', 'js', 'modules', 'app-shell
 const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 
 test('funções ministeriais são geridas como item administrativo do grupo Configurações', () => {
-  assert.match(shell, /id: 'settings', label: 'Configurações', items:/);
+  assert.match(shell, /id: 'settings-functions'.*groupId: 'settings'.*groupLabel: 'Configurações'/s);
   assert.match(shell, /id: 'settings-template'.*href: 'module\.html\?section=settings'.*adminOnly: true/s);
   assert.match(shell, /id: 'settings-functions'.*href: 'module\.html\?section=settings&tab=functions'.*adminOnly: true/s);
   assert.doesNotMatch(settingsPage, /data-settings-tab="functions"/);
