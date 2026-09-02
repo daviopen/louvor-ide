@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   ProfileService,
   normalizeProfileInput,
+  normalizePhotoURL,
   validateBirthDate,
   validatePasswordChange,
   authCapabilities,
@@ -26,6 +27,13 @@ test('normaliza somente dados pessoais necessários', () => {
     photoURL: 'https://res.cloudinary.com/vqyuxscx/image/upload/a.jpg'
   });
   assert.deepEqual(SELF_EDITABLE_FIELDS, ['name', 'phone', 'birthDate', 'photoURL']);
+});
+
+test('URL da foto aceita somente HTTPS e permite remoção', () => {
+  assert.equal(normalizePhotoURL('https://res.cloudinary.com/vqyuxscx/image/upload/a.jpg'), 'https://res.cloudinary.com/vqyuxscx/image/upload/a.jpg');
+  assert.equal(normalizePhotoURL(''), null);
+  assert.equal(normalizePhotoURL(null), null);
+  assert.throws(() => normalizePhotoURL('http://example.com/photo.jpg'), /inválida/);
 });
 
 test('data de nascimento rejeita data inválida, futura e muito antiga', () => {
@@ -75,4 +83,27 @@ test('save persiste somente perfil próprio e sincroniza Firebase Auth', async (
   assert.deepEqual(calls[0].patch, { name: 'Pessoa Teste', phone: null, birthDate: null, photoURL: null });
   assert.equal(Object.hasOwn(calls[0].patch, 'role'), false);
   assert.deepEqual(profileUpdates[0], { displayName: 'Pessoa Teste', photoURL: null });
+});
+
+test('savePhoto persiste somente a foto sem salvar outros campos pendentes', async () => {
+  const calls = [];
+  const repository = {
+    async updateOwnProfile(userId, patch) { calls.push({ userId, patch }); return { id: userId, name: 'Nome Persistido', ...patch }; }
+  };
+  const profileUpdates = [];
+  const user = {
+    uid: 'u1',
+    providerData: [{ providerId: 'google.com', photoURL: 'https://lh3.googleusercontent.com/a/google' }],
+    async updateProfile(patch) { profileUpdates.push(patch); }
+  };
+  const service = new ProfileService(repository);
+  const cloudinaryURL = 'https://res.cloudinary.com/vqyuxscx/image/upload/profile.jpg';
+  const updated = await service.savePhoto(user, cloudinaryURL);
+  assert.equal(updated.photoURL, cloudinaryURL);
+  assert.deepEqual(calls[0], { userId: 'u1', patch: { photoURL: cloudinaryURL } });
+  assert.deepEqual(profileUpdates[0], { photoURL: cloudinaryURL });
+
+  await service.savePhoto(user, null);
+  assert.deepEqual(calls[1], { userId: 'u1', patch: { photoURL: null } });
+  assert.deepEqual(profileUpdates[1], { photoURL: 'https://lh3.googleusercontent.com/a/google' });
 });

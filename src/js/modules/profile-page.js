@@ -6,7 +6,7 @@
   const pathname = String(scope.location?.pathname || '');
   if (!pathname.endsWith('/profile.html') && !pathname.endsWith('profile.html')) return;
 
-  const state = { user: null, profile: null, pendingPhotoURL: null, uploading: false };
+  const state = { user: null, profile: null, uploading: false };
 
   const byId = id => scope.document.getElementById(id);
   const setText = (id, value) => { const node = byId(id); if (node) node.textContent = value == null ? '' : String(value); };
@@ -55,11 +55,6 @@
       PARTICIPANT: 'Participante', MINISTER: 'Ministro', DM: 'DM', LEADER: 'Líder', ADMINISTRATOR: 'Administrador'
     };
     return map[String(profile?.accessProfile || '').toUpperCase()] || 'Usuário';
-  }
-
-  function selectedPhotoURL() {
-    if (state.pendingPhotoURL !== null) return state.pendingPhotoURL || null;
-    return state.profile?.photoURL || null;
   }
 
   function syncAccountControls(name, photoURL) {
@@ -127,6 +122,17 @@
     byId('profile-remove-photo').hidden = !profile.photoURL;
   }
 
+  async function persistPhoto(photoURL, successMessage) {
+    const updated = await state.service.savePhoto(state.user, photoURL);
+    state.profile = { ...state.profile, ...updated };
+    const effectivePhoto = state.profile.photoURL || state.googlePhotoURL || null;
+    renderAvatar(effectivePhoto, byId('profile-name').value, state.user?.email);
+    syncAccountControls(state.profile.name || byId('profile-name').value, effectivePhoto);
+    byId('profile-remove-photo').hidden = !state.profile.photoURL;
+    if (scope.currentMusicIdeProfile) scope.currentMusicIdeProfile = { ...scope.currentMusicIdeProfile, ...state.profile };
+    toast(successMessage);
+  }
+
   async function handlePhotoSelection(event) {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -139,13 +145,11 @@
       const { ProfileImageService } = scope.MusicIdeProfileImageService;
       const imageService = new ProfileImageService(config);
       const result = await imageService.prepareAndUpload(scope, file);
-      state.pendingPhotoURL = result.url;
-      renderAvatar(result.url, byId('profile-name').value, state.user?.email);
-      byId('profile-remove-photo').hidden = false;
-      toast('Foto enviada. Clique em “Salvar alterações” para concluir.');
+      setBusy(button, true, 'Salvando...');
+      await persistPhoto(result.url, 'Foto atualizada com sucesso.');
     } catch (error) {
-      console.error('[Profile] Falha no upload da foto:', error);
-      toast(error?.message || 'Não foi possível enviar a foto.', 'error');
+      console.error('[Profile] Falha ao atualizar foto:', error);
+      toast(error?.message || 'Não foi possível atualizar a foto.', 'error');
     } finally {
       state.uploading = false;
       setBusy(button, false);
@@ -161,10 +165,9 @@
         name: byId('profile-name').value,
         phone: byId('profile-phone').value,
         birthDate: byId('profile-birth-date').value,
-        photoURL: selectedPhotoURL()
+        photoURL: state.profile?.photoURL || null
       });
       state.profile = { ...state.profile, ...updated };
-      state.pendingPhotoURL = null;
       const effectivePhoto = state.profile.photoURL || state.googlePhotoURL || null;
       setText('profile-header-name', state.profile.name);
       renderAvatar(effectivePhoto, state.profile.name, state.user?.email);
@@ -205,16 +208,35 @@
     byId('profile-password-form')?.addEventListener('submit', changePassword);
     byId('profile-photo-input')?.addEventListener('change', handlePhotoSelection);
     byId('profile-change-photo')?.addEventListener('click', () => byId('profile-photo-input')?.click());
-    byId('profile-remove-photo')?.addEventListener('click', () => {
-      state.pendingPhotoURL = '';
-      renderAvatar(state.googlePhotoURL || null, byId('profile-name').value, state.user?.email);
-      toast(state.googlePhotoURL ? 'A foto personalizada será removida e a foto do Google será usada.' : 'A foto será removida ao salvar.');
+    byId('profile-remove-photo')?.addEventListener('click', async () => {
+      const button = byId('profile-remove-photo');
+      if (state.uploading) return;
+      try {
+        state.uploading = true;
+        setBusy(button, true, 'Removendo...');
+        await persistPhoto(null, state.googlePhotoURL ? 'Foto personalizada removida. A foto do Google está ativa.' : 'Foto removida com sucesso.');
+      } catch (error) {
+        console.error('[Profile] Falha ao remover foto:', error);
+        toast(error?.message || 'Não foi possível remover a foto.', 'error');
+      } finally {
+        state.uploading = false;
+        setBusy(button, false);
+      }
     });
-    byId('profile-use-google-photo')?.addEventListener('click', () => {
-      if (!state.googlePhotoURL) return;
-      state.pendingPhotoURL = state.googlePhotoURL;
-      renderAvatar(state.googlePhotoURL, byId('profile-name').value, state.user?.email);
-      toast('Foto do Google selecionada. Clique em “Salvar alterações” para concluir.');
+    byId('profile-use-google-photo')?.addEventListener('click', async () => {
+      if (!state.googlePhotoURL || state.uploading) return;
+      const button = byId('profile-use-google-photo');
+      try {
+        state.uploading = true;
+        setBusy(button, true, 'Salvando...');
+        await persistPhoto(null, 'Foto do Google ativada com sucesso.');
+      } catch (error) {
+        console.error('[Profile] Falha ao usar foto do Google:', error);
+        toast(error?.message || 'Não foi possível usar a foto do Google.', 'error');
+      } finally {
+        state.uploading = false;
+        setBusy(button, false);
+      }
     });
   }
 

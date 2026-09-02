@@ -11,6 +11,13 @@
 
   function normalizeText(value) { return String(value == null ? '' : value).trim(); }
 
+  function normalizePhotoURL(value) {
+    const photoURL = value == null || value === '' ? null : normalizeText(value);
+    if (photoURL && photoURL.length > 1000) throw new Error('A URL da foto é inválida.');
+    if (photoURL && !/^https:\/\//i.test(photoURL)) throw new Error('A URL da foto é inválida.');
+    return photoURL;
+  }
+
   function validateBirthDate(value, now = new Date()) {
     const birthDate = normalizeText(value);
     if (!birthDate) return null;
@@ -34,14 +41,11 @@
     const phone = normalizeText(input.phone);
     if (phone && !PHONE_PATTERN.test(phone)) throw new Error('Informe um telefone válido.');
 
-    const photoURL = input.photoURL == null || input.photoURL === '' ? null : normalizeText(input.photoURL);
-    if (photoURL && photoURL.length > 1000) throw new Error('A URL da foto é inválida.');
-
     return {
       name,
       phone: phone || null,
       birthDate: validateBirthDate(input.birthDate, now),
-      photoURL
+      photoURL: normalizePhotoURL(input.photoURL)
     };
   }
 
@@ -88,21 +92,36 @@
       return { profile, capabilities: authCapabilities(user), googlePhotoURL: googleProviderPhoto(user) };
     }
 
+    async syncAuthProfile(user, patch) {
+      if (typeof user?.updateProfile !== 'function') return true;
+      try {
+        await user.updateProfile(patch);
+        return true;
+      } catch (error) {
+        if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+          console.warn('[Profile] Perfil salvo no Firestore, mas o espelho do Firebase Auth não foi atualizado.', error);
+        }
+        return false;
+      }
+    }
+
     async save(user, input) {
       if (!user?.uid) throw new Error('Usuário autenticado não identificado.');
       const safe = normalizeProfileInput(input, this.clock());
       const updated = await this.repository.updateOwnProfile(user.uid, safe);
-      let authProfileSynced = true;
-      if (typeof user.updateProfile === 'function') {
-        try {
-          await user.updateProfile({ displayName: safe.name, photoURL: safe.photoURL || googleProviderPhoto(user) || null });
-        } catch (error) {
-          authProfileSynced = false;
-          if (typeof console !== 'undefined' && typeof console.warn === 'function') {
-            console.warn('[Profile] Perfil salvo no Firestore, mas o espelho do Firebase Auth não foi atualizado.', error);
-          }
-        }
-      }
+      const authProfileSynced = await this.syncAuthProfile(user, {
+        displayName: safe.name,
+        photoURL: safe.photoURL || googleProviderPhoto(user) || null
+      });
+      return { ...updated, authProfileSynced };
+    }
+
+    async savePhoto(user, photoURL) {
+      if (!user?.uid) throw new Error('Usuário autenticado não identificado.');
+      const safePhotoURL = normalizePhotoURL(photoURL);
+      const updated = await this.repository.updateOwnProfile(user.uid, { photoURL: safePhotoURL });
+      const effectivePhotoURL = safePhotoURL || googleProviderPhoto(user) || null;
+      const authProfileSynced = await this.syncAuthProfile(user, { photoURL: effectivePhotoURL });
       return { ...updated, authProfileSynced };
     }
 
@@ -130,6 +149,7 @@
   return Object.freeze({
     ProfileService,
     normalizeProfileInput,
+    normalizePhotoURL,
     validateBirthDate,
     validatePasswordChange,
     authCapabilities,
