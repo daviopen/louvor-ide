@@ -28,7 +28,7 @@ function transposeCompactContent(content, data = {}) { return String(content || 
 function harmonicIdentity(content) { return String(content || '').replace(/^.*?\s-\s/gm, '').toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ').trim(); }
 function lyricalIdentity(content) { return String(content || '').toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ').trim(); }
 function lineIsChordOnly(line) { const tokens = String(line || '').trim().split(/\s+/).filter(Boolean); if (!tokens.length) return false; return tokens.every(token => CHORD_TOKEN_RE.test(token.replace(/^[\[({|]+/, '').replace(/[\])},;:|]+$/, ''))); }
-function cueWords(line) { return String(line || '').trim().split(/\s+/).filter(Boolean).slice(0, 3).join(' '); }
+function cueWords(line) { return String(line || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' '); }
 function secondaryVocalCues(rawContent, data = {}) {
   const lines = String(rawContent || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   const cues = [];
