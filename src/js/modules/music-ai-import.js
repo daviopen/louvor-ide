@@ -161,15 +161,6 @@ class EnhancedMusicAIService {
     const sourceChordSheet = String(data.chordSheet || '').trim() || null;
     const canonicalChordSheet = escapeCueSeparatorsForLegacyFormatter(composeIdeMusicChordSheet(data));
 
-    const theme = String(data.theme || '').trim();
-    if (theme) {
-      const themeField = document.getElementById('tema');
-      if (themeField) {
-        themeField.value = theme;
-        themeField.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-    }
-
     return {
       ...result,
       data: {
