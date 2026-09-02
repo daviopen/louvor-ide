@@ -92,10 +92,18 @@
       if (!user?.uid) throw new Error('Usuário autenticado não identificado.');
       const safe = normalizeProfileInput(input, this.clock());
       const updated = await this.repository.updateOwnProfile(user.uid, safe);
+      let authProfileSynced = true;
       if (typeof user.updateProfile === 'function') {
-        await user.updateProfile({ displayName: safe.name, photoURL: safe.photoURL || googleProviderPhoto(user) || null });
+        try {
+          await user.updateProfile({ displayName: safe.name, photoURL: safe.photoURL || googleProviderPhoto(user) || null });
+        } catch (error) {
+          authProfileSynced = false;
+          if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+            console.warn('[Profile] Perfil salvo no Firestore, mas o espelho do Firebase Auth não foi atualizado.', error);
+          }
+        }
       }
-      return updated;
+      return { ...updated, authProfileSynced };
     }
 
     async changePassword(user, input) {
