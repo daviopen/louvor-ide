@@ -506,7 +506,7 @@ Antes de concluir, responder objetivamente:
 13. Console nominal está sem `console.error`/`pageerror`?
 14. Transformações de build preservam atributos nativos?
 15. Um teste de regressão cobre o bug corrigido?
-16. Documentação/ROADMAP precisam ser atualizados?
+16. A documentação afetada precisa ser atualizada?
 
 ## 27. QA de produção
 
