@@ -30,6 +30,9 @@ jobs:
       - name: Build first structural graph
         run: graphify extract . --code-only --out .
 
+      - name: Generate Graphify report and visualization
+        run: graphify cluster-only .
+
       - name: Validate generated graph
         shell: bash
         run: |
