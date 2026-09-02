@@ -38,12 +38,10 @@
     const start = toDate(record?.date);
     const end = toDate(record?.endAt || record?.date);
     if (!(target && start && end)) return false;
-
     const targetKey = dateKey(target);
     const startKey = dateKey(start);
     const endKey = dateKey(end);
     if (targetKey < startKey || targetKey > endKey) return false;
-
     const recurrence = record?.recurrence;
     if (!recurrence || String(recurrence.frequency || '').toUpperCase() !== 'WEEKLY') return true;
     const weekdays = Array.isArray(recurrence.weekdays) ? recurrence.weekdays.map(Number) : [];
@@ -63,6 +61,10 @@
     return ['NONE', 'READ', 'EDIT'].includes(level) ? level : 'NONE';
   }
 
+  function hasProfilePermission(profile, moduleName) {
+    return Boolean(profile?.permissions && Object.prototype.hasOwnProperty.call(profile.permissions, moduleName));
+  }
+
   function profilePermissionLevel(profile, moduleName) {
     const permission = profile?.permissions?.[moduleName];
     return normalizeLevel(permission && typeof permission === 'object' ? permission.level || permission.access : permission);
@@ -74,9 +76,8 @@
   }
 
   async function readDependency(label, operation) {
-    try {
-      return await operation();
-    } catch (error) {
+    try { return await operation(); }
+    catch (error) {
       const contextual = new Error(`Não foi possível consultar ${label}: ${error?.message || 'acesso negado'}`);
       contextual.code = error?.code;
       contextual.cause = error;
@@ -124,10 +125,14 @@
       const role = String(profile?.role || '').toUpperCase();
       const accessProfile = String(profile?.accessProfile || '').toUpperCase();
       if (role === 'SUPER_ADMIN' || profile?.isSuperAdmin === true) return { level: 'EDIT', canRead: true, canEdit: true };
-      if (accessProfile === 'LEADER' || accessProfile === 'ADMINISTRATOR') {
-        return { level: 'EDIT', canRead: true, canEdit: true };
-      }
-      const persistedLevel = await this.repository.getPermissionLevel(userId, 'schedules');
+      if (accessProfile === 'LEADER' || accessProfile === 'ADMINISTRATOR') return { level: 'EDIT', canRead: true, canEdit: true };
+
+      // O auth-service já hidrata a matriz de permissões na sessão. Quando ela
+      // está presente, não há motivo para reler permissions/{uid}__schedules em
+      // toda troca de rota. Firestore Rules continuam sendo a autoridade final.
+      const persistedLevel = hasProfilePermission(profile, 'schedules')
+        ? 'NONE'
+        : await this.repository.getPermissionLevel(userId, 'schedules');
       const requestedLevel = strongestLevel(profilePermissionLevel(profile, 'schedules'), persistedLevel);
       const level = requestedLevel === 'EDIT' ? 'READ' : requestedLevel;
       return { level, canRead: level === 'READ', canEdit: false };
@@ -136,14 +141,20 @@
     async load(user, profile = null) {
       const access = await this.resolveAccess(user, profile);
       if (!access.canRead) throw new Error('Você não possui permissão para consultar escalas.');
-      const [schedules, users, functions, userFunctions, unavailability, members] = await Promise.all([
-        readDependency('escalas e eventos', () => this.repository.listSchedules()),
+
+      const [schedules, users, functions] = await Promise.all([
+        readDependency('escalas e eventos', () => this.repository.listSchedules({ limit: 120 })),
         readDependency('pessoas da escala', () => this.repository.listActiveUsers()),
-        readDependency('funções ministeriais', () => this.repository.listActiveFunctions()),
-        readDependency('vínculos entre pessoas e funções', () => this.repository.listUserFunctions()),
-        readDependency('indisponibilidades', () => this.repository.listUnavailability()),
-        readDependency('participantes das escalas', () => this.repository.listAllMembers())
+        readDependency('funções ministeriais', () => this.repository.listActiveFunctions())
       ]);
+      const scheduleIds = schedules.map(item => item.id).filter(Boolean);
+      const userIds = users.map(item => item.id || item.uid).filter(Boolean);
+      const [userFunctions, unavailability, members] = await Promise.all([
+        readDependency('vínculos entre pessoas e funções', () => this.repository.listUserFunctionsForUsers(userIds)),
+        readDependency('indisponibilidades', () => this.repository.listUnavailabilityForUsers(userIds)),
+        readDependency('participantes das escalas', () => this.repository.listMembersForSchedules(scheduleIds))
+      ]);
+
       const membersBySchedule = new Map();
       members.forEach(member => {
         if (!member.scheduleId) return;
@@ -162,10 +173,14 @@
       if (!access.canRead) throw new Error('Você não possui permissão para consultar escalas.');
       const schedule = await this.repository.getSchedule(scheduleId);
       if (!schedule) return { access, schedules: [], users: [], functions: [], userFunctions: [], unavailability: [] };
-      const [event, members, users, functions, userFunctions, unavailability] = await Promise.all([
+      const [event, members, users, functions] = await Promise.all([
         this.repository.getEvent(schedule.eventId), this.repository.listMembers(scheduleId),
-        this.repository.listActiveUsers(), this.repository.listActiveFunctions(),
-        this.repository.listUserFunctions(), this.repository.listUnavailability()
+        this.repository.listActiveUsers(), this.repository.listActiveFunctions()
+      ]);
+      const userIds = users.map(item => item.id || item.uid).filter(Boolean);
+      const [userFunctions, unavailability] = await Promise.all([
+        this.repository.listUserFunctionsForUsers(userIds),
+        this.repository.listUnavailabilityForUsers(userIds)
       ]);
       const activeMembers = members.filter(item => item.active !== false);
       const orderedSchedule = { ...schedule, slots: sortSlotsByFunction(schedule.slots, functions) };
@@ -238,12 +253,7 @@
       if (!hasFunction) throw new Error('O usuário selecionado não possui esta função ministerial.');
       const existing = members.find(item => item.slotId === slotId && item.active !== false);
       if (existing?.userId === userId && existing.functionId === slot.functionId) {
-        return {
-          member: existing,
-          conflict: { unavailable: false, unavailability: null, duplicateFunction: false, otherRole: null },
-          completeness: scheduleCompleteness(schedule, members),
-          unchanged: true
-        };
+        return { member: existing, conflict: { unavailable: false, unavailability: null, duplicateFunction: false, otherRole: null }, completeness: scheduleCompleteness(schedule, members), unchanged: true };
       }
       const comparableMembers = members.filter(item => item.active !== false && item.id !== existing?.id);
       const fullSchedule = { ...schedule, members: comparableMembers };
@@ -278,5 +288,5 @@
     }
   }
 
-  return Object.freeze({ ScheduleService, dateKey, periodForTime, dateMatchesUnavailability, unavailabilityMatches, scheduleCompleteness, sortSlotsByFunction });
+  return Object.freeze({ ScheduleService, dateKey, periodForTime, dateMatchesUnavailability, unavailabilityMatches, scheduleCompleteness, sortSlotsByFunction, hasProfilePermission });
 });
