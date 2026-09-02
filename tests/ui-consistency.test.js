@@ -12,7 +12,7 @@ test('authenticated shell loads the complete visual foundation', () => {
     assert.match(shell, new RegExp(asset.replace('.', '\\.')));
   }
   assert.match(shell, /initializeFilterPanels/);
-  assert.match(shell, /dataset\.tooltip = item\.label/);
+  assert.match(shell, /dataset\.tooltip = label/);
 });
 
 test('legacy button migration preserves action hierarchy', () => {

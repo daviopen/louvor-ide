@@ -62,6 +62,17 @@ test('navegação móvel e sidebar responsiva possuem contrato visual', () => {
   assert.match(css, /ide-sidebar-collapsed/);
 });
 
+test('Setlists usa rótulos curtos no menu e nome do módulo na navegação móvel', () => {
+  assert.match(shell, /id: 'setlists-upcoming', label: 'Próximos', mobileLabel: 'Setlists'/);
+  assert.match(shell, /id: 'setlists-history', label: 'Histórico'/);
+  assert.match(shell, /compact && item\.mobileLabel \? item\.mobileLabel : item\.label/);
+  assert.match(shell, /compact && item\.mobileLabel && item\.groupId === activeItem\?\.groupId/);
+});
+
+test('Músicas usa rótulo curto no menu e nome do módulo na navegação móvel', () => {
+  assert.match(shell, /id: 'songs', label: 'Consultar', mobileLabel: 'Músicas'/);
+});
+
 test('controles de conta, tema e saída são montados dentro da sidebar', () => {
   assert.match(shell, /ide-sidebar-account/);
   assert.match(shell, /mountAccountControls/);
