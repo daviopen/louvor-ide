@@ -110,7 +110,10 @@ function lyricalIdentity(content) {
 
 export function composeIdeMusicChordSheet(data = {}) {
   const sections = Array.isArray(data.sections) ? data.sections.filter(section => String(section?.content || '').trim()) : [];
-  if (!sections.length) return String(data.chordSheet || '').replace(/^\s*capotraste\s*:.*$/gim, '').trim();
+  if (!sections.length) {
+    const rawChordSheet = String(data.chordSheet || '').replace(/^\s*capotraste\s*:.*$/gim, '').trim();
+    return transposeCompactContent(rawChordSheet, data);
+  }
 
   const groups = [];
   const byKey = new Map();
