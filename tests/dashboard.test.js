@@ -68,22 +68,27 @@ test('Dashboard não mostra escala quando vínculo do usuário está inativo', (
   assert.equal(result.userIndicators.upcomingSetlists, 0);
 });
 
-test('DashboardService consulta somente os vínculos de escala do usuário autenticado', async () => {
+test('DashboardService consulta somente relações ligadas ao usuário autenticado', async () => {
   const calls = [];
   const repository = {
     async getOwnProfile(uid) { calls.push(['profile', uid]); return { id: uid, active: true, role: 'MEMBER' }; },
-    async listEvents() { calls.push(['events']); return []; },
-    async listSchedules() { calls.push(['schedules']); return []; },
-    async listOwnScheduleMembers(uid) { calls.push(['members', uid]); return []; },
-    async listSetlists() { calls.push(['setlists']); return []; },
-    async listOwnUnavailability(uid) { calls.push(['unavailability', uid]); return []; }
+    async listOwnScheduleMembers(uid) { calls.push(['members', uid]); return [{ scheduleId: 'schedule-1', userId: uid, active: true }]; },
+    async listOwnUnavailability(uid) { calls.push(['unavailability', uid]); return []; },
+    async getSchedulesByIds(ids) { calls.push(['schedulesByIds', ids]); return [{ id: 'schedule-1', eventId: 'event-1', status: 'DRAFT' }]; },
+    async getEventsByIds(ids) { calls.push(['eventsByIds', ids]); return [{ id: 'event-1', date: date('2026-08-26') }]; },
+    async listSetlistsForTargets(targets) { calls.push(['setlistsForTargets', targets]); return []; }
   };
   const service = new DashboardService(repository, { clock: () => now });
   const result = await service.load('user-1');
 
   assert.equal(result.profile.id, 'user-1');
   assert.deepEqual(calls, [
-    ['profile', 'user-1'], ['events'], ['schedules'], ['members', 'user-1'], ['setlists'], ['unavailability', 'user-1']
+    ['profile', 'user-1'],
+    ['members', 'user-1'],
+    ['unavailability', 'user-1'],
+    ['schedulesByIds', ['schedule-1']],
+    ['eventsByIds', ['event-1']],
+    ['setlistsForTargets', { scheduleIds: ['schedule-1'], eventIds: ['event-1'] }]
   ]);
 });
 
