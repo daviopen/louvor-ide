@@ -48,7 +48,7 @@ test('perfil canônico é fonte direta de autorização das Rules', () => {
   assert.match(rules, /moduleName == 'schedules' && hasAccessProfile\(\['LEADER', 'ADMINISTRATOR'\]\)/);
   assert.doesNotMatch(rules, /moduleName == 'schedules' && hasAccessProfile\(\[[^\]]*'DM'/);
   assert.match(rules, /moduleName != 'schedules' && explicitPermission\(moduleName, \['EDIT'\]\)/);
-  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['role', 'active', 'uid', 'permissions', 'accessProfile'\]\)/);
+  assert.match(rules, /function validSelfProfileUpdate\(\)/);
 });
 
 test('perfil legado usa espelho protegido quando o documento técnico ainda não foi materializado', () => {
@@ -56,8 +56,18 @@ test('perfil legado usa espelho protegido quando o documento técnico ainda não
   assert.match(rules, /profile\(\)\.data\.permissions is map/);
   assert.match(rules, /moduleName in profile\(\)\.data\.permissions/);
   assert.match(rules, /profile\(\)\.data\.permissions\[moduleName\] in acceptedLevels/);
-  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['role', 'active', 'uid', 'permissions', 'accessProfile'\]\)/);
-  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['role', 'permissions', 'accessProfile'\]\)/);
+  assert.match(rules, /affectedKeys\(\)\.hasOnly\(\['name', 'phone', 'birthDate', 'photoURL', 'updatedAt'\]\)/);
+  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['uid', 'role', 'permissions', 'accessProfile'\]\)/);
+});
+
+test('usuário só pode editar os próprios campos pessoais e não pode elevar privilégio', () => {
+  const users = extractMatch('users/{userId}');
+  assert.match(rules, /function validSelfProfileUpdate\(\)/);
+  assert.match(rules, /hasOnly\(\['name', 'phone', 'birthDate', 'photoURL', 'updatedAt'\]\)/);
+  assert.match(rules, /request\.resource\.data\.updatedAt == request\.time/);
+  assert.match(rules, /res\.cloudinary\.com\/vqyuxscx/);
+  assert.match(users, /ownsUserDocument\(userId\) && validSelfProfileUpdate\(\)/);
+  assert.doesNotMatch(rules, /unchangedAuthorizationFields/);
 });
 
 test('operações administrativas impedem exclusão física de usuário', () => {
