@@ -43,7 +43,10 @@ export class MusicRepository extends BaseRepository {
       this.getCollection(COLLECTIONS.SONG_MINISTER_KEYS),
       this.getCollection(COLLECTIONS.USERS)
     ]);
-    const [ministerKeysSnap, usersSnap] = await Promise.all([ministerKeys.get(), users.get()]);
+    const [ministerKeysSnap, usersSnap] = await Promise.all([
+      ministerKeys.get().catch(error => { throw new Error(`Não foi possível consultar tons dos ministros: ${error?.message || 'acesso negado'}`, { cause: error }); }),
+      users.get().catch(error => { throw new Error(`Não foi possível consultar ministros: ${error?.message || 'acesso negado'}`, { cause: error }); })
+    ]);
     const displayName = user => String(
       user?.name || user?.nome || user?.displayName || user?.fullName || user?.email || ''
     ).trim();
@@ -91,8 +94,11 @@ export class MusicRepository extends BaseRepository {
     };
 
     const handleError = error => {
-      console.error('Erro ao acompanhar catálogo de músicas:', error);
-      if (typeof onError === 'function') onError(error);
+      const contextual = error?.message?.startsWith('Não foi possível consultar')
+        ? error
+        : new Error(`Não foi possível consultar catálogo de músicas: ${error?.message || 'acesso negado'}`, { cause: error });
+      console.error('Erro ao acompanhar catálogo de músicas:', contextual);
+      if (typeof onError === 'function') onError(contextual);
     };
 
     // A ordenação permanece no cliente para aceitar documentos históricos
