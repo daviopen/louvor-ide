@@ -540,3 +540,79 @@ Em caso de conflito:
 4. convenções do legado.
 
 Nunca usar legado como justificativa para reduzir segurança, autorização, acessibilidade ou proteção de dados.
+
+## 29. Graphify e análise de impacto
+
+O Graphify é uma ferramenta opcional de engenharia para gerar e consultar um knowledge graph do repositório. Ele deve ser usado como apoio à compreensão arquitetural e à análise de impacto, sem alterar o runtime, a arquitetura pública ou o processo de deploy do Firebase Hosting.
+
+Documentação operacional: `docs/GRAPHIFY.md`.
+
+### 29.1. Quando usar
+
+Graphify é recomendado antes de mudanças com alto raio de impacto, especialmente quando envolverem:
+
+- autenticação, sessão, rotas, guards e permissões;
+- Firestore Security Rules e paridade entre UI/guard/Rules;
+- fluxos que atravessam Page/Component -> Service -> Repository -> Firebase;
+- dependências entre escalas, eventos, usuários, funções ministeriais, setlists e músicas;
+- migração/refatoração do legado em `src/js` para a arquitetura modular;
+- investigação de regressões cuja origem não esteja evidente por leitura direta.
+
+Não é obrigatório gerar o grafo para alterações pequenas, isoladas ou puramente documentais quando o impacto for evidente.
+
+### 29.2. Fonte de verdade
+
+O knowledge graph é **evidência auxiliar**, nunca fonte final de verdade.
+
+Obrigatório:
+
+- confirmar no código os caminhos apontados pelo grafo antes de alterar comportamento;
+- não conceder ou remover permissão baseado somente em uma resposta do Graphify;
+- não assumir que relação inferida pelo grafo equivale a relação garantida em runtime;
+- continuar executando testes, lint, Rules tests, E2E e QA de produção aplicáveis;
+- em conflito entre grafo e implementação observável, investigar e corrigir a causa em vez de adaptar código para “combinar com o grafo”.
+
+### 29.3. Artefatos e versionamento
+
+A saída padrão `graphify-out/` é derivada, local e ignorada pelo Git.
+
+- Não versionar `graphify-out/` sem decisão arquitetural explícita.
+- Não incluir `graphify-out/` no Firebase Hosting.
+- Não publicar o grafo como artifact de CI sem revisão e sanitização.
+- `make clean` não deve depender de Graphify; `make graphify-clean` remove somente os artefatos da ferramenta.
+
+### 29.4. Segurança, privacidade e credenciais
+
+A instalação do Graphify não autoriza enviar código, documentos ou dados a provedores externos indiscriminadamente.
+
+Obrigatório:
+
+- nunca persistir API keys do Graphify ou de backends LLM no repositório;
+- nunca adicionar secrets ao Makefile, `.env.example`, comandos documentados ou artifacts;
+- revisar o backend usado em extração headless antes de analisar conteúdo sensível;
+- respeitar LGPD, requisitos de residência de dados e políticas do ambiente;
+- preferir fluxo local/aprovado quando o conteúdo não puder sair do ambiente;
+- tratar `graphify-out/` como artifact potencialmente sensível, pois deriva da estrutura e do conteúdo do código analisado.
+
+### 29.5. Fluxo recomendado
+
+Para mudança de alto impacto:
+
+1. atualizar/gerar o grafo;
+2. consultar dependências, caminhos e nós relevantes;
+3. confirmar manualmente no código os pontos indicados;
+4. implementar respeitando este `AGENTS.md`;
+5. executar testes/lint e validações específicas do domínio afetado;
+6. atualizar o grafo novamente quando a alteração estrutural for relevante e uma nova análise de impacto trouxer valor.
+
+Targets disponíveis no Makefile:
+
+```bash
+make graphify-install
+make graphify-check
+make graphify-extract
+make graphify-update
+make graphify-query Q="pergunta"
+make graphify-open
+make graphify-clean
+```
