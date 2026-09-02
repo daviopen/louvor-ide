@@ -1,4 +1,5 @@
 import MusicAIService from '../../services/music-ai-service.js';
+import { buildFieldConfidence, validateHarmonicContext } from '../../services/music-ai-confidence.js';
 
 let importMetadata = null;
 
@@ -60,18 +61,20 @@ function injectStyles() {
     .ai-import__examples { display:flex; flex-wrap:wrap; gap:6px 10px; margin-top:2px; color:var(--ide-text-secondary); font-size:var(--ide-font-size-xs); }
     .ai-import__examples span { display:inline-flex; align-items:center; gap:5px; }
     .ai-import__actions { display:flex; align-items:center; gap:var(--ide-space-3); margin-top:var(--ide-space-4); flex-wrap:wrap; }
-    .ai-import__analyze { min-height:44px; padding:10px 18px; border:1px solid var(--ide-primary); border-radius:999px; background:var(--ide-primary); color:var(--ide-primary-ink); font:inherit; font-weight:800; cursor:pointer; }
-    .ai-import__analyze:disabled { opacity:.72; cursor:wait; }
-    .ai-import__thinking[hidden] { display:none; }
+    .ai-import__analyze,.ai-import__apply { min-height:44px; padding:10px 18px; border:1px solid var(--ide-primary); border-radius:999px; background:var(--ide-primary); color:var(--ide-primary-ink); font:inherit; font-weight:800; cursor:pointer; }
+    .ai-import__apply { background:var(--ide-surface); color:var(--ide-text-primary); }
+    .ai-import__analyze:disabled,.ai-import__apply:disabled { opacity:.72; cursor:wait; }
+    .ai-import__thinking[hidden],.ai-import__apply[hidden] { display:none; }
     .ai-import__thinking { display:flex; align-items:center; gap:var(--ide-space-4); margin-top:var(--ide-space-4); padding:16px; border:1px solid var(--ide-border-strong); border-radius:var(--ide-radius-lg); background:var(--ide-surface); color:var(--ide-text-primary); }
     .ai-import__thinking-icon { width:36px; height:36px; flex:0 0 36px; display:grid; place-items:center; border-radius:50%; background:var(--ide-surface-secondary); color:var(--ide-primary); }
     .ai-import__thinking-icon i { animation:ai-import-spin 1s linear infinite; }
     .ai-import__thinking strong { display:block; margin-bottom:3px; font-size:var(--ide-font-size-sm); }
     .ai-import__thinking span { display:block; color:var(--ide-text-secondary); font-size:var(--ide-font-size-xs); line-height:1.45; }
-    .ai-import__review { margin-top:var(--ide-space-4); padding:12px 14px; border-left:4px solid var(--ide-primary); border-radius:var(--ide-radius-md); background:var(--ide-surface); color:var(--ide-text-primary); font-size:var(--ide-font-size-sm); line-height:1.5; }
+    .ai-import__review { margin-top:var(--ide-space-4); padding:12px 14px; border-left:4px solid var(--ide-primary); border-radius:var(--ide-radius-md); background:var(--ide-surface); color:var(--ide-text-primary); font-size:var(--ide-font-size-sm); line-height:1.5; white-space:pre-line; }
+    .ai-import__review[data-status="inconsistent"] { border-left-color:var(--ide-danger, #b42318); }
     @keyframes ai-import-spin { to { transform:rotate(360deg); } }
     @media (prefers-reduced-motion:reduce){.ai-import__thinking-icon i{animation:none}}
-    @media (max-width:700px){.ai-import__top{flex-direction:column}.ai-import__toggle{width:100%}.ai-import__analyze{width:100%}.ai-import__thinking{align-items:flex-start}}
+    @media (max-width:700px){.ai-import__top{flex-direction:column}.ai-import__toggle,.ai-import__analyze,.ai-import__apply{width:100%}.ai-import__thinking{align-items:flex-start}}
   `;
   document.head.appendChild(style);
 }
@@ -480,6 +483,9 @@ function canonicalizeRawChordSheet(data = {}) {
 }
 
 export function composeCanonicalChordSheet(data = {}) {
+  const explicitCanonical = String(data.canonicalChordSheet || '').trim();
+  if (explicitCanonical) return explicitCanonical;
+
   const sections = Array.isArray(data.sections) ? data.sections.filter(section => section?.content?.trim()) : [];
   if (!sections.length) return canonicalizeRawChordSheet(data);
 
@@ -517,13 +523,41 @@ export function resolveReferenceLink(data = {}, input = {}) {
   return '';
 }
 
+function confidenceLabel(value) {
+  if (value === 'high') return 'alta confiança';
+  if (value === 'medium') return 'média confiança';
+  if (value === 'review') return 'revisar';
+  return 'não confirmado';
+}
+
+function reviewSummary(result) {
+  const { data, input } = result;
+  const confidence = buildFieldConfidence(data, input);
+  const harmonic = validateHarmonicContext(data);
+  const capo = Number(data.capoFret);
+  const lines = [
+    `Tom original: ${data.originalKey || 'não identificado'} — ${confidenceLabel(confidence.originalKey)}`,
+    `Forma encontrada: ${data.chordFormKey || 'não identificada'} — ${confidenceLabel(confidence.chordFormKey)}`,
+    `Capotraste: ${Number.isInteger(capo) && capo > 0 ? `${capo}ª casa` : 'não utilizado'} — ${confidenceLabel(confidence.capoFret)}`,
+    `Validação harmônica: ${harmonic.message}`,
+    `Cifra final: ${composeCanonicalChordSheet(data) ? `normalizada para ${data.originalKey || 'o tom identificado'}` : 'não disponível'}`,
+    `Vídeo: ${resolveReferenceLink(data, input) ? `encontrado — ${confidenceLabel(confidence.video)}` : 'não encontrado'}`,
+    `Fonte: ${input.sourceUrl || input.youtubeUrl || 'entrada informada pelo usuário'}`
+  ];
+  return { text: lines.join('\n'), confidence, harmonic };
+}
+
 function applySuggestion(result) {
   const { data, provider, input } = result;
+  const harmonic = validateHarmonicContext(data);
+  const confidence = buildFieldConfidence(data, input);
   const applied = [];
   if (setValue('titulo', data.title)) applied.push('nome');
   if (setValue('artista', data.artist)) applied.push('artista');
   if (setValue('tom', data.originalKey)) applied.push('tom original');
-  if (setValue('cifra', composeCanonicalChordSheet(data))) applied.push('cifra');
+
+  const canonicalChordSheet = composeCanonicalChordSheet(data);
+  if (harmonic.valid !== false && setValue('cifra', canonicalChordSheet)) applied.push('cifra');
   if (setValue('letra', data.lyrics)) applied.push('letra');
   if (setValue('link', resolveReferenceLink(data, input))) applied.push('link do vídeo');
 
@@ -543,9 +577,13 @@ function applySuggestion(result) {
     aiModel: provider.model,
     aiSchemaVersion: data.schemaVersion,
     video: data.video || (input.youtubeUrl ? { provider: 'youtube', url: input.youtubeUrl, videoId: null } : null),
-    fieldProvenance: data.provenance || {}
+    fieldProvenance: data.provenance || {},
+    fieldConfidence: confidence,
+    harmonicValidation: harmonic,
+    sourceChordSheet: data.sourceChordSheet || null,
+    canonicalChordSheet: canonicalChordSheet || null
   };
-  return applied;
+  return { applied, harmonic };
 }
 
 function createPanel() {
@@ -569,7 +607,11 @@ function createPanel() {
           <span><i class="fa-solid fa-font"></i> Nome + artista</span>
         </div>
       </div>
-      <div class="ai-import__actions"><button type="button" class="ai-import__analyze"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Analisar e preencher</button><span class="ai-import__state" role="status" aria-live="polite">A IA só sugere os dados; nada é salvo automaticamente.</span></div>
+      <div class="ai-import__actions">
+        <button type="button" class="ai-import__analyze"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Analisar</button>
+        <button type="button" class="ai-import__apply" hidden><i class="fa-solid fa-check" aria-hidden="true"></i> Aplicar sugestões</button>
+        <span class="ai-import__state" role="status" aria-live="polite">A IA só sugere os dados; nada é salvo automaticamente.</span>
+      </div>
       <div class="ai-import__thinking" hidden role="status" aria-live="assertive">
         <div class="ai-import__thinking-icon" aria-hidden="true"><i class="fa-solid fa-circle-notch"></i></div>
         <div><strong>A IA está analisando a música…</strong><span>Entendendo sua entrada, identificando a música, confirmando o tom real e organizando a cifra no padrão do IDE Music.</span></div>
@@ -590,11 +632,13 @@ export function mountMusicAIImport({ service = new MusicAIService() } = {}) {
   const toggle = panel.querySelector('.ai-import__toggle');
   const body = panel.querySelector('.ai-import__body');
   const analyze = panel.querySelector('.ai-import__analyze');
+  const apply = panel.querySelector('.ai-import__apply');
   const state = panel.querySelector('.ai-import__state');
   const thinking = panel.querySelector('.ai-import__thinking');
   const review = panel.querySelector('.ai-import__review');
   const input = panel.querySelector('#ai-universal-input');
   const idleAnalyzeHtml = analyze.innerHTML;
+  let pendingResult = null;
 
   toggle.addEventListener('click', () => {
     const open = !body.classList.contains('open');
@@ -610,6 +654,28 @@ export function mountMusicAIImport({ service = new MusicAIService() } = {}) {
     }
   });
 
+  input?.addEventListener('input', () => {
+    pendingResult = null;
+    apply.hidden = true;
+    review.hidden = true;
+  });
+
+  apply.addEventListener('click', () => {
+    if (!pendingResult) return;
+    const { applied, harmonic } = applySuggestion(pendingResult);
+    if (harmonic.valid === false) {
+      state.textContent = 'Os dados básicos foram aplicados, mas a cifra foi bloqueada porque tom, forma e capotraste são inconsistentes. Revise a fonte.';
+    } else {
+      state.textContent = 'Sugestões aplicadas ao formulário. Revise os dados antes de salvar.';
+    }
+    review.hidden = false;
+    const summary = reviewSummary(pendingResult);
+    review.dataset.status = summary.harmonic.status;
+    review.textContent = `${summary.text}\n\nCampos aplicados: ${applied.length ? applied.join(', ') : 'nenhum'}.`;
+    apply.hidden = true;
+    pendingResult = null;
+  });
+
   analyze.addEventListener('click', async () => {
     const user = window.firebase?.auth?.().currentUser;
     if (!user?.uid) {
@@ -623,18 +689,25 @@ export function mountMusicAIImport({ service = new MusicAIService() } = {}) {
     thinking.hidden = false;
     state.textContent = 'Aguarde enquanto a IA entende a entrada e organiza a música.';
     review.hidden = true;
+    apply.hidden = true;
+    pendingResult = null;
     try {
       const result = await service.analyze({ rawInput: input?.value || '' });
-      const applied = applySuggestion(result);
-      state.textContent = 'Sugestão aplicada ao formulário. Revise os dados antes de salvar.';
+      pendingResult = result;
+      const summary = reviewSummary(result);
+      review.dataset.status = summary.harmonic.status;
+      review.textContent = summary.text;
       review.hidden = false;
-      review.textContent = applied.length
-        ? `Campos sugeridos: ${applied.join(', ')}. Campos sem evidência suficiente permaneceram vazios.`
-        : 'A IA não encontrou dados suficientes para preencher o formulário. Tente informar mais contexto ou continue manualmente.';
+      apply.hidden = false;
+      state.textContent = summary.harmonic.valid === false
+        ? 'Encontrei uma inconsistência harmônica. Você pode aplicar os dados básicos, mas a cifra ficará bloqueada até revisão.'
+        : 'Análise concluída. Revise os dados abaixo e escolha se deseja aplicá-los ao formulário.';
+      apply.focus();
     } catch (error) {
       console.warn('Importação assistida indisponível:', error?.code || error?.message || error);
       state.textContent = `${error?.message || 'A IA está indisponível no momento.'} Você pode continuar normalmente pelo cadastro manual.`;
       review.hidden = false;
+      review.removeAttribute('data-status');
       review.textContent = 'Nenhum conteúdo foi salvo. O formulário manual continua disponível.';
     } finally {
       analyze.disabled = false;
