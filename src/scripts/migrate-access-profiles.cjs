@@ -28,11 +28,42 @@ async function loadPermissionMap(db, userDoc) {
   return normalizePermissionMap(map);
 }
 
+function materializedPermissionSnapshot(profileId) {
+  return Object.fromEntries(
+    Object.entries(profiles.permissionsFor(profileId)).filter(([, level]) => level !== 'NONE')
+  );
+}
+
+function queueProfileSynchronization(db, batch, userDoc, profileId) {
+  const permissionMap = profiles.permissionsFor(profileId);
+  const role = profileId === 'ADMINISTRATOR' ? 'ADMIN' : 'MEMBER';
+  const updatedAt = FieldValue.serverTimestamp();
+
+  for (const moduleName of profiles.MODULES) {
+    const level = permissionMap[moduleName];
+    const permissionRef = db.collection('permissions').doc(`${userDoc.id}__${moduleName}`);
+    if (level === 'NONE') batch.delete(permissionRef);
+    else batch.set(permissionRef, {
+      userId: userDoc.id,
+      module: moduleName,
+      level,
+      updatedAt
+    }, { merge: true });
+  }
+
+  batch.update(userDoc.ref, {
+    accessProfile: profileId,
+    role,
+    permissions: materializedPermissionSnapshot(profileId),
+    updatedAt
+  });
+}
+
 async function main() {
   initializeApp({ credential: applicationDefault(), projectId });
   const db = getFirestore();
   const users = await db.collection('users').get();
-  const summary = { alreadyProfiled: 0, inferred: 0, unresolved: 0, superAdmins: 0 };
+  const summary = { alreadyProfiled: 0, inferred: 0, synchronized: 0, unresolved: 0, superAdmins: 0 };
 
   for (const userDoc of users.docs) {
     const user = userDoc.data() || {};
@@ -43,31 +74,33 @@ async function main() {
     }
 
     const existingProfile = profiles.normalizeProfile(user.accessProfile);
-    if (existingProfile) {
+    let targetProfile = existingProfile;
+    if (targetProfile) {
       summary.alreadyProfiled += 1;
-      console.log(`✅ ${user.email || userDoc.id}: já associado a ${existingProfile}`);
-      continue;
-    }
-
-    const permissionMap = await loadPermissionMap(db, userDoc);
-    const inferredProfile = profiles.inferProfile(permissionMap);
-    if (!inferredProfile) {
-      summary.unresolved += 1;
-      console.warn(`⚠️ ${user.email || userDoc.id}: matriz atual não corresponde exatamente a um perfil canônico; nenhuma alteração aplicada`);
-      continue;
-    }
-
-    summary.inferred += 1;
-    const role = inferredProfile === 'ADMINISTRATOR' ? 'ADMIN' : 'MEMBER';
-    if (apply) {
-      await userDoc.ref.update({ accessProfile: inferredProfile, role, updatedAt: FieldValue.serverTimestamp() });
-      console.log(`🔄 ${user.email || userDoc.id}: associado a ${inferredProfile}`);
+      console.log(`✅ ${user.email || userDoc.id}: já associado a ${targetProfile}; matriz técnica será conferida`);
     } else {
-      console.log(`🔎 ${user.email || userDoc.id}: seria associado a ${inferredProfile}`);
+      const permissionMap = await loadPermissionMap(db, userDoc);
+      targetProfile = profiles.inferProfile(permissionMap);
+      if (!targetProfile) {
+        summary.unresolved += 1;
+        console.warn(`⚠️ ${user.email || userDoc.id}: matriz atual não corresponde exatamente a um perfil canônico; nenhuma alteração aplicada`);
+        continue;
+      }
+      summary.inferred += 1;
+    }
+
+    if (apply) {
+      const batch = db.batch();
+      queueProfileSynchronization(db, batch, userDoc, targetProfile);
+      await batch.commit();
+      summary.synchronized += 1;
+      console.log(`🔄 ${user.email || userDoc.id}: perfil ${targetProfile} e permissões técnicas sincronizados`);
+    } else {
+      console.log(`🔎 ${user.email || userDoc.id}: perfil ${targetProfile} e permissões técnicas seriam sincronizados`);
     }
   }
 
-  console.log(`📊 Migração ${apply ? 'APLICADA' : 'DRY-RUN'}: ${summary.inferred} inferido(s), ${summary.alreadyProfiled} já associado(s), ${summary.unresolved} não resolvido(s), ${summary.superAdmins} SUPER_ADMIN preservado(s).`);
+  console.log(`📊 Migração ${apply ? 'APLICADA' : 'DRY-RUN'}: ${summary.inferred} inferido(s), ${summary.alreadyProfiled} já associado(s), ${summary.synchronized} sincronizado(s), ${summary.unresolved} não resolvido(s), ${summary.superAdmins} SUPER_ADMIN preservado(s).`);
   if (summary.unresolved > 0) process.exitCode = 2;
 }
 
