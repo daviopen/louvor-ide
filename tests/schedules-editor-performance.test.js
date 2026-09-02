@@ -10,7 +10,7 @@ test('editor usa carregamento direcionado em vez da listagem completa', () => {
 });
 
 test('loadEditor não lê todas as escalas nem todos os integrantes', async () => {
-  const calls = { listSchedules: 0, listAllMembers: 0, getSchedule: 0, listMembers: 0, getEvent: 0 };
+  const calls = { listSchedules: 0, listAllMembers: 0, getSchedule: 0, listMembers: 0, getEvent: 0, listUserFunctionsForUsers: 0, listUnavailabilityForUsers: 0 };
   const repository = {
     async getPermissionLevel() { return 'EDIT'; },
     async getSchedule(id) { calls.getSchedule += 1; return { id, eventId: 'event_1', slots: [{ id: 'slot_1', functionId: 'fn_back' }] }; },
@@ -18,8 +18,8 @@ test('loadEditor não lê todas as escalas nem todos os integrantes', async () =
     async listMembers() { calls.listMembers += 1; return []; },
     async listActiveUsers() { return []; },
     async listActiveFunctions() { return []; },
-    async listUserFunctions() { return []; },
-    async listUnavailability() { return []; },
+    async listUserFunctionsForUsers() { calls.listUserFunctionsForUsers += 1; return []; },
+    async listUnavailabilityForUsers() { calls.listUnavailabilityForUsers += 1; return []; },
     async listSchedules() { calls.listSchedules += 1; return []; },
     async listAllMembers() { calls.listAllMembers += 1; return []; }
   };
@@ -29,6 +29,8 @@ test('loadEditor não lê todas as escalas nem todos os integrantes', async () =
   assert.equal(calls.getSchedule, 1);
   assert.equal(calls.getEvent, 1);
   assert.equal(calls.listMembers, 1);
+  assert.equal(calls.listUserFunctionsForUsers, 1);
+  assert.equal(calls.listUnavailabilityForUsers, 1);
   assert.equal(calls.listSchedules, 0);
   assert.equal(calls.listAllMembers, 0);
 });

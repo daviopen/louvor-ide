@@ -1,91 +1,90 @@
 /**
  * Repositories canônicos das collections do roadmap.
- *
- * Compatível com o SDK namespaced do Firestore já utilizado pelo projeto.
- * O módulo recebe o contrato de dados por injeção para continuar testável e
- * não criar dependência direta da UI.
  */
 (function initDomainRepositories(globalScope, factory) {
   const dataModel = globalScope && globalScope.MusicIdeDataModel
     ? globalScope.MusicIdeDataModel
     : (typeof module !== 'undefined' && module.exports ? require('../models/data-model.js') : null);
   const api = factory(dataModel);
-
-  if (typeof module !== 'undefined' && module.exports) {
-    module.exports = api;
-  }
-
-  if (globalScope) {
-    globalScope.MusicIdeDomainRepositories = api;
-  }
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (globalScope) globalScope.MusicIdeDomainRepositories = api;
 })(typeof window !== 'undefined' ? window : null, function createDomainRepositoriesModule(dataModel) {
   if (!dataModel) throw new Error('MusicIdeDataModel é obrigatório.');
 
-  const {
-    DATA_MODELS,
-    validateDocument,
-    userFunctionDocumentId,
-    permissionDocumentId,
-    songMinisterKeyDocumentId
-  } = dataModel;
+  const { DATA_MODELS, validateDocument, userFunctionDocumentId, permissionDocumentId, songMinisterKeyDocumentId } = dataModel;
 
   function snapshotToEntity(snapshot) {
     if (!snapshot || !snapshot.exists) return null;
     return { id: snapshot.id, ...snapshot.data() };
   }
 
+  function normalizePageSize(value, fallback = 25) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+    return Math.min(100, Math.floor(parsed));
+  }
+
   class DomainRepository {
     constructor(modelName, database, options = {}) {
       const schema = DATA_MODELS[modelName];
       if (!schema) throw new Error(`Modelo desconhecido: ${modelName}.`);
-      if (!database || typeof database.collection !== 'function') {
-        throw new Error(`Database é obrigatório para ${modelName}.`);
-      }
-
+      if (!database || typeof database.collection !== 'function') throw new Error(`Database é obrigatório para ${modelName}.`);
       this.modelName = modelName;
       this.collectionName = schema.collection;
       this.db = database;
       this.clock = options.clock || (() => new Date());
     }
 
-    collection() {
-      return this.db.collection(this.collectionName);
-    }
+    collection() { return this.db.collection(this.collectionName); }
 
     async getById(id) {
-      const snapshot = await this.collection().doc(id).get();
-      return snapshotToEntity(snapshot);
+      return snapshotToEntity(await this.collection().doc(id).get());
     }
 
+    /**
+     * Compatibilidade para telas legadas que ainda precisam de coleção completa.
+     * Código novo deve preferir listPage() ou queries de domínio específicas.
+     */
     async list() {
       const snapshot = await this.collection().get();
       return snapshot.docs.map(snapshotToEntity);
     }
 
+    async listPage(options = {}) {
+      const pageSize = normalizePageSize(options.limit);
+      let query = this.collection();
+      for (const filter of options.filters || []) {
+        if (!filter || !filter.field || !filter.op) continue;
+        query = query.where(filter.field, filter.op, filter.value);
+      }
+      if (options.orderBy) query = query.orderBy(options.orderBy, options.direction === 'desc' ? 'desc' : 'asc');
+      if (options.startAfter) query = query.startAfter(options.startAfter);
+      const snapshot = await query.limit(pageSize).get();
+      const items = snapshot.docs.map(snapshotToEntity);
+      return {
+        items,
+        cursor: snapshot.docs.length ? snapshot.docs[snapshot.docs.length - 1] : null,
+        hasMore: snapshot.docs.length === pageSize
+      };
+    }
+
     async create(data, options = {}) {
       const now = this.clock();
-      const document = {
-        ...data,
-        createdAt: data.createdAt || now,
-        updatedAt: data.updatedAt || now
-      };
+      const document = { ...data, createdAt: data.createdAt || now, updatedAt: data.updatedAt || now };
       validateDocument(this.modelName, document);
-
       if (options.id) {
         await this.collection().doc(options.id).set(document);
         return { id: options.id, ...document };
       }
-
       const ref = await this.collection().add(document);
       return { id: ref.id, ...document };
     }
 
-    async upsert(id, data) {
-      const current = await this.getById(id);
+    async upsert(id, data, options = {}) {
+      const current = Object.prototype.hasOwnProperty.call(options, 'current') ? options.current : await this.getById(id);
       const now = this.clock();
       const document = {
-        ...(current || {}),
-        ...data,
+        ...(current || {}), ...data,
         createdAt: current?.createdAt || data.createdAt || now,
         updatedAt: now
       };
@@ -98,14 +97,12 @@
     async update(id, patch) {
       const current = await this.getById(id);
       if (!current) throw new Error(`${this.modelName} não encontrado: ${id}.`);
-      return this.upsert(id, patch);
+      return this.upsert(id, patch, { current });
     }
   }
 
   class MinistryFunctionsRepository extends DomainRepository {
-    constructor(database, options) {
-      super('ministryFunctions', database, options);
-    }
+    constructor(database, options) { super('ministryFunctions', database, options); }
 
     async listOrdered(options = {}) {
       const snapshot = await this.collection().orderBy('order', 'asc').get();
@@ -119,31 +116,19 @@
     }
 
     async reorder(functionOrders) {
-      if (!Array.isArray(functionOrders) || functionOrders.length === 0) {
-        throw new TypeError('functionOrders deve conter ao menos uma função.');
-      }
-      if (typeof this.db.batch !== 'function') {
-        throw new Error('O banco configurado não oferece batch writes para reordenação atômica.');
-      }
-
+      if (!Array.isArray(functionOrders) || functionOrders.length === 0) throw new TypeError('functionOrders deve conter ao menos uma função.');
+      if (typeof this.db.batch !== 'function') throw new Error('O banco configurado não oferece batch writes para reordenação atômica.');
       const batch = this.db.batch();
       const collection = this.collection();
       const updatedAt = this.clock();
-      for (const item of functionOrders) {
-        batch.update(collection.doc(item.functionId), {
-          order: item.order,
-          updatedAt
-        });
-      }
+      for (const item of functionOrders) batch.update(collection.doc(item.functionId), { order: item.order, updatedAt });
       await batch.commit();
       return functionOrders.map(item => ({ ...item, updatedAt }));
     }
   }
 
   class UserFunctionsRepository extends DomainRepository {
-    constructor(database, options) {
-      super('userFunctions', database, options);
-    }
+    constructor(database, options) { super('userFunctions', database, options); }
 
     async assign(userId, functionId) {
       const id = userFunctionDocumentId(userId, functionId);
@@ -164,10 +149,7 @@
   }
 
   class PermissionsRepository extends DomainRepository {
-    constructor(database, options) {
-      super('permissions', database, options);
-    }
-
+    constructor(database, options) { super('permissions', database, options); }
     async setPermission(userId, moduleName, level) {
       const id = permissionDocumentId(userId, moduleName);
       return this.upsert(id, { userId, module: moduleName, level });
@@ -175,10 +157,7 @@
   }
 
   class SongMinisterKeysRepository extends DomainRepository {
-    constructor(database, options) {
-      super('songMinisterKeys', database, options);
-    }
-
+    constructor(database, options) { super('songMinisterKeys', database, options); }
     async setPreferredKey(songId, userId, preferredKey) {
       const id = songMinisterKeyDocumentId(songId, userId);
       return this.upsert(id, { songId, userId, preferredKey });
@@ -204,12 +183,5 @@
     });
   }
 
-  return Object.freeze({
-    DomainRepository,
-    MinistryFunctionsRepository,
-    UserFunctionsRepository,
-    PermissionsRepository,
-    SongMinisterKeysRepository,
-    createRepositoryRegistry
-  });
+  return Object.freeze({ DomainRepository, MinistryFunctionsRepository, UserFunctionsRepository, PermissionsRepository, SongMinisterKeysRepository, createRepositoryRegistry, normalizePageSize });
 });

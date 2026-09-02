@@ -7,9 +7,21 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (globalScope) globalScope.MusicIdeDashboardRepository = api;
 })(typeof window !== 'undefined' ? window : null, function createDashboardRepositoryModule() {
+  const QUERY_CHUNK_SIZE = 10;
+
   function snapshotToEntities(snapshot) {
     if (!snapshot || !Array.isArray(snapshot.docs)) return [];
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  }
+
+  function uniqueIds(values) {
+    return [...new Set((values || []).filter(Boolean).map(String))];
+  }
+
+  function chunks(values, size = QUERY_CHUNK_SIZE) {
+    const result = [];
+    for (let index = 0; index < values.length; index += size) result.push(values.slice(index, index + size));
+    return result;
   }
 
   class DashboardRepository {
@@ -25,21 +37,41 @@
       return snapshot && snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null;
     }
 
-    async listEvents() {
-      return snapshotToEntities(await this.db.collection('events').get());
-    }
-
-    async listSchedules() {
-      return snapshotToEntities(await this.db.collection('schedules').get());
-    }
-
     async listOwnScheduleMembers(userId) {
       const snapshot = await this.db.collection('scheduleMembers').where('userId', '==', userId).get();
-      return snapshotToEntities(snapshot);
+      return snapshotToEntities(snapshot).filter(item => item.active !== false);
     }
 
-    async listSetlists() {
-      return snapshotToEntities(await this.db.collection('setlists').get());
+    async getSchedulesByIds(scheduleIds) {
+      const ids = uniqueIds(scheduleIds);
+      const snapshots = await Promise.all(ids.map(id => this.db.collection('schedules').doc(id).get()));
+      return snapshots.filter(snapshot => snapshot && snapshot.exists).map(snapshot => ({ id: snapshot.id, ...snapshot.data() }));
+    }
+
+    async getEventsByIds(eventIds) {
+      const ids = uniqueIds(eventIds);
+      const snapshots = await Promise.all(ids.map(id => this.db.collection('events').doc(id).get()));
+      return snapshots.filter(snapshot => snapshot && snapshot.exists).map(snapshot => ({ id: snapshot.id, ...snapshot.data() }));
+    }
+
+    async listSetlistsForTargets({ scheduleIds = [], eventIds = [] } = {}) {
+      const schedules = uniqueIds(scheduleIds);
+      const events = uniqueIds(eventIds);
+      const queries = [];
+      for (const group of chunks(schedules)) {
+        let query = this.db.collection('setlists');
+        query = group.length === 1 ? query.where('scheduleId', '==', group[0]) : query.where('scheduleId', 'in', group);
+        queries.push(query.get());
+      }
+      for (const group of chunks(events)) {
+        let query = this.db.collection('setlists');
+        query = group.length === 1 ? query.where('eventId', '==', group[0]) : query.where('eventId', 'in', group);
+        queries.push(query.get());
+      }
+      const snapshots = await Promise.all(queries);
+      const byId = new Map();
+      snapshots.flatMap(snapshotToEntities).forEach(item => byId.set(item.id, item));
+      return [...byId.values()];
     }
 
     async listOwnUnavailability(userId) {
@@ -48,5 +80,5 @@
     }
   }
 
-  return Object.freeze({ DashboardRepository, snapshotToEntities });
+  return Object.freeze({ DashboardRepository, snapshotToEntities, uniqueIds, chunks });
 });

@@ -54,6 +54,15 @@
     }
     return true;
   }
+  function profilePermissionLevel(profile, moduleName) {
+    const permission = profile?.permissions?.[moduleName];
+    const level = permission && typeof permission === 'object' ? permission.level || permission.access : permission;
+    const normalized = String(level || 'NONE').toUpperCase();
+    return ['READ', 'EDIT'].includes(normalized) ? normalized : 'NONE';
+  }
+  function hasProfilePermission(profile, moduleName) {
+    return Boolean(profile?.permissions && Object.prototype.hasOwnProperty.call(profile.permissions, moduleName));
+  }
 
   class SetlistService {
     constructor(repository) { if (!repository) throw new Error('SetlistRepository é obrigatório.'); this.repository = repository; }
@@ -61,7 +70,9 @@
     async resolveAccess(user, profile = null) {
       const role = String(profile?.role || '').toUpperCase();
       if (role === 'SUPER_ADMIN' || profile?.isSuperAdmin === true) return { level: 'EDIT', canRead: true, canEdit: true };
-      const level = String(await this.repository.getPermissionLevel(this.actorId(user), 'setlists') || 'NONE').toUpperCase();
+      const level = hasProfilePermission(profile, 'setlists')
+        ? profilePermissionLevel(profile, 'setlists')
+        : String(await this.repository.getPermissionLevel(this.actorId(user), 'setlists') || 'NONE').toUpperCase();
       return { level, canRead: level === 'READ' || level === 'EDIT', canEdit: level === 'EDIT' };
     }
     async load(setlistId, user, profile = null) {
@@ -119,5 +130,5 @@
     }
   }
 
-  return Object.freeze({ SetlistService, functionIsMinister, eligibleMinisters, preferredKey, normalizeOrder, validateSongs, normalizeHexColor, normalizeDressCodeColors });
+  return Object.freeze({ SetlistService, functionIsMinister, eligibleMinisters, preferredKey, normalizeOrder, validateSongs, normalizeHexColor, normalizeDressCodeColors, profilePermissionLevel, hasProfilePermission });
 });

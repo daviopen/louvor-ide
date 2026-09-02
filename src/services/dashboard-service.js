@@ -113,15 +113,21 @@
 
     async load(userId) {
       if (!userId) throw new TypeError('userId é obrigatório para carregar o Dashboard.');
-      const [profile, events, schedules, scheduleMembers, setlists, unavailability] = await Promise.all([
+      const [profile, scheduleMembers, unavailability] = await Promise.all([
         this.repository.getOwnProfile(userId),
-        this.repository.listEvents(),
-        this.repository.listSchedules(),
         this.repository.listOwnScheduleMembers(userId),
-        this.repository.listSetlists(),
         this.repository.listOwnUnavailability(userId)
       ]);
       if (!profile || profile.active !== true) throw new Error('Perfil ativo não encontrado para o Dashboard.');
+
+      const scheduleIds = [...new Set(scheduleMembers.map(member => member.scheduleId).filter(Boolean))];
+      const schedules = await this.repository.getSchedulesByIds(scheduleIds);
+      const eventIds = [...new Set(schedules.map(schedule => schedule.eventId).filter(Boolean))];
+      const [events, setlists] = await Promise.all([
+        this.repository.getEventsByIds(eventIds),
+        this.repository.listSetlistsForTargets({ scheduleIds, eventIds })
+      ]);
+
       return buildDashboardViewModel(
         { profile, userId, events, schedules, scheduleMembers, setlists, unavailability },
         { now: this.clock(), limit: this.limit }

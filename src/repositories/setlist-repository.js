@@ -7,9 +7,7 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (globalScope) globalScope.MusicIdeSetlistRepository = api;
 })(typeof window !== 'undefined' ? window : null, function createModule() {
-  function entity(snapshot) {
-    return snapshot && snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null;
-  }
+  function entity(snapshot) { return snapshot && snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null; }
   function entities(snapshot) { return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); }
   function setlistIdForSchedule(scheduleId) { return `setlist_${String(scheduleId || '').replace(/^schedule_/, '')}`; }
   function cloneItems(items) { return (items || []).map(item => ({ ...item })); }
@@ -25,9 +23,10 @@
       if (!database || typeof database.collection !== 'function') throw new Error('Firestore é obrigatório para SetlistRepository.');
       this.db = database;
       this.clock = options.clock || (() => new Date());
-      this.catalogTtlMs = Math.max(0, Number(options.catalogTtlMs ?? 30000));
+      this.catalogTtlMs = Math.max(0, Number(options.catalogTtlMs ?? 5 * 60 * 1000));
       this.catalogCache = new Map();
       this.catalogRequests = new Map();
+      this.permissionCache = new Map();
     }
     setlists() { return this.db.collection('setlists'); }
     setlistSongs() { return this.db.collection('setlistSongs'); }
@@ -44,7 +43,6 @@
       const cached = this.catalogCache.get(key);
       if (cached && now - cached.loadedAt < this.catalogTtlMs) return cloneItems(cached.items);
       if (this.catalogRequests.has(key)) return cloneItems(await this.catalogRequests.get(key));
-
       const request = Promise.resolve().then(loader).then(items => {
         const safeItems = cloneItems(items);
         this.catalogCache.set(key, { loadedAt: Date.now(), items: safeItems });
@@ -55,10 +53,7 @@
     }
 
     invalidateCatalogCache(keys = null) {
-      if (!keys) {
-        this.catalogCache.clear();
-        return;
-      }
+      if (!keys) { this.catalogCache.clear(); return; }
       (Array.isArray(keys) ? keys : [keys]).forEach(key => this.catalogCache.delete(key));
     }
 
@@ -99,15 +94,9 @@
       const snapshot = await this.members().where('scheduleId', '==', scheduleId).get();
       return entities(snapshot).filter(item => item.active !== false);
     }
-    async listUsers() {
-      return this.cachedCatalog('users', async () => entities(await this.users().get()).filter(item => item.active !== false));
-    }
-    async listFunctions() {
-      return this.cachedCatalog('functions', async () => entities(await this.functions().get()).filter(item => item.active !== false));
-    }
-    async listMinisterKeys() {
-      return this.cachedCatalog('ministerKeys', async () => entities(await this.keys().get()));
-    }
+    async listUsers() { return this.cachedCatalog('users', async () => entities(await this.users().get()).filter(item => item.active !== false)); }
+    async listFunctions() { return this.cachedCatalog('functions', async () => entities(await this.functions().get()).filter(item => item.active !== false)); }
+    async listMinisterKeys() { return this.cachedCatalog('ministerKeys', async () => entities(await this.keys().get())); }
 
     async listSongsLibrary() {
       return this.cachedCatalog('songs', async () => {
@@ -124,8 +113,13 @@
     }
 
     async getPermissionLevel(userId, moduleName = 'setlists') {
-      const snapshot = await this.db.collection('permissions').doc(`${userId}__${moduleName}`).get();
-      return snapshot.exists ? String(snapshot.data()?.level || 'NONE').toUpperCase() : 'NONE';
+      const key = `${userId}__${moduleName}`;
+      const current = this.permissionCache.get(key);
+      if (current && Date.now() - current.loadedAt < 2 * 60 * 1000) return current.level;
+      const snapshot = await this.db.collection('permissions').doc(key).get();
+      const level = snapshot.exists ? String(snapshot.data()?.level || 'NONE').toUpperCase() : 'NONE';
+      this.permissionCache.set(key, { level, loadedAt: Date.now() });
+      return level;
     }
 
     async save(setlistId, patch, songs, actorUserId) {
@@ -135,7 +129,6 @@
       const previous = await this.listSetlistSongs(setlistId);
       const batch = this.db.batch();
       const activeIds = new Set();
-
       songs.forEach((song, index) => {
         const id = `${setlistId}__${song.songId}`;
         activeIds.add(id);
@@ -158,7 +151,6 @@
       previous.filter(item => !activeIds.has(item.id)).forEach(item => {
         batch.set(this.setlistSongs().doc(item.id), { active: false, removedAt: now, updatedAt: now, updatedBy: actorUserId }, { merge: true });
       });
-
       const legacySongs = songs.map((song, index) => ({
         id: song.songId,
         titulo: song.title || '',
