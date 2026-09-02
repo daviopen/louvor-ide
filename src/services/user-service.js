@@ -8,6 +8,8 @@
 })(typeof window !== 'undefined' ? window : null, function createModule() {
   const PAGE_SIZE = 10;
   const DEFAULT_PASSWORD_RESET_URL = 'https://louvor-ide.web.app/login.html';
+  const PHONE_PATTERN = /^[0-9+()\-\s]{8,30}$/;
+  const BIRTH_DATE_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
   const DEFAULT_MEMBER_PERMISSIONS = Object.freeze({
     dashboard: 'READ',
     users: 'NONE',
@@ -21,6 +23,30 @@
   });
 
   function normalize(value) { return String(value || '').trim().toLocaleLowerCase('pt-BR'); }
+
+  function validateBirthDate(value, now = new Date()) {
+    const birthDate = String(value || '').trim();
+    if (!birthDate) return null;
+    if (!BIRTH_DATE_PATTERN.test(birthDate)) throw new Error('Informe uma data de nascimento válida.');
+    const [year, month, day] = birthDate.split('-').map(Number);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) {
+      throw new Error('Informe uma data de nascimento válida.');
+    }
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    if (parsed > today) throw new Error('A data de nascimento não pode estar no futuro.');
+    if (year < 1900) throw new Error('Informe uma data de nascimento válida.');
+    return birthDate;
+  }
+
+  function normalizePersonalData(input = {}, now = new Date()) {
+    const phone = String(input.phone || '').trim();
+    if (phone && !PHONE_PATTERN.test(phone)) throw new Error('Informe um telefone válido.');
+    return {
+      phone: phone || null,
+      birthDate: validateBirthDate(input.birthDate, now)
+    };
+  }
 
   function canManageUsers(profile) {
     if (!profile) return false;
@@ -60,6 +86,7 @@
       this.firebase = options.firebase || null;
       this.actorProvider = options.actorProvider || (() => null);
       this.passwordResetUrl = options.passwordResetUrl || DEFAULT_PASSWORD_RESET_URL;
+      this.clock = options.clock || (() => new Date());
       this.directoryCacheTtlMs = Math.max(0, Number(options.directoryCacheTtlMs ?? 30000));
       this.directoryCache = null;
       this.directoryCacheAt = 0;
@@ -128,6 +155,7 @@
       if (!this.firebase || typeof this.firebase.initializeApp !== 'function' || typeof this.firebase.app !== 'function') {
         throw new Error('Firebase Authentication indisponível para provisionar a conta.');
       }
+      const personalData = normalizePersonalData(input, this.clock());
 
       const appName = `ide-user-provision-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const secondaryApp = this.firebase.initializeApp(this.firebase.app().options, appName);
@@ -138,7 +166,7 @@
         const temporaryPassword = `${cryptoRandom()}aA1!`;
         credential = await secondaryApp.auth().createUserWithEmailAndPassword(email, temporaryPassword);
         const uid = credential.user.uid;
-        const user = await this.repository.createUser({ ...input, uid, email });
+        const user = await this.repository.createUser({ ...input, ...personalData, uid, email });
         profileCreated = true;
         const functionIds = input.functionIds || [];
         const permissions = input.permissions && typeof input.permissions === 'object'
@@ -182,13 +210,23 @@
         throw new Error('O e-mail de login não pode ser alterado após a criação do usuário.');
       }
 
-      const user = await this.repository.updateUser(id, {
+      const hasPhone = Object.prototype.hasOwnProperty.call(input, 'phone');
+      const hasBirthDate = Object.prototype.hasOwnProperty.call(input, 'birthDate');
+      const patch = {
         name: input.name,
         email: currentEmail,
         photoURL: input.photoURL || null
-      });
+      };
+      if (hasPhone) patch.phone = normalizePersonalData({ phone: input.phone }, this.clock()).phone;
+      if (hasBirthDate) patch.birthDate = validateBirthDate(input.birthDate, this.clock());
+
+      const user = await this.repository.updateUser(id, patch);
       await this.repository.replaceUserFunctions(id, input.functionIds || []);
-      await this.audit('USER_UPDATED', id, { functionIds: input.functionIds || [], emailChanged: false });
+      await this.audit('USER_UPDATED', id, {
+        functionIds: input.functionIds || [],
+        emailChanged: false,
+        personalDataUpdated: hasPhone || hasBirthDate
+      });
       this.invalidateDirectoryCache();
       return { ...user, emailChanged: false };
     }
@@ -237,5 +275,17 @@
     return `${Date.now()}${Math.random().toString(36).slice(2)}`;
   }
 
-  return Object.freeze({ UserService, filterUsers, paginate, canManageUsers, PAGE_SIZE, DEFAULT_PASSWORD_RESET_URL, DEFAULT_MEMBER_PERMISSIONS });
+  return Object.freeze({
+    UserService,
+    filterUsers,
+    paginate,
+    canManageUsers,
+    normalizePersonalData,
+    validateBirthDate,
+    PHONE_PATTERN,
+    BIRTH_DATE_PATTERN,
+    PAGE_SIZE,
+    DEFAULT_PASSWORD_RESET_URL,
+    DEFAULT_MEMBER_PERMISSIONS
+  });
 });
