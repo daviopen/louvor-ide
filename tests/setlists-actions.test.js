@@ -13,6 +13,13 @@ test('setlist cards expose separate editing and repertoire destinations', () => 
   assert.match(js, /Editar Setlist/);
 });
 
+test('perfil somente leitura não recebe ação de editar Setlist', () => {
+  assert.match(js, /canEditSetlists\(profile\)/);
+  assert.match(js, /state\.canEdit=canEditSetlists\(scope\.currentMusicIdeProfile\)/);
+  assert.match(js, /if\(!state\.canEdit\)/);
+  assert.match(js, /Consulte os repertórios disponíveis/);
+});
+
 test('ready setlists prioritize repertoire while drafts prioritize editing', () => {
   assert.match(js, /if\(ready\)/);
   assert.match(js, /ide-button--secondary[^\n]+Editar[^\n]+ide-button--primary[^\n]+Abrir repertório/);

@@ -2,7 +2,7 @@
   'use strict';
   const initialParams=new URLSearchParams(location.search);
   const initialPage=Math.max(1,Number.parseInt(initialParams.get('page')||'1',10)||1);
-  const state={items:[],filtered:[],view:'upcoming',page:initialPage,pageSize:8};
+  const state={items:[],filtered:[],view:'upcoming',page:initialPage,pageSize:8,canEdit:false};
   const $=id=>document.getElementById(id);
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const formatDate=v=>{const d=MusicIdeSetlistHistory.toDate(v);return d?d.toLocaleDateString('pt-BR'):'Data não informada';};
@@ -18,6 +18,14 @@
 
   function navigation(){return scope.MusicIdeNavigationState||null;}
 
+  function canEditSetlists(profile){
+    if(!profile)return false;
+    if(profile.role==='SUPER_ADMIN'||profile.isSuperAdmin===true)return true;
+    const permission=profile.permissions?.setlists;
+    const level=permission&&typeof permission==='object'?permission.level||permission.access:permission;
+    return String(level||'').toUpperCase()==='EDIT';
+  }
+
   function configureView(){
     state.view=getView();
     const history=state.view==='history';
@@ -25,7 +33,7 @@
     $('page-subtitle').textContent=history?'Consulte repertórios anteriores com filtros por evento, ministro, música, tema, status e participantes.':'Repertórios dos próximos eventos e escalas. Use os filtros para localizar rapidamente por data, ministro, status ou participante.';
     $('setlists-filter-panel').hidden=false;
     $('filters').hidden=false;
-    $('view-hint').textContent=history?'Setlists históricos são abertos em modo somente leitura.':'Edite a montagem ou abra o repertório para usar cifras, letras e modo palco.';
+    $('view-hint').textContent=history?'Setlists históricos são abertos em modo somente leitura.':state.canEdit?'Edite a montagem ou abra o repertório para usar cifras, letras e modo palco.':'Consulte os repertórios disponíveis com cifras, letras e modo palco.';
   }
 
   function filters(){return {from:$('filter-from').value,to:$('filter-to').value,event:$('filter-event').value,minister:$('filter-minister').value,status:$('filter-status').value,participant:$('filter-participant').value,song:$('filter-song').value,theme:$('filter-theme').value};}
@@ -87,6 +95,12 @@
       return `<a class="ide-button ide-button--secondary" href="${repertoireHref}"><i class="fa-solid fa-eye" aria-hidden="true"></i> Abrir repertório</a>`;
     }
 
+    if(!state.canEdit){
+      return hasSongs
+        ? `<a class="ide-button ide-button--primary" href="${repertoireHref}"><i class="fa-solid fa-eye" aria-hidden="true"></i> Abrir repertório</a>`
+        : '<span class="ide-button ide-button--secondary btn-disabled" aria-disabled="true" title="Este Setlist ainda não possui músicas"><i class="fa-solid fa-music" aria-hidden="true"></i> Repertório vazio</span>';
+    }
+
     if(!hasSongs){
       return `<a class="ide-button ide-button--primary" href="${editHref}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Editar Setlist</a><span class="ide-button ide-button--secondary btn-disabled" aria-disabled="true" title="Adicione ao menos uma música para abrir o repertório"><i class="fa-solid fa-music" aria-hidden="true"></i> Repertório vazio</span>`;
     }
@@ -139,7 +153,7 @@
 
   async function init(){
     try{
-      if(!firebase.apps.length) firebase.initializeApp(firebaseConfig); const db=firebase.firestore(); await user(); configureView(); bind();
+      if(!firebase.apps.length) firebase.initializeApp(firebaseConfig); const db=firebase.firestore(); await user(); await Promise.resolve(scope.musicIdeAuthReady); state.canEdit=canEditSetlists(scope.currentMusicIdeProfile); configureView(); bind();
       const [setlistSnap,eventSnap,setlistSongSnap,userSnap,songSnap,scheduleMemberSnap]=await Promise.all([
         read('Setlists',()=>db.collection('setlists').get()),
         read('eventos dos Setlists',()=>db.collection('events').get()),
