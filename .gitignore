@@ -41,6 +41,9 @@ coverage/
 dist/
 build/
 
+# Graphify - knowledge graph local/derivado
+graphify-out/
+
 # Arquivos copiados durante o build (exceto os que devem estar na raiz)
 # Ignorar todos os HTMLs copiados do src/pages durante o build
 consultar.html
