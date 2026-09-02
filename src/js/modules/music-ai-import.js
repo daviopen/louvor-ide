@@ -158,7 +158,8 @@ class EnhancedMusicAIService {
   async analyze(input) {
     const result = await this.service.analyze(input);
     const data = result?.data || {};
-    const chordSheet = composeIdeMusicChordSheet(data);
+    const sourceChordSheet = String(data.chordSheet || '').trim() || null;
+    const canonicalChordSheet = escapeCueSeparatorsForLegacyFormatter(composeIdeMusicChordSheet(data));
 
     const theme = String(data.theme || '').trim();
     if (theme) {
@@ -173,10 +174,10 @@ class EnhancedMusicAIService {
       ...result,
       data: {
         ...data,
-        chordSheet: escapeCueSeparatorsForLegacyFormatter(chordSheet),
-        sections: [],
-        chordFormKey: data.originalKey || data.chordFormKey || null,
-        capoFret: null
+        sourceChordSheet,
+        canonicalChordSheet: canonicalChordSheet || null,
+        chordSheet: canonicalChordSheet || sourceChordSheet,
+        sections: []
       }
     };
   }
@@ -191,10 +192,10 @@ function tunePanelForCifraClub() {
   const hint = panel.querySelector('.ai-import__hint');
   const examples = panel.querySelector('.ai-import__examples');
 
-  if (topDescription) topDescription.textContent = 'Para obter o resultado mais confiável, informe o link da música no Cifra Club. A IA organiza os dados no padrão do IDE Music para você revisar.';
+  if (topDescription) topDescription.textContent = 'Para obter o resultado mais confiável, informe o link da música no Cifra Club. A IA identifica a fonte e o aplicativo valida tom, capotraste e acordes antes de você aplicar a sugestão.';
   if (label) label.textContent = 'Link do Cifra Club';
   if (input) input.placeholder = 'https://www.cifraclub.com.br/artista/musica/';
-  if (hint) hint.textContent = 'Entrada esperada: link da música no Cifra Club. Depois da análise, revise tom, cifra, tema e referência antes de salvar.';
+  if (hint) hint.textContent = 'Entrada esperada: link da música no Cifra Club. Primeiro você verá a revisão de tom, capotraste, forma, vídeo e fonte; depois decide se aplica ao formulário.';
   if (examples) examples.innerHTML = '<span><i class="fa-solid fa-link" aria-hidden="true"></i> Cifra Club</span>';
 }
 
