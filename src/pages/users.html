@@ -10,12 +10,12 @@
   <script src="../config/firebase-config.js"></script>
   <script src="../models/data-model.js"></script>
   <script src="../repositories/domain-repositories.js"></script>
-  <script src="../repositories/user-repository.js?v=20260827-users-performance"></script>
+  <script src="../repositories/user-repository.js?v=20260902-users-personal-data"></script>
   <script src="../services/ministry-functions-service.js?v=20260825-roles"></script>
-  <script src="../services/user-service.js?v=20260827-users-performance"></script>
+  <script src="../services/user-service.js?v=20260902-users-personal-data"></script>
   <script src="../js/modules/auth-service.js?v=20260825-auth-sync"></script>
   <script src="../js/modules/app-shell.js?v=20260825-auth-sync" defer></script>
-  <script src="../js/modules/users-page.js?v=20260827-users-no-pagination" defer></script>
+  <script src="../js/modules/users-page.js?v=20260902-users-personal-data" defer></script>
   <script src="../js/modules/user-permissions-integration.js?v=20260827-users-no-permissions-action" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="../styles/tokens.css">
@@ -71,6 +71,8 @@
       <div class="users-form-grid">
         <label class="ide-field"><span class="ide-field__label">Nome</span><input id="user-name" class="ide-field__control ide-field__input" required maxlength="120" autocomplete="name"></label>
         <label class="ide-field"><span class="ide-field__label">E-mail</span><input id="user-email" class="ide-field__control ide-field__input" type="email" required autocomplete="off"></label>
+        <label class="ide-field"><span class="ide-field__label">Data de nascimento <span class="users-optional">(opcional)</span></span><input id="user-birth-date" class="ide-field__control ide-field__input" type="date" autocomplete="bday"></label>
+        <label class="ide-field"><span class="ide-field__label">Telefone / WhatsApp <span class="users-optional">(opcional)</span></span><input id="user-phone" class="ide-field__control ide-field__input" type="tel" maxlength="30" autocomplete="tel" inputmode="tel" placeholder="(61) 99999-9999"></label>
         <label class="ide-field full"><span class="ide-field__label">Foto de perfil <span class="users-optional">(URL opcional)</span></span><input id="user-photo" class="ide-field__control ide-field__input" type="url" placeholder="https://..."></label>
         <div class="users-account-note full"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>O Firebase Authentication gera o UID automaticamente. Após o cadastro, o Firebase envia um e-mail para a pessoa definir a senha.</span></div>
         <fieldset class="users-fieldset full"><legend>Funções ministeriais</legend><p class="users-fieldset-help">Selecione uma ou mais funções em que esta pessoa serve. O catálogo de funções é gerenciado em Configurações.</p><div id="user-functions" class="users-function-list"></div></fieldset>
