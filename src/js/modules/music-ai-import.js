@@ -1,4 +1,5 @@
 import MusicAIService from '../../services/music-ai-service.js';
+import { normalizeMusicAIResponse, extractYouTubeVideoId } from '../../services/music-ai-schema.js';
 import {
   compactSectionContent,
   getMusicAIImportMetadata,
@@ -25,7 +26,6 @@ const NOTE_INDEX = Object.freeze({
   'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11
 });
 const CHORD_TOKEN_RE = /^(?:[A-G](?:#|b)?)(?:(?:m|maj|min|dim|aug|sus|add|M)?(?:\d{0,2})?(?:[#b+\-º°()]*)?)(?:\/[A-G](?:#|b)?)?$/u;
-let pendingTheme = null;
 
 export { getMusicAIImportMetadata };
 
@@ -109,6 +109,59 @@ function lyricalIdentity(content) {
   return String(content || '').toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ').trim();
 }
 
+function lineIsChordOnly(line) {
+  const tokens = String(line || '').trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return false;
+  return tokens.every(token => CHORD_TOKEN_RE.test(token.replace(/^[\[({|]+/, '').replace(/[\])},;:|]+$/, '')));
+}
+
+export function hasIdeMusicVocalCues(data = {}) {
+  const sections = Array.isArray(data.sections) ? data.sections : [];
+  return sections.some(section => {
+    const type = String(section?.type || '').trim().toLowerCase();
+    if (['intro', 'instrumental', 'outro'].includes(type)) return false;
+    return String(section?.content || '').split(/\r?\n/).some(line => {
+      const text = line.trim();
+      if (!text || lineIsChordOnly(text)) return false;
+      if (/^[\[\(]?(?:intro|estrofe|verso|pré-refrão|pre-refrão|refrão|ponte|final|instrumental)[\]\)]?\s*:??$/iu.test(text)) return false;
+      return /\p{L}/u.test(text);
+    });
+  });
+}
+
+function isYoutubeWatchUrl(value) {
+  return Boolean(extractYouTubeVideoId(String(value || '')));
+}
+
+function mergeRecoveredSections(data = {}, recovered = {}) {
+  if (!hasIdeMusicVocalCues(recovered)) return data;
+  return {
+    ...data,
+    sections: recovered.sections,
+    provenance: {
+      ...(data.provenance || {}),
+      chordSheet: recovered?.provenance?.chordSheet || data?.provenance?.chordSheet || 'segunda leitura focada nas pistas vocais da cifra'
+    }
+  };
+}
+
+function mergeRecoveredVideo(data = {}, recovered = {}) {
+  if (data?.video?.url || data?.video?.videoId) return data;
+  const videoUrl = String(recovered?.video?.url || '').trim();
+  const videoId = String(recovered?.video?.videoId || '').trim() || extractYouTubeVideoId(videoUrl);
+  if (!videoId && !isYoutubeWatchUrl(videoUrl)) return data;
+  const id = videoId || extractYouTubeVideoId(videoUrl);
+  if (!id) return data;
+  return {
+    ...data,
+    video: { provider: 'youtube', videoId: id, url: `https://www.youtube.com/watch?v=${id}` },
+    provenance: {
+      ...(data.provenance || {}),
+      video: recovered?.provenance?.video || 'busca complementar no YouTube por música e artista'
+    }
+  };
+}
+
 export function composeIdeMusicChordSheet(data = {}) {
   const sections = Array.isArray(data.sections) ? data.sections.filter(section => String(section?.content || '').trim()) : [];
   if (!sections.length) {
@@ -156,10 +209,63 @@ class EnhancedMusicAIService {
     this.service = service;
   }
 
+  async recoverVocalCues(data, input) {
+    if (!input?.sourceUrl || hasIdeMusicVocalCues(data) || !this.service?.provider?.analyzeSong) return data;
+    try {
+      const raw = await this.service.provider.analyzeSong({
+        ...input,
+        sourceType: 'source-url',
+        pastedText: [
+          'REVISÃO DE FORMATAÇÃO IDE MUSIC.',
+          'A primeira leitura encontrou os acordes, mas perdeu as pistas vocais.',
+          'Leia novamente a mesma página e concentre-se em sections.',
+          'Para Estrofe, Pré-Refrão, Refrão e Ponte, cada linha deve conter SOMENTE 2 ou 3 palavras iniciais da frase como pista visual e os acordes correspondentes daquela frase.',
+          'Exemplo de formato: "A Cristo - Ab  Eb/G". Não copie letra completa e não invente palavras ou acordes.',
+          'Intro, Instrumental e Final podem permanecer somente com acordes.'
+        ].join(' ')
+      });
+      return mergeRecoveredSections(data, normalizeMusicAIResponse(raw));
+    } catch (error) {
+      console.warn('Recuperação das pistas vocais não encontrou evidência utilizável:', error?.code || error?.message || error);
+      return data;
+    }
+  }
+
+  async recoverVideo(data) {
+    if (data?.video?.url || data?.video?.videoId || !this.service?.provider?.analyzeSong) return data;
+    const title = String(data?.title || '').trim();
+    const artist = String(data?.artist || '').trim();
+    if (!title || !artist) return data;
+
+    const query = encodeURIComponent(`${title} ${artist}`);
+    try {
+      const raw = await this.service.provider.analyzeSong({
+        rawInput: `https://www.youtube.com/results?search_query=${query}`,
+        sourceUrl: `https://www.youtube.com/results?search_query=${query}`,
+        youtubeUrl: null,
+        sourceType: 'source-url',
+        songQuery: null,
+        songIdentity: null,
+        manualBpm: null,
+        pastedText: [
+          `BUSCA DE VÍDEO PARA: ${title} — ${artist}.`,
+          'Use esta página somente para localizar um resultado real do YouTube que corresponda claramente ao mesmo título e artista.',
+          'Retorne video.url/video.videoId somente quando houver correspondência comprovável. Não invente ID e não use a URL da página de resultados como vídeo.'
+        ].join(' ')
+      });
+      return mergeRecoveredVideo(data, normalizeMusicAIResponse(raw));
+    } catch (error) {
+      console.warn('Busca complementar do vídeo não encontrou evidência utilizável:', error?.code || error?.message || error);
+      return data;
+    }
+  }
+
   async analyze(input) {
     const result = await this.service.analyze(input);
-    const data = result?.data || {};
-    pendingTheme = String(data.theme || '').trim() || null;
+    let data = result?.data || {};
+    data = await this.recoverVocalCues(data, result?.input || {});
+    data = await this.recoverVideo(data);
+
     const sourceChordSheet = String(data.chordSheet || '').trim() || null;
     const canonicalChordSheet = escapeCueSeparatorsForLegacyFormatter(composeIdeMusicChordSheet(data));
 
@@ -200,29 +306,10 @@ function preserveCueSeparator() {
   });
 }
 
-function applyThemeAfterConfirmation() {
-  const panel = document.querySelector('.ai-import');
-  const applyButton = panel?.querySelector('.ai-import__apply');
-  const input = panel?.querySelector('#ai-universal-input');
-  if (!applyButton) return;
-
-  applyButton.addEventListener('click', () => {
-    const themeField = document.getElementById('tema');
-    if (pendingTheme && themeField) {
-      themeField.value = pendingTheme;
-      themeField.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    pendingTheme = null;
-  });
-
-  input?.addEventListener('input', () => { pendingTheme = null; });
-}
-
 export function mountMusicAIImport({ service = new MusicAIService() } = {}) {
   mountBaseMusicAIImport({ service: new EnhancedMusicAIService(service) });
   tunePanelForCifraClub();
   preserveCueSeparator();
-  applyThemeAfterConfirmation();
 }
 
 export default mountMusicAIImport;
