@@ -8,12 +8,15 @@ const html = fs.readFileSync(path.join(root, 'src/pages/profile.html'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'src/styles/profile.css'), 'utf8');
 const js = fs.readFileSync(path.join(root, 'src/js/modules/profile-page.js'), 'utf8');
 
-test('Meu Perfil usa cabeçalho de identidade e separa dados pessoais de acesso', () => {
+test('Meu Perfil usa cabeçalho de identidade, separa dados pessoais de acesso e não expõe perfil interno', () => {
   assert.match(html, /class="profile-card profile-hero"/);
   assert.match(html, /id="profile-access-email"/);
-  assert.match(html, /id="profile-access-role"/);
   assert.match(html, /id="profile-personal-title">Dados pessoais/);
   assert.doesNotMatch(html, /id="profile-email"/);
+  assert.doesNotMatch(html, /id="profile-role"/);
+  assert.doesNotMatch(html, /id="profile-access-role"/);
+  assert.doesNotMatch(html, />Perfil de acesso</);
+  assert.doesNotMatch(html, /<dt>Perfil<\/dt>/);
 });
 
 test('foto informa salvamento automático e mantém ações independentes do formulário', () => {
