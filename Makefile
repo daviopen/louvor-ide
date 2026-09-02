@@ -12,7 +12,7 @@ NODE_VERSION := 18
 LOCAL_PORT := 5000
 FIREBASE_PROJECT := louvor-ide
 
-.PHONY: help install setup setup-basic setup-firebase check-env dev serve serve-fast build deploy test clean lint status firebase-login firebase-project logs backup restore
+.PHONY: help install setup setup-basic setup-firebase check-env dev serve serve-fast build deploy test clean lint status firebase-login firebase-project logs backup restore graphify-install graphify-check graphify-extract graphify-update graphify-query graphify-open graphify-clean
 
 help:
 	@echo "$(BLUE)🎵 Louvor IDE - Comandos Disponíveis$(NC)"
@@ -35,6 +35,15 @@ help:
 	@echo "  make test           - Executar testes"
 	@echo "  make lint           - Verificar código"
 	@echo "  make clean          - Limpar arquivos gerados"
+	@echo ""
+	@echo "$(GREEN)🕸️  Graphify:$(NC)"
+	@echo "  make graphify-install           - Instalar Graphify isoladamente"
+	@echo "  make graphify-check             - Verificar instalação e grafo"
+	@echo "  make graphify-extract           - Gerar knowledge graph via CLI/headless"
+	@echo "  make graphify-update            - Atualizar knowledge graph incrementalmente"
+	@echo "  make graphify-query Q=\"...\"    - Consultar o grafo"
+	@echo "  make graphify-open              - Abrir graphify-out/graph.html"
+	@echo "  make graphify-clean             - Remover somente artefatos Graphify"
 	@echo ""
 	@echo "$(GREEN)🔥 Firebase:$(NC)"
 	@echo "  make firebase-login   - Login no Firebase"
@@ -243,6 +252,84 @@ lint:
 	@echo "$(BLUE)🔍 Verificando sintaxe JavaScript...$(NC)"
 	@find src -name '*.js' -type f -print0 | xargs -0 -n1 node --check
 	@echo "$(GREEN)✅ Sintaxe JavaScript válida$(NC)"
+
+## 🕸️ Graphify - ferramenta local de análise arquitetural
+graphify-install:
+	@echo "$(BLUE)🕸️ Instalando Graphify em ambiente isolado...$(NC)"
+	@if command -v graphify &> /dev/null; then \
+		echo "$(GREEN)✅ Graphify já instalado: $$(graphify --version 2>/dev/null || echo 'versão disponível via CLI')$(NC)"; \
+	elif command -v uv &> /dev/null; then \
+		uv tool install graphifyy; \
+	elif command -v pipx &> /dev/null; then \
+		pipx install graphifyy; \
+	else \
+		echo "$(RED)❌ Instalação isolada indisponível: instale uv ou pipx.$(NC)"; \
+		echo "$(YELLOW)💡 Recomendado: uv tool install graphifyy$(NC)"; \
+		echo "$(YELLOW)💡 Alternativa: pipx install graphifyy$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)💡 Registre o skill no seu assistente com: graphify install$(NC)"
+	@echo "$(YELLOW)💡 Para Codex: graphify install --platform codex$(NC)"
+
+graphify-check:
+	@echo "$(BLUE)🔍 Verificando Graphify...$(NC)"
+	@if ! command -v graphify &> /dev/null; then \
+		echo "$(RED)❌ Graphify não encontrado. Execute: make graphify-install$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)✅ CLI Graphify encontrada$(NC)"
+	@if [ -f "graphify-out/graph.json" ]; then \
+		echo "$(GREEN)✅ graphify-out/graph.json encontrado$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  Grafo ainda não gerado.$(NC)"; \
+		echo "$(YELLOW)💡 Use /graphify . no assistente ou make graphify-extract no terminal.$(NC)"; \
+	fi
+
+graphify-extract: graphify-check
+	@echo "$(BLUE)🕸️ Gerando knowledge graph do repositório...$(NC)"
+	@echo "$(YELLOW)⚠️  Extração headless pode exigir backend LLM configurado; nunca versione credenciais.$(NC)"
+	graphify extract .
+	@echo "$(GREEN)✅ Grafo gerado em graphify-out/$(NC)"
+
+graphify-update: graphify-check
+	@echo "$(BLUE)🕸️ Atualizando knowledge graph...$(NC)"
+	graphify update .
+	@echo "$(GREEN)✅ Grafo atualizado$(NC)"
+
+graphify-query: graphify-check
+	@if [ -z "$(Q)" ]; then \
+		echo "$(RED)❌ Informe a consulta: make graphify-query Q=\"sua pergunta\"$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -f "graphify-out/graph.json" ]; then \
+		echo "$(RED)❌ graphify-out/graph.json não encontrado.$(NC)"; \
+		echo "$(YELLOW)💡 Gere o grafo antes de consultar.$(NC)"; \
+		exit 1; \
+	fi
+	graphify query "$(Q)"
+
+graphify-open:
+	@if [ ! -f "graphify-out/graph.html" ]; then \
+		echo "$(RED)❌ graphify-out/graph.html não encontrado.$(NC)"; \
+		echo "$(YELLOW)💡 Gere o grafo primeiro.$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🌐 Abrindo visualização do Graphify...$(NC)"
+	@if command -v open &> /dev/null; then \
+		open graphify-out/graph.html; \
+	elif command -v xdg-open &> /dev/null; then \
+		xdg-open graphify-out/graph.html; \
+	elif command -v cmd.exe &> /dev/null; then \
+		cmd.exe /c start "" "$$(wslpath -w graphify-out/graph.html 2>/dev/null || printf '%s' 'graphify-out/graph.html')"; \
+	else \
+		echo "$(YELLOW)⚠️  Não foi possível detectar um abridor de navegador.$(NC)"; \
+		echo "$(YELLOW)💡 Abra manualmente: graphify-out/graph.html$(NC)"; \
+	fi
+
+graphify-clean:
+	@echo "$(BLUE)🧹 Removendo artefatos locais do Graphify...$(NC)"
+	@rm -rf graphify-out/
+	@echo "$(GREEN)✅ Artefatos Graphify removidos$(NC)"
 
 ## 🔥 Login Firebase
 firebase-login:
