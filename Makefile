@@ -11,8 +11,9 @@ NC := \033[0m
 NODE_VERSION := 18
 LOCAL_PORT := 5000
 FIREBASE_PROJECT := louvor-ide
+GRAPHIFY_BUDGET ?= 1000
 
-.PHONY: help install setup setup-basic setup-firebase check-env dev serve serve-fast build deploy test clean lint status firebase-login firebase-project logs backup restore graphify-install graphify-check graphify-extract graphify-update graphify-query graphify-open graphify-clean
+.PHONY: help install setup setup-basic setup-firebase check-env dev serve serve-fast build deploy test clean lint status firebase-login firebase-project logs backup restore graphify-install graphify-check graphify-guide graphify-query graphify-query-dfs graphify-path graphify-explain graphify-open
 
 help:
 	@echo "$(BLUE)🎵 Louvor IDE - Comandos Disponíveis$(NC)"
@@ -37,13 +38,15 @@ help:
 	@echo "  make clean          - Limpar arquivos gerados"
 	@echo ""
 	@echo "$(GREEN)🕸️  Graphify:$(NC)"
-	@echo "  make graphify-install           - Instalar Graphify isoladamente"
-	@echo "  make graphify-check             - Verificar instalação e grafo"
-	@echo "  make graphify-extract           - Gerar knowledge graph via CLI/headless"
-	@echo "  make graphify-update            - Atualizar knowledge graph incrementalmente"
-	@echo "  make graphify-query Q=\"...\"    - Consultar o grafo"
-	@echo "  make graphify-open              - Abrir graphify-out/graph.html"
-	@echo "  make graphify-clean             - Remover somente artefatos Graphify"
+	@echo "  make graphify-install                         - Instalar Graphify isoladamente"
+	@echo "  make graphify-check                           - Verificar instalação e grafo compartilhado"
+	@echo "  make graphify-guide                           - Mostrar como gerar/atualizar pelo skill /graphify"
+	@echo "  make graphify-query Q=\"...\"                  - Consultar com budget padrão de 1000 tokens"
+	@echo "  make graphify-query Q=\"...\" GRAPHIFY_BUDGET=800 - Consultar com budget customizado"
+	@echo "  make graphify-query-dfs Q=\"...\"              - Seguir uma cadeia específica"
+	@echo "  make graphify-path FROM=\"...\" TO=\"...\"      - Encontrar caminho entre dois nós"
+	@echo "  make graphify-explain NODE=\"...\"             - Explicar um nó e vizinhança"
+	@echo "  make graphify-open                            - Abrir graphify-out/graph.html"
 	@echo ""
 	@echo "$(GREEN)🔥 Firebase:$(NC)"
 	@echo "  make firebase-login   - Login no Firebase"
@@ -282,19 +285,15 @@ graphify-check:
 		echo "$(GREEN)✅ graphify-out/graph.json encontrado$(NC)"; \
 	else \
 		echo "$(YELLOW)⚠️  Grafo ainda não gerado.$(NC)"; \
-		echo "$(YELLOW)💡 Use /graphify . no assistente ou make graphify-extract no terminal.$(NC)"; \
+		echo "$(YELLOW)💡 Execute /graphify . dentro do assistente de código.$(NC)"; \
 	fi
 
-graphify-extract: graphify-check
-	@echo "$(BLUE)🕸️ Gerando knowledge graph do repositório...$(NC)"
-	@echo "$(YELLOW)⚠️  Extração headless pode exigir backend LLM configurado; nunca versione credenciais.$(NC)"
-	graphify extract .
-	@echo "$(GREEN)✅ Grafo gerado em graphify-out/$(NC)"
-
-graphify-update: graphify-check
-	@echo "$(BLUE)🕸️ Atualizando knowledge graph...$(NC)"
-	graphify update .
-	@echo "$(GREEN)✅ Grafo atualizado$(NC)"
+graphify-guide: graphify-check
+	@echo "$(BLUE)🕸️ Geração do knowledge graph ocorre pelo skill do assistente.$(NC)"
+	@echo "$(GREEN)Novo grafo:$(NC)      /graphify ."
+	@echo "$(GREEN)Incremental:$(NC)      /graphify . --update"
+	@echo "$(GREEN)Análise profunda:$(NC) /graphify . --mode deep"
+	@echo "$(YELLOW)Depois versione graphify-out/ para compartilhar o mapa.$(NC)"
 
 graphify-query: graphify-check
 	@if [ -z "$(Q)" ]; then \
@@ -303,15 +302,40 @@ graphify-query: graphify-check
 	fi
 	@if [ ! -f "graphify-out/graph.json" ]; then \
 		echo "$(RED)❌ graphify-out/graph.json não encontrado.$(NC)"; \
-		echo "$(YELLOW)💡 Gere o grafo antes de consultar.$(NC)"; \
+		echo "$(YELLOW)💡 Execute /graphify . no assistente antes de consultar.$(NC)"; \
 		exit 1; \
 	fi
-	graphify query "$(Q)"
+	graphify query "$(Q)" --budget $(GRAPHIFY_BUDGET)
+
+graphify-query-dfs: graphify-check
+	@if [ -z "$(Q)" ]; then \
+		echo "$(RED)❌ Informe a consulta: make graphify-query-dfs Q=\"sua pergunta\"$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -f "graphify-out/graph.json" ]; then \
+		echo "$(RED)❌ graphify-out/graph.json não encontrado.$(NC)"; \
+		exit 1; \
+	fi
+	graphify query "$(Q)" --dfs --budget $(GRAPHIFY_BUDGET)
+
+graphify-path: graphify-check
+	@if [ -z "$(FROM)" ] || [ -z "$(TO)" ]; then \
+		echo "$(RED)❌ Use: make graphify-path FROM=\"origem\" TO=\"destino\"$(NC)"; \
+		exit 1; \
+	fi
+	graphify path "$(FROM)" "$(TO)"
+
+graphify-explain: graphify-check
+	@if [ -z "$(NODE)" ]; then \
+		echo "$(RED)❌ Use: make graphify-explain NODE=\"nome-do-no\"$(NC)"; \
+		exit 1; \
+	fi
+	graphify explain "$(NODE)"
 
 graphify-open:
 	@if [ ! -f "graphify-out/graph.html" ]; then \
 		echo "$(RED)❌ graphify-out/graph.html não encontrado.$(NC)"; \
-		echo "$(YELLOW)💡 Gere o grafo primeiro.$(NC)"; \
+		echo "$(YELLOW)💡 Execute /graphify . no assistente primeiro.$(NC)"; \
 		exit 1; \
 	fi
 	@echo "$(BLUE)🌐 Abrindo visualização do Graphify...$(NC)"
@@ -325,11 +349,6 @@ graphify-open:
 		echo "$(YELLOW)⚠️  Não foi possível detectar um abridor de navegador.$(NC)"; \
 		echo "$(YELLOW)💡 Abra manualmente: graphify-out/graph.html$(NC)"; \
 	fi
-
-graphify-clean:
-	@echo "$(BLUE)🧹 Removendo artefatos locais do Graphify...$(NC)"
-	@rm -rf graphify-out/
-	@echo "$(GREEN)✅ Artefatos Graphify removidos$(NC)"
 
 ## 🔥 Login Firebase
 firebase-login:
