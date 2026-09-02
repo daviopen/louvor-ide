@@ -9,6 +9,7 @@
   const shellExcludedPages = new Set(['login.html', 'consentimento.html', 'termos.html', 'privacidade.html']);
   const ROUTE_CATALOG = Object.freeze([
     Object.freeze({ id: 'dashboard', label: 'Dashboard', href: 'index.html', icon: 'fa-house', groupId: 'dashboard', groupLabel: '', permission: 'dashboard', menu: true }),
+    Object.freeze({ id: 'profile', label: 'Meu Perfil', href: 'profile.html', icon: 'fa-user-circle', groupId: 'account', groupLabel: 'Conta', permission: 'dashboard', menu: true }),
     Object.freeze({ id: 'users', label: 'Usuários', href: 'users.html', icon: 'fa-users', groupId: 'users', groupLabel: 'Usuários', permission: 'users', menu: true }),
     Object.freeze({ id: 'unavailability', label: 'Indisponibilidade', href: 'module.html?section=unavailability', icon: 'fa-calendar-xmark', groupId: 'schedules', groupLabel: 'Escalas', permission: 'unavailability', menu: true }),
     Object.freeze({ id: 'events', label: 'Eventos', href: 'module.html?section=events', icon: 'fa-calendar-days', groupId: 'schedules', groupLabel: 'Escalas', permission: 'events', menu: true }),
@@ -70,6 +71,7 @@
   function currentNavigationId() {
     const page = currentPage(scope.location && scope.location.pathname);
     const params = new URLSearchParams(scope.location && scope.location.search || '');
+    if (page === 'profile.html') return 'profile';
     if (page === 'users.html') return 'users';
     if (page === 'help.html') return 'help';
     if (page === 'login.html') return 'login';
