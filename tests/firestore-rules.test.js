@@ -45,7 +45,9 @@ test('perfil canônico é fonte direta de autorização das Rules', () => {
   assert.match(rules, /function profileCanRead\(moduleName\)/);
   assert.match(rules, /moduleName in \['dashboard', 'unavailability', 'events', 'schedules', 'setlists', 'songs'\]/);
   assert.match(rules, /hasAccessProfile\(\['PARTICIPANT', 'MINISTER', 'DM', 'LEADER', 'ADMINISTRATOR'\]\)/);
-  assert.match(rules, /moduleName == 'schedules' && hasAccessProfile\(\['DM', 'LEADER', 'ADMINISTRATOR'\]\)/);
+  assert.match(rules, /moduleName == 'schedules' && hasAccessProfile\(\['LEADER', 'ADMINISTRATOR'\]\)/);
+  assert.doesNotMatch(rules, /moduleName == 'schedules' && hasAccessProfile\(\[[^\]]*'DM'/);
+  assert.match(rules, /moduleName != 'schedules' && explicitPermission\(moduleName, \['EDIT'\]\)/);
   assert.match(rules, /affectedKeys\(\)\.hasAny\(\['role', 'active', 'uid', 'permissions', 'accessProfile'\]\)/);
 });
 
