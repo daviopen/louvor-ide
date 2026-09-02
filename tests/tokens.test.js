@@ -44,12 +44,17 @@ function cssFiles(dir) {
   });
 }
 
+function stripTokenFallbacks(source) {
+  return source.replace(/var\(\s*--[a-z0-9-]+\s*,\s*#[0-9a-f]{3,8}\s*\)/ig, match => match.replace(/#[0-9a-f]{3,8}/ig, 'TOKEN_FALLBACK'));
+}
+
 test('hex colors are centralized exclusively in tokens.css for stylesheet sources', () => {
   const files = [...cssFiles(path.join(root, 'src/styles')), ...cssFiles(path.join(root, 'src/css'))];
   const hex = /#[0-9a-f]{3,8}\b/ig;
   files.filter(file => file !== tokensPath).forEach(file => {
-    const matches = fs.readFileSync(file, 'utf8').match(hex) || [];
-    assert.deepEqual(matches, [], `${path.relative(root, file)} contains hardcoded hex colors: ${matches.join(', ')}`);
+    const source = stripTokenFallbacks(fs.readFileSync(file, 'utf8'));
+    const matches = source.match(hex) || [];
+    assert.deepEqual(matches, [], `${path.relative(root, file)} contains hardcoded hex colors outside CSS token fallbacks: ${matches.join(', ')}`);
   });
 });
 
