@@ -10,19 +10,20 @@ const modulePage = fs.readFileSync(path.join(root, 'src/pages/module.html'), 'ut
 const helpPage = fs.readFileSync(path.join(root, 'src/pages/help.html'), 'utf8');
 
 const expectedLabels = [
-  'Dashboard', 'Usuários', 'Permissões', 'Indisponibilidade', 'Eventos', 'Escalas',
+  'Dashboard', 'Usuários', 'Indisponibilidade', 'Eventos', 'Escalas',
   'Próximos', 'Histórico', 'Consultar', 'Nova Música', 'Auditoria', 'Configurações',
-  'Template de Escala', 'Funções Ministeriais', 'Ajuda'
+  'Template de Escala', 'Funções Ministeriais', 'Rotas e Acessos', 'Ajuda'
 ];
 
-test('menu principal contém toda a árvore prevista no ROADMAP 11 e a central de ajuda', () => {
+test('menu principal contém toda a árvore ativa e a central de ajuda', () => {
   for (const label of expectedLabels) {
     assert.match(shell, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
+  assert.doesNotMatch(shell, /id: 'permissions'.*menu: true/s);
 });
 
 test('menu principal usa ícones compatíveis nas funcionalidades visíveis', () => {
-  assert.match(shell, /id: 'permissions'.*icon: 'fa-lock'/);
+  assert.match(shell, /id: 'settings-routes'.*icon: 'fa-route'/s);
   assert.match(shell, /id: 'schedules'.*icon: 'fa-calendar-check'/s);
   assert.match(shell, /id: 'help'.*icon: 'fa-circle-question'/s);
   assert.match(shell, /id: 'users'.*icon: 'fa-users'/s);
@@ -50,7 +51,7 @@ test('ajuda fica disponível sem regra de permissionamento', () => {
   assert.match(shell, /if \(item && item\.public === true\) return true/);
   assert.match(shell, /page === 'help\.html'/);
   assert.match(helpPage, /Central de ajuda/);
-  for (const moduleName of ['Dashboard', 'Usuários', 'Permissões', 'Indisponibilidade', 'Eventos', 'Escalas', 'Próximos', 'Histórico', 'Consultar', 'Nova Música', 'Auditoria', 'Configurações']) {
+  for (const moduleName of ['Dashboard', 'Usuários', 'Indisponibilidade', 'Eventos', 'Escalas', 'Próximos', 'Histórico', 'Consultar', 'Nova Música', 'Auditoria', 'Configurações']) {
     assert.match(helpPage, new RegExp(`>${moduleName}<`));
   }
 });
@@ -82,8 +83,8 @@ test('controles de conta, tema e saída são montados dentro da sidebar', () => 
   assert.match(css, /ide-sidebar-nav[^}]*overflow-y:auto/);
 });
 
-test('destinos ainda não implementados têm página segura e explícita de preparação', () => {
-  for (const section of ['users', 'permissions', 'unavailability', 'events', 'schedules', 'audit', 'settings']) {
+test('destinos ativos têm página segura e explícita de preparação', () => {
+  for (const section of ['users', 'unavailability', 'events', 'schedules', 'audit', 'settings']) {
     assert.match(modulePage, new RegExp(`${section}:`));
   }
   assert.match(modulePage, /app-shell\.js\?v=20260825-menu-main/);

@@ -4,20 +4,90 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — IDE Music</title>
+  <style>
+    /* Safari/iOS: nunca esconda o body inteiro durante a hidratação da sessão.
+       WebKit pode deixar de pintar html::before quando o body está com opacity:0,
+       produzindo a tela preta observada ao abrir o link pelo WhatsApp/Safari. */
+    html.auth-pending body {
+      opacity: 1 !important;
+      pointer-events: none;
+      overflow: hidden;
+      min-height: 100vh;
+      min-height: 100dvh;
+      background: #090b0c !important;
+    }
+    html.auth-pending body > * {
+      visibility: hidden !important;
+    }
+    html.auth-pending body::before,
+    html.auth-pending body::after {
+      visibility: visible !important;
+      position: fixed;
+      left: 50%;
+      z-index: 2147483646;
+      transform: translateX(-50%);
+      width: min(88vw, 420px);
+      box-sizing: border-box;
+      text-align: center;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      pointer-events: none;
+    }
+    html.auth-pending body::before {
+      content: "IDE Music";
+      top: 43%;
+      color: #d8ff45;
+      font-size: 1.15rem;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+    html.auth-pending body::after {
+      content: "Verificando seu acesso…";
+      top: calc(43% + 38px);
+      color: #c8ccca;
+      font-size: .9rem;
+      font-weight: 600;
+      letter-spacing: .02em;
+    }
+  </style>
+  <script>
+    /* Fail-safe independente dos bundles/cache. Se a autenticação travar, o
+       usuário recebe uma saída acionável em vez de permanecer numa tela preta. */
+    (function installAuthPaintFailSafe() {
+      var RECOVERY_ID = 'ide-auth-inline-recovery';
+      function pending() {
+        return document.documentElement.classList.contains('auth-pending');
+      }
+      function showRecovery() {
+        if (!pending() || document.getElementById(RECOVERY_ID) || !document.body) return;
+        var box = document.createElement('section');
+        box.id = RECOVERY_ID;
+        box.setAttribute('role', 'alert');
+        box.style.cssText = 'visibility:visible!important;position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:24px;background:#090b0c;color:#f7f8f2;font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;pointer-events:auto;';
+        box.innerHTML = '<div style="width:min(430px,100%);padding:26px 22px;border:1px solid rgba(216,255,69,.35);border-radius:18px;background:#111416;text-align:center"><strong style="display:block;margin-bottom:10px;font-size:1.15rem">Não foi possível concluir o carregamento</strong><p style="margin:0 0 20px;color:#c8ccca;line-height:1.5">O Safari demorou mais que o esperado para restaurar sua sessão.</p><button id="ide-auth-inline-retry" type="button" style="width:100%;min-height:46px;border:0;border-radius:999px;background:#d8ff45;color:#090b0c;font-weight:800">Tentar novamente</button><button id="ide-auth-inline-login" type="button" style="width:100%;min-height:46px;margin-top:10px;border:1px solid rgba(255,255,255,.24);border-radius:999px;background:transparent;color:#f7f8f2;font-weight:700">Ir para o login</button></div>';
+        document.body.appendChild(box);
+        document.getElementById('ide-auth-inline-retry').onclick = function () { location.reload(); };
+        document.getElementById('ide-auth-inline-login').onclick = function () { location.replace('login.html'); };
+      }
+      window.setTimeout(showRecovery, 7000);
+      window.addEventListener('pageshow', function (event) {
+        if (event && event.persisted && pending()) window.setTimeout(showRecovery, 1500);
+      });
+    })();
+  </script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="../config/firebase-config.js"></script>
-  <script src="../js/modules/auth-service.js?v=20260825-email"></script>
-  <script src="../js/modules/app-shell.js?v=20260825-sidebar" defer></script>
+  <script src="../js/modules/auth-service.js?v=20260902-safari-auth-v2"></script>
+  <script src="../js/modules/app-shell.js?v=20260902-safari-auth-v2" defer></script>
   <script src="../repositories/dashboard-repository.js?v=20260826-personal" defer></script>
   <script src="../services/dashboard-service.js?v=20260826-personal" defer></script>
   <script src="../js/modules/dashboard-page.js?v=20260831-section-title-links" defer></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="../styles/tokens.css">
-  <link rel="stylesheet" href="../styles/design-system.css">
-  <link rel="stylesheet" href="../css/music-ide-theme.css">
-  <link rel="stylesheet" href="../styles/dashboard.css?v=20260831-section-title-links">
+  <link rel="stylesheet" href="../styles/tokens.css?v=20260902-safari-auth-v2">
+  <link rel="stylesheet" href="../styles/design-system.css?v=20260902-safari-auth-v2">
+  <link rel="stylesheet" href="../css/music-ide-theme.css?v=20260902-safari-auth-v2">
+  <link rel="stylesheet" href="../styles/dashboard.css?v=20260902-safari-auth-v2">
 </head>
 <body>
   <main class="ide-dashboard" id="dashboard-main">
