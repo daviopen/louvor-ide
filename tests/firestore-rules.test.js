@@ -84,6 +84,9 @@ test('audit log é append-only, possui schema limitado e timestamp do servidor',
 });
 
 test('Escalas pode ler somente as dependências operacionais necessárias ao editor', () => {
+  assert.match(rules, /function canReadOperationalDirectory\(\)[\s\S]*activeUser\(\)[\s\S]*\['MEMBER', 'ADMIN', 'SUPER_ADMIN'\]/);
+  assert.match(extractMatch('users/{userId}'), /canReadOperationalDirectory\(\)/);
+  assert.match(extractMatch('userFunctions/{documentId}'), /canReadOperationalDirectory\(\)/);
   assert.match(extractMatch('users/{userId}'), /canRead\('schedules'\)/);
   assert.match(extractMatch('userFunctions/{documentId}'), /canRead\('schedules'\)/);
   assert.match(extractMatch('events/{documentId}'), /canRead\('schedules'\)/);

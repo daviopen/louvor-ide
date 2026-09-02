@@ -64,3 +64,9 @@ test('submenu e ação de nova música permanecem acessíveis', () => {
   assert.match(html, /href="nova-musica\.html"/);
   assert.match(html, />\s*Nova Música\s*</);
 });
+
+test('catálogo oculta criação de música para perfil somente leitura', () => {
+  assert.match(pageJs, /applyAccessUI\(profile/);
+  assert.match(pageJs, /link\.hidden = !canEdit/);
+  assert.match(pageJs, /this\.applyAccessUI\(readyProfile\)/);
+});

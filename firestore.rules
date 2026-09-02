@@ -79,6 +79,14 @@ service cloud.firestore {
     }
     function canRead(moduleName) { return isSuperAdmin() || profileCanRead(moduleName) || explicitPermission(moduleName, ['READ', 'EDIT']); }
     function canEdit(moduleName) { return isSuperAdmin() || profileCanEdit(moduleName) || explicitPermission(moduleName, ['EDIT']); }
+    // All active product profiles can consult schedules, setlists and songs.
+    // Those screens need the people directory while legacy permission mirrors
+    // are being normalized, so the dependency cannot depend on those mirrors.
+    function canReadOperationalDirectory() {
+      return activeUser()
+        && 'role' in profile().data
+        && profile().data.role in ['MEMBER', 'ADMIN', 'SUPER_ADMIN'];
+    }
     function ownsUserDocument(userId) { return activeUser() && request.auth.uid == userId; }
     function unchangedAuthorizationFields() {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'active', 'uid', 'permissions', 'accessProfile']);
@@ -291,8 +299,8 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get: if (supportedProvider() && request.auth.uid == userId) || canRead('users') || canRead('permissions') || (isAdmin() && canEdit('unavailability')) || canRead('schedules') || canRead('setlists') || canRead('songs');
-      allow list: if canRead('users') || canRead('permissions') || (isAdmin() && canEdit('unavailability')) || canRead('schedules') || canRead('setlists') || canRead('songs');
+      allow get: if (supportedProvider() && request.auth.uid == userId) || canReadOperationalDirectory() || canRead('users') || canRead('permissions') || (isAdmin() && canEdit('unavailability')) || canRead('schedules') || canRead('setlists') || canRead('songs');
+      allow list: if canReadOperationalDirectory() || canRead('users') || canRead('permissions') || (isAdmin() && canEdit('unavailability')) || canRead('schedules') || canRead('setlists') || canRead('songs');
       allow create: if validCreatedUser(userId) && (isSuperAdmin() || (isAdmin() && canEdit('users') && request.resource.data.role == 'MEMBER'));
       allow update: if isSuperAdmin()
         || (canEdit('users') && resource.data.role != 'SUPER_ADMIN' && request.resource.data.role == resource.data.role && adminKeepsPrivilegeFields())
@@ -312,7 +320,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /userFunctions/{documentId} {
-      allow read: if canRead('users') || canRead('schedules') || canRead('songs');
+      allow read: if canReadOperationalDirectory() || canRead('users') || canRead('schedules') || canRead('songs');
       allow write: if canEdit('users');
     }
     match /events/{documentId} {

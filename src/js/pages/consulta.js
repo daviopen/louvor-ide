@@ -54,6 +54,7 @@ class MusicCatalogPage {
     this.next = document.getElementById('songs-next-page');
     this.pageLabel = document.getElementById('songs-page-label');
     this.emptyViewer = document.getElementById('songs-empty-viewer');
+    this.newSongLinks = [...document.querySelectorAll('.songs-new-button')];
     this.detail = document.getElementById('song-detail');
     this.detailTitle = document.getElementById('song-detail-title');
     this.detailArtist = document.getElementById('song-detail-artist');
@@ -128,6 +129,7 @@ class MusicCatalogPage {
   startWhenAuthenticated() {
     const profile = window.currentMusicIdeProfile;
     if (window.currentMusicIdeUser && profile?.active === true) {
+      this.applyAccessUI(profile);
       this.subscribe();
       return;
     }
@@ -136,6 +138,7 @@ class MusicCatalogPage {
       const { user, profile: readyProfile } = event.detail || {};
       if (!user || readyProfile?.active !== true) return;
       window.removeEventListener('musicIdeAuthReady', handleAuthReady);
+      this.applyAccessUI(readyProfile);
       this.subscribe();
     };
     window.addEventListener('musicIdeAuthReady', handleAuthReady);
@@ -144,6 +147,7 @@ class MusicCatalogPage {
       const readyProfile = window.currentMusicIdeProfile;
       if (window.currentMusicIdeUser && readyProfile?.active === true) {
         window.removeEventListener('musicIdeAuthReady', handleAuthReady);
+        this.applyAccessUI(readyProfile);
         this.subscribe();
       }
     }).catch(error => this.showLoadError(error));
@@ -240,13 +244,17 @@ class MusicCatalogPage {
     return Object.values(this.currentFilters()).some(Boolean);
   }
 
-  canEditSongs() {
-    const profile = window.currentMusicIdeProfile;
+  canEditSongs(profile = window.currentMusicIdeProfile) {
     if (!profile) return false;
     if (profile.role === 'SUPER_ADMIN' || profile.isSuperAdmin === true) return true;
     const permission = profile.permissions?.songs;
     const level = typeof permission === 'object' ? permission.level || permission.access : permission;
     return ['EDIT', 'edit', 'write', 'edicao', 'edição'].includes(String(level || ''));
+  }
+
+  applyAccessUI(profile = window.currentMusicIdeProfile) {
+    const canEdit = this.canEditSongs(profile);
+    this.newSongLinks.forEach(link => { link.hidden = !canEdit; });
   }
 
   notifyFilterPanel() {

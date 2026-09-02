@@ -38,6 +38,7 @@ test('UI confirma atuação administrativa e registra sem acesso direto ao Fires
 
 test('layout respeita rota oculta e possui tratamento responsivo para mobile', () => {
   assert.match(css, /\.unavailability-page\[hidden\]\{display:none!important\}/);
+  assert.match(css, /\.unavailability-admin-note\[hidden\]\{display:none(?:!important)?\}/);
   assert.match(css, /@media\(max-width:700px\)/);
   assert.match(css, /unavailability-layout/);
   assert.match(css, /grid-template-columns:1fr/);
