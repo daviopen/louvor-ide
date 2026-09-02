@@ -14,14 +14,14 @@
   <script src="../services/profile-service.js?v=20260902-profile"></script>
   <script src="../js/modules/auth-service.js?v=20260902-profile"></script>
   <script src="../js/modules/app-shell.js?v=20260902-profile" defer></script>
-  <script src="../js/modules/profile-page.js?v=20260902-profile" defer></script>
+  <script src="../js/modules/profile-page.js?v=20260902-profile-ux" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
   <link rel="stylesheet" href="../styles/button.css">
   <link rel="stylesheet" href="../styles/input.css">
   <link rel="stylesheet" href="../css/music-ide-theme.css">
-  <link rel="stylesheet" href="../styles/profile.css?v=20260902-profile">
+  <link rel="stylesheet" href="../styles/profile.css?v=20260902-profile-ux">
 </head>
 <body>
   <main class="profile-page">
@@ -29,7 +29,7 @@
       <div>
         <div class="ide-module-kicker">Conta · Dados pessoais</div>
         <h1>Meu Perfil</h1>
-        <p>Atualize seus dados e mantenha sua conta do IDE Music protegida.</p>
+        <p>Gerencie seus dados pessoais, foto e segurança da conta.</p>
       </div>
     </header>
 
@@ -37,61 +37,108 @@
       <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Carregando seu perfil...
     </div>
 
-    <section id="profile-content" class="profile-layout" hidden>
-      <aside class="profile-card profile-summary" aria-label="Resumo do perfil">
-        <div class="profile-avatar">
-          <img id="profile-avatar-image" alt="" referrerpolicy="no-referrer" hidden>
-          <span id="profile-avatar-fallback" class="profile-avatar-fallback" aria-hidden="true">U</span>
+    <div id="profile-content" class="profile-content" hidden>
+      <section class="profile-card profile-hero" aria-label="Resumo do perfil">
+        <div class="profile-hero-main">
+          <div class="profile-avatar-wrap">
+            <div class="profile-avatar">
+              <img id="profile-avatar-image" alt="" referrerpolicy="no-referrer" hidden>
+              <span id="profile-avatar-fallback" class="profile-avatar-fallback" aria-hidden="true">U</span>
+            </div>
+            <span id="profile-photo-status" class="profile-photo-status" aria-live="polite">Foto salva automaticamente</span>
+          </div>
+
+          <div class="profile-identity">
+            <div class="profile-identity-copy">
+              <h2 id="profile-header-name">Meu Perfil</h2>
+              <p id="profile-header-email" class="profile-summary-email"></p>
+            </div>
+            <div class="profile-access-summary" aria-label="Perfil de acesso">
+              <span class="profile-access-label">Perfil de acesso</span>
+              <span id="profile-role" class="profile-role-badge">Usuário</span>
+            </div>
+          </div>
         </div>
-        <h2 id="profile-header-name">Meu Perfil</h2>
-        <p id="profile-header-email" class="profile-summary-email"></p>
-        <span id="profile-role" class="profile-role-badge">Usuário</span>
+
         <div class="profile-photo-actions">
           <input id="profile-photo-input" class="profile-hidden-input" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Selecionar nova foto de perfil">
-          <button id="profile-change-photo" class="ide-button ide-button--secondary" type="button"><i class="fa-solid fa-camera" aria-hidden="true"></i> Alterar foto</button>
+          <button id="profile-change-photo" class="ide-button ide-button--secondary profile-photo-primary" type="button"><i class="fa-solid fa-camera" aria-hidden="true"></i> Alterar foto</button>
           <button id="profile-use-google-photo" class="ide-button ide-button--ghost" type="button" hidden><i class="fa-brands fa-google" aria-hidden="true"></i> Usar foto do Google</button>
-          <button id="profile-remove-photo" class="ide-button ide-button--ghost" type="button" hidden><i class="fa-solid fa-user" aria-hidden="true"></i> Remover foto</button>
+          <button id="profile-remove-photo" class="ide-button ide-button--ghost" type="button" hidden><i class="fa-regular fa-trash-can" aria-hidden="true"></i> Remover</button>
         </div>
-      </aside>
+      </section>
 
-      <div class="profile-stack">
-        <section class="profile-card" aria-labelledby="profile-personal-title">
+      <div class="profile-layout">
+        <section class="profile-card profile-personal-card" aria-labelledby="profile-personal-title">
           <header class="profile-card-heading">
-            <h2 id="profile-personal-title">Dados pessoais</h2>
-            <p>Somente os dados necessários para identificação e contato no ministério.</p>
+            <div>
+              <span class="profile-section-kicker">Informações pessoais</span>
+              <h2 id="profile-personal-title">Dados pessoais</h2>
+              <p>Dados usados para identificação e contato no ministério.</p>
+            </div>
           </header>
+
           <form id="profile-form">
             <div class="profile-form-grid">
               <label class="ide-field full"><span class="ide-field__label">Nome completo</span><input id="profile-name" class="ide-field__control ide-field__input" type="text" maxlength="120" autocomplete="name" required></label>
               <label class="ide-field"><span class="ide-field__label">Data de nascimento</span><input id="profile-birth-date" class="ide-field__control ide-field__input" type="date" autocomplete="bday"></label>
-              <label class="ide-field"><span class="ide-field__label">Telefone / WhatsApp</span><input id="profile-phone" class="ide-field__control ide-field__input" type="tel" maxlength="30" autocomplete="tel" placeholder="(61) 99999-9999"></label>
-              <label class="ide-field full"><span class="ide-field__label">E-mail de acesso</span><input id="profile-email" class="ide-field__control ide-field__input profile-readonly" type="email" readonly aria-readonly="true"></label>
+              <label class="ide-field"><span class="ide-field__label">Telefone / WhatsApp</span><input id="profile-phone" class="ide-field__control ide-field__input" type="tel" maxlength="30" autocomplete="tel" inputmode="tel" placeholder="(61) 99999-9999"></label>
             </div>
-            <div class="profile-form-actions"><button id="profile-save" class="ide-button ide-button--primary" type="submit"><i class="fa-solid fa-check" aria-hidden="true"></i> Salvar alterações</button></div>
+            <div class="profile-form-footer">
+              <span id="profile-save-status" class="profile-save-status" role="status" aria-live="polite">Tudo salvo</span>
+              <button id="profile-save" class="ide-button ide-button--primary" type="submit" disabled><i class="fa-solid fa-check" aria-hidden="true"></i> Salvar alterações</button>
+            </div>
           </form>
         </section>
 
-        <section class="profile-card" aria-labelledby="profile-security-title">
-          <header class="profile-card-heading">
-            <h2 id="profile-security-title">Conta e segurança</h2>
-            <p>Alterações de senha exigem confirmação da senha atual.</p>
-          </header>
-          <div id="profile-google-password-note" class="profile-security-note" hidden>
-            <i class="fa-brands fa-google" aria-hidden="true"></i>
-            <div><strong>Login pelo Google</strong><br>Esta conta não possui senha local no IDE Music. A senha é gerenciada diretamente pela sua Conta Google.</div>
-          </div>
-          <form id="profile-password-form" hidden>
-            <div class="profile-password-grid">
-              <label class="ide-field full"><span class="ide-field__label">Senha atual</span><input id="profile-current-password" class="ide-field__control ide-field__input" type="password" autocomplete="current-password" required></label>
-              <label class="ide-field"><span class="ide-field__label">Nova senha</span><input id="profile-new-password" class="ide-field__control ide-field__input" type="password" minlength="8" autocomplete="new-password" required></label>
-              <label class="ide-field"><span class="ide-field__label">Confirmar nova senha</span><input id="profile-confirm-password" class="ide-field__control ide-field__input" type="password" minlength="8" autocomplete="new-password" required></label>
+        <div class="profile-side-stack">
+          <section class="profile-card profile-access-card" aria-labelledby="profile-access-title">
+            <header class="profile-card-heading compact">
+              <div>
+                <span class="profile-section-kicker">Conta</span>
+                <h2 id="profile-access-title">Acesso</h2>
+                <p>Informações vinculadas ao seu login.</p>
+              </div>
+            </header>
+            <dl class="profile-access-list">
+              <div>
+                <dt>E-mail de acesso</dt>
+                <dd id="profile-access-email">—</dd>
+              </div>
+              <div>
+                <dt>Perfil</dt>
+                <dd><span id="profile-access-role" class="profile-role-badge">Usuário</span></dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="profile-card profile-security-card" aria-labelledby="profile-security-title">
+            <header class="profile-card-heading compact">
+              <div>
+                <span class="profile-section-kicker">Proteção da conta</span>
+                <h2 id="profile-security-title">Segurança</h2>
+                <p>Gerencie a senha quando o acesso utilizar e-mail e senha.</p>
+              </div>
+            </header>
+
+            <div id="profile-google-password-note" class="profile-security-note" hidden>
+              <span class="profile-security-icon"><i class="fa-brands fa-google" aria-hidden="true"></i></span>
+              <div><strong>Senha gerenciada pelo Google</strong><p>Esta conta entra pelo Google. Para alterar a senha, use as configurações da sua Conta Google.</p></div>
             </div>
-            <p class="profile-password-help">Use pelo menos 8 caracteres, incluindo letra maiúscula, letra minúscula e número.</p>
-            <div class="profile-form-actions"><button id="profile-password-save" class="ide-button ide-button--secondary" type="submit"><i class="fa-solid fa-key" aria-hidden="true"></i> Alterar senha</button></div>
-          </form>
-        </section>
+
+            <form id="profile-password-form" hidden>
+              <div class="profile-password-grid">
+                <label class="ide-field full"><span class="ide-field__label">Senha atual</span><input id="profile-current-password" class="ide-field__control ide-field__input" type="password" autocomplete="current-password" required></label>
+                <label class="ide-field"><span class="ide-field__label">Nova senha</span><input id="profile-new-password" class="ide-field__control ide-field__input" type="password" minlength="8" autocomplete="new-password" required></label>
+                <label class="ide-field"><span class="ide-field__label">Confirmar nova senha</span><input id="profile-confirm-password" class="ide-field__control ide-field__input" type="password" minlength="8" autocomplete="new-password" required></label>
+              </div>
+              <p class="profile-password-help">Use pelo menos 8 caracteres, com letra maiúscula, minúscula e número.</p>
+              <div class="profile-form-actions"><button id="profile-password-save" class="ide-button ide-button--secondary" type="submit"><i class="fa-solid fa-key" aria-hidden="true"></i> Alterar senha</button></div>
+            </form>
+          </section>
+        </div>
       </div>
-    </section>
+    </div>
   </main>
   <div id="profile-toast" class="profile-toast" role="status" aria-live="polite" hidden></div>
 </body>
