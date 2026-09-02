@@ -22,6 +22,14 @@
   function el(id) { return scope.document.getElementById(id); }
   function escapeHtml(value) { return String(value == null ? '' : value).replace(/[&<>'"]/g, char => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[char])); }
   function dateText(value) { if (!value) return '—'; const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value); return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date); }
+  function formatPhone(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+    if (digits.length === 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+    return raw;
+  }
   function canEdit(profile) { return Boolean(scope.MusicIdeUserService && scope.MusicIdeUserService.canManageUsers(profile)); }
   function canEditFunctions(profile) { return Boolean(scope.MusicIdeMinistryFunctions && scope.MusicIdeMinistryFunctions.canManageMinistryFunctions(profile)); }
   function toast(message, type = 'success') { const node = el('users-toast'); node.textContent = message; node.dataset.type = type; node.hidden = false; clearTimeout(toast.timer); toast.timer = setTimeout(() => { node.hidden = true; }, 6000); }
@@ -97,6 +105,8 @@
     emailField.value = user?.email || '';
     emailField.disabled = Boolean(user);
     emailField.title = user ? 'O e-mail de login é definido no cadastro e não pode ser alterado.' : '';
+    el('user-birth-date').value = user?.birthDate || '';
+    el('user-phone').value = formatPhone(user?.phone || '');
     el('user-photo').value = user?.photoURL || '';
     el('user-permissions-row').hidden = Boolean(user);
     el('user-functions').innerHTML = state.functions.filter(item => item.active !== false).map(fn => `<label class="users-function-option"><input type="checkbox" value="${escapeHtml(fn.id)}" ${user?.functionIds?.includes(fn.id) ? 'checked' : ''}><span>${escapeHtml(fn.name)}</span></label>`).join('');
@@ -114,7 +124,15 @@
     const originalButtonHtml = submitButton.innerHTML;
     const functionIds = Array.from(el('user-functions').querySelectorAll('input:checked')).map(input => input.value);
     const editingUser = state.editingId ? findUser(state.editingId) : null;
-    const payload = { name: el('user-name').value.trim(), email: editingUser?.email || el('user-email').value.trim(), photoURL: el('user-photo').value.trim() || null, functionIds, permissions: state.editingId ? undefined : readInitialPermissions() };
+    const payload = {
+      name: el('user-name').value.trim(),
+      email: editingUser?.email || el('user-email').value.trim(),
+      birthDate: el('user-birth-date').value || null,
+      phone: el('user-phone').value.trim() || null,
+      photoURL: el('user-photo').value.trim() || null,
+      functionIds,
+      permissions: state.editingId ? undefined : readInitialPermissions()
+    };
     submitButton.disabled = true;
     submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>Salvando...';
     try {
@@ -192,6 +210,7 @@
     ministryService = new scope.MusicIdeMinistryFunctions.MinistryFunctionsService({ ministryFunctionsRepository: registry.ministryFunctions, userFunctionsRepository: registry.userFunctions, auditRepository: registry.auditLogs, actorProvider: () => scope.currentMusicIdeUser });
     const editable = canEdit(scope.currentMusicIdeProfile); el('new-user').hidden = !editable; el('users-readonly').hidden = editable;
     el('new-user').addEventListener('click', () => openForm()); el('manage-functions').addEventListener('click', openFunctionsDialog); el('user-form').addEventListener('submit', submitForm); el('user-cancel').addEventListener('click', () => { clearUserFormFeedback(); el('user-dialog').close(); }); el('users-body').addEventListener('click', handleTableClick);
+    el('user-phone').addEventListener('blur', event => { event.target.value = formatPhone(event.target.value); });
     el('functions-close').addEventListener('click', () => el('functions-dialog').close()); el('function-cancel').addEventListener('click', resetFunctionForm); el('function-form').addEventListener('submit', submitFunction); el('functions-list').addEventListener('click', handleFunctionListClick);
     el('filter-search').addEventListener('input', event => {
       state.filters.search = event.target.value;
