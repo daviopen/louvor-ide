@@ -27,9 +27,11 @@ test('users screen renders the persisted lastAccessAt field', () => {
   assert.match(usersPage, /dateText\(user\.lastAccessAt\)/);
 });
 
-test('an active user may update own operational metadata without authorization escalation', () => {
-  assert.match(rules, /ownsUserDocument\(userId\) && unchangedAuthorizationFields\(\)/);
-  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['role', 'active', 'uid', 'permissions', 'accessProfile'\]\)/);
+test('an active user may update own lastAccessAt only with server time and without authorization escalation', () => {
+  assert.match(rules, /ownsUserDocument\(userId\) && validSelfProfileUpdate\(\)/);
+  assert.match(rules, /hasOnly\(\['name', 'phone', 'birthDate', 'photoURL', 'updatedAt', 'lastAccessAt'\]\)/);
+  assert.match(rules, /!changed\.hasAny\(\['lastAccessAt'\]\) \|\| request\.resource\.data\.lastAccessAt == request\.time/);
+  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['uid', 'role', 'permissions', 'accessProfile'\]\)/);
 });
 
 test('historical AUTH_LOGIN audit records backfill lastAccessAt idempotently', () => {
