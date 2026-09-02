@@ -1,0 +1,6 @@
+:root[data-theme="dark"] body.users-screen .users-table .ide-badge--success,
+:root[data-theme="dark"] body.users-screen .functions-list .ide-badge--success {
+  color: var(--ide-color-success-100);
+  background: color-mix(in srgb, var(--ide-success) 52%, var(--ide-surface));
+  border-color: color-mix(in srgb, var(--ide-color-success-100) 38%, transparent);
+}
