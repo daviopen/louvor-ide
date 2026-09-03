@@ -16,8 +16,9 @@ test('manifesto PWA usa a identidade e os ícones oficiais do IDE Music', () => 
   assert.equal(manifest.name, 'IDE Music');
   assert.equal(manifest.short_name, 'IDE Music');
   assert.equal(manifest.display, 'standalone');
-  assert.equal(manifest.start_url, '/index.html');
+  assert.equal(manifest.start_url, '/login.html?source=pwa');
   assert.equal(manifest.theme_color, '#090b0c');
+  assert.equal(manifest.background_color, '#090b0c');
   assert.ok(manifest.icons.some(icon => icon.sizes === '192x192' && icon.purpose === 'any'));
   assert.ok(manifest.icons.some(icon => icon.sizes === '512x512' && icon.purpose === 'maskable'));
 });
@@ -60,6 +61,15 @@ test('injeção PWA é completa e idempotente em qualquer página', () => {
   assert.match(once, /rel="apple-touch-icon"/);
   assert.match(once, /apple-mobile-web-app-capable/);
   assert.match(once, /src="\/pwa-runtime\.js"/);
+});
+
+test('runtime PWA impede tela branca persistente no modo standalone', () => {
+  const runtime = read('src/pwa/pwa-runtime.js');
+  assert.match(runtime, /display-mode: standalone/);
+  assert.match(runtime, /backgroundColor = '#090b0c'/);
+  assert.match(runtime, /classList\.contains\('auth-pending'\)/);
+  assert.match(runtime, /classList\.remove\('auth-pending'\)/);
+  assert.match(runtime, /\/login\.html\?source=pwa-recovery/);
 });
 
 test('service worker não intercepta fetch nem cria cache de aplicação obsoleto', () => {

@@ -5,11 +5,11 @@
   "description": "Organização de escalas, setlists e músicas do ministério IDE Music.",
   "lang": "pt-BR",
   "dir": "ltr",
-  "start_url": "/index.html",
+  "start_url": "/login.html?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#f0efec",
+  "background_color": "#090b0c",
   "theme_color": "#090b0c",
   "icons": [
     {
