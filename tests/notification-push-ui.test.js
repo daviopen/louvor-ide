@@ -19,7 +19,7 @@ test('push detecta iPhone/iPad fora do modo instalado antes de pedir permissão'
 test('Central orienta instalação no iOS em vez de deixar Ativar sem resposta', () => {
   assert.match(center, /status === 'IOS_INSTALL_REQUIRED'/);
   assert.match(center, /instale o IDE Music na Tela de Início/);
-  assert.match(center, /data-notification-action/);
+  assert.match(center, /dataset\.notificationAction = 'install'/);
   assert.match(center, /help\.html#help-install-title/);
 });
 
