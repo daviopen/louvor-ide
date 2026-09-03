@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — IDE Music</title>
   <style>
-    /* Safari/iOS: nunca esconda o body inteiro durante a hidratação da sessão.
-       WebKit pode deixar de pintar html::before quando o body está com opacity:0,
-       produzindo a tela preta observada ao abrir o link pelo WhatsApp/Safari. */
+    /* Safari/iOS standalone: não esconda a árvore real da aplicação durante a
+       hidratação. O WebKit do Home Screen app pode remover o splash sem repintar
+       elementos que estavam com visibility:hidden. Mantemos a interface já
+       renderizada por baixo de um overlay opaco e removemos somente o overlay. */
     html.auth-pending body {
       opacity: 1 !important;
       pointer-events: none;
@@ -16,12 +17,16 @@
       min-height: 100dvh;
       background: #090b0c !important;
     }
-    html.auth-pending body > * {
-      visibility: hidden !important;
+    html.auth-pending::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 2147483645;
+      background: #090b0c;
+      pointer-events: none;
     }
     html.auth-pending body::before,
     html.auth-pending body::after {
-      visibility: visible !important;
       position: fixed;
       left: 50%;
       z-index: 2147483646;

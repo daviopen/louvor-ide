@@ -72,6 +72,13 @@ test('runtime PWA impede tela branca persistente no modo standalone', () => {
   assert.match(runtime, /\/login\.html\?source=pwa-recovery/);
 });
 
+test('dashboard não depende de repintar elementos ocultos após auth no iOS standalone', () => {
+  const dashboard = read('src/pages/index.html');
+  assert.match(dashboard, /html\.auth-pending::before/);
+  assert.match(dashboard, /position:\s*fixed;\s*\n\s*inset:\s*0;/);
+  assert.doesNotMatch(dashboard, /html\.auth-pending body > \*\s*\{[^}]*visibility:\s*hidden/is);
+});
+
 test('service worker não intercepta fetch nem cria cache de aplicação obsoleto', () => {
   const worker = read('src/pwa/service-worker.js');
   assert.match(worker, /addEventListener\('install'/);
