@@ -8,6 +8,7 @@
   justify-content:flex-end;
   gap:10px;
   max-width:calc(100vw - 92px);
+  transition:opacity 140ms ease,visibility 140ms ease;
 }
 .ide-app-header-actions[hidden]{display:none}
 
@@ -158,6 +159,11 @@
     top:max(14px,env(safe-area-inset-top));
     right:max(14px,env(safe-area-inset-right));
     max-width:56px;
+  }
+  body.ide-sidebar-open .ide-app-header-actions{
+    visibility:hidden;
+    opacity:0;
+    pointer-events:none;
   }
   .ide-header-account{display:none!important}
   .ide-app-header-actions .ide-notification-panel{
