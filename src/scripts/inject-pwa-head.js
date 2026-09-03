@@ -14,10 +14,6 @@ const PWA_HEAD = `  <link rel="manifest" href="/manifest.webmanifest" ${PWA_HEAD
   <meta name="apple-mobile-web-app-title" content="IDE Music">
   <link rel="stylesheet" href="/styles/app-header-controls.css?v=20260902-header-actions">
   <script src="/pwa-runtime.js" defer></script>
-  <script src="/repositories/notification-outbox-repository.js?v=20260902-notifications" defer></script>
-  <script src="/js/modules/notification-domain-hooks.js?v=20260902-notifications" defer></script>
-  <script src="/js/modules/notification-center.js?v=20260902-notifications" defer></script>
-  <script src="/js/modules/notification-push.js?v=20260902-notifications" defer></script>
   <script src="/js/modules/app-header-controls.js?v=20260902-header-actions" defer></script>`;
 
 function injectPwaHead(html) {
