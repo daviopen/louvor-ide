@@ -3,6 +3,15 @@
   if (!scope || !scope.document || !scope.navigator) return;
 
   const BUTTON_ID = 'ide-enable-notifications';
+  const STATUS = Object.freeze({
+    ENABLED: 'ENABLED',
+    PERMISSION_REQUIRED: 'PERMISSION_REQUIRED',
+    DENIED: 'DENIED',
+    UNSUPPORTED: 'UNSUPPORTED',
+    IOS_INSTALL_REQUIRED: 'IOS_INSTALL_REQUIRED',
+    NO_USER: 'NO_USER',
+    FAILED: 'FAILED'
+  });
   let registrationPromise = null;
 
   function observabilityWarn(eventName, message, error) {
@@ -11,6 +20,22 @@
       return;
     }
     console.warn(message, error || '');
+  }
+
+  function isIosDevice() {
+    const userAgent = String(scope.navigator.userAgent || '');
+    const platform = String(scope.navigator.platform || '');
+    return /iPad|iPhone|iPod/i.test(userAgent)
+      || (platform === 'MacIntel' && Number(scope.navigator.maxTouchPoints || 0) > 1);
+  }
+
+  function isStandalone() {
+    return scope.navigator.standalone === true
+      || Boolean(scope.matchMedia?.('(display-mode: standalone)').matches);
+  }
+
+  function requiresInstalledIosPwa() {
+    return isIosDevice() && !isStandalone();
   }
 
   function supported() {
@@ -22,6 +47,14 @@
       && scope.firebase?.auth
       && scope.firebase?.firestore
     );
+  }
+
+  function currentStatus() {
+    if (requiresInstalledIosPwa()) return STATUS.IOS_INSTALL_REQUIRED;
+    if (!supported()) return STATUS.UNSUPPORTED;
+    if (scope.Notification.permission === 'granted') return STATUS.ENABLED;
+    if (scope.Notification.permission === 'denied') return STATUS.DENIED;
+    return STATUS.PERMISSION_REQUIRED;
   }
 
   function base64UrlToUint8Array(value) {
@@ -60,15 +93,20 @@
   }
 
   async function registerCurrentDevice(options = {}) {
-    if (!supported()) return { status: 'UNSUPPORTED' };
+    const status = currentStatus();
+    if (status === STATUS.IOS_INSTALL_REQUIRED) return { status };
+    if (status === STATUS.UNSUPPORTED) return { status };
+
     const user = scope.firebase.auth().currentUser;
-    if (!user) return { status: 'NO_USER' };
-    if (scope.Notification.permission === 'denied') return { status: 'DENIED' };
+    if (!user) return { status: STATUS.NO_USER };
+    if (scope.Notification.permission === 'denied') return { status: STATUS.DENIED };
 
     if (scope.Notification.permission !== 'granted') {
-      if (!options.requestPermission) return { status: 'PERMISSION_REQUIRED' };
+      if (!options.requestPermission) return { status: STATUS.PERMISSION_REQUIRED };
       const permission = await scope.Notification.requestPermission();
-      if (permission !== 'granted') return { status: permission === 'denied' ? 'DENIED' : 'PERMISSION_REQUIRED' };
+      if (permission !== 'granted') {
+        return { status: permission === 'denied' ? STATUS.DENIED : STATUS.PERMISSION_REQUIRED };
+      }
     }
 
     const registration = await scope.navigator.serviceWorker.ready;
@@ -81,26 +119,38 @@
       });
     }
     await saveSubscription(user, subscription);
-    return { status: 'ENABLED' };
+    return { status: STATUS.ENABLED };
   }
 
   function publishStatus(status) {
-    scope.document.dispatchEvent(new CustomEvent('ide:notification-push-status', { detail: { status } }));
+    if (!scope.CustomEvent) return;
+    scope.document.dispatchEvent(new scope.CustomEvent('ide:notification-push-status', { detail: { status } }));
   }
 
   function syncButton(status) {
     const button = scope.document.getElementById(BUTTON_ID);
     if (button) {
       const label = button.querySelector('span');
-      if (label) label.textContent = status === 'PERMISSION_REQUIRED' ? 'Ativar' : status === 'ENABLED' ? 'Ativadas' : 'Ativar';
-      button.disabled = status === 'ENABLED';
-      button.setAttribute('aria-pressed', String(status === 'ENABLED'));
+      const labels = {
+        [STATUS.ENABLED]: 'Ativadas',
+        [STATUS.IOS_INSTALL_REQUIRED]: 'Como instalar',
+        [STATUS.FAILED]: 'Tentar novamente'
+      };
+      if (label) label.textContent = labels[status] || 'Ativar';
+      button.disabled = status === STATUS.ENABLED;
+      button.setAttribute('aria-pressed', String(status === STATUS.ENABLED));
       button.dataset.notificationStatus = status;
     }
     publishStatus(status);
   }
 
   async function enableFromUserGesture() {
+    const preflightStatus = currentStatus();
+    if (preflightStatus === STATUS.IOS_INSTALL_REQUIRED || preflightStatus === STATUS.UNSUPPORTED) {
+      syncButton(preflightStatus);
+      return { status: preflightStatus };
+    }
+
     const button = scope.document.getElementById(BUTTON_ID);
     if (button) button.disabled = true;
     try {
@@ -110,27 +160,19 @@
     } catch (error) {
       if (button) button.disabled = false;
       observabilityWarn('notifications.pushRegistrationFailed', 'Não foi possível ativar as notificações.', error);
-      publishStatus('FAILED');
-      throw error;
+      syncButton(STATUS.FAILED);
+      return { status: STATUS.FAILED, error };
     }
   }
 
   function syncExistingControl() {
-    if (!supported()) {
-      publishStatus('UNSUPPORTED');
-      return;
-    }
-    const status = scope.Notification.permission === 'granted'
-      ? 'ENABLED'
-      : scope.Notification.permission === 'denied'
-        ? 'DENIED'
-        : 'PERMISSION_REQUIRED';
-    syncButton(status);
+    syncButton(currentStatus());
   }
 
   async function bootstrapForUser() {
-    syncExistingControl();
-    if (!supported() || scope.Notification.permission !== 'granted') return;
+    const status = currentStatus();
+    syncButton(status);
+    if (status !== STATUS.ENABLED) return { status };
     if (registrationPromise) return registrationPromise;
     registrationPromise = registerCurrentDevice({ requestPermission: false })
       .then(result => {
@@ -139,24 +181,24 @@
       })
       .catch(error => {
         observabilityWarn('notifications.pushRefreshFailed', 'Não foi possível atualizar o registro de notificações.', error);
-        publishStatus('FAILED');
-        return { status: 'FAILED' };
+        syncButton(STATUS.FAILED);
+        return { status: STATUS.FAILED };
       })
       .finally(() => { registrationPromise = null; });
     return registrationPromise;
   }
 
   function boot() {
-    if (!supported()) {
-      publishStatus('UNSUPPORTED');
-      return;
-    }
+    syncExistingControl();
+    if (!supported() && !requiresInstalledIosPwa()) return;
 
-    scope.firebase.auth().onAuthStateChanged(user => {
-      if (!user) return;
-      syncExistingControl();
-      bootstrapForUser();
-    });
+    if (scope.firebase?.auth) {
+      scope.firebase.auth().onAuthStateChanged(user => {
+        if (!user) return;
+        syncExistingControl();
+        bootstrapForUser();
+      });
+    }
 
     const observer = new MutationObserver(() => {
       if (scope.document.getElementById(BUTTON_ID)) syncExistingControl();
@@ -166,7 +208,12 @@
   }
 
   scope.MusicIdeNotificationPush = Object.freeze({
+    STATUS,
     supported,
+    currentStatus,
+    isIosDevice,
+    isStandalone,
+    requiresInstalledIosPwa,
     registerCurrentDevice,
     enable: enableFromUserGesture,
     bootstrapForUser,
