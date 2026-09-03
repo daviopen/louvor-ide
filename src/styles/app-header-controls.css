@@ -1,0 +1,167 @@
+.ide-app-header-actions{
+  position:fixed;
+  top:max(14px,env(safe-area-inset-top));
+  right:max(16px,env(safe-area-inset-right));
+  z-index:10030;
+  display:flex;
+  align-items:flex-start;
+  justify-content:flex-end;
+  gap:10px;
+  max-width:calc(100vw - 92px);
+}
+.ide-app-header-actions[hidden]{display:none}
+
+.ide-app-header-actions .ide-notification-center{width:auto}
+.ide-app-header-actions .ide-notification-summary{
+  position:relative;
+  display:grid;
+  place-items:center;
+  width:46px;
+  min-width:46px;
+  height:46px;
+  min-height:46px;
+  padding:0!important;
+  color:var(--ide-text-on-dark,#f7f8f2)!important;
+  border:1px solid var(--ide-border-on-dark,rgba(255,255,255,.22))!important;
+  border-radius:999px!important;
+  background:var(--music-bg,#090b0c)!important;
+  box-shadow:var(--ide-shadow-md,0 10px 28px rgba(0,0,0,.22));
+}
+.ide-app-header-actions .ide-notification-summary:hover,
+.ide-app-header-actions .ide-notification-summary:focus-visible{
+  color:var(--ide-primary,#d8ff45)!important;
+  border-color:var(--ide-primary,#d8ff45)!important;
+  outline:none;
+}
+.ide-app-header-actions .ide-notification-summary>span:not(.ide-notification-badge){display:none}
+.ide-app-header-actions .ide-notification-summary i{font-size:1rem}
+.ide-app-header-actions .ide-notification-badge{
+  position:absolute;
+  top:-5px;
+  right:-5px;
+  margin:0;
+  min-width:20px;
+  height:20px;
+  padding:0 5px;
+  border:2px solid var(--music-bg,#090b0c);
+  font-size:.66rem;
+}
+
+.ide-header-account{position:relative}
+.ide-header-account-summary{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:46px;
+  max-width:230px;
+  padding:6px 10px 6px 7px;
+  list-style:none;
+  color:var(--ide-text-on-dark,#f7f8f2);
+  border:1px solid var(--ide-border-on-dark,rgba(255,255,255,.22));
+  border-radius:999px;
+  background:var(--music-bg,#090b0c);
+  box-shadow:var(--ide-shadow-md,0 10px 28px rgba(0,0,0,.22));
+  cursor:pointer;
+}
+.ide-header-account-summary::-webkit-details-marker{display:none}
+.ide-header-account-summary::marker{display:none;content:''}
+.ide-header-account-summary:hover,
+.ide-header-account-summary:focus-visible{border-color:var(--ide-primary,#d8ff45);outline:none}
+.ide-header-account-avatar{display:grid;place-items:center;flex:0 0 auto}
+.ide-header-account-avatar img,
+.ide-header-account-avatar .music-ide-user-placeholder{
+  width:32px!important;
+  height:32px!important;
+  border-radius:999px!important;
+}
+.ide-header-account-name{
+  overflow:hidden;
+  min-width:0;
+  max-width:145px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:.8rem;
+  font-weight:750;
+}
+.ide-header-account-summary .fa-chevron-down{font-size:.7rem;transition:transform 160ms ease}
+.ide-header-account[open] .ide-header-account-summary .fa-chevron-down{transform:rotate(180deg)}
+.ide-header-account-panel{
+  position:absolute;
+  top:calc(100% + 8px);
+  right:0;
+  width:min(300px,calc(100vw - 24px));
+  overflow:hidden;
+  padding:8px;
+  color:var(--ide-text-on-dark,#f7f8f2);
+  border:1px solid var(--ide-border-on-dark,rgba(255,255,255,.16));
+  border-radius:16px;
+  background:var(--music-bg,#090b0c);
+  box-shadow:0 18px 48px rgba(0,0,0,.4);
+}
+.ide-header-account-profile{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-height:44px;
+  padding:9px 11px;
+  color:inherit;
+  border-radius:10px;
+  text-decoration:none;
+  font-size:.85rem;
+  font-weight:700;
+}
+.ide-header-account-profile:hover,
+.ide-header-account-profile:focus-visible{background:rgba(255,255,255,.07);outline:none}
+.ide-header-account-controls .music-ide-user{
+  position:static!important;
+  inset:auto!important;
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:8px!important;
+  width:100%!important;
+  max-width:none!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:8px 0 0!important;
+  color:inherit!important;
+  border:0!important;
+  border-top:1px solid rgba(255,255,255,.1)!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+}
+.ide-header-account-controls .music-ide-user>img,
+.ide-header-account-controls .music-ide-user>.music-ide-user-placeholder,
+.ide-header-account-controls .music-ide-user-name{display:none!important}
+.ide-header-account-controls .music-ide-theme-control{
+  display:grid!important;
+  grid-template-columns:24px 1fr;
+  align-items:center;
+  gap:8px;
+  width:100%;
+  margin:0!important;
+}
+.ide-header-account-controls .music-ide-theme-select{width:100%;min-height:44px!important}
+.ide-header-account-controls .music-ide-signout{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  width:100%;
+  min-height:44px;
+  margin:0!important;
+}
+
+@media(max-width:900px){
+  .ide-app-header-actions{
+    top:max(14px,env(safe-area-inset-top));
+    right:max(14px,env(safe-area-inset-right));
+    max-width:56px;
+  }
+  .ide-header-account{display:none!important}
+  .ide-app-header-actions .ide-notification-panel{
+    width:calc(100vw - 24px);
+    max-height:min(70vh,430px);
+  }
+}
