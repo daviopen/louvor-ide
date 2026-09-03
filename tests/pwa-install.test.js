@@ -63,6 +63,15 @@ test('injeção PWA é completa e idempotente em qualquer página', () => {
   assert.match(once, /src="\/pwa-runtime\.js"/);
 });
 
+test('central de notificações permanece desabilitada no carregamento global', () => {
+  const input = '<!doctype html><html><head><title>IDE Music</title></head><body></body></html>';
+  const html = injectPwaHead(input);
+  assert.doesNotMatch(html, /notification-center\.js/);
+  assert.doesNotMatch(html, /notification-push\.js/);
+  assert.doesNotMatch(html, /notification-domain-hooks\.js/);
+  assert.doesNotMatch(html, /notification-outbox-repository\.js/);
+});
+
 test('runtime PWA impede tela branca persistente no modo standalone', () => {
   const runtime = read('src/pwa/pwa-runtime.js');
   assert.match(runtime, /display-mode: standalone/);
