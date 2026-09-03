@@ -49,11 +49,12 @@
       .ide-notification-empty{padding:1.15rem 1rem;color:rgba(245,247,246,.68);text-align:center;font-size:.9rem}
       .ide-notification-mark-all{border:0;background:transparent;color:var(--primary,#b7ff35);font:inherit;font-size:.76rem;font-weight:750;cursor:pointer;padding:.3rem;border-radius:8px}
       .ide-notification-mark-all[hidden]{display:none}
-      .ide-notification-push{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.7rem 1rem;border-bottom:1px solid rgba(255,255,255,.1);font-size:.8rem;color:rgba(245,247,246,.78)}
+      .ide-notification-push{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.7rem 1rem;border-bottom:1px solid rgba(255,255,255,.1);font-size:.8rem;line-height:1.35;color:rgba(245,247,246,.78)}
       .ide-notification-push[hidden]{display:none}
       .ide-notification-push button{flex:0 0 auto}
       .ide-notification-backdrop{position:fixed;inset:0;z-index:10040;background:transparent}
-      @media (max-width:600px){.ide-notification-panel{width:calc(100vw - 24px);max-height:min(70vh,430px)}}`;
+      @media (max-width:600px){.ide-notification-panel{width:calc(100vw - 24px);max-height:min(70vh,430px)}.ide-notification-push{align-items:flex-start}}
+    `;
     scope.document.head.appendChild(style);
   }
 
@@ -162,37 +163,63 @@
     render([...currentItems]);
   }
 
-  function syncPushControl() {
+  function resolvePushStatus(input, api) {
+    if (typeof input === 'string') return input;
+    if (input?.detail?.status) return input.detail.status;
+    if (typeof api?.currentStatus === 'function') return api.currentStatus();
+    if (!api?.supported?.()) return 'UNSUPPORTED';
+    if (scope.Notification?.permission === 'granted') return 'ENABLED';
+    if (scope.Notification?.permission === 'denied') return 'DENIED';
+    return 'PERMISSION_REQUIRED';
+  }
+
+  function syncPushControl(statusInput) {
     const row = root()?.querySelector('.ide-notification-push');
     const text = row?.querySelector('[data-notification-push-text]');
     const button = scope.document.getElementById('ide-enable-notifications');
     if (!row || !text || !button) return;
 
     const api = scope.MusicIdeNotificationPush;
-    if (!api?.supported?.()) {
-      row.hidden = false;
-      text.textContent = 'Notificações push indisponíveis neste dispositivo.';
-      button.hidden = true;
-      return;
-    }
+    const status = resolvePushStatus(statusInput, api);
+    const label = button.querySelector('span');
+    button.dataset.notificationStatus = status;
+    button.dataset.notificationAction = 'enable';
+    button.hidden = false;
+    button.disabled = false;
+    row.hidden = false;
 
-    const permission = scope.Notification?.permission || 'default';
-    if (permission === 'granted') {
+    if (status === 'ENABLED') {
       row.hidden = true;
       return;
     }
 
-    row.hidden = false;
-    if (permission === 'denied') {
-      text.textContent = 'Notificações estão bloqueadas no navegador.';
+    if (status === 'IOS_INSTALL_REQUIRED') {
+      text.textContent = 'No iPhone/iPad, instale o IDE Music na Tela de Início e abra pelo ícone para ativar notificações.';
+      button.dataset.notificationAction = 'install';
+      if (label) label.textContent = 'Como instalar';
+      return;
+    }
+
+    if (status === 'UNSUPPORTED') {
+      text.textContent = 'Notificações push não estão disponíveis neste navegador ou dispositivo.';
       button.hidden = true;
       return;
     }
 
+    if (status === 'DENIED') {
+      text.textContent = 'Notificações estão bloqueadas nas configurações do navegador.';
+      button.hidden = true;
+      return;
+    }
+
+    if (status === 'FAILED') {
+      text.textContent = 'Não foi possível ativar as notificações. Verifique a conexão e tente novamente.';
+      if (label) label.textContent = 'Tentar novamente';
+      return;
+    }
+
     text.textContent = 'Receba avisos mesmo com o IDE Music fechado.';
-    button.hidden = false;
-    button.disabled = false;
-    button.querySelector('span').textContent = 'Ativar';
+    if (label) label.textContent = 'Ativar';
   }
 
   function positionPanel() {
@@ -279,12 +306,25 @@
       markAllRead().catch(error => console.warn('Não foi possível marcar notificações como lidas.', error));
     });
 
-    details.querySelector('#ide-enable-notifications').addEventListener('click', () => {
+    details.querySelector('#ide-enable-notifications').addEventListener('click', event => {
+      const button = event.currentTarget;
+      if (button.dataset.notificationAction === 'install') {
+        closePanel();
+        scope.location.href = 'help.html#help-install-title';
+        return;
+      }
+
       const api = scope.MusicIdeNotificationPush;
-      if (!api?.enable) return;
+      if (!api?.enable) {
+        syncPushControl('UNSUPPORTED');
+        return;
+      }
+      button.disabled = true;
+      const label = button.querySelector('span');
+      if (label) label.textContent = 'Ativando…';
       api.enable()
-        .then(() => syncPushControl())
-        .catch(() => syncPushControl());
+        .then(result => syncPushControl(result?.status))
+        .catch(() => syncPushControl('FAILED'));
     });
 
     account.prepend(details);
