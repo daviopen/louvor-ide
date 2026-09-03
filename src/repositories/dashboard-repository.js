@@ -48,6 +48,17 @@
       return snapshots.filter(snapshot => snapshot && snapshot.exists).map(snapshot => ({ id: snapshot.id, ...snapshot.data() }));
     }
 
+    async listMembersForSchedules(scheduleIds) {
+      const ids = uniqueIds(scheduleIds);
+      const queries = chunks(ids).map(group => {
+        let query = this.db.collection('scheduleMembers');
+        query = group.length === 1 ? query.where('scheduleId', '==', group[0]) : query.where('scheduleId', 'in', group);
+        return query.get();
+      });
+      const snapshots = await Promise.all(queries);
+      return snapshots.flatMap(snapshotToEntities).filter(item => item.active !== false);
+    }
+
     async getEventsByIds(eventIds) {
       const ids = uniqueIds(eventIds);
       const snapshots = await Promise.all(ids.map(id => this.db.collection('events').doc(id).get()));

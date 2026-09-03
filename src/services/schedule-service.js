@@ -2,10 +2,15 @@
  * Regras de negócio de Escalas.
  */
 (function initScheduleService(globalScope, factory) {
-  const api = factory();
+  const completenessApi = typeof module !== 'undefined' && module.exports
+    ? require('./schedule-completeness.js')
+    : globalScope?.MusicIdeScheduleCompleteness;
+  const api = factory(completenessApi);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (globalScope) globalScope.MusicIdeScheduleService = api;
-})(typeof window !== 'undefined' ? window : null, function createModule() {
+})(typeof window !== 'undefined' ? window : null, function createModule(completenessApi) {
+  const scheduleCompleteness = completenessApi?.scheduleCompleteness;
+  if (typeof scheduleCompleteness !== 'function') throw new Error('Regra de completude de escalas indisponível.');
   function toDate(value) {
     if (!value) return null;
     if (value && typeof value.toDate === 'function') return toDate(value.toDate());
@@ -83,15 +88,6 @@
       contextual.cause = error;
       throw contextual;
     }
-  }
-
-  function scheduleCompleteness(schedule, members) {
-    const slots = Array.isArray(schedule?.slots) ? schedule.slots : [];
-    const active = (members || []).filter(item => item.active !== false);
-    if (!slots.length) return { complete: false, filled: 0, total: 0, missingSlotIds: [] };
-    const occupied = new Set(active.map(item => item.slotId).filter(Boolean));
-    const missingSlotIds = slots.map(item => item.id).filter(id => !occupied.has(id));
-    return { complete: missingSlotIds.length === 0, filled: slots.length - missingSlotIds.length, total: slots.length, missingSlotIds };
   }
 
   function sortSlotsByFunction(slots, functions) {

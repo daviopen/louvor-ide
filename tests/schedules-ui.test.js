@@ -13,6 +13,7 @@ test('módulo de escalas é carregado pela área do sistema sem quebrar Eventos'
   assert.match(loader, /scheduleSections = new Set/);
   assert.match(loader, /monthlySections = new Set/);
   assert.match(loader, /schedule-repository\.js/);
+  assert.match(loader, /schedule-completeness\.js/);
   assert.match(loader, /schedule-service\.js/);
   assert.match(loader, /schedules-page\.js/);
   assert.match(loader, /schedules-monthly-ui\.js/);

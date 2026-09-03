@@ -18,13 +18,13 @@ test('Dashboard mostra somente escalas, setlists e indisponibilidades ligados ao
       { id: 'event-other', name: 'Outro evento', date: date('2026-08-27'), status: 'CONFIRMED' }
     ],
     schedules: [
-      { id: 'schedule-2', eventId: 'event-2', status: 'COMPLETE' },
-      { id: 'schedule-1', eventId: 'event-1', status: 'DRAFT' },
+      { id: 'schedule-2', eventId: 'event-2', status: 'DRAFT', slots: [{ id: 'slot-2' }] },
+      { id: 'schedule-1', eventId: 'event-1', status: 'COMPLETE', slots: [{ id: 'slot-1' }, { id: 'slot-empty' }] },
       { id: 'schedule-other', eventId: 'event-other', status: 'DRAFT' }
     ],
     scheduleMembers: [
-      { scheduleId: 'schedule-1', userId: 'user-1', active: true },
-      { scheduleId: 'schedule-2', userId: 'user-1', active: true },
+      { scheduleId: 'schedule-1', slotId: 'slot-1', userId: 'user-1', active: true },
+      { scheduleId: 'schedule-2', slotId: 'slot-2', userId: 'user-1', active: true },
       { scheduleId: 'schedule-other', userId: 'user-2', active: true }
     ],
     setlists: [
@@ -40,6 +40,7 @@ test('Dashboard mostra somente escalas, setlists e indisponibilidades ligados ao
   }, { now });
 
   assert.deepEqual(result.upcomingSchedules.map(item => item.id), ['schedule-1', 'schedule-2']);
+  assert.deepEqual(result.upcomingSchedules.map(item => item.status), ['DRAFT', 'COMPLETE']);
   assert.deepEqual(result.upcomingSetlists.map(item => item.id), ['setlist-1', 'setlist-2']);
   assert.deepEqual(result.upcomingUnavailability.map(item => item.id), ['u1', 'u2']);
   assert.deepEqual(result.userIndicators, {
@@ -74,9 +75,10 @@ test('DashboardService consulta somente relações ligadas ao usuário autentica
     async getOwnProfile(uid) { calls.push(['profile', uid]); return { id: uid, active: true, role: 'MEMBER' }; },
     async listOwnScheduleMembers(uid) { calls.push(['members', uid]); return [{ scheduleId: 'schedule-1', userId: uid, active: true }]; },
     async listOwnUnavailability(uid) { calls.push(['unavailability', uid]); return []; },
-    async getSchedulesByIds(ids) { calls.push(['schedulesByIds', ids]); return [{ id: 'schedule-1', eventId: 'event-1', status: 'DRAFT' }]; },
+    async getSchedulesByIds(ids) { calls.push(['schedulesByIds', ids]); return [{ id: 'schedule-1', eventId: 'event-1', status: 'DRAFT', slots: [{ id: 'slot-1' }] }]; },
     async getEventsByIds(ids) { calls.push(['eventsByIds', ids]); return [{ id: 'event-1', date: date('2026-08-26') }]; },
-    async listSetlistsForTargets(targets) { calls.push(['setlistsForTargets', targets]); return []; }
+    async listSetlistsForTargets(targets) { calls.push(['setlistsForTargets', targets]); return []; },
+    async listMembersForSchedules(ids) { calls.push(['membersForSchedules', ids]); return [{ scheduleId: 'schedule-1', slotId: 'slot-1', userId: 'user-1', active: true }]; }
   };
   const service = new DashboardService(repository, { clock: () => now });
   const result = await service.load('user-1');
@@ -88,7 +90,8 @@ test('DashboardService consulta somente relações ligadas ao usuário autentica
     ['unavailability', 'user-1'],
     ['schedulesByIds', ['schedule-1']],
     ['eventsByIds', ['event-1']],
-    ['setlistsForTargets', { scheduleIds: ['schedule-1'], eventIds: ['event-1'] }]
+    ['setlistsForTargets', { scheduleIds: ['schedule-1'], eventIds: ['event-1'] }],
+    ['membersForSchedules', ['schedule-1']]
   ]);
 });
 
@@ -106,11 +109,31 @@ test('DashboardRepository restringe participações e indisponibilidades ao user
   };
   const repository = new DashboardRepository(fakeDb);
   await repository.listOwnScheduleMembers('user-42');
+  await repository.listMembersForSchedules(['schedule-1']);
   await repository.listOwnUnavailability('user-42');
   assert.deepEqual(queries, [
     ['scheduleMembers', 'userId', '==', 'user-42'],
+    ['scheduleMembers', 'scheduleId', '==', 'schedule-1'],
     ['unavailability', 'userId', '==', 'user-42']
   ]);
+});
+
+test('Dashboard deriva o status pela mesma completude da tela de escala', () => {
+  const result = buildDashboardViewModel({
+    profile: { id: 'user-1', active: true },
+    events: [{ id: 'event-1', date: date('2026-08-26'), status: 'CONFIRMED' }],
+    schedules: [{ id: 'schedule-1', eventId: 'event-1', status: 'DRAFT', slots: [{ id: 'a' }, { id: 'b' }] }],
+    scheduleMembers: [
+      { scheduleId: 'schedule-1', slotId: 'a', userId: 'user-1', active: true },
+      { scheduleId: 'schedule-1', slotId: 'b', userId: 'user-2', active: true }
+    ],
+    setlists: [],
+    unavailability: []
+  }, { now });
+
+  assert.equal(result.upcomingSchedules[0].status, 'COMPLETE');
+  assert.equal(result.upcomingSchedules[0].completeness.complete, true);
+  assert.equal(result.userIndicators.draftSchedules, 0);
 });
 
 test('index.html contém somente as áreas pessoais solicitadas no Dashboard', () => {

@@ -31,10 +31,14 @@ test('mobile oculta o sino enquanto o drawer está aberto para evitar sobreposi�
 
 test('menu de conta desktop reutiliza os controles existentes', () => {
   assert.match(header, /ide-header-account-profile/);
+  assert.match(header, /<span>Meu perfil<\/span>/);
+  assert.doesNotMatch(header, /ide-header-account-name/);
+  assert.doesNotMatch(header, /fa-chevron-down/);
   assert.match(header, /ide-header-account-controls/);
   assert.match(header, /holder\.appendChild\(controls\)/);
   assert.match(css, /ide-header-account-controls \.music-ide-theme-control/);
   assert.match(css, /ide-header-account-controls \.music-ide-signout/);
+  assert.match(css, /\.ide-header-account-summary\{[^}]*width:46px[^}]*height:46px/s);
 });
 
 test('injeção global inclui estilos e comportamento do novo cabeçalho', () => {

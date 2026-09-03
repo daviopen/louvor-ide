@@ -2,11 +2,16 @@
  * Business rules and read model composition for the personal IDE Music Dashboard.
  */
 (function initDashboardService(globalScope, factory) {
-  const api = factory();
+  const completenessApi = typeof module !== 'undefined' && module.exports
+    ? require('./schedule-completeness.js')
+    : globalScope?.MusicIdeScheduleCompleteness;
+  const api = factory(completenessApi);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (globalScope) globalScope.MusicIdeDashboardService = api;
-})(typeof window !== 'undefined' ? window : null, function createDashboardServiceModule() {
+})(typeof window !== 'undefined' ? window : null, function createDashboardServiceModule(completenessApi) {
   const ACTIVE_SCHEDULE_STATUSES = new Set(['DRAFT', 'COMPLETE']);
+  const scheduleCompleteness = completenessApi?.scheduleCompleteness;
+  if (typeof scheduleCompleteness !== 'function') throw new Error('Regra de completude de escalas indisponível.');
 
   function toDate(value) {
     if (!value) return null;
@@ -58,14 +63,26 @@
     const ownMembers = members.filter(member => member && member.active !== false && (!userId || member.userId === userId));
     const ownScheduleIds = new Set(ownMembers.map(member => member.scheduleId).filter(Boolean));
 
+    const membersBySchedule = new Map();
+    members.filter(member => member?.active !== false).forEach(member => {
+      if (!member.scheduleId) return;
+      if (!membersBySchedule.has(member.scheduleId)) membersBySchedule.set(member.scheduleId, []);
+      membersBySchedule.get(member.scheduleId).push(member);
+    });
+
     const upcomingSchedulesAll = schedules
       .filter(schedule => ownScheduleIds.has(schedule.id))
       .filter(schedule => ACTIVE_SCHEDULE_STATUSES.has(String(schedule.status || '').toUpperCase()))
-      .map(schedule => ({
-        ...schedule,
-        date: linkedDate(schedule, eventsById),
-        event: eventsById.get(schedule.eventId) || null
-      }))
+      .map(schedule => {
+        const completeness = scheduleCompleteness(schedule, membersBySchedule.get(schedule.id) || []);
+        return {
+          ...schedule,
+          status: completeness.complete ? 'COMPLETE' : 'DRAFT',
+          completeness,
+          date: linkedDate(schedule, eventsById),
+          event: eventsById.get(schedule.eventId) || null
+        };
+      })
       .filter(schedule => futureOrToday(schedule.date, today))
       .sort(byDate);
 
@@ -123,14 +140,23 @@
       const scheduleIds = [...new Set(scheduleMembers.map(member => member.scheduleId).filter(Boolean))];
       const schedules = await this.repository.getSchedulesByIds(scheduleIds);
       const eventIds = [...new Set(schedules.map(schedule => schedule.eventId).filter(Boolean))];
-      const [events, setlists] = await Promise.all([
-        this.repository.getEventsByIds(eventIds),
-        this.repository.listSetlistsForTargets({ scheduleIds, eventIds })
+      const events = await this.repository.getEventsByIds(eventIds);
+      const today = startOfDay(this.clock());
+      const eventsById = new Map(events.map(event => [event.id, event]));
+      const upcomingSchedules = schedules.filter(schedule => (
+        ACTIVE_SCHEDULE_STATUSES.has(String(schedule.status || '').toUpperCase())
+        && futureOrToday(linkedDate(schedule, eventsById), today)
+      ));
+      const upcomingScheduleIds = upcomingSchedules.map(schedule => schedule.id).filter(Boolean);
+      const upcomingEventIds = [...new Set(upcomingSchedules.map(schedule => schedule.eventId).filter(Boolean))];
+      const [setlists, scheduleMembersForStatus] = await Promise.all([
+        this.repository.listSetlistsForTargets({ scheduleIds: upcomingScheduleIds, eventIds: upcomingEventIds }),
+        this.repository.listMembersForSchedules(upcomingScheduleIds)
       ]);
 
       return buildDashboardViewModel(
-        { profile, userId, events, schedules, scheduleMembers, setlists, unavailability },
-        { now: this.clock(), limit: this.limit }
+        { profile, userId, events, schedules, scheduleMembers: scheduleMembersForStatus, setlists, unavailability },
+        { now: today, limit: this.limit }
       );
     }
   }

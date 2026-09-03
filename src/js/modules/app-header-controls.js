@@ -39,16 +39,13 @@
     if (!summary || !controls) return;
 
     const visual = controls.querySelector('img, .music-ide-user-placeholder');
-    const name = controls.querySelector('.music-ide-user-name');
     const visualSlot = summary.querySelector('.ide-header-account-avatar');
-    const nameSlot = summary.querySelector('.ide-header-account-name');
 
     if (visualSlot && visual) {
       visualSlot.replaceChildren(visual.cloneNode(true));
       const clonedImage = visualSlot.querySelector('img');
       if (clonedImage) clonedImage.alt = '';
     }
-    if (nameSlot) nameSlot.textContent = name?.textContent?.trim() || 'Minha conta';
   }
 
   function createAccountMenu(controls) {
@@ -58,8 +55,6 @@
     menu.innerHTML = `
       <summary class="ide-header-account-summary" aria-label="Abrir opções da conta">
         <span class="ide-header-account-avatar" aria-hidden="true"></span>
-        <span class="ide-header-account-name">Minha conta</span>
-        <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
       </summary>
       <div class="ide-header-account-panel">
         <a class="ide-header-account-profile" href="profile.html">

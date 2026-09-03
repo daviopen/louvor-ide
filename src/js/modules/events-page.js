@@ -25,6 +25,7 @@
   }
 
   Promise.all(tasks)
+    .then(() => scheduleSections.has(section) ? loadScript('../services/schedule-completeness.js?v=20260903-schedule-status') : null)
     .then(() => scheduleSections.has(section) ? loadScript('../services/schedule-service.js?v=20260827-monthly') : null)
     .then(() => loadScript('../services/schedule-monthly-service.js?v=20260827-monthly'))
     .then(() => section === 'schedules' ? loadScript('../js/modules/schedules-page.js?v=20260827-monthly') : null)
