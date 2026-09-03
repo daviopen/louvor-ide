@@ -29,3 +29,13 @@ test('falha de ativação vira feedback visível e permite nova tentativa', () =
   assert.match(center, /Não foi possível ativar as notificações/);
   assert.match(center, /Tentar novamente/);
 });
+
+test('observador desconecta antes de sincronizar o botão e não cria ciclo de mutações', () => {
+  const observerCallback = push.slice(
+    push.indexOf('const observer = new scope.MutationObserver'),
+    push.indexOf('observer.observe')
+  );
+  assert.ok(observerCallback.indexOf('observer.disconnect()') < observerCallback.indexOf('syncExistingControl()'));
+  assert.match(push, /label\.textContent !== nextLabel/);
+  assert.match(push, /button\.dataset\.notificationStatus !== status/);
+});

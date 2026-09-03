@@ -174,7 +174,7 @@ test('perfil canônico hidrata READ mesmo sem espelhos materializados', async ()
   const authorization = await resolveAuthorizedProfile(scope, { uid: userId });
 
   assert.equal(authorization.profile.permissions.schedules, 'READ');
-  assert.equal(authorization.profile.permissions.users, undefined);
+  assert.equal(authorization.profile.permissions.users, 'NONE');
   assert.equal(counters.permissionReads, 0);
 });
 

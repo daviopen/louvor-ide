@@ -8,6 +8,7 @@ const {
   isActiveProfile,
   resolveAuthorizedProfile
 } = require('../src/js/modules/auth-service');
+const accessProfiles = require('../src/js/modules/access-profiles.js');
 
 function firestoreScope({ snapshot, permissions = {} }) {
   let setCalls = 0;
@@ -41,7 +42,7 @@ function firestoreScope({ snapshot, permissions = {} }) {
     }
   });
   firestore.FieldValue = { serverTimestamp() { return new Date(); } };
-  return { firebase: { firestore }, setCalls: () => setCalls };
+  return { firebase: { firestore }, MusicIdeAccessProfiles: accessProfiles, setCalls: () => setCalls };
 }
 
 test('perfil só é ativo com active=true explícito', () => {
@@ -86,12 +87,9 @@ test('perfil existente inativo é rejeitado pelo gate da aplicação', async () 
 
 test('perfil existente ativo é autorizado pelo gate da aplicação com permissões efetivas', async () => {
   const userId = 'active';
-  const profile = { uid: userId, active: true, role: 'MEMBER' };
+  const profile = { uid: userId, active: true, role: 'MEMBER', accessProfile: 'PARTICIPANT' };
   const scope = firestoreScope({
-    snapshot: { exists: true, data() { return profile; } },
-    permissions: {
-      [`${userId}__dashboard`]: { userId, module: 'dashboard', level: 'READ' }
-    }
+    snapshot: { exists: true, data() { return profile; } }
   });
 
   const result = await resolveAuthorizedProfile(scope, { uid: userId });

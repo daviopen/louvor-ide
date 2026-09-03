@@ -40,10 +40,9 @@ test('Audit Log possui janela limitada e teto explícito', () => {
   assert.match(source, /\.limit\(safeLimit\)\.get\(\)/);
 });
 
-test('Notification Outbox não volta ao polling de cinco minutos', () => {
-  const source = read('.github/workflows/notification-outbox.yml');
-  assert.match(source, /cron: '\*\/15 \* \* \* \*'/);
-  assert.doesNotMatch(source, /cron: '\*\/5 \* \* \* \*'/);
+test('Notification Outbox permanece sem processamento agendado', () => {
+  const workflow = path.join(__dirname, '..', '.github/workflows/notification-outbox.yml');
+  assert.equal(fs.existsSync(workflow), false);
 });
 
 test('budgets de Firestore permanecem documentados', () => {

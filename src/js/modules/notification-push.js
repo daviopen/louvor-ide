@@ -136,10 +136,13 @@
         [STATUS.IOS_INSTALL_REQUIRED]: 'Como instalar',
         [STATUS.FAILED]: 'Tentar novamente'
       };
-      if (label) label.textContent = labels[status] || 'Ativar';
-      button.disabled = status === STATUS.ENABLED;
-      button.setAttribute('aria-pressed', String(status === STATUS.ENABLED));
-      button.dataset.notificationStatus = status;
+      const nextLabel = labels[status] || 'Ativar';
+      const nextDisabled = status === STATUS.ENABLED;
+      const nextPressed = String(nextDisabled);
+      if (label && label.textContent !== nextLabel) label.textContent = nextLabel;
+      if (button.disabled !== nextDisabled) button.disabled = nextDisabled;
+      if (button.getAttribute('aria-pressed') !== nextPressed) button.setAttribute('aria-pressed', nextPressed);
+      if (button.dataset.notificationStatus !== status) button.dataset.notificationStatus = status;
     }
     publishStatus(status);
   }
@@ -200,11 +203,17 @@
       });
     }
 
-    const observer = new MutationObserver(() => {
-      if (scope.document.getElementById(BUTTON_ID)) syncExistingControl();
-    });
-    if (scope.document.body) observer.observe(scope.document.body, { childList: true, subtree: true });
-    scope.setTimeout(() => observer.disconnect(), 15000);
+    if (typeof scope.MutationObserver === 'function' && scope.document.body && !scope.document.getElementById(BUTTON_ID)) {
+      const observer = new scope.MutationObserver(() => {
+        if (!scope.document.getElementById(BUTTON_ID)) return;
+        // A sincronização altera o próprio botão. Desconectar primeiro impede
+        // que essas mutações reativem o callback em um ciclo sem fim.
+        observer.disconnect();
+        syncExistingControl();
+      });
+      observer.observe(scope.document.body, { childList: true, subtree: true });
+      scope.setTimeout(() => observer.disconnect(), 15000);
+    }
   }
 
   scope.MusicIdeNotificationPush = Object.freeze({
