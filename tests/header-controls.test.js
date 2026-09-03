@@ -25,6 +25,10 @@ test('mobile mantém a conta dentro do menu e o sino no topo', () => {
   assert.match(css, /\.ide-header-account\{display:none!important\}/);
 });
 
+test('mobile oculta o sino enquanto o drawer está aberto para evitar sobreposição', () => {
+  assert.match(css, /body\.ide-sidebar-open \.ide-app-header-actions\{[^}]*visibility:hidden[^}]*opacity:0[^}]*pointer-events:none/s);
+});
+
 test('menu de conta desktop reutiliza os controles existentes', () => {
   assert.match(header, /ide-header-account-profile/);
   assert.match(header, /ide-header-account-controls/);
