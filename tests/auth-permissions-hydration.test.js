@@ -5,6 +5,7 @@ const {
   loadEffectivePermissions,
   resolveAuthorizedProfile
 } = require('../src/js/modules/auth-service');
+const accessProfiles = require('../src/js/modules/access-profiles.js');
 
 function snapshot(exists, data = null) {
   return {
@@ -13,13 +14,10 @@ function snapshot(exists, data = null) {
   };
 }
 
-test('hidrata permissões efetivas do usuário antes de liberar a sessão', async () => {
+test('hidrata permissões canônicas com uma única leitura do perfil', async () => {
   const userId = 'user-davi';
-  const reads = [];
-  const permissionData = {
-    [`${userId}__dashboard`]: { userId, module: 'dashboard', level: 'READ' },
-    [`${userId}__unavailability`]: { userId, module: 'unavailability', level: 'EDIT' }
-  };
+  let profileReads = 0;
+  let permissionReads = 0;
 
   const database = {
     collection(name) {
@@ -29,12 +27,14 @@ test('hidrata permissões efetivas do usuário antes de liberar a sessão', asyn
             assert.equal(id, userId);
             return {
               async get() {
+                profileReads += 1;
                 return snapshot(true, {
                   uid: userId,
                   name: 'Davi',
                   email: 'davi.alves.de.sousa@gmail.com',
                   active: true,
-                  role: 'MEMBER'
+                  role: 'MEMBER',
+                  accessProfile: 'PARTICIPANT'
                 });
               }
             };
@@ -42,34 +42,29 @@ test('hidrata permissões efetivas do usuário antes de liberar a sessão', asyn
         };
       }
 
-      assert.equal(name, 'permissions');
-      return {
-        doc(id) {
-          reads.push(id);
-          return {
-            async get() {
-              return permissionData[id]
-                ? snapshot(true, permissionData[id])
-                : snapshot(false);
-            }
-          };
-        }
-      };
+      if (name === 'permissions') {
+        permissionReads += 1;
+        throw new Error('bootstrap não deve consultar a coleção permissions');
+      }
+      throw new Error(`collection inesperada: ${name}`);
     }
   };
 
-  const scope = { firebase: { firestore: () => database } };
+  const scope = {
+    firebase: { firestore: () => database },
+    MusicIdeAccessProfiles: accessProfiles
+  };
   const authorization = await resolveAuthorizedProfile(scope, { uid: userId });
 
   assert.equal(authorization.authorized, true);
   assert.equal(authorization.profile.permissions.dashboard, 'READ');
   assert.equal(authorization.profile.permissions.unavailability, 'EDIT');
-  assert.equal(authorization.profile.permissions.events, undefined);
-  assert.ok(reads.includes(`${userId}__unavailability`));
-  assert.equal(reads.every(id => id.startsWith(`${userId}__`)), true);
+  assert.equal(authorization.profile.permissions.events, 'READ');
+  assert.equal(profileReads, 1);
+  assert.equal(permissionReads, 0);
 });
 
-test('ignora documentos de permissão inconsistentes ou com nível inválido', async () => {
+test('ignora documentos de permissão inconsistentes ou com nível inválido em auditoria explícita', async () => {
   const userId = 'member-1';
   const database = {
     collection(name) {
