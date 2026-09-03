@@ -347,6 +347,9 @@
     }
   }
 
+  // Mantida para ferramentas administrativas/auditorias explícitas. O bootstrap
+  // de autenticação não usa mais esta rotina: as Firestore Rules são a autoridade
+  // para acesso aos dados e o frontend deriva a UX do accessProfile canônico.
   async function loadEffectivePermissions(scope, userId, mirroredPermissions = {}, canonicalPermissions = {}) {
     const database = scope.firebase.firestore();
     const permissionsCollection = database.collection('permissions');
@@ -381,6 +384,10 @@
       error.code = 'app/firestore-unavailable';
       throw error;
     }
+
+    // Única leitura necessária para o bootstrap normal: confirma existência,
+    // active=true e obtém o accessProfile atual. As Rules continuam validando
+    // cada leitura/escrita protegida no servidor.
     const profileRef = scope.firebase.firestore().collection('users').doc(user.uid);
     const snapshot = await profileRef.get();
     if (!snapshot.exists) {
@@ -388,6 +395,21 @@
     }
     const profile = snapshot.data() || null;
     if (!isActiveProfile(profile)) return { authorized: false, reason: 'inactive', profile, permissionsFromCache: false };
+
+    if (profile.role === 'SUPER_ADMIN') {
+      return {
+        authorized: true,
+        reason: null,
+        permissionsFromCache: false,
+        profile: { ...profile, permissions: {} }
+      };
+    }
+
+    const accessProfiles = await loadAccessProfiles(scope).catch(() => null);
+    const canonicalProfile = accessProfiles?.normalizeProfile(profile.accessProfile);
+    if (!canonicalProfile) {
+      return { authorized: false, reason: 'invalid-profile', profile, permissionsFromCache: false };
+    }
 
     const cachedProfile = options.cachedProfile;
     const canReusePermissions = Boolean(
@@ -399,19 +421,15 @@
       && cachedProfile.permissions
       && typeof cachedProfile.permissions === 'object'
     );
-    const accessProfiles = await loadAccessProfiles(scope).catch(() => null);
-    const canonicalProfile = accessProfiles?.normalizeProfile(profile.accessProfile);
-    const canonicalPermissions = canonicalProfile ? accessProfiles.permissionsFor(canonicalProfile) : {};
-    const permissions = profile.role === 'SUPER_ADMIN'
-      ? {}
-      : canReusePermissions
-        ? cachedProfile.permissions
-        : await loadEffectivePermissions(scope, user.uid, profile.permissions, canonicalPermissions);
+
+    const permissions = canReusePermissions
+      ? cachedProfile.permissions
+      : accessProfiles.permissionsFor(canonicalProfile);
 
     return {
       authorized: true,
       reason: null,
-      permissionsFromCache: profile.role !== 'SUPER_ADMIN' && canReusePermissions,
+      permissionsFromCache: canReusePermissions,
       profile: { ...profile, permissions }
     };
   }
@@ -419,6 +437,7 @@
   function authorizationFailureMessage(reason) {
     if (reason === 'inactive') return 'Esta conta está desativada. Procure a liderança do ministério.';
     if (reason === 'not-provisioned') return 'Esta conta ainda não foi liberada pela liderança.';
+    if (reason === 'invalid-profile') return 'Seu perfil de acesso está inválido. Procure a liderança do ministério.';
     if (reason === 'transient') return 'Não foi possível validar seu acesso agora. Verifique sua conexão e tente novamente.';
     return 'Não foi possível validar sua autorização. Tente novamente.';
   }
@@ -556,10 +575,9 @@
         return;
       }
 
-      // As permissões são hidratadas no login/bootstrap da sessão e ficam em
-      // sessionStorage somente como cache de UX. Em cada página o perfil ainda
-      // é relido para confirmar active=true; as Firestore Rules seguem como
-      // autoridade definitiva para qualquer leitura/escrita protegida.
+      // Em cada página fazemos somente a leitura do próprio perfil para validar
+      // active/accessProfile. A matriz canônica alimenta a UX; as Firestore Rules
+      // seguem como autoridade definitiva para qualquer operação protegida.
       const cachedProfile = onLoginPage ? null : readAuthorizationCache(scope, user.uid);
       let authorization;
       try {
