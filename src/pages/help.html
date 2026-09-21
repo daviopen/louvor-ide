@@ -3,165 +3,133 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ajuda — IDE Music</title>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="../config/firebase-config.js"></script>
-  <script src="../js/modules/auth-service.js?v=20260825-email"></script>
-  <script src="../js/modules/app-shell.js?v=20260826-help" defer></script>
+  <meta name="theme-color" content="#090b0c">
+  <title>Manual de uso — IDE Music</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/design-system.css">
   <link rel="stylesheet" href="../css/music-ide-theme.css">
-  <link rel="stylesheet" href="../styles/help.css?v=20260826-help">
+  <link rel="stylesheet" href="../styles/help.css?v=20260921-public-manual">
 </head>
-<body>
+<body class="help-public-page">
+  <header class="ide-help-public-header">
+    <a class="ide-help-brand" href="login.html" aria-label="Voltar para o login do IDE Music">
+      <span class="ide-help-brand__dot" aria-hidden="true"></span>
+      <span>IDE Music</span>
+    </a>
+    <a class="ide-help-login" href="login.html"><i class="fa-solid fa-arrow-right-to-bracket" aria-hidden="true"></i> Entrar</a>
+  </header>
+
   <main class="ide-help" id="help-main">
     <header class="ide-help__hero">
       <div>
-        <span class="ide-module-kicker">Central de ajuda</span>
+        <span class="ide-module-kicker">Manual rápido · acesso público</span>
         <h1>Como usar o IDE Music</h1>
-        <p>Entenda para que serve cada módulo, quais ações ele oferece e como as áreas do sistema se conectam no planejamento do ministério.</p>
+        <p>Um passo a passo simples para consultar seu painel, informar quando você não poderá servir e visualizar escalas e setlists.</p>
       </div>
-      <div class="ide-help__hero-icon" aria-hidden="true"><i class="fa-solid fa-circle-question"></i></div>
+      <div class="ide-help__hero-icon" aria-hidden="true"><i class="fa-solid fa-book-open"></i></div>
     </header>
 
-    <section class="ide-help__intro" aria-labelledby="help-start-title">
+    <nav class="ide-help__quick-nav" aria-label="Ir direto para uma seção">
+      <a href="#dashboard"><i class="fa-solid fa-house" aria-hidden="true"></i><span>Dashboard</span></a>
+      <a href="#indisponibilidade"><i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i><span>Indisponibilidade</span></a>
+      <a href="#escalas"><i class="fa-solid fa-people-group" aria-hidden="true"></i><span>Escalas</span></a>
+      <a href="#setlists"><i class="fa-solid fa-list-check" aria-hidden="true"></i><span>Setlists</span></a>
+    </nav>
+
+    <section class="ide-help__notice" aria-label="Antes de começar">
+      <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
       <div>
-        <h2 id="help-start-title">Visão geral</h2>
-        <p>O IDE Music organiza o fluxo do ministério desde a disponibilidade das pessoas até o evento, a escala, o setlist e as músicas usadas na ministração. Os módulos exibidos para cada pessoa podem variar conforme suas permissões; a Central de Ajuda, porém, fica disponível para todos os usuários autenticados.</p>
-      </div>
-      <div class="ide-help__flow" aria-label="Fluxo principal do sistema">
-        <span>Indisponibilidade</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-        <span>Evento</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-        <span>Escala</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-        <span>Setlist</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-        <span>Músicas</span>
+        <strong>Antes de começar</strong>
+        <p>Depois de entrar no sistema, o menu e algumas ações podem variar conforme sua permissão. O Dashboard mostra apenas informações relacionadas ao seu usuário.</p>
       </div>
     </section>
 
-    <section class="ide-help__intro" aria-labelledby="help-install-title">
+    <section class="ide-help-guide" id="dashboard" aria-labelledby="dashboard-title">
+      <div class="ide-help-guide__heading">
+        <div class="ide-help-guide__number">01</div>
+        <div>
+          <span class="ide-module-kicker">Seu ponto de partida</span>
+          <h2 id="dashboard-title">Dashboard</h2>
+          <p>É a primeira tela após o login. Ela reúne somente os compromissos e informações ligados a você.</p>
+        </div>
+      </div>
+      <ol class="ide-help-steps">
+        <li><span class="ide-help-step__index">1</span><div><strong>Entre no IDE Music.</strong><p>Após o login, você será direcionado ao Dashboard.</p></div></li>
+        <li><span class="ide-help-step__index">2</span><div><strong>Veja “Minhas próximas escalas”.</strong><p>Aqui aparecem os próximos eventos em que você foi escalado. Toque no título da área para abrir a consulta de escalas.</p></div></li>
+        <li><span class="ide-help-step__index">3</span><div><strong>Veja “Meus setlists”.</strong><p>Mostra os setlists dos eventos em que você está envolvido. Toque no título para abrir todos os seus próximos setlists.</p></div></li>
+        <li><span class="ide-help-step__index">4</span><div><strong>Confira “Minhas indisponibilidades”.</strong><p>Use esta área para revisar os próximos dias em que você informou que não poderá servir.</p></div></li>
+      </ol>
+      <div class="ide-help-guide__tip"><i class="fa-solid fa-lightbulb" aria-hidden="true"></i><span>O Dashboard é pessoal: ele não é uma visão geral de toda a equipe.</span></div>
+    </section>
+
+    <section class="ide-help-guide" id="indisponibilidade" aria-labelledby="unavailability-title">
+      <div class="ide-help-guide__heading">
+        <div class="ide-help-guide__number">02</div>
+        <div>
+          <span class="ide-module-kicker">Avise antes da escala</span>
+          <h2 id="unavailability-title">Como informar uma indisponibilidade</h2>
+          <p>Registre com antecedência quando você não poderá servir. O sistema usa essa informação para evitar conflitos na montagem das escalas.</p>
+        </div>
+      </div>
+      <ol class="ide-help-steps">
+        <li><span class="ide-help-step__index">1</span><div><strong>Abra “Indisponibilidade”.</strong><p>No menu, acesse <b>Escalas → Indisponibilidade</b>. Você também pode chegar por “Minhas indisponibilidades” no Dashboard.</p></div></li>
+        <li><span class="ide-help-step__index">2</span><div><strong>Toque em “Nova indisponibilidade”.</strong><p>Será aberta uma janela para registrar o período.</p></div></li>
+        <li><span class="ide-help-step__index">3</span><div><strong>Escolha a data.</strong><p>Informe o dia em que você não poderá servir.</p></div></li>
+        <li><span class="ide-help-step__index">4</span><div><strong>Escolha o período.</strong><p>Você pode marcar <b>Dia inteiro</b>, <b>Manhã</b>, <b>Tarde</b> ou <b>Noite</b>.</p></div></li>
+        <li><span class="ide-help-step__index">5</span><div><strong>Evento específico é opcional.</strong><p>Se selecionar um evento, a indisponibilidade valerá somente para ele. Se deixar em branco, valerá para qualquer escala compatível naquela data e período.</p></div></li>
+        <li><span class="ide-help-step__index">6</span><div><strong>Adicione uma observação, se necessário.</strong><p>É opcional. Evite colocar informações pessoais ou sensíveis que não sejam necessárias.</p></div></li>
+        <li><span class="ide-help-step__index">7</span><div><strong>Toque em “Salvar indisponibilidade”.</strong><p>Depois de salvar, confira o registro na lista ou no calendário da própria tela.</p></div></li>
+      </ol>
+      <div class="ide-help-guide__tip ide-help-guide__tip--important"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>Informe a indisponibilidade antes da escala ser montada sempre que possível. Isso reduz trocas e ajustes de última hora.</span></div>
+    </section>
+
+    <section class="ide-help-guide" id="escalas" aria-labelledby="schedules-title">
+      <div class="ide-help-guide__heading">
+        <div class="ide-help-guide__number">03</div>
+        <div>
+          <span class="ide-module-kicker">Quem serve e onde</span>
+          <h2 id="schedules-title">Como visualizar as escalas</h2>
+          <p>A consulta mostra os eventos e as pessoas escaladas em cada função ministerial.</p>
+        </div>
+      </div>
+      <ol class="ide-help-steps">
+        <li><span class="ide-help-step__index">1</span><div><strong>Pelo Dashboard.</strong><p>Na área “Minhas próximas escalas”, você vê rapidamente os próximos eventos em que participa. Toque no título para abrir a tela de escalas.</p></div></li>
+        <li><span class="ide-help-step__index">2</span><div><strong>Ou abra pelo menu.</strong><p>Acesse <b>Escalas → Escalas</b>.</p></div></li>
+        <li><span class="ide-help-step__index">3</span><div><strong>Localize o evento.</strong><p>Use o mês e os filtros disponíveis para encontrar a data ou evento desejado.</p></div></li>
+        <li><span class="ide-help-step__index">4</span><div><strong>Abra a visualização.</strong><p>Use a ação de visualizar (ícone de olho, quando exibido) para consultar a escala sem alterar nada.</p></div></li>
+        <li><span class="ide-help-step__index">5</span><div><strong>Confira equipe e funções.</strong><p>Veja quem está escalado e a função de cada pessoa no evento.</p></div></li>
+      </ol>
+      <div class="ide-help-guide__tip"><i class="fa-solid fa-eye" aria-hidden="true"></i><span>Consultar uma escala não altera o planejamento. Ações de edição aparecem somente para quem possui a permissão correspondente.</span></div>
+    </section>
+
+    <section class="ide-help-guide" id="setlists" aria-labelledby="setlists-title">
+      <div class="ide-help-guide__heading">
+        <div class="ide-help-guide__number">04</div>
+        <div>
+          <span class="ide-module-kicker">Repertório do evento</span>
+          <h2 id="setlists-title">Como visualizar os setlists</h2>
+          <p>O setlist reúne a sequência de músicas preparada para cada evento, com acesso às informações musicais usadas pela equipe.</p>
+        </div>
+      </div>
+      <ol class="ide-help-steps">
+        <li><span class="ide-help-step__index">1</span><div><strong>Pelo Dashboard.</strong><p>Na área “Meus setlists”, abra um dos próximos eventos ou toque no título para consultar todos os seus setlists.</p></div></li>
+        <li><span class="ide-help-step__index">2</span><div><strong>Ou abra pelo menu.</strong><p>Acesse <b>Setlist → Próximos</b>.</p></div></li>
+        <li><span class="ide-help-step__index">3</span><div><strong>Escolha o evento.</strong><p>Localize o culto ou encontro que deseja consultar e abra o setlist correspondente.</p></div></li>
+        <li><span class="ide-help-step__index">4</span><div><strong>Veja a ordem das músicas.</strong><p>A sequência exibida representa a ordem planejada para a ministração.</p></div></li>
+        <li><span class="ide-help-step__index">5</span><div><strong>Abra a música.</strong><p>Quando disponível, você pode acessar cifra, letra e informações como tom e demais referências musicais.</p></div></li>
+        <li><span class="ide-help-step__index">6</span><div><strong>Use o modo de palco.</strong><p>Quando essa opção estiver disponível para o seu acesso, abra a visualização preparada para acompanhar a execução durante a ministração.</p></div></li>
+      </ol>
+      <div class="ide-help-guide__tip"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><span>Para consultar repertórios antigos, use <b>Setlist → Histórico</b>.</span></div>
+    </section>
+
+    <section class="ide-help__final">
       <div>
-        <span class="ide-module-kicker">📱 Instalar no celular</span>
-        <h2 id="help-install-title">Use o portal como aplicativo</h2>
-        <p>Instalado na tela inicial, o IDE Music abre em tela cheia e aparece com a mesma logo oficial usada no Instagram <strong>@music.ide</strong>.</p>
+        <span class="ide-module-kicker">Pronto para usar</span>
+        <h2>Voltar para o IDE Music</h2>
+        <p>Você pode consultar este manual mesmo sem estar conectado ao sistema.</p>
       </div>
-      <div class="ide-help__tips-grid">
-        <p><strong>iPhone/iPad (Safari)</strong><br>1. Abra o portal no Safari.<br>2. Toque em Compartilhar (quadrado com seta para cima).<br>3. Role e toque em <em>Adicionar à Tela de Início</em>.<br>4. Toque em <em>Adicionar</em>. O ícone aparecerá na tela inicial.</p>
-        <p><strong>Android (Chrome)</strong><br>Abra o portal no Chrome e use o menu ⋮ → <em>Instalar app</em> ou <em>Adicionar à tela inicial</em>, conforme a opção exibida pelo aparelho.</p>
-      </div>
-      <p><strong>Já tinha instalado?</strong> Remova o atalho antigo e instale novamente para o celular buscar a nova logo.</p>
-    </section>
-
-    <section class="ide-help__grid" aria-label="Módulos do IDE Music">
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-house" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Visão pessoal</span><h2>Dashboard</h2></div>
-        <p>É o painel inicial de cada usuário. Resume somente informações em que a própria pessoa está envolvida.</p>
-        <ul><li>Consultar próximas escalas.</li><li>Acessar setlists dos eventos em que participa.</li><li>Visualizar próximas indisponibilidades.</li><li>Acompanhar indicadores pessoais.</li></ul>
-      </article>
-
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-users" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Usuários</span><h2>Usuários</h2></div>
-        <p>Centraliza o cadastro e a manutenção das pessoas que utilizam o IDE Music e/ou servem no ministério.</p>
-        <ul><li>Consultar pessoas cadastradas.</li><li>Criar e editar usuários quando autorizado.</li><li>Manter dados de identificação e situação do usuário.</li><li>Relacionar a pessoa às funções ministeriais disponíveis.</li></ul>
-      </article>
-
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-lock" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Usuários</span><h2>Permissões</h2></div>
-        <p>Define o que cada usuário pode fazer em cada módulo, sem confundir acesso ao sistema com função ministerial.</p>
-        <ul><li>Definir Sem acesso, Leitura ou Edição por módulo.</li><li>Restringir áreas administrativas.</li><li>Permitir consulta sem conceder alteração.</li><li>Revisar a matriz de acesso de cada usuário.</li></ul>
-      </article>
-
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Escalas</span><h2>Indisponibilidade</h2></div>
-        <p>Registra quando uma pessoa não poderá servir para que conflitos sejam considerados antes da montagem das escalas.</p>
-        <ul><li>Registrar indisponibilidade por data.</li><li>Informar período do dia ou dia inteiro.</li><li>Vincular a indisponibilidade a um evento específico.</li><li>Consultar registros futuros no calendário.</li><li>Em modo administrativo, gerenciar registros de outras pessoas.</li></ul>
-      </article>
-
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Escalas</span><h2>Eventos</h2></div>
-        <p>Representa os cultos, encontros e demais compromissos do ministério que precisam de planejamento.</p>
-        <ul><li>Criar eventos com nome, data, horário, local e tema.</li><li>Controlar o status do evento.</li><li>Pesquisar e filtrar eventos, inclusive por mês.</li><li>Manter uma escala e um setlist vinculados ao evento.</li><li>Excluir o evento e seus vínculos quando necessário, mediante confirmação.</li></ul>
-      </article>
-
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Escalas</span><h2>Escalas</h2></div>
-        <p>Organiza quem servirá em cada evento e em qual função ministerial.</p>
-        <ul><li>Consultar a equipe escalada por evento.</li><li>Definir pessoas por função ministerial.</li><li>Considerar indisponibilidades antes de escalar.</li><li>Filtrar por mês, data, evento, pessoa e função.</li><li>Na edição, acompanhar o total mensal de participações de todos os usuários ativos.</li></ul>
-      </article>
-
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Escalas</span><h2>Exportar</h2></div>
-        <p>Gera uma visão mensal organizada das escalas para impressão ou salvamento em PDF.</p>
-        <ul><li>Selecionar o mês desejado.</li><li>Visualizar cada evento e sua equipe.</li><li>Usar o botão Exportar PDF.</li><li>Incluir ao final a lista de indisponibilidades do mês.</li></ul>
-      </article>
-
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-chart-column" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Escalas</span><h2>Participações</h2></div>
-        <p>Mostra quantas escalas cada pessoa participou no mês selecionado.</p>
-        <ul><li>Exibir todos os usuários ativos, inclusive com total zero.</li><li>Contar cada pessoa apenas uma vez por evento.</li><li>Não duplicar a contagem quando a pessoa ocupa duas funções na mesma escala.</li></ul>
-      </article>
-
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-list-check" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Setlist</span><h2>Próximos</h2></div>
-        <p>Mostra os setlists de eventos futuros e permite preparar a sequência musical da ministração.</p>
-        <ul><li>Acessar o setlist vinculado a cada evento.</li><li>Adicionar e ordenar músicas.</li><li>Definir informações musicais e observações do set.</li><li>Acessar cifras e letras.</li><li>Abrir a visualização de palco para uso durante a execução.</li></ul>
-      </article>
-
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Setlist</span><h2>Histórico</h2></div>
-        <p>Concentra setlists de eventos passados para consulta e referência do repertório já utilizado.</p>
-        <ul><li>Revisar repertórios anteriores.</li><li>Consultar a sequência usada em eventos passados.</li><li>Usar o histórico como referência para planejamentos futuros.</li></ul>
-      </article>
-
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-music" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Músicas</span><h2>Consultar</h2></div>
-        <p>É a biblioteca de repertório do ministério, reunindo as músicas cadastradas e seus dados musicais.</p>
-        <ul><li>Buscar e filtrar músicas.</li><li>Consultar detalhes, cifra e letra.</li><li>Abrir uma música em modo de palco.</li><li>Editar músicas quando houver permissão.</li><li>Usar o repertório cadastrado nos setlists.</li></ul>
-      </article>
-
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-circle-plus" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Músicas</span><h2>Nova Música</h2></div>
-        <p>Permite incluir repertório novo na biblioteca do IDE Music.</p>
-        <ul><li>Cadastrar título, artista e informações musicais.</li><li>Informar tom, BPM e demais referências disponíveis.</li><li>Adicionar cifra e letra conforme o fluxo do sistema.</li><li>Preparar a música para uso posterior em setlists.</li></ul>
-      </article>
-
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Administração</span><h2>Auditoria</h2></div>
-        <p>Fornece rastreabilidade das alterações relevantes realizadas no sistema.</p>
-        <ul><li>Consultar registros de ações administrativas.</li><li>Identificar quem realizou uma alteração.</li><li>Verificar data, contexto e tipo de operação registrada.</li><li>Apoiar investigação de mudanças e governança do sistema.</li></ul>
-      </article>
-
-      <article class="ide-help-card">
-        <div class="ide-help-card__icon"><i class="fa-solid fa-gear" aria-hidden="true"></i></div>
-        <div><span class="ide-help-card__group">Administração</span><h2>Configurações</h2></div>
-        <p>É a área reservada para preferências e parâmetros administrativos que afetam o comportamento geral do IDE Music.</p>
-        <ul><li>Centralizar configurações globais do sistema.</li><li>Reunir parâmetros que não pertencem a um módulo operacional específico.</li><li>Disponibilizar novas preferências administrativas à medida que forem implementadas.</li></ul>
-      </article>
-    </section>
-
-    <section class="ide-help__tips" aria-labelledby="help-tips-title">
-      <div class="ide-help__tips-heading"><i class="fa-solid fa-lightbulb" aria-hidden="true"></i><div><span class="ide-module-kicker">Boas práticas</span><h2 id="help-tips-title">Como aproveitar melhor o sistema</h2></div></div>
-      <div class="ide-help__tips-grid">
-        <p><strong>Informe indisponibilidades antes da escala.</strong> Isso reduz conflitos e retrabalho no planejamento.</p>
-        <p><strong>Mantenha eventos atualizados.</strong> Data, horário e status alimentam o contexto de escala e setlist.</p>
-        <p><strong>Cadastre o repertório antes de montar o setlist.</strong> Assim cifras, letras e dados musicais ficam reutilizáveis.</p>
-        <p><strong>Use o histórico.</strong> Ele ajuda a evitar repetição excessiva e facilita recuperar repertórios já executados.</p>
-      </div>
+      <a class="ide-help__primary-action" href="login.html"><i class="fa-solid fa-arrow-right-to-bracket" aria-hidden="true"></i> Ir para o login</a>
     </section>
   </main>
 </body>
