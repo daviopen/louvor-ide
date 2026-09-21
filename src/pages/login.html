@@ -286,8 +286,36 @@
       background: rgba(216, 255, 69, 0.38);
     }
 
+    .public-help-link {
+      display: inline-flex;
+      width: 100%;
+      min-height: 46px;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: var(--ide-space-5);
+      padding: 0 16px;
+      border: 1px solid rgba(17, 20, 21, 0.16);
+      border-radius: var(--ide-radius-md);
+      color: var(--ide-color-neutral-800) !important;
+      background: var(--ide-color-neutral-50);
+      font-size: var(--ide-font-size-sm);
+      font-weight: var(--ide-font-weight-bold);
+      text-decoration: none;
+    }
+
+    .public-help-link:hover {
+      border-color: rgba(17, 20, 21, 0.32);
+      background: var(--ide-color-neutral-100);
+    }
+
+    .public-help-link:focus-visible {
+      outline: 3px solid var(--ide-primary-ring);
+      outline-offset: 3px;
+    }
+
     .install-guide {
-      margin-top: var(--ide-space-6);
+      margin-top: var(--ide-space-4);
       border: 1px solid rgba(17, 20, 21, 0.12);
       border-radius: var(--ide-radius-lg);
       background: var(--ide-color-neutral-50);
@@ -411,6 +439,11 @@
       </form>
 
       <div id="auth-message" role="status" aria-live="polite" hidden></div>
+
+      <a class="public-help-link" href="help.html">
+        <span aria-hidden="true">?</span>
+        <span>Como usar o IDE Music</span>
+      </a>
 
       <details class="install-guide">
         <summary>
