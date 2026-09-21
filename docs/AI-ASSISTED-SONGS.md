@@ -130,3 +130,21 @@ Rate limit de cliente melhora UX, mas não substitui proteção de infraestrutur
 - validação/fallback manual.
 
 O ROADMAP P2 só deve ser marcado como concluído depois do Definition of Done: testes, Actions, validação desktop/mobile, temas, acessibilidade e validação da aplicação publicada.
+
+
+### Recuperação de falhas e limite de espera
+
+A análise completa tem orçamento de 90 segundos, incluindo inicialização e recuperação.
+Erros transitórios usam uma única tentativa em modelo alternativo distinto. Quota,
+App Check e configuração inválida não disparam esse fallback. AbortError/código 20
+é tratado como timeout. A interface mostra a etapa atual e libera o botão ao terminar.
+
+Recuperações opcionais de pistas vocais e vídeo têm até 10 segundos cada, dentro
+do orçamento global, e preservam o resultado principal. Respostas atrasadas não
+aplicam sugestões nem iniciam novas chamadas após o encerramento do orçamento.
+Uma requisição já enviada ao SDK pode terminar no servidor após o prazo local.
+
+Para URLs, a cifra só é utilizada com metadados de leitura bem-sucedida da fonte.
+Quando a fonte não é recuperada, a revisão mostra apenas nome e artista inferidos
+do endereço, sem inventar tom, acordes, capotraste ou vídeo. A aplicação ao formulário
+continua dependendo da confirmação explícita do usuário.

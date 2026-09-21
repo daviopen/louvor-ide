@@ -1,3 +1,4 @@
+import { assertMusicAIRequest, runMusicAIRequest } from '../../services/music-ai-request.js';
 import MusicAIService from '../../services/music-ai-service.js';
 import { normalizeMusicAIResponse, extractYouTubeVideoId } from '../../services/music-ai-schema.js';
 import {
@@ -77,7 +78,7 @@ export function composeIdeMusicChordSheet(data = {}) {
 }
 function escapeCueSeparatorsForLegacyFormatter(chordSheet) { return String(chordSheet || '').replace(/\s-\s/g, ' — '); }
 
-class EnhancedMusicAIService {
+export class EnhancedMusicAIService {
   constructor(service = new MusicAIService()) { this.service = service; }
   async recoverVocalCues(data, input) {
     if (!input?.sourceUrl || hasIdeMusicVocalCues(data) || !this.service?.provider?.analyzeSong) return data;
@@ -86,17 +87,40 @@ class EnhancedMusicAIService {
       return mergeRecoveredSections(data, normalizeMusicAIResponse(raw));
     } catch (error) { console.warn('Recuperação das pistas vocais não encontrou evidência utilizável:', error?.code || error?.message || error); return data; }
   }
-  async recoverVideo(data) {
+  async recoverVideo(data, input = {}) {
     if (data?.video?.url || data?.video?.videoId || !this.service?.provider?.analyzeSong) return data;
+    if (input.sourceUrl && this.service.provider.lookupEmbeddedVideo) {
+      return this.service.provider.lookupEmbeddedVideo(input, data);
+    }
     const title = String(data?.title || '').trim(); const artist = String(data?.artist || '').trim(); if (!title || !artist) return data;
     const query = encodeURIComponent(`${title} ${artist}`);
     try {
-      const raw = await this.service.provider.analyzeSong({ rawInput: `https://www.youtube.com/results?search_query=${query}`, sourceUrl: `https://www.youtube.com/results?search_query=${query}`, youtubeUrl: null, sourceType: 'source-url', songQuery: null, songIdentity: null, manualBpm: null, pastedText: [`BUSCA DE VÍDEO PARA: ${title} — ${artist}.`, 'Use esta página somente para localizar um resultado real do YouTube que corresponda claramente ao mesmo título e artista.', 'Retorne video.url/video.videoId somente quando houver correspondência comprovável. Não invente ID e não use a URL da página de resultados como vídeo.'].join(' ') });
+      const raw = await this.service.provider.analyzeSong({ ...input, rawInput: `https://www.youtube.com/results?search_query=${query}`, sourceUrl: `https://www.youtube.com/results?search_query=${query}`, youtubeUrl: null, sourceType: 'source-url', songQuery: null, songIdentity: null, manualBpm: null, pastedText: [`BUSCA DE VÍDEO PARA: ${title} — ${artist}.`, 'Use esta página somente para localizar um resultado real do YouTube que corresponda claramente ao mesmo título e artista.', 'Retorne video.url/video.videoId somente quando houver correspondência comprovável. Não invente ID e não use a URL da página de resultados como vídeo.'].join(' ') });
       return mergeRecoveredVideo(data, normalizeMusicAIResponse(raw));
     } catch (error) { console.warn('Busca complementar do vídeo não encontrou evidência utilizável:', error?.code || error?.message || error); return data; }
   }
-  async analyze(input) {
-    const result = await this.service.analyze(input); let data = result?.data || {}; data = await this.recoverVocalCues(data, result?.input || {}); data = await this.recoverVideo(data); pendingTheme = String(data.theme || '').trim() || null;
+  analyze(input) {
+    return runMusicAIRequest(input, scoped => this.analyzeWithinDeadline(scoped));
+  }
+  async analyzeWithinDeadline(input) {
+    const result = await this.service.analyze(input);
+    assertMusicAIRequest(input);
+    let data = result?.data || {};
+    const recoveryInput = { ...result.input, requestContext: input.requestContext, onProgress: input.onProgress };
+    if (data.provenance?.sourceRead !== 'unavailable') {
+      const stages = [
+        ['vocal-cues', 'Conferindo a organização da cifra…', scoped => this.recoverVocalCues(data, scoped)],
+        ['video-lookup', 'Procurando o vídeo de referência…', scoped => this.recoverVideo(data, scoped)]
+      ];
+      for (const [stage, message, recover] of stages) {
+        if (input.requestContext.deadline - Date.now() < 12000) break;
+        input.onProgress?.({ stage, message });
+        try { data = await runMusicAIRequest(recoveryInput, recover, { timeoutMs: 10000, child: true }); }
+        catch { /* Keep the useful primary result when optional enrichment fails. */ }
+      }
+    }
+    assertMusicAIRequest(input);
+    pendingTheme = String(data.theme || '').trim() || null;
     const sourceChordSheet = String(data.chordSheet || '').trim() || null; const canonicalChordSheet = escapeCueSeparatorsForLegacyFormatter(composeIdeMusicChordSheet(data));
     return { ...result, data: { ...data, sourceChordSheet, canonicalChordSheet: canonicalChordSheet || null, chordSheet: canonicalChordSheet || sourceChordSheet, sections: [] } };
   }
