@@ -309,6 +309,13 @@
       background: var(--ide-color-neutral-100);
     }
 
+    .public-help-icon {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 18px;
+      color: var(--ide-color-neutral-700);
+    }
+
     .public-help-link:focus-visible {
       outline: 3px solid var(--ide-primary-ring);
       outline-offset: 3px;
@@ -441,7 +448,11 @@
       <div id="auth-message" role="status" aria-live="polite" hidden></div>
 
       <a class="public-help-link" href="help.html">
-        <span aria-hidden="true">?</span>
+        <svg class="public-help-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"></circle>
+          <path d="M9.8 9.4a2.45 2.45 0 0 1 4.7.9c0 1.7-1.25 2.25-2.05 2.85-.55.42-.75.78-.75 1.35" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+          <circle cx="12" cy="17.25" r="1" fill="currentColor"></circle>
+        </svg>
         <span>Como usar o IDE Music</span>
       </a>
 
