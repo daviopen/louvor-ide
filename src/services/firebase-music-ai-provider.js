@@ -571,7 +571,9 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
       return primary;
     } catch (error) {
       if (error instanceof MusicAIProviderError && ['DISABLED', 'APP_CHECK_CONFIG', 'FIREBASE_NOT_READY'].includes(error.code)) throw error;
-      const code = error instanceof MusicAIProviderError ? error.code : classifyError(error);
+      const code = error instanceof MusicAIProviderError || error?.code === 'SOURCE_UNAVAILABLE'
+        ? error.code
+        : classifyError(error);
       throw new MusicAIProviderError(code, friendlyAnalysisError(code, strategy), error);
     }
   }
