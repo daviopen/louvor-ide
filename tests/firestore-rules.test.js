@@ -56,19 +56,29 @@ test('perfil legado usa espelho protegido quando o documento técnico ainda não
   assert.match(rules, /profile\(\)\.data\.permissions is map/);
   assert.match(rules, /moduleName in profile\(\)\.data\.permissions/);
   assert.match(rules, /profile\(\)\.data\.permissions\[moduleName\] in acceptedLevels/);
-  assert.match(rules, /changed\.hasOnly\(\['name', 'phone', 'birthDate', 'photoURL', 'updatedAt', 'lastAccessAt'\]\)/);
+  assert.match(rules, /changed\.hasOnly\(\[[\s\S]*'name'[\s\S]*'lastAccessAt'[\s\S]*'lgpdConsentVersion'[\s\S]*'lgpdConsentAcceptedAt'[\s\S]*\]\)/);
   assert.match(rules, /affectedKeys\(\)\.hasAny\(\['uid', 'role', 'permissions', 'accessProfile'\]\)/);
 });
 
 test('usuário só pode editar os próprios campos pessoais e metadados operacionais seguros', () => {
   const users = extractMatch('users/{userId}');
   assert.match(rules, /function validSelfProfileUpdate\(\)/);
-  assert.match(rules, /hasOnly\(\['name', 'phone', 'birthDate', 'photoURL', 'updatedAt', 'lastAccessAt'\]\)/);
+  assert.match(rules, /hasOnly\(\[[\s\S]*'name'[\s\S]*'lastAccessAt'[\s\S]*'lgpdConsentVersion'[\s\S]*'lgpdConsentAcceptedAt'[\s\S]*\]\)/);
   assert.match(rules, /request\.resource\.data\.updatedAt == request\.time/);
   assert.match(rules, /request\.resource\.data\.lastAccessAt == request\.time/);
   assert.match(rules, /res\.cloudinary\.com\/vqyuxscx/);
   assert.match(users, /ownsUserDocument\(userId\) && validSelfProfileUpdate\(\)/);
   assert.doesNotMatch(rules, /unchangedAuthorizationFields/);
+});
+
+test('usuário comum pode registrar somente o aceite LGPD vigente no próprio perfil', () => {
+  assert.match(rules, /'lgpdConsentVersion', 'lgpdTermsVersion', 'lgpdPrivacyVersion', 'lgpdConsentAcceptedAt'/);
+  assert.match(rules, /lgpdConsentVersion == 'terms:2026-08-25\\|privacy:2026-08-25'/);
+  assert.match(rules, /lgpdTermsVersion == '2026-08-25'/);
+  assert.match(rules, /lgpdPrivacyVersion == '2026-08-25'/);
+  assert.match(rules, /lgpdConsentAcceptedAt == request\.time/);
+  assert.match(rules, /updatedAt == request\.time/);
+  assert.match(rules, /affectedKeys\(\)\.hasAny\(\['uid', 'role', 'permissions', 'accessProfile'\]\)/);
 });
 
 test('operações administrativas impedem exclusão física de usuário', () => {
