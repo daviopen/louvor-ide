@@ -67,3 +67,82 @@ test('shell carrega o gate LGPD nas telas autenticadas', () => {
   assert.match(shell, /lgpd-service\.js/);
   assert.match(shell, /bootstrapGate/);
 });
+
+
+function createConsentFirestoreScope({ consentExists }) {
+  const operations = [];
+  const refs = new Map();
+  const docRef = (collection, id = 'generated-audit-id') => {
+    const key = collection + '/' + id;
+    if (!refs.has(key)) refs.set(key, { collection, id, key });
+    return refs.get(key);
+  };
+  const db = {
+    collection(name) {
+      return {
+        doc(id) {
+          return docRef(name, id);
+        }
+      };
+    },
+    async runTransaction(handler) {
+      const transaction = {
+        async get(ref) {
+          operations.push({ type: 'get', ref: ref.key });
+          return { exists: consentExists };
+        },
+        set(ref, payload) {
+          operations.push({ type: 'set', ref: ref.key, payload });
+        },
+        update(ref, payload) {
+          operations.push({ type: 'update', ref: ref.key, payload });
+        }
+      };
+      return handler(transaction);
+    }
+  };
+  const firestore = () => db;
+  firestore.FieldValue = { serverTimestamp: () => 'SERVER_TIMESTAMP' };
+  return {
+    scope: { firebase: { firestore } },
+    operations
+  };
+}
+
+test('aceite LGPD cria o documento da versão quando ele ainda não existe', async () => {
+  const { scope, operations } = createConsentFirestoreScope({ consentExists: false });
+  const user = { uid: 'user-1' };
+
+  await lgpd.recordConsent(scope, user);
+
+  assert.deepEqual(
+    operations.map(item => [item.type, item.ref]),
+    [
+      ['get', 'lgpdConsents/user-1__terms-2026-08-25-privacy-2026-08-25'],
+      ['set', 'lgpdConsents/user-1__terms-2026-08-25-privacy-2026-08-25'],
+      ['set', 'auditLogs/generated-audit-id'],
+      ['update', 'users/user-1']
+    ]
+  );
+});
+
+test('aceite LGPD é idempotente quando a mesma versão já existe', async () => {
+  const { scope, operations } = createConsentFirestoreScope({ consentExists: true });
+  const user = { uid: 'user-1' };
+
+  await lgpd.recordConsent(scope, user);
+
+  const consentWrites = operations.filter(item => item.type === 'set' && item.ref.startsWith('lgpdConsents/'));
+  assert.equal(consentWrites.length, 0, 'consentimento histórico existente não deve ser sobrescrito');
+  assert.deepEqual(
+    operations.map(item => [item.type, item.ref]),
+    [
+      ['get', 'lgpdConsents/user-1__terms-2026-08-25-privacy-2026-08-25'],
+      ['set', 'auditLogs/generated-audit-id'],
+      ['update', 'users/user-1']
+    ]
+  );
+  const profileUpdate = operations.find(item => item.type === 'update' && item.ref === 'users/user-1');
+  assert.equal(profileUpdate.payload.lgpdConsentVersion, lgpd.CONSENT_VERSION);
+  assert.equal(profileUpdate.payload.lgpdConsentAcceptedAt, 'SERVER_TIMESTAMP');
+});
