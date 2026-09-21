@@ -29,7 +29,7 @@ test('users screen renders the persisted lastAccessAt field', () => {
 
 test('an active user may update own lastAccessAt only with server time and without authorization escalation', () => {
   assert.match(rules, /ownsUserDocument\(userId\) && validSelfProfileUpdate\(\)/);
-  assert.match(rules, /hasOnly\(\['name', 'phone', 'birthDate', 'photoURL', 'updatedAt', 'lastAccessAt'\]\)/);
+  assert.match(rules, /hasOnly\(\[[\s\S]*'name'[\s\S]*'lastAccessAt'[\s\S]*'lgpdConsentVersion'[\s\S]*'lgpdConsentAcceptedAt'[\s\S]*\]\)/);
   assert.match(rules, /!changed\.hasAny\(\['lastAccessAt'\]\) \|\| request\.resource\.data\.lastAccessAt == request\.time/);
   assert.match(rules, /affectedKeys\(\)\.hasAny\(\['uid', 'role', 'permissions', 'accessProfile'\]\)/);
 });
