@@ -43,6 +43,12 @@ test('lista não expõe IDs técnicos de escala/setlist e oferece filtro por int
   assert.match(page, /itemDate > state\.dateTo/);
 });
 
+test('lista de eventos oculta datas passadas por padrão e libera histórico com filtro de data', () => {
+  assert.match(page, /const hasExplicitDateFilter = Boolean\(state\.dateFrom \|\| state\.dateTo\)/);
+  assert.match(page, /const today = dateKey\(new Date\(\)\)/);
+  assert.match(page, /!hasExplicitDateFilter && \(!itemDate \|\| itemDate < today\)/);
+});
+
 test('repository cria evento, escala e Setlist em transação idempotente e audita', () => {
   assert.match(repository, /runTransaction/);
   assert.match(repository, /eventDocumentId\(requestId\)/);
