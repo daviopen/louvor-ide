@@ -51,7 +51,9 @@ test('ajuda fica disponível sem regra de permissionamento', () => {
   assert.match(shell, /if \(item && item\.public === true\) return true/);
   assert.match(shell, /page === 'help\.html'/);
   assert.match(helpPage, /Central de ajuda/);
-  for (const moduleName of ['Dashboard', 'Usuários', 'Indisponibilidade', 'Eventos', 'Escalas', 'Próximos', 'Histórico', 'Consultar', 'Nova Música', 'Auditoria', 'Configurações']) {
+  assert.doesNotMatch(helpPage, /auth-service\.js/);
+  assert.doesNotMatch(helpPage, /app-shell\.js/);
+  for (const moduleName of ['Dashboard', 'Como informar uma indisponibilidade', 'Como visualizar as escalas', 'Como visualizar os setlists']) {
     assert.match(helpPage, new RegExp(`>${moduleName}<`));
   }
 });

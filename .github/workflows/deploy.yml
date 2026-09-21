@@ -119,6 +119,7 @@ jobs:
           for url in \
             https://louvor-ide.web.app/ \
             https://louvor-ide.web.app/login.html \
+            https://louvor-ide.web.app/help.html \
             https://louvor-ide.web.app/styles/tokens.css \
             https://louvor-ide.web.app/js/modules/auth-service.js \
             https://louvor-ide.web.app/js/modules/mobile-auth-compat.js \
@@ -129,6 +130,8 @@ jobs:
             test "$status" = "200" || { echo "❌ $url retornou HTTP $status"; exit 1; }
             echo "✅ $url"
           done
+          curl --fail-with-body -sS https://louvor-ide.web.app/help.html -o /tmp/help.html
+          grep -q "Como informar uma indisponibilidade" /tmp/help.html || { echo '❌ manual público não foi publicado'; exit 1; }
           curl --fail-with-body -sS https://louvor-ide.web.app/js/env-config.js -o /tmp/env-config.js
           grep -q "VITE_FIREBASE_AUTH_DOMAIN: 'louvor-ide.web.app'" /tmp/env-config.js || { echo '❌ authDomain first-party não foi publicado'; exit 1; }
           curl --fail-with-body -sS https://louvor-ide.web.app/__/firebase/init.json -o /tmp/firebase-init.json
