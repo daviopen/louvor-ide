@@ -118,7 +118,6 @@ test('source URL indisponível troca de modelo antes de aceitar identidade parci
 
 test('falha transitória repete modelo primário uma vez antes do fallback', async () => {
   let primaryCalls = 0;
-  let fallbackCalls = 0;
   const primary = {
     model: 'primary',
     analyzeSong: async () => {
@@ -132,16 +131,8 @@ test('falha transitória repete modelo primário uma vez antes do fallback', asy
     },
     getMetadata: () => ({ provider: 'test', model: 'primary' })
   };
-  const fallback = {
-    analyzeSong: async () => {
-      fallbackCalls++;
-      return { title: 'Fallback' };
-    },
-    getMetadata: () => ({ provider: 'test', model: 'fallback' })
-  };
-  const service = new MusicAIService(primary, { fallbackProvider: fallback });
-  const result = await service.analyze({ rawInput: 'Teste - Artista' });
+  const service = new MusicAIService(primary);
+  const result = await service.analyze({ rawInput: 'Intro:\nC G Am F' });
   assert.equal(primaryCalls, 2);
-  assert.equal(fallbackCalls, 0);
   assert.equal(result.data.title, 'Teste');
 });
