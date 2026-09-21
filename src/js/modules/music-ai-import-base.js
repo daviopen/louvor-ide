@@ -536,6 +536,9 @@ function reviewSummary(result) {
   const harmonic = validateHarmonicContext(data);
   const capo = Number(data.capoFret);
   const lines = [
+    `Nome: ${data.title || 'não identificado'}`,
+    `Artista: ${data.artist || 'não identificado'}`,
+    ...(data.provenance?.sourceRead === 'unavailable' ? ['Leitura da fonte: não confirmada; nome e artista inferidos do link.'] : []),
     `Tom original: ${data.originalKey || 'não identificado'} — ${confidenceLabel(confidence.originalKey)}`,
     `Forma encontrada: ${data.chordFormKey || 'não identificada'} — ${confidenceLabel(confidence.chordFormKey)}`,
     `Capotraste: ${Number.isInteger(capo) && capo > 0 ? `${capo}ª casa` : 'não utilizado'} — ${confidenceLabel(confidence.capoFret)}`,
@@ -692,14 +695,19 @@ export function mountMusicAIImport({ service = new MusicAIService() } = {}) {
     apply.hidden = true;
     pendingResult = null;
     try {
-      const result = await service.analyze({ rawInput: input?.value || '' });
+      const result = await service.analyze({
+        rawInput: input?.value || '',
+        onProgress: event => { if (event?.message) state.textContent = event.message; }
+      });
       pendingResult = result;
       const summary = reviewSummary(result);
       review.dataset.status = summary.harmonic.status;
       review.textContent = summary.text;
       review.hidden = false;
       apply.hidden = false;
-      state.textContent = summary.harmonic.valid === false
+      state.textContent = result.data.provenance?.sourceRead === 'unavailable'
+        ? 'Não foi possível ler a cifra. Apenas nome e artista foram inferidos do link. Revise-os antes de aplicar; tom e acordes não foram preenchidos.'
+        : summary.harmonic.valid === false
         ? 'Encontrei uma inconsistência harmônica. Você pode aplicar os dados básicos, mas a cifra ficará bloqueada até revisão.'
         : 'Análise concluída. Revise os dados abaixo e escolha se deseja aplicá-los ao formulário.';
       apply.focus();

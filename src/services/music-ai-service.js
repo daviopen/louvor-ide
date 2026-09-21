@@ -1,3 +1,4 @@
+import { assertMusicAIRequest, runMusicAIRequest } from './music-ai-request.js';
 import FirebaseMusicAIProvider, { buildChordSourceCandidates } from './firebase-music-ai-provider.js';
 import { normalizeMusicAIResponse, normalizeBpm, extractYouTubeVideoId } from './music-ai-schema.js';
 
@@ -8,6 +9,7 @@ const RETRY_DELAY_MS = 700;
 const FALLBACK_MODEL = 'gemini-3.7-flash';
 const RETRYABLE_PROVIDER_CODES = new Set(['UNAVAILABLE', 'TIMEOUT']);
 let activeRequest = null;
+let activeContext = null;
 let lastFingerprint = '';
 let lastStartedAt = 0;
 const requestTimes = [];
@@ -234,9 +236,7 @@ export class MusicAIService {
   constructor(provider = new FirebaseMusicAIProvider(), { fallbackProvider = null } = {}) {
     this.provider = provider;
     this.fallbackProvider = fallbackProvider;
-    if (!this.fallbackProvider && provider?.constructor === FirebaseMusicAIProvider) {
-      this.fallbackProvider = new FirebaseMusicAIProvider({ model: FALLBACK_MODEL });
-    }
+    this.useDefaultFallback = !fallbackProvider && provider?.constructor === FirebaseMusicAIProvider;
   }
 
   validateInput(input = {}) {
@@ -274,35 +274,41 @@ export class MusicAIService {
   }
 
   async _analyzeWithResilience(providerInput) {
+    assertMusicAIRequest(providerInput);
     try {
       const raw = await this.provider.analyzeSong(providerInput);
       return { raw, provider: this.provider };
     } catch (firstError) {
+      assertMusicAIRequest(providerInput);
       if (!isRetryableProviderError(firstError)) throw firstError;
-
-      notifyProgress(providerInput, 'retry', 'O serviço de IA respondeu com instabilidade. Tentando novamente…');
-      await sleep(RETRY_DELAY_MS);
-
-      try {
-        const raw = await this.provider.analyzeSong(providerInput);
-        return { raw, provider: this.provider };
-      } catch (secondError) {
-        if (!isRetryableProviderError(secondError) || !this.fallbackProvider) throw secondError;
-
-        notifyProgress(providerInput, 'fallback-model', 'A instabilidade continua. Tentando um modelo alternativo estável…');
+      if (this.useDefaultFallback) {
+        const model = this.provider.model === FALLBACK_MODEL ? 'gemini-3.5-flash' : FALLBACK_MODEL;
+        this.fallbackProvider = new FirebaseMusicAIProvider({ model });
+      }
+      if (this.fallbackProvider) {
+        notifyProgress(providerInput, 'fallback-model', 'O serviço de IA não respondeu. Tentando outro modelo uma única vez…');
         const raw = await this.fallbackProvider.analyzeSong(providerInput);
         return { raw, provider: this.fallbackProvider };
       }
+
+      notifyProgress(providerInput, 'retry', 'O serviço de IA respondeu com instabilidade. Tentando novamente…');
+      await sleep(RETRY_DELAY_MS);
+      assertMusicAIRequest(providerInput);
+
+      const raw = await this.provider.analyzeSong(providerInput);
+      return { raw, provider: this.provider };
     }
   }
 
-  async _analyzeSongQuery(normalized, onProgress) {
+  async _analyzeSongQuery(normalized, onProgress, requestContext) {
     const candidates = buildChordSourceCandidates(normalized.songIdentity || {});
     let bestFallback = null;
 
     for (const candidate of candidates) {
+      assertMusicAIRequest({ requestContext });
       const providerInput = {
         ...normalized,
+        requestContext,
         sourceUrl: candidate.url,
         sourceType: 'source-url',
         ...(typeof onProgress === 'function' ? { onProgress } : {})
@@ -337,15 +343,17 @@ export class MusicAIService {
       return { data: discardSparseChord(bestFallback.data, normalized), provider: bestFallback.provider };
     }
 
-    const providerInput = typeof onProgress === 'function'
-      ? { ...normalized, onProgress }
-      : normalized;
+    const providerInput = { ...normalized, onProgress, requestContext };
     const { raw, provider } = await this._analyzeWithResilience(providerInput);
     const data = discardSparseChord(enrichNormalizedData(normalizeMusicAIResponse(raw), normalized), normalized);
     return { data, provider };
   }
 
-  async analyze(input = {}) {
+  analyze(input = {}) {
+    return runMusicAIRequest(input, scoped => this._analyze(scoped));
+  }
+
+  async _analyze(input = {}) {
     const { errors, normalized } = this.validateInput(input);
     if (errors.length) {
       const error = new Error(errors.join(' '));
@@ -362,30 +370,31 @@ export class MusicAIService {
     }
 
     const nextFingerprint = fingerprint(normalized);
-    if (activeRequest && nextFingerprint === lastFingerprint && now - lastStartedAt < DUPLICATE_WINDOW_MS) return activeRequest;
+    if (activeRequest && !activeContext?.closed && nextFingerprint === lastFingerprint && now - lastStartedAt < DUPLICATE_WINDOW_MS) return activeRequest;
 
+    activeContext = input.requestContext;
     lastFingerprint = nextFingerprint;
     lastStartedAt = now;
     requestTimes.push(now);
 
     if (normalized.sourceType === 'song-query' && normalized.songIdentity) {
-      activeRequest = this._analyzeSongQuery(normalized, input.onProgress)
+      const request = this._analyzeSongQuery(normalized, input.onProgress, input.requestContext)
         .then(({ data, provider }) => ({ data, provider: provider.getMetadata(), input: normalized }))
-        .finally(() => { activeRequest = null; });
-      return activeRequest;
+        .finally(() => { if (activeRequest === request) activeRequest = null; });
+      activeRequest = request;
+      return request;
     }
 
-    const providerInput = typeof input.onProgress === 'function'
-      ? { ...normalized, onProgress: input.onProgress }
-      : normalized;
+    const providerInput = { ...normalized, onProgress: input.onProgress, requestContext: input.requestContext };
 
-    activeRequest = this._analyzeWithResilience(providerInput)
+    const request = this._analyzeWithResilience(providerInput)
       .then(({ raw, provider }) => {
         const data = enrichNormalizedData(normalizeMusicAIResponse(raw), normalized);
         return { data, provider: provider.getMetadata(), input: normalized };
       })
-      .finally(() => { activeRequest = null; });
-    return activeRequest;
+      .finally(() => { if (activeRequest === request) activeRequest = null; });
+    activeRequest = request;
+    return request;
   }
 }
 

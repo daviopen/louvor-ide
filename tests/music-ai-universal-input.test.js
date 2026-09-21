@@ -293,7 +293,7 @@ test('service repete automaticamente uma falha temporária do provider', async (
   assert.ok(progress.some(event => event.stage === 'retry'));
 });
 
-test('service usa modelo alternativo quando a instabilidade persiste após retry', async () => {
+test('service usa modelo alternativo sem repetir a requisição instável', async () => {
   const primary = new AlwaysUnavailableProvider();
   const fallback = new CaptureProvider({
     schemaVersion: '1.0.0',
@@ -319,7 +319,7 @@ test('service usa modelo alternativo quando a instabilidade persiste após retry
     onProgress: event => progress.push(event)
   });
 
-  assert.equal(primary.calls, 2);
+  assert.equal(primary.calls, 1);
   assert.equal(result.provider.model, 'fallback-model');
   assert.equal(result.data.title, 'Grandes Coisas');
   assert.ok(progress.some(event => event.stage === 'fallback-model'));

@@ -1,3 +1,4 @@
+import { assertMusicAIRequest } from './music-ai-request.js';
 import { MusicAIProvider, MusicAIProviderError } from './music-ai-provider.js';
 import {
   MUSIC_AI_RESPONSE_JSON_SCHEMA,
@@ -34,7 +35,8 @@ function firebaseOptionsFromCompat() {
   return { ...options };
 }
 
-function classifyError(error) {
+export function classifyError(error) {
+  if (error?.name === 'AbortError' || error?.code === 20) return 'TIMEOUT';
   const text = `${error?.code || ''} ${error?.message || ''}`.toLowerCase();
   if (text.includes('quota') || text.includes('429') || text.includes('resource-exhausted')) return 'QUOTA';
   if (text.includes('app-check') || text.includes('appcheck') || text.includes('403')) return 'APP_CHECK';
@@ -304,8 +306,10 @@ function emptyMusicResponse(overrides = {}) {
   };
 }
 
-async function generateStructuredResult(model, content) {
+async function generateStructuredResult(model, content, input = {}) {
+  assertMusicAIRequest(input);
   const result = await model.generateContent(content);
+  assertMusicAIRequest(input);
   const text = result?.response?.text?.() || '';
   if (!text) throw new MusicAIProviderError('INVALID_RESPONSE', 'A IA retornou uma resposta vazia.');
   let data;
@@ -320,8 +324,8 @@ async function generateStructuredResult(model, content) {
   };
 }
 
-async function generateStructuredJson(model, content) {
-  const result = await generateStructuredResult(model, content);
+async function generateStructuredJson(model, content, input = {}) {
+  const result = await generateStructuredResult(model, content, input);
   return result.data;
 }
 
@@ -443,38 +447,38 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
         }
       };
       notifyProgress(input, 'video-analysis', 'Analisando o vídeo para identificar música, artista, tom e andamento…');
-      const data = await generateStructuredJson(model, [videoPart, prompt]);
+      const data = await generateStructuredJson(model, [videoPart, prompt], input);
       return ensureExplicitYoutubeVideo(data, input);
     }
-    return generateStructuredJson(model, prompt);
+    if (strategy === 'url') {
+      notifyProgress(input, 'source-read', 'Lendo a página da música…');
+      const result = await generateStructuredResult(model, prompt, input);
+      if (!urlContextRetrievedSuccessfully(result.urlContextMetadata, input.sourceUrl)) {
+        throw new MusicAIProviderError('SOURCE_UNAVAILABLE', 'Não foi possível confirmar a leitura da página.');
+      }
+      return result.data;
+    }
+    return generateStructuredJson(model, prompt, input);
   }
 
   async _fallbackFromChordUrl(input, sourceError) {
     const identity = extractSongIdentityFromChordUrl(input.sourceUrl);
     if (!identity?.title || !identity?.artist) throw sourceError;
-    const model = await this._loadModel('plain');
-    const query = `${identity.title} — ${identity.artist}`;
-    const prompt = [
-      `A página de cifra não pôde ser lida diretamente. Use apenas a identidade inferida da própria URL: ${query}.`,
-      'Sugira título, artista, tom, BPM e estrutura harmônica apenas se tiver alta confiança. Não invente vídeo, capotraste, forma de acorde e não gere letra completa.',
-      'Marque a proveniência dos campos sugeridos como "fallback pelo nome na URL; revisar".'
-    ].join('\n\n');
-    const fallback = await generateStructuredJson(model, prompt);
-    return {
-      ...fallback,
-      capoFret: null,
-      chordFormKey: null,
-      title: fallback.title || identity.title,
-      artist: fallback.artist || identity.artist,
+    assertMusicAIRequest(input);
+    notifyProgress(input, 'source-unavailable', 'Não foi possível ler a cifra. Identifiquei apenas o nome e o artista pelo link; confira os dados.');
+    return emptyMusicResponse({
+      title: identity.title,
+      artist: identity.artist,
       provenance: {
-        ...(fallback.provenance || {}),
-        title: fallback?.provenance?.title || 'nome inferido da URL da cifra',
-        artist: fallback?.provenance?.artist || 'artista inferido da URL da cifra'
+        title: 'nome inferido da URL da cifra; revisar',
+        artist: 'artista inferido da URL da cifra; revisar',
+        sourceRead: 'unavailable'
       }
-    };
+    });
   }
 
-  async _lookupEmbeddedVideo(input, primary) {
+  async lookupEmbeddedVideo(input, primary) {
+    assertMusicAIRequest(input);
     if (!shouldRetryEmbeddedVideoLookup({ input, data: primary })) return primary;
     const identity = [primary.title, primary.artist].filter(Boolean).join(' — ');
     const model = await this._loadModel('videoLookup');
@@ -486,7 +490,7 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
       'Retorne videoId e videoUrl. Se não encontrar evidência suficiente, retorne ambos como null.'
     ].filter(Boolean).join('\n\n');
     try {
-      const fallback = await generateStructuredJson(model, videoPrompt);
+      const fallback = await generateStructuredJson(model, videoPrompt, input);
       return mergeEmbeddedVideoLookup(primary, fallback);
     } catch (error) {
       console.warn('Busca complementar do vídeo não encontrou evidência utilizável:', error?.code || error?.message || error);
@@ -507,7 +511,7 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
       'Se a página não corresponder à música e ao artista esperados, retorne chordSheet null, sections vazias, originalKey null, chordFormKey null e capoFret null.',
       'Se corresponder, organize a cifra no padrão IDE Music. Em sections, associe cada pequena pista vocal aos acordes reais daquela frase; não retorne linhas vocais sem acorde quando a página mostra o acorde. Se uma seção tiver mais de 5 acordes, mantenha várias linhas curtas. Em Intro/Instrumental/Final, preserve a progressão e repetições relevantes. Não copie a letra completa.'
     ].filter(Boolean).join('\n\n');
-    const result = await generateStructuredResult(model, prompt);
+    const result = await generateStructuredResult(model, prompt, input);
     if (!urlContextRetrievedSuccessfully(result.urlContextMetadata, candidate.url)) return null;
     if (!chordResultMatchesIdentity(result.data, identity)) return null;
     if (!hasChordContent(result.data)) return null;
@@ -543,14 +547,15 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
   }
 
   async analyzeSong(input) {
+    assertMusicAIRequest(input);
     const strategy = selectMusicAIStrategy(input);
     try {
       let primary;
       try {
         primary = await this._analyzePrimary(input, strategy);
       } catch (error) {
-        if (strategy !== 'url' || !extractSongIdentityFromChordUrl(input.sourceUrl)) throw error;
-        console.warn('Leitura direta da página falhou; usando identidade da URL como fallback:', error?.code || error?.message || error);
+        if (error?.code !== 'SOURCE_UNAVAILABLE' || strategy !== 'url' || !extractSongIdentityFromChordUrl(input.sourceUrl)) throw error;
+        // An unreadable source is not a successful AI chord transcription.
         primary = await this._fallbackFromChordUrl(input, error);
       }
 
@@ -558,7 +563,7 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
         const videoData = ensureExplicitYoutubeVideo(primary, input);
         return this._enrichVideoWithChordSource(input, videoData);
       }
-      if (strategy === 'url') return this._lookupEmbeddedVideo(input, primary);
+      // Optional video lookup belongs to the bounded enrichment stage.
       return primary;
     } catch (error) {
       if (error instanceof MusicAIProviderError && ['DISABLED', 'APP_CHECK_CONFIG', 'FIREBASE_NOT_READY'].includes(error.code)) throw error;
