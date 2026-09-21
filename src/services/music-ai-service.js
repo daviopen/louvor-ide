@@ -291,7 +291,7 @@ export class MusicAIService {
       // Explicitly injected fallbacks (tests/custom providers) preserve the old contract:
       // switch immediately. The production Firebase path uses the default fallback and
       // retries the primary model once for transient transport/model failures.
-      const shouldRetryPrimary = this.useDefaultFallback && firstCode !== 'SOURCE_UNAVAILABLE';
+      const shouldRetryPrimary = !this.fallbackProvider && firstCode !== 'SOURCE_UNAVAILABLE';
       if (shouldRetryPrimary) {
         notifyProgress(providerInput, 'retry', 'O serviço de IA respondeu com instabilidade. Tentando novamente…');
         await sleep(RETRY_DELAY_MS);
