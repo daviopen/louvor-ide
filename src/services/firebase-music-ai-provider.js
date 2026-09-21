@@ -7,7 +7,7 @@ import {
 } from './music-ai-schema.js';
 
 const FIREBASE_SDK_VERSION = '12.18.0';
-const DEFAULT_MODEL = 'gemini-3.7-flash';
+const DEFAULT_MODEL = 'gemini-3.8-flash';
 
 const STRATEGY_TIMEOUTS = Object.freeze({
   plain: 30000,
@@ -554,7 +554,11 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
       try {
         primary = await this._analyzePrimary(input, strategy);
       } catch (error) {
-        if (error?.code !== 'SOURCE_UNAVAILABLE' || strategy !== 'url' || !extractSongIdentityFromChordUrl(input.sourceUrl)) throw error;
+        const canFallbackFromUrl = error?.code === 'SOURCE_UNAVAILABLE'
+          && strategy === 'url'
+          && extractSongIdentityFromChordUrl(input.sourceUrl);
+        if (!canFallbackFromUrl) throw error;
+        if (input.deferSourceFallback) throw error;
         // An unreadable source is not a successful AI chord transcription.
         primary = await this._fallbackFromChordUrl(input, error);
       }
@@ -567,7 +571,9 @@ export class FirebaseMusicAIProvider extends MusicAIProvider {
       return primary;
     } catch (error) {
       if (error instanceof MusicAIProviderError && ['DISABLED', 'APP_CHECK_CONFIG', 'FIREBASE_NOT_READY'].includes(error.code)) throw error;
-      const code = error instanceof MusicAIProviderError ? error.code : classifyError(error);
+      const code = error instanceof MusicAIProviderError || error?.code === 'SOURCE_UNAVAILABLE'
+        ? error.code
+        : classifyError(error);
       throw new MusicAIProviderError(code, friendlyAnalysisError(code, strategy), error);
     }
   }

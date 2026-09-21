@@ -5,9 +5,9 @@ import { normalizeMusicAIResponse, normalizeBpm, extractYouTubeVideoId } from '.
 const DUPLICATE_WINDOW_MS = 5000;
 const RATE_WINDOW_MS = 60000;
 const MAX_REQUESTS_PER_WINDOW = 4;
-const RETRY_DELAY_MS = 700;
-const FALLBACK_MODEL = 'gemini-3.7-flash';
-const RETRYABLE_PROVIDER_CODES = new Set(['UNAVAILABLE', 'TIMEOUT']);
+const RETRY_DELAY_MS = 1200;
+const FALLBACK_MODEL = 'gemini-3.5-flash-lite';
+const RETRYABLE_PROVIDER_CODES = new Set(['UNAVAILABLE', 'TIMEOUT', 'SOURCE_UNAVAILABLE']);
 let activeRequest = null;
 let activeContext = null;
 let lastFingerprint = '';
@@ -275,28 +275,49 @@ export class MusicAIService {
 
   async _analyzeWithResilience(providerInput) {
     assertMusicAIRequest(providerInput);
+    const resilientInput = providerInput.sourceType === 'source-url'
+      ? { ...providerInput, deferSourceFallback: true }
+      : providerInput;
+
     try {
-      const raw = await this.provider.analyzeSong(providerInput);
+      const raw = await this.provider.analyzeSong(resilientInput);
       return { raw, provider: this.provider };
     } catch (firstError) {
       assertMusicAIRequest(providerInput);
       if (!isRetryableProviderError(firstError)) throw firstError;
+
+      const firstCode = String(firstError?.code || '').toUpperCase();
+
+      // Explicitly injected fallbacks (tests/custom providers) preserve the old contract:
+      // switch immediately. The production Firebase path uses the default fallback and
+      // retries the primary model once for transient transport/model failures.
+      const shouldRetryPrimary = !this.fallbackProvider && firstCode !== 'SOURCE_UNAVAILABLE';
+      if (shouldRetryPrimary) {
+        notifyProgress(providerInput, 'retry', 'O serviço de IA respondeu com instabilidade. Tentando novamente…');
+        await sleep(RETRY_DELAY_MS);
+        assertMusicAIRequest(providerInput);
+        try {
+          const raw = await this.provider.analyzeSong(resilientInput);
+          return { raw, provider: this.provider };
+        } catch (retryError) {
+          assertMusicAIRequest(providerInput);
+          if (!isRetryableProviderError(retryError)) throw retryError;
+        }
+      }
+
       if (this.useDefaultFallback) {
-        const model = this.provider.model === FALLBACK_MODEL ? 'gemini-3.5-flash' : FALLBACK_MODEL;
-        this.fallbackProvider = new FirebaseMusicAIProvider({ model });
+        this.fallbackProvider = new FirebaseMusicAIProvider({ model: FALLBACK_MODEL });
       }
       if (this.fallbackProvider) {
-        notifyProgress(providerInput, 'fallback-model', 'O serviço de IA não respondeu. Tentando outro modelo uma única vez…');
-        const raw = await this.fallbackProvider.analyzeSong(providerInput);
+        notifyProgress(providerInput, 'fallback-model', 'Tentando um modelo alternativo para concluir a análise…');
+        const fallbackInput = providerInput.sourceType === 'source-url'
+          ? { ...providerInput, deferSourceFallback: false }
+          : providerInput;
+        const raw = await this.fallbackProvider.analyzeSong(fallbackInput);
         return { raw, provider: this.fallbackProvider };
       }
 
-      notifyProgress(providerInput, 'retry', 'O serviço de IA respondeu com instabilidade. Tentando novamente…');
-      await sleep(RETRY_DELAY_MS);
-      assertMusicAIRequest(providerInput);
-
-      const raw = await this.provider.analyzeSong(providerInput);
-      return { raw, provider: this.provider };
+      throw firstError;
     }
   }
 
