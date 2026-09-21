@@ -84,3 +84,64 @@ test('identidade parcial não inicia recuperação de pistas ou vídeo', async (
   assert.equal(result.data.provenance.sourceRead, 'unavailable');
   assert.equal(result.data.chordSheet, null);
 });
+
+
+test('source URL indisponível troca de modelo antes de aceitar identidade parcial', async () => {
+  const primary = new FirebaseMusicAIProvider({ model: 'gemini-3.8-flash' });
+  const fallback = new FirebaseMusicAIProvider({ model: 'gemini-3.5-flash-lite' });
+  let primaryCalls = 0;
+  let fallbackCalls = 0;
+
+  primary._analyzePrimary = async () => {
+    primaryCalls++;
+    const error = new Error('URL context unavailable');
+    error.code = 'SOURCE_UNAVAILABLE';
+    throw error;
+  };
+  fallback._analyzePrimary = async () => {
+    fallbackCalls++;
+    return {
+      title: 'Eu Me Rendo',
+      artist: 'Hillsong Brasil',
+      originalKey: 'C',
+      chordSheet: 'C G Am F C G Am F'
+    };
+  };
+
+  const service = new MusicAIService(primary, { fallbackProvider: fallback });
+  const result = await service.analyze({ rawInput: url });
+  assert.equal(primaryCalls, 1);
+  assert.equal(fallbackCalls, 1);
+  assert.equal(result.provider.model, 'gemini-3.5-flash-lite');
+  assert.equal(result.data.chordSheet, 'C G Am F C G Am F');
+});
+
+test('falha transitória repete modelo primário uma vez antes do fallback', async () => {
+  let primaryCalls = 0;
+  let fallbackCalls = 0;
+  const primary = {
+    model: 'primary',
+    analyzeSong: async () => {
+      primaryCalls++;
+      if (primaryCalls < 2) {
+        const error = new Error('temporary unavailable');
+        error.code = 'UNAVAILABLE';
+        throw error;
+      }
+      return { title: 'Teste' };
+    },
+    getMetadata: () => ({ provider: 'test', model: 'primary' })
+  };
+  const fallback = {
+    analyzeSong: async () => {
+      fallbackCalls++;
+      return { title: 'Fallback' };
+    },
+    getMetadata: () => ({ provider: 'test', model: 'fallback' })
+  };
+  const service = new MusicAIService(primary, { fallbackProvider: fallback });
+  const result = await service.analyze({ rawInput: 'Teste - Artista' });
+  assert.equal(primaryCalls, 2);
+  assert.equal(fallbackCalls, 0);
+  assert.equal(result.data.title, 'Teste');
+});
