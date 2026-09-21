@@ -151,10 +151,13 @@
 
   function filteredEvents() {
     const term = state.search.trim().toLocaleLowerCase('pt-BR');
+    const hasExplicitDateFilter = Boolean(state.dateFrom || state.dateTo);
+    const today = dateKey(new Date());
     return state.events.filter(item => {
       const statusMatch = state.status === 'ALL' || item.status === state.status;
       if (!statusMatch) return false;
       const itemDate = dateKey(item.date);
+      if (!hasExplicitDateFilter && (!itemDate || itemDate < today)) return false;
       if (state.dateFrom && (!itemDate || itemDate < state.dateFrom)) return false;
       if (state.dateTo && (!itemDate || itemDate > state.dateTo)) return false;
       if (!term) return true;
