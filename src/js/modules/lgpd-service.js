@@ -104,18 +104,24 @@
     const consentRef = db.collection('lgpdConsents').doc(consentId);
     const auditRef = db.collection('auditLogs').doc();
     const userRef = db.collection('users').doc(user.uid);
-    const batch = db.batch();
 
-    batch.set(consentRef, buildConsentPayload(user, timestamp));
-    batch.set(auditRef, buildConsentAuditPayload(user, consentId, timestamp));
-    batch.update(userRef, {
-      lgpdConsentVersion: CONSENT_VERSION,
-      lgpdTermsVersion: TERMS_VERSION,
-      lgpdPrivacyVersion: PRIVACY_VERSION,
-      lgpdConsentAcceptedAt: timestamp,
-      updatedAt: timestamp
+    await db.runTransaction(async transaction => {
+      const existingConsent = await transaction.get(consentRef);
+
+      if (!existingConsent.exists) {
+        transaction.set(consentRef, buildConsentPayload(user, timestamp));
+      }
+
+      transaction.set(auditRef, buildConsentAuditPayload(user, consentId, timestamp));
+      transaction.update(userRef, {
+        lgpdConsentVersion: CONSENT_VERSION,
+        lgpdTermsVersion: TERMS_VERSION,
+        lgpdPrivacyVersion: PRIVACY_VERSION,
+        lgpdConsentAcceptedAt: timestamp,
+        updatedAt: timestamp
+      });
     });
-    await batch.commit();
+
     return CONSENT_VERSION;
   }
 

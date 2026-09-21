@@ -86,8 +86,8 @@ test('LGPD consent is audited atomically with minimal versioned before/after dat
     /entityType: 'lgpdConsent'/,
     /before: null/,
     /consentVersion: CONSENT_VERSION/,
-    /batch\.set\(auditRef, buildConsentAuditPayload/,
-    /batch\.commit\(\)/
+    /db\.runTransaction\(async transaction =>/,
+    /transaction\.set\(auditRef, buildConsentAuditPayload/
   ]);
   const auditBuilder = lgpd.match(/function buildConsentAuditPayload[\s\S]*?\n  }/)[0];
   assert.doesNotMatch(auditBuilder, /email|password|token|ip|userAgent/i);
