@@ -60,4 +60,4 @@ Ao investigar aumento de cota:
 
 ## Notification Outbox
 
-O worker de produção roda a cada 15 minutos e consulta apenas lotes limitados de `PENDING`/`PROCESSING`. Isso reduz o custo ocioso de 288 para 96 execuções por dia em comparação com polling de 5 minutos, preservando uma latência máxima aceitável para o modelo gratuito atual.
+O worker de produção roda a cada 10 minutos e consulta apenas lotes limitados de até 25 itens `PENDING`/`PROCESSING`. São 144 execuções agendadas por dia, metade das 288 execuções de um polling de 5 minutos, com latência adequada para avisos de escala e Setlist. A configuração pública VAPID não deve ser regravada quando a chave não mudou.

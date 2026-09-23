@@ -39,9 +39,26 @@ Workflows de migração, cleanup, reconciliação e backfill permanecem manuais.
 
 A confirmação reduz disparos acidentais, mas não substitui revisão do script/diff antes da execução.
 
+## Worker de notificações de produção
+
+O workflow `.github/workflows/notification-outbox.yml` é uma exceção operacional explícita às regras de testes automáticos: ele faz parte do runtime de entrega do IDE Music, não é teste, migração, backfill ou QA.
+
+Regras obrigatórias desse worker:
+
+- executa a cada 10 minutos e também por `workflow_dispatch`;
+- usa uma única execução concorrente (`notification-outbox-production`);
+- consulta somente a fila de notificações e os documentos necessários aos destinatários;
+- limita cada ciclo a no máximo 25 itens pendentes;
+- usa a service account de produção apenas no job do worker;
+- não executa navegação E2E, crawler, migração ou varredura global;
+- a configuração pública VAPID só é gravada quando a chave efetivamente muda;
+- chaves privadas VAPID permanecem em `notificationSecrets/webPush` e nunca são expostas no workflow ou no frontend.
+
 ## Custo e consumo
 
 Leituras/escritas do Firestore e operações do Firebase Auth feitas por testes em staging ficam separadas do banco de produção. O `Quality Gate` usa o Firestore Emulator (`demo-louvor-ide`) e, portanto, não deve consumir operações de documentos do Firestore de produção.
+
+O worker de notificações é deliberadamente limitado: mesmo sem itens pendentes ele faz apenas as consultas de controle necessárias; não regrava a configuração VAPID a cada ciclo.
 
 ## Ao criar um novo workflow
 
