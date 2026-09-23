@@ -11,7 +11,6 @@ const usersPage = read('src/js/modules/users-page.js');
 const userRepository = read('src/repositories/user-repository.js');
 const rules = read('firestore.rules');
 const backfill = read('src/scripts/backfill-user-last-access.cjs');
-const workflow = read('.github/workflows/user-last-access-backfill.yml');
 
 test('successful login keeps AUTH_LOGIN and users.lastAccessAt atomic', () => {
   assert.match(authAudit, /const batch = db\.batch\(\)/);
@@ -41,6 +40,6 @@ test('historical AUTH_LOGIN audit records backfill lastAccessAt idempotently', (
   assert.match(backfill, /currentLastAccess = userSnapshot\.data\(\)\?\.lastAccessAt/);
   assert.match(backfill, /toMillis\(latestLogin\) <= toMillis\(currentLastAccess\)/);
   assert.match(backfill, /batch\.update\(item\.ref, \{ lastAccessAt: item\.lastAccessAt \}\)/);
-  assert.match(workflow, /backfill-user-last-access\.cjs/);
-  assert.match(workflow, /FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE/);
+  assert.equal(fs.existsSync(path.join(root, '.github', 'workflows', 'user-last-access-backfill.yml')), false);
+  assert.match(backfill, /firebase-admin/);
 });

@@ -1,9 +1,9 @@
-name: 🚀 Deploy to Firebase Hosting
+name: Deploy
 
 on:
   workflow_run:
     workflows:
-      - "✅ Quality Gate"
+      - "Tests"
     types:
       - completed
   workflow_dispatch:
@@ -14,28 +14,30 @@ concurrency:
 
 jobs:
   deploy:
+    name: Deploy
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
-       (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'master'))
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-      - name: 📂 Checkout versão validada
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: "20"
           cache: npm
 
-      - name: 📦 Instalar dependências
+      - name: Install dependencies
         run: npm ci
 
-      - name: 🏗️ Build do projeto
+      - name: Build
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
@@ -46,23 +48,23 @@ jobs:
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
         run: npm run build
 
-      - name: 🔐 Usar domínio de autenticação first-party
+      - name: Normalize authentication domain
         env:
           FIREBASE_HOSTING_AUTH_DOMAIN: louvor-ide.web.app
         run: node src/scripts/normalize-auth-domain.js js/env-config.js "$FIREBASE_HOSTING_AUTH_DOMAIN"
 
-      - name: 🎨 Normalizar cores legadas do artefato
+      - name: Normalize built HTML
         run: node src/scripts/normalize-built-html-colors.js .
 
-      - name: 🔔 Compor regras do módulo de notificações
+      - name: Compose Firestore Rules
         run: node src/scripts/build-firestore-rules.cjs firestore.rules firestore.notifications.rules /tmp/firestore.rules
 
-      - name: 🔑 Autenticar service account Firebase
+      - name: Authenticate Firebase
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
 
-      - name: 🔐 Publicar Firestore Rules via Rules API
+      - name: Publish Firestore Rules
         run: |
           set -euo pipefail
           ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"
@@ -102,9 +104,9 @@ jobs:
             -H "Authorization: Bearer ${ACCESS_TOKEN}" \
             "${RELEASE_URL}" | jq -er '.rulesetName')"
           test "${VERIFIED_RULESET}" = "${RULESET_NAME}"
-          echo "✅ Firestore Rules publicadas"
+          echo "Firestore Rules published."
 
-      - name: 🚀 Deploy para Firebase Hosting
+      - name: Deploy Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
@@ -112,7 +114,7 @@ jobs:
           channelId: live
           projectId: louvor-ide
 
-      - name: 🔎 Smoke test estático pós-deploy
+      - name: Post-deploy smoke test
         run: |
           set -euo pipefail
           sleep 10
@@ -127,13 +129,13 @@ jobs:
             https://louvor-ide.web.app/repositories/notification-outbox-repository.js
           do
             status="$(curl -sS -o /dev/null -w '%{http_code}' "$url")"
-            test "$status" = "200" || { echo "❌ $url retornou HTTP $status"; exit 1; }
-            echo "✅ $url"
+            test "$status" = "200" || { echo "$url returned HTTP $status"; exit 1; }
+            echo "$url OK"
           done
           curl --fail-with-body -sS https://louvor-ide.web.app/help.html -o /tmp/help.html
-          grep -q "Como informar uma indisponibilidade" /tmp/help.html || { echo '❌ manual público não foi publicado'; exit 1; }
+          grep -q "Como informar uma indisponibilidade" /tmp/help.html || { echo 'Public help page was not deployed.'; exit 1; }
           curl --fail-with-body -sS https://louvor-ide.web.app/js/env-config.js -o /tmp/env-config.js
-          grep -q "VITE_FIREBASE_AUTH_DOMAIN: 'louvor-ide.web.app'" /tmp/env-config.js || { echo '❌ authDomain first-party não foi publicado'; exit 1; }
+          grep -q "VITE_FIREBASE_AUTH_DOMAIN: 'louvor-ide.web.app'" /tmp/env-config.js || { echo 'First-party auth domain was not deployed.'; exit 1; }
           curl --fail-with-body -sS https://louvor-ide.web.app/__/firebase/init.json -o /tmp/firebase-init.json
-          jq -e '.projectId == "louvor-ide"' /tmp/firebase-init.json >/dev/null || { echo '❌ Firebase Hosting auth helper aponta para projeto incorreto'; exit 1; }
-          echo "✅ Smoke test concluído sem autenticação, navegação E2E ou acesso ao Firestore"
+          jq -e '.projectId == "louvor-ide"' /tmp/firebase-init.json >/dev/null || { echo 'Firebase Hosting points to an unexpected project.'; exit 1; }
+          echo "Smoke test passed."

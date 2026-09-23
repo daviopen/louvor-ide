@@ -5,8 +5,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const migration = require('../src/scripts/migrate-legacy-data.cjs');
-const workflow = fs.readFileSync(path.join(root, '.github/workflows/data-migration.yml'), 'utf8');
-const quality = fs.readFileSync(path.join(root, '.github/workflows/quality-gate.yml'), 'utf8');
+const quality = fs.readFileSync(path.join(root, '.github/workflows/tests.yml'), 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
 test('legacy migration maps all known legacy domains to canonical collections', () => {
@@ -50,20 +49,15 @@ test('song migration preserves legacy data while populating canonical fields', (
   assert.ok(migrated.migratedAt instanceof Date);
 });
 
-test('production migration is manual, supports explicit modes and verifies after apply', () => {
-  assert.match(workflow, /workflow_dispatch:/);
-  assert.doesNotMatch(workflow, /\n\s*push:/);
-  assert.match(workflow, /- dry-run/);
-  assert.match(workflow, /- apply/);
-  assert.match(workflow, /- verify/);
-  assert.match(workflow, /case "\$\{\{ inputs\.mode \}\}" in/);
-  assert.match(workflow, /migrate-legacy-data\.cjs --apply/);
-  assert.match(workflow, /migrate-legacy-data\.cjs --verify/);
-  assert.match(workflow, /if: inputs\.mode == 'apply'/);
-  assert.match(workflow, /cancel-in-progress: false/);
+test('production migration remains available as a script outside permanent workflows', () => {
+  assert.equal(fs.existsSync(path.join(root, '.github', 'workflows', 'data-migration.yml')), false);
+  const source = fs.readFileSync(path.join(root, 'src', 'scripts', 'migrate-legacy-data.cjs'), 'utf8');
+  assert.match(source, /--apply/);
+  assert.match(source, /--verify/);
+  assert.match(source, /--dry-run/);
 });
 
-test('quality gate exposes lint, tests, build and Firestore rules', () => {
+test('Tests exposes lint, tests, build and Firestore rules', () => {
   assert.equal(packageJson.scripts.lint, 'make lint');
   assert.match(quality, /npm run lint/);
   assert.match(quality, /npm test/);

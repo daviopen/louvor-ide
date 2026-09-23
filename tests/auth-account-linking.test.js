@@ -4,13 +4,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'auth-account-linking.yml'), 'utf8');
 const script = fs.readFileSync(path.join(root, 'src', 'scripts', 'reconcile-auth-identities.cjs'), 'utf8');
 
-test('Firebase Authentication impede múltiplas contas para o mesmo e-mail', () => {
-  assert.match(workflow, /allowDuplicateEmails\":false/);
-  assert.match(workflow, /updateMask=signIn\.allowDuplicateEmails/);
-  assert.match(workflow, /Validar configuração efetiva/);
+test('reconciliação administrativa permanece como script e não como workflow permanente', () => {
+  assert.equal(fs.existsSync(path.join(root, '.github', 'workflows', 'auth-account-linking.yml')), false);
+  assert.ok(fs.existsSync(path.join(root, 'src', 'scripts', 'reconcile-auth-identities.cjs')));
 });
 
 test('reconciliação preserva o UID canônico do perfil e remove somente duplicatas sem perfil', () => {

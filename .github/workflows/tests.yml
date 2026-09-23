@@ -1,33 +1,39 @@
-name: ✅ Quality Gate
+name: Tests
 
 on:
   pull_request:
-    branches: [main, master]
+    branches: [main]
   push:
-    branches: [main, master]
+    branches: [main]
 
 concurrency:
-  group: quality-${{ github.ref }}
+  group: tests-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  quality:
+  tests:
+    name: Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: "20"
           cache: npm
 
-      - name: Setup Java for Firestore Emulator
-        uses: actions/setup-java@v4
+      - name: Setup Java
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "21"
 
       - name: Install dependencies
         run: npm ci
@@ -49,7 +55,7 @@ jobs:
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
         run: npm run build
 
-      - name: Compose notification Firestore rules
+      - name: Compose Firestore Rules
         run: node src/scripts/build-firestore-rules.cjs firestore.rules firestore.notifications.rules firestore.rules
 
       - name: Firestore Rules tests

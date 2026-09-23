@@ -8,7 +8,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = relativePath => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
-const workflow = read('.github/workflows/notification-outbox.yml');
+const workflow = read('.github/workflows/notifications.yml');
 const processor = read('src/scripts/process-notification-outbox.cjs');
 
 test('worker de notificações roda a cada 10 minutos e permite disparo manual', () => {
