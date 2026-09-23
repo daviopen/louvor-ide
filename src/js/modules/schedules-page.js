@@ -165,14 +165,28 @@
     return `<button class="schedule-person-option${currentUserId===userId(user)?' is-selected':''}" type="button" data-modal-action="select-person" data-user-id="${esc(userId(user))}">${renderAvatar(user,'schedule-person-option__avatar')}<span>${esc(user.name||user.email||'Usuário')}</span>${currentUserId===userId(user)?'<i class="fa-solid fa-check" aria-hidden="true"></i>':''}</button>`;
   }
 
+  function currentUserId() { return scope.currentMusicIdeUser?.uid || scope.currentMusicIdeUser?.id || ''; }
+  function pendingSwapForSlot(scheduleId, slotId) { return (state.data?.swapRequests || []).find(item => item.scheduleId===scheduleId && item.slotId===slotId && item.status==='PENDING') || null; }
+  function userUnavailable(id,event) { return (state.data?.unavailability||[]).some(item=>item.userId===id&&scope.MusicIdeScheduleService.unavailabilityMatches(item,event)); }
+
   function renderSlot(schedule, slot) {
     const member=memberForSlot(schedule,slot.id);
     const current=member?state.data.users.find(user=>userId(user)===member.userId):null;
     const roleLabel=slotFunctionLabel(schedule,slot);
     const roleDot=renderFunctionDot(slot.functionId);
     const avatar=current?renderAvatar(current):'<span class="schedule-avatar schedule-avatar--empty" aria-hidden="true"><i class="fa-solid fa-user-plus"></i></span>';
+    const pendingSwap=pendingSwapForSlot(schedule.id,slot.id);
+    const mine=member?.userId===currentUserId();
+    const swapActions=member&&mine
+      ? pendingSwap
+        ? `<div class="schedule-swap-status"><span class="ide-badge ide-badge--warning">Troca aguardando aceite</span><button class="ide-button ide-button--ghost ide-button--sm" data-action="cancel-swap" data-swap-id="${esc(pendingSwap.id)}" type="button">Cancelar pedido</button></div>`
+        : `<button class="ide-button ide-button--secondary ide-button--sm" data-action="open-swap-picker" type="button"><i class="fa-solid fa-right-left" aria-hidden="true"></i> Solicitar troca</button>`
+      : '';
+    const incomingSwap=pendingSwap&&pendingSwap.targetUserId===currentUserId()
+      ? `<div class="schedule-swap-response"><span>Solicitação de troca recebida</span><button class="ide-button ide-button--primary ide-button--sm" data-action="accept-swap" data-swap-id="${esc(pendingSwap.id)}" type="button">Aceitar</button><button class="ide-button ide-button--secondary ide-button--sm" data-action="reject-swap" data-swap-id="${esc(pendingSwap.id)}" type="button">Recusar</button></div>`
+      : '';
     const personControl=state.data.access.canEdit?`<button class="schedule-person-trigger" type="button" data-action="open-person-picker" aria-haspopup="dialog"><span class="schedule-person-trigger__content">${current?renderAvatar(current,'schedule-person-trigger__avatar'):'<span class="schedule-person-trigger__avatar schedule-avatar--empty" aria-hidden="true"><i class="fa-solid fa-user-plus"></i></span>'}<span><small>${member?'Pessoa escalada':'Selecionar pessoa'}</small><strong>${current?esc(current.name||current.email):'Escolher integrante'}</strong></span></span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>`:`<div class="schedule-person-readonly">${current?renderAvatar(current,'schedule-person-trigger__avatar'):''}<strong>${current?esc(current.name||current.email):'Nenhuma pessoa definida'}</strong></div>`;
-    return `<article class="schedule-slot" data-slot-id="${esc(slot.id)}"><div class="schedule-slot__identity">${avatar}<div><span class="schedule-slot__label">Função</span><strong class="schedule-function-name">${roleDot}${esc(roleLabel)}</strong><span>${member?'Posição preenchida':'Aguardando pessoa'}</span></div></div><div class="schedule-slot__controls">${personControl}<div class="schedule-slot__actions">${member&&state.data.access.canEdit?`<button class="ide-button ide-button--secondary ide-button--sm" data-action="remove-member" data-member-id="${esc(member.id)}" type="button"><i class="fa-solid fa-user-minus" aria-hidden="true"></i> Remover pessoa</button>`:''}${state.data.access.canEdit?'<button class="ide-button ide-button--ghost ide-button--sm schedule-remove-slot" data-action="remove-slot" type="button" aria-label="Remover função"><i class="fa-solid fa-trash-can" aria-hidden="true"></i><span>Remover função</span></button>':''}</div></div></article>`;
+    return `<article class="schedule-slot" data-slot-id="${esc(slot.id)}"><div class="schedule-slot__identity">${avatar}<div><span class="schedule-slot__label">Função</span><strong class="schedule-function-name">${roleDot}${esc(roleLabel)}</strong><span>${member?'Posição preenchida':'Aguardando pessoa'}</span></div></div><div class="schedule-slot__controls">${personControl}<div class="schedule-slot__actions">${member&&state.data.access.canEdit?`<button class="ide-button ide-button--secondary ide-button--sm" data-action="remove-member" data-member-id="${esc(member.id)}" type="button"><i class="fa-solid fa-user-minus" aria-hidden="true"></i> Remover pessoa</button>`:''}${swapActions}${incomingSwap}${state.data.access.canEdit?'<button class="ide-button ide-button--ghost ide-button--sm schedule-remove-slot" data-action="remove-slot" type="button" aria-label="Remover função"><i class="fa-solid fa-trash-can" aria-hidden="true"></i><span>Remover função</span></button>':''}</div></div></article>`;
   }
 
   function renderEditorView() {
@@ -187,6 +201,14 @@
     scope.document.title=`IDE Music — ${event.name||(editable?'Editar escala':'Visualizar escala')}`;
     root.innerHTML=`<nav class="schedule-breadcrumb" aria-label="Breadcrumb"><a href="${listUrl()}">Escalas</a><span>/</span><span>${esc(event.name||'Evento')}</span></nav><header class="schedule-editor-header"><div><a class="schedule-back" href="${listUrl()}"><i class="fa-solid fa-arrow-left"></i> Voltar para escalas</a><span class="schedule-card__date">${esc(formatDate(event.date||schedule.eventDate))}${event.time||schedule.eventTime?` · ${esc(event.time||schedule.eventTime)}`:''}</span><h1>${esc(event.name||'Evento')}</h1>${event.location?`<p>${esc(event.location)}</p>`:''}</div><div class="schedule-card__status"><span class="${complete?'ide-badge ide-badge--success':'ide-badge ide-badge--warning'}">${complete?'Completa':'Incompleta'}</span><small>${schedule.completeness.filled}/${schedule.completeness.total} posições preenchidas</small></div></header><section class="schedule-editor-card" data-schedule-id="${esc(schedule.id)}"><div class="schedule-editor-card__heading"><div><span class="ide-module-kicker">Equipe do evento</span><h2>${editable?'Monte a escala':'Visualize a escala'}</h2><p>${editable?'Selecione somente pessoas disponíveis para cada função.':'Confira as pessoas escaladas e suas respectivas funções.'}</p></div><strong>${slots.length} posições</strong></div><div class="schedule-slots">${slots.length?slots.map(slot=>renderSlot(schedule,slot)).join(''):emptySlots}</div>${editable?`<footer class="schedule-card__footer"><div><span>Precisa de outra posição?</span><small>Adicione apenas para este evento.</small></div><div class="schedule-card__footer-actions"><select class="ide-field__control ide-select" data-new-function aria-label="Função para adicionar à escala"><option value="">Adicionar função...</option>${addOptions}</select><button class="ide-button ide-button--primary ide-button--sm" data-action="add-slot" type="button"><i class="fa-solid fa-plus" aria-hidden="true"></i> Adicionar função</button></div></footer>`:''}</section>`;
     root.onclick=editable?handleEditorClick:null;
+  }
+
+  function openSwapPicker(schedule, slot) {
+    const candidates=service.swapCandidates(slot.functionId,scheduleEvent(schedule),state.data).filter(item=>userId(item.user)!==currentUserId());
+    const dialog=el('schedule-person-dialog'); if(!dialog)return;
+    state.picker={scheduleId:schedule.id,slotId:slot.id,mode:'swap'};
+    dialog.innerHTML=`<div class="schedule-person-options__header"><div><strong id="schedule-person-dialog-title">Solicitar troca · ${esc(slotFunctionLabel(schedule,slot))}</strong><small>Escolha quem receberá o pedido. Indisponibilidades aparecem apenas como aviso.</small></div><button class="ide-button ide-button--ghost ide-button--sm" type="button" data-modal-action="close"><i class="fa-solid fa-xmark"></i></button></div>${candidates.length?candidates.map(item=>`<button class="schedule-person-option" type="button" data-modal-action="request-swap" data-user-id="${esc(userId(item.user))}">${renderAvatar(item.user,'schedule-person-option__avatar')}<span><strong>${esc(item.user.name||item.user.email||'Usuário')}</strong>${item.unavailable?'<small>⚠️ Possui indisponibilidade nesta data</small>':''}</span></button>`).join(''):'<div class="schedule-person-options__empty">Nenhuma outra pessoa possui esta função.</div>'}`;
+    dialog.onclick=handleModalClick; const backdrop=el('schedule-person-backdrop'); backdrop.hidden=false; backdrop.style.display='grid'; scope.requestAnimationFrame(()=>dialog.focus());
   }
 
   function openPersonPicker(schedule, slot) {
@@ -213,7 +235,7 @@
     const dialog=el('schedule-person-dialog');
     if(backdrop){backdrop.hidden=true;backdrop.style.display='none';}
     if(dialog)dialog.innerHTML='';
-    state.picker={scheduleId:null,slotId:null};
+    state.picker={scheduleId:null,slotId:null,mode:null};
   }
 
   async function reload() {
@@ -254,6 +276,15 @@
     const button=event.target.closest('[data-modal-action]');
     if(!button)return;
     if(button.dataset.modalAction==='close'){closePersonPicker();return;}
+    if(button.dataset.modalAction==='request-swap'){
+      const schedule=currentSchedule(); const slot=schedule?.slots?.find(item=>item.id===state.picker.slotId); if(!schedule||!slot)return closePersonPicker();
+      const targetId=button.dataset.userId; const unavailable=userUnavailable(targetId,scheduleEvent(schedule));
+      if(unavailable&&!scope.confirm(`${userName(targetId)} possui indisponibilidade cadastrada nesta data. Deseja enviar a solicitação mesmo assim?`))return;
+      button.disabled=true;
+      try { await service.requestSwap(schedule.id,slot.id,targetId,scope.currentMusicIdeUser,scope.currentMusicIdeProfile); closePersonPicker(); await reload(); toast('Solicitação de troca enviada.'); }
+      catch(error){ button.disabled=false; throw error; }
+      return;
+    }
     if(button.dataset.modalAction==='select-person'){
       const schedule=currentSchedule();
       const slot=schedule?.slots?.find(item=>item.id===state.picker.slotId);
@@ -270,6 +301,14 @@
     const slotNode=button.closest('[data-slot-id]'), slot=schedule.slots?.find(item=>item.id===slotNode?.dataset.slotId);
     try{
       if(button.dataset.action==='open-person-picker'){if(slot)openPersonPicker(schedule,slot);return;}
+      if(button.dataset.action==='open-swap-picker'){if(slot)openSwapPicker(schedule,slot);return;}
+      if(button.dataset.action==='cancel-swap'){await service.cancelSwap(button.dataset.swapId,scope.currentMusicIdeUser);await reload();toast('Solicitação de troca cancelada.');return;}
+      if(button.dataset.action==='accept-swap'){
+        const req=(state.data.swapRequests||[]).find(item=>item.id===button.dataset.swapId);
+        if(req?.targetWasUnavailable&&!scope.confirm('Você possui indisponibilidade cadastrada nesta data. Deseja assumir esta escala mesmo assim?'))return;
+        await service.respondSwap(button.dataset.swapId,'ACCEPTED',scope.currentMusicIdeUser);await reload();toast('Troca aceita. A escala foi atualizada.');return;
+      }
+      if(button.dataset.action==='reject-swap'){await service.respondSwap(button.dataset.swapId,'REJECTED',scope.currentMusicIdeUser);await reload();toast('Troca recusada.');return;}
       if(button.dataset.action==='add-slot'){
         const root = el('schedules-root');
         const functionId=root?.querySelector('[data-new-function]')?.value || '';
