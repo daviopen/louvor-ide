@@ -362,13 +362,41 @@ service cloud.firestore {
     match /schedules/{documentId} {
       allow read: if canRead('schedules') || canRead('setlists') || canRead('dashboard') || canEdit('events');
       allow create: if canEdit('schedules') || eventManagedScheduleWrite(documentId);
-      allow update: if canEdit('schedules') || eventManagedScheduleUpdate(documentId);
+      allow update: if canEdit('schedules') || eventManagedScheduleUpdate(documentId)
+        || (activeUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedBy', 'updatedAt']) && request.resource.data.updatedBy == request.auth.uid);
       allow delete: if canEdit('schedules') || eventManagedScheduleDelete(documentId);
     }
     match /scheduleMembers/{documentId} {
       allow read: if canRead('schedules') || canRead('setlists') || canRead('dashboard') || canEdit('events');
-      allow create, update: if canEdit('schedules');
+      allow create: if canEdit('schedules') || (activeUser() && request.resource.data.userId == request.auth.uid && request.resource.data.swapRequestId is string);
+      allow update: if canEdit('schedules') || (activeUser() && resource.data.userId != request.auth.uid && request.resource.data.active == false && request.resource.data.updatedBy == request.auth.uid);
       allow delete: if canEdit('schedules') || eventCascadeScheduleMemberDelete();
+    }
+    match /scheduleSwapRequests/{documentId} {
+      allow read: if activeUser() && (resource.data.requesterUserId == request.auth.uid || resource.data.targetUserId == request.auth.uid || canEdit('schedules'));
+      allow create: if activeUser()
+        && request.resource.data.requesterUserId == request.auth.uid
+        && request.resource.data.targetUserId is string
+        && request.resource.data.targetUserId != request.auth.uid
+        && request.resource.data.scheduleId is string
+        && request.resource.data.slotId is string
+        && request.resource.data.functionId is string
+        && request.resource.data.sourceMemberId is string
+        && request.resource.data.status == 'PENDING';
+      allow update: if activeUser()
+        && resource.data.status == 'PENDING'
+        && request.resource.data.requesterUserId == resource.data.requesterUserId
+        && request.resource.data.targetUserId == resource.data.targetUserId
+        && request.resource.data.scheduleId == resource.data.scheduleId
+        && request.resource.data.slotId == resource.data.slotId
+        && request.resource.data.functionId == resource.data.functionId
+        && request.resource.data.sourceMemberId == resource.data.sourceMemberId
+        && (
+          (request.auth.uid == resource.data.targetUserId && request.resource.data.status in ['ACCEPTED', 'REJECTED', 'INVALIDATED'])
+          || (request.auth.uid == resource.data.requesterUserId && request.resource.data.status == 'CANCELLED')
+          || canEdit('schedules')
+        );
+      allow delete: if false;
     }
     match /setlists/{documentId} {
       allow read: if canRead('setlists') || canRead('dashboard') || canEdit('events');
