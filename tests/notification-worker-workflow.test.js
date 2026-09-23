@@ -39,3 +39,13 @@ test('configuração VAPID pública só é regravada quando a chave muda', () =>
   );
   assert.equal((configSection.match(/configRef\.set\(/g) || []).length, 1);
 });
+
+test('processador usa a API modular do firebase-admin v14', () => {
+  assert.match(processor, /require\('firebase-admin\/app'\)/);
+  assert.match(processor, /require\('firebase-admin\/firestore'\)/);
+  assert.match(processor, /getApps\(\)\.length/);
+  assert.match(processor, /initializeApp\(\{ projectId: PROJECT_ID \}\)/);
+  assert.match(processor, /const db = getFirestore\(\)/);
+  assert.doesNotMatch(processor, /admin\.apps/);
+  assert.doesNotMatch(processor, /admin\.firestore/);
+});
