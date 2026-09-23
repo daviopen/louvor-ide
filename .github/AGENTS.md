@@ -2,71 +2,63 @@
 
 Estas regras complementam o `AGENTS.md` raiz e são obrigatórias para qualquer alteração em `.github/`.
 
-## Objetivo
+## Estrutura oficial
 
-O pipeline deve proteger a qualidade do IDE Music sem transformar cada alteração em uma bateria de testes contra o Firebase de produção. Cloud Firestore, Firebase Authentication e navegação E2E de produção são recursos operacionais e não devem ser consumidos automaticamente a cada push/deploy.
+O IDE Music mantém somente três workflows permanentes:
 
-## Pipeline automático permitido
+- `tests.yml` — lint, testes unitários e de integração, build, Firestore Rules no Emulator e verificações de segurança;
+- `deploy.yml` — deploy de produção após `Tests` concluir com sucesso na branch `main`, com smoke test estático;
+- `notifications.yml` — worker operacional de notificações, agendado e também acionável manualmente.
 
-1. `✅ Quality Gate` pode executar em `push`/`pull_request` e deve concentrar lint, testes unitários, testes de integração, build e Firestore Security Rules.
-2. Testes de Firestore executados automaticamente devem usar **Firebase Emulator** (`demo-louvor-ide` ou equivalente), nunca o projeto `louvor-ide` real.
-3. O deploy automático só deve ocorrer após `✅ Quality Gate` concluído com sucesso na branch `main`/`master`.
-4. O pós-deploy automático deve ser apenas um **smoke test estático e barato**: HTTP 200 de poucas páginas/assets públicos. Não autenticar usuário, não navegar pelo sistema, não criar dados e não consultar Firestore.
-5. Não duplicar `npm test`, testes de Rules e auditorias completas no workflow de deploy quando eles já foram executados no Quality Gate.
+Não criar workflows adicionais permanentes sem necessidade operacional clara e aprovação explícita do responsável pelo projeto.
 
-## Workflows de produção exclusivamente manuais
+## Testes
 
-Os workflows abaixo operam sobre a aplicação/banco reais ou fazem navegação extensa e, por isso, devem permanecer somente com `workflow_dispatch`:
+- `Tests` pode executar em `push` e `pull_request` para `main`.
+- Testes de Firestore devem usar Firebase Emulator (`demo-louvor-ide` ou equivalente), nunca o projeto `louvor-ide` real.
+- O build faz parte de `Tests`; não criar workflow separado apenas para repetir o mesmo build.
+- Testes E2E, auditorias visuais e validações extensas não devem executar automaticamente contra produção.
 
-- `production-e2e.yml` — validação funcional da aplicação publicada;
-- `full-system-playwright-e2e.yml` — simulação completa Playwright;
-- `visual-audit.yml` — auditoria visual desktop/mobile e temas;
-- `auth-account-linking.yml` — reconciliação de identidades Firebase Auth;
-- `setlist-production-e2e.yml` — validação específica do Setlist publicado;
-- `legacy-data-cleanup.yml` — limpeza/restauração de dados legados;
-- `data-migration.yml` — migração/verificação de dados;
-- `schedule-template-backfill.yml` — backfill de templates nas escalas.
+## Deploy
 
-É proibido adicionar `push`, `pull_request`, `workflow_run` ou `schedule/cron` a esses workflows sem uma solicitação explícita do responsável pelo projeto.
+- `Deploy` só deve iniciar automaticamente após `Tests` concluir com sucesso em `main`.
+- O deploy pode publicar Hosting e Firestore Rules.
+- O pós-deploy deve ser um smoke test estático e barato.
+- O pós-deploy não pode fazer login, criar usuários, criar/editar/excluir documentos, listar collections ou executar migrações/backfills.
 
-## Operações administrativas e migrações
+## Notifications
 
-- Reconciliações de Auth, backfills, migrações, limpezas e provisionamentos de usuários/dados reais devem ser **manuais e intencionais**.
-- Essas operações não podem ser acopladas ao deploy.
-- Antes de qualquer script com `firebase-admin` ser adicionado a um workflow automático, avaliar quantas leituras, gravações e exclusões ele pode gerar. O padrão é não permitir acesso ao banco real.
-- Consultas globais como `db.collection(...).get()` em produção não devem rodar automaticamente.
+`Notifications` é parte do runtime do IDE Music e pode acessar produção.
 
-## Testes E2E em produção
+Regras obrigatórias:
 
-- E2E de produção é ferramenta de diagnóstico/aceite, não gate de cada deploy.
-- Deve ser acionado manualmente quando houver necessidade de validar uma mudança importante ou investigar regressão.
-- Quando criar dados temporários, o teste deve removê-los no `finally`/cleanup.
-- Evitar crawlers de todas as rotas quando uma validação direcionada resolver o problema.
-- Para CI recorrente, preferir emulator, fixtures locais e mocks controlados.
+- execução agendada a cada 10 minutos e `workflow_dispatch`;
+- uma única execução concorrente;
+- lote máximo de 25 itens;
+- service account de produção apenas no job do worker;
+- sem E2E, crawler, migração ou varredura global;
+- chave privada VAPID nunca exposta no workflow ou frontend.
 
-## Regra para pós-deploy
+## Operações administrativas
 
-O pós-deploy automático pode verificar disponibilidade do Hosting, mas não deve:
+Migrações, backfills, cleanup, reconciliações de Auth e auditorias permanecem como scripts no repositório, mas não como workflows permanentes.
 
-- fazer login;
-- criar usuário Firebase Auth;
-- criar/editar/excluir documentos;
-- listar collections;
-- abrir todas as páginas com Playwright;
-- executar auditoria visual completa;
-- reconciliar identidades;
-- executar migrações, limpezas ou backfills.
+Quando uma dessas operações for necessária:
 
-Se uma dessas verificações for necessária, usar o workflow manual apropriado.
+- revisar o script e o impacto em produção;
+- executar de forma manual e intencional em ambiente controlado;
+- exigir confirmação explícita antes de qualquer escrita destrutiva;
+- preferir dry-run;
+- nunca acoplar a operação ao deploy automático.
 
 ## Controle de custo
 
-Ao alterar Actions, considerar explicitamente o custo em:
+Evitar:
 
-- leituras/gravações/exclusões do Firestore;
-- operações de Firebase Auth;
-- minutos do GitHub Actions;
-- downloads do Firebase Hosting;
-- repetição desnecessária entre workflows.
+- leituras/gravações desnecessárias no Firestore;
+- operações de Firebase Auth em CI;
+- workflows duplicados;
+- builds repetidos sem necessidade;
+- crawlers e E2E automáticos de produção.
 
-A regra de engenharia é: **validação barata e isolada automaticamente; validação onerosa de produção somente sob demanda**.
+A regra de engenharia é: validação barata e isolada automaticamente; operações de produção apenas quando necessárias.
