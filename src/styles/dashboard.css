@@ -8,6 +8,13 @@ body { background: var(--ide-background); color: var(--ide-text-primary); }
 .ide-dashboard__date { color: var(--ide-text-secondary); white-space: nowrap; }
 .ide-dashboard__status { border: 1px solid var(--ide-border); border-radius: var(--ide-radius-lg); padding: var(--ide-space-4); margin-bottom: var(--ide-space-6); background: var(--ide-surface); }
 .ide-dashboard__status[data-type="error"] { border-color: var(--ide-error); color: var(--ide-error); }
+.ide-dashboard-notification-prompt { display: flex; align-items: center; justify-content: space-between; gap: var(--ide-space-5); margin-bottom: var(--ide-space-6); padding: var(--ide-space-5); border: 1px solid var(--ide-primary); border-radius: var(--ide-radius-xl); background: var(--ide-surface); box-shadow: var(--ide-shadow-sm); }
+.ide-dashboard-notification-prompt[hidden] { display: none; }
+.ide-dashboard-notification-prompt__content { min-width: 0; display: flex; align-items: center; gap: var(--ide-space-4); }
+.ide-dashboard-notification-prompt__icon { flex: 0 0 auto; width: 44px; height: 44px; display: grid; place-items: center; border-radius: var(--ide-radius-lg); background: var(--ide-surface-secondary); color: var(--ide-primary-active); font-size: var(--ide-font-size-lg); }
+.ide-dashboard-notification-prompt h2 { margin: 0 0 var(--ide-space-1); font-size: var(--ide-font-size-lg); }
+.ide-dashboard-notification-prompt p { margin: 0; color: var(--ide-text-secondary); }
+.ide-dashboard-notification-prompt__button { flex: 0 0 auto; min-height: 44px; }
 .ide-dashboard-section { margin-bottom: var(--ide-space-8); }
 .ide-dashboard-grid + .ide-dashboard-section { margin-top: var(--ide-space-6); }
 .ide-dashboard-section__heading { display: flex; justify-content: space-between; align-items: center; gap: var(--ide-space-4); margin-bottom: var(--ide-space-4); }
@@ -55,6 +62,8 @@ body { background: var(--ide-background); color: var(--ide-text-primary); }
   .ide-dashboard { padding: var(--ide-space-6) var(--ide-space-4) 96px; }
   .ide-dashboard__header { align-items: flex-start; flex-direction: column; }
   .ide-dashboard-grid { grid-template-columns: 1fr; }
+  .ide-dashboard-notification-prompt { align-items: stretch; flex-direction: column; }
+  .ide-dashboard-notification-prompt__button { width: 100%; justify-content: center; }
   .ide-dashboard-indicators { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
