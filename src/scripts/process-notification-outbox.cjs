@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-const admin = require('firebase-admin');
+const { getApps, initializeApp } = require('firebase-admin/app');
+const { FieldValue, getFirestore } = require('firebase-admin/firestore');
 const webpush = require('web-push');
 
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || 'louvor-ide';
@@ -12,9 +13,8 @@ const MAX_BATCH = Math.max(1, Math.min(50, Number(process.env.NOTIFICATION_BATCH
 const MAX_ATTEMPTS = Math.max(1, Number(process.env.NOTIFICATION_MAX_ATTEMPTS || 5));
 const STALE_LOCK_MS = Math.max(5 * 60_000, Number(process.env.NOTIFICATION_STALE_LOCK_MS || 20 * 60_000));
 
-if (!admin.apps.length) admin.initializeApp({ projectId: PROJECT_ID });
-const db = admin.firestore();
-const FieldValue = admin.firestore.FieldValue;
+if (!getApps().length) initializeApp({ projectId: PROJECT_ID });
+const db = getFirestore();
 
 function compactError(error) {
   return String(error?.message || error || 'Falha desconhecida').replace(/\s+/g, ' ').slice(0, 500);
