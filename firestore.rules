@@ -368,8 +368,8 @@ service cloud.firestore {
     }
     match /scheduleMembers/{documentId} {
       allow read: if canRead('schedules') || canRead('setlists') || canRead('dashboard') || canEdit('events');
-      allow create: if canEdit('schedules') || (activeUser() && request.resource.data.userId == request.auth.uid && request.resource.data.swapRequestId is string);
-      allow update: if canEdit('schedules') || (activeUser() && resource.data.userId != request.auth.uid && request.resource.data.active == false && request.resource.data.updatedBy == request.auth.uid);
+      allow create: if canEdit('schedules') || (activeUser() && request.resource.data.userId == request.auth.uid && request.resource.data.swapRequestId is string && exists(/databases/$(database)/documents/scheduleSwapRequests/$(request.resource.data.swapRequestId)) && get(/databases/$(database)/documents/scheduleSwapRequests/$(request.resource.data.swapRequestId)).data.targetUserId == request.auth.uid);
+      allow update: if canEdit('schedules') || (activeUser() && resource.data.userId != request.auth.uid && request.resource.data.active == false && request.resource.data.updatedBy == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active', 'removedAt', 'updatedBy', 'updatedAt']));
       allow delete: if canEdit('schedules') || eventCascadeScheduleMemberDelete();
     }
     match /scheduleSwapRequests/{documentId} {
