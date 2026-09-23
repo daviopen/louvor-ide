@@ -302,8 +302,15 @@
       }
     });
 
-    details.querySelector('.ide-notification-mark-all').addEventListener('click', () => {
-      markAllRead().catch(error => console.warn('Não foi possível marcar notificações como lidas.', error));
+    details.querySelector('.ide-notification-mark-all').addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      const button = event.currentTarget;
+      if (button.disabled) return;
+      button.disabled = true;
+      markAllRead()
+        .catch(error => console.warn('Não foi possível marcar notificações como lidas.', error))
+        .finally(() => { button.disabled = false; });
     });
 
     details.querySelector('#ide-enable-notifications').addEventListener('click', event => {
