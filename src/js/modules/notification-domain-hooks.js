@@ -44,75 +44,43 @@
     if (!Service || Service.prototype[PATCHED]) return false;
     const proto = Service.prototype;
 
+    async function notifyCompletedSchedule(service, scheduleId, user, beforeStatus, result) {
+      const { schedule, eventId } = await scheduleContext(service, scheduleId);
+      const isComplete = String(schedule?.status || '').toUpperCase() === 'COMPLETE';
+      const wasComplete = String(beforeStatus || '').toUpperCase() === 'COMPLETE';
+      if (!isComplete || wasComplete) return;
+      const members = await service.repository.listMembers(scheduleId);
+      const active = members.filter(member => member.active !== false && member.userId);
+      for (const member of active) {
+        await enqueueSafe(service, {
+          type: 'SCHEDULE_MEMBER_ASSIGNED', aggregateType: 'schedule', scheduleId, eventId,
+          targetUserIds: [member.userId], channels: { push: true, email: true, calendar: true },
+          payload: { changeKind: 'SCHEDULE_COMPLETED', memberId: member.id || null, userId: member.userId, functionId: member.functionId || null, slotId: member.slotId || null }
+        }, user);
+      }
+    }
+
     const originalAddSlot = proto.addSlot;
     proto.addSlot = async function addSlotWithNotification(scheduleId, functionId, user, profile) {
-      const result = await originalAddSlot.call(this, scheduleId, functionId, user, profile);
-      const { schedule, eventId } = await scheduleContext(this, scheduleId);
-      await enqueueSafe(this, {
-        type: 'SCHEDULE_UPDATED', aggregateType: 'schedule', scheduleId, eventId,
-        targetUserIds: [], channels: { push: true, email: false, calendar: false },
-        payload: { changeKind: 'SLOT_ADDED', functionId, slotId: result?.id || null }
-      }, user);
-      return result;
+      return originalAddSlot.call(this, scheduleId, functionId, user, profile);
     };
 
     const originalRemoveSlot = proto.removeSlot;
     proto.removeSlot = async function removeSlotWithNotification(scheduleId, slotId, user, profile) {
-      const before = await this.repository.listMembers(scheduleId);
-      const affected = before.filter(member => member.slotId === slotId && member.active !== false);
-      const result = await originalRemoveSlot.call(this, scheduleId, slotId, user, profile);
-      const { schedule, eventId } = await scheduleContext(this, scheduleId);
-      for (const member of affected) {
-        await enqueueSafe(this, {
-          type: 'SCHEDULE_MEMBER_REMOVED', aggregateType: 'schedule', scheduleId, eventId,
-          targetUserIds: [member.userId], channels: { push: true, email: true, calendar: true },
-          payload: { changeKind: 'SLOT_REMOVED', memberId: member.id, userId: member.userId, functionId: member.functionId, slotId }
-        }, user);
-      }
-      await enqueueSafe(this, {
-        type: 'SCHEDULE_UPDATED', aggregateType: 'schedule', scheduleId, eventId,
-        targetUserIds: [], channels: { push: true, email: false, calendar: false },
-        payload: { changeKind: 'SLOT_REMOVED', slotId }
-      }, user);
-      return result;
+      return originalRemoveSlot.call(this, scheduleId, slotId, user, profile);
     };
 
     const originalAssign = proto.assign;
     proto.assign = async function assignWithNotification(scheduleId, slotId, userId, user, profile, options) {
-      const before = await this.repository.listMembers(scheduleId);
-      const previous = before.find(member => member.slotId === slotId && member.active !== false) || null;
+      const before = await this.repository.getSchedule(scheduleId);
       const result = await originalAssign.call(this, scheduleId, slotId, userId, user, profile, options);
-      if (result?.unchanged) return result;
-      const { schedule, eventId } = await scheduleContext(this, scheduleId);
-      if (previous && previous.userId !== userId) {
-        await enqueueSafe(this, {
-          type: 'SCHEDULE_MEMBER_REMOVED', aggregateType: 'schedule', scheduleId, eventId,
-          targetUserIds: [previous.userId], channels: { push: true, email: true, calendar: true },
-          payload: { changeKind: 'REPLACED', memberId: previous.id, userId: previous.userId, functionId: previous.functionId, slotId }
-        }, user);
-      }
-      await enqueueSafe(this, {
-        type: 'SCHEDULE_MEMBER_ASSIGNED', aggregateType: 'schedule', scheduleId, eventId,
-        targetUserIds: [userId], channels: { push: true, email: true, calendar: true },
-        payload: { changeKind: previous ? 'REPLACED' : 'ASSIGNED', memberId: result?.member?.id || null, userId, functionId: result?.member?.functionId || null, slotId }
-      }, user);
+      if (!result?.unchanged) await notifyCompletedSchedule(this, scheduleId, user, before?.status, result);
       return result;
     };
 
     const originalRemoveMember = proto.removeMember;
     proto.removeMember = async function removeMemberWithNotification(scheduleId, memberId, user, profile) {
-      const before = await this.repository.listMembers(scheduleId, { includeInactive: true });
-      const removed = before.find(member => member.id === memberId) || null;
-      const result = await originalRemoveMember.call(this, scheduleId, memberId, user, profile);
-      if (removed?.userId) {
-        const { eventId } = await scheduleContext(this, scheduleId);
-        await enqueueSafe(this, {
-          type: 'SCHEDULE_MEMBER_REMOVED', aggregateType: 'schedule', scheduleId, eventId,
-          targetUserIds: [removed.userId], channels: { push: true, email: true, calendar: true },
-          payload: { changeKind: 'REMOVED', memberId, userId: removed.userId, functionId: removed.functionId, slotId: removed.slotId }
-        }, user);
-      }
-      return result;
+      return originalRemoveMember.call(this, scheduleId, memberId, user, profile);
     };
 
     Object.defineProperty(proto, PATCHED, { value: true });
