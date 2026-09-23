@@ -137,6 +137,7 @@
     async load(user, profile = null) {
       const access = await this.resolveAccess(user, profile);
       if (!access.canRead) throw new Error('Você não possui permissão para consultar escalas.');
+      const userId = this.actorId(user);
 
       const [schedules, users, functions] = await Promise.all([
         readDependency('escalas e eventos', () => this.repository.listSchedules({ limit: 120 })),
