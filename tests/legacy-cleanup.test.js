@@ -10,7 +10,6 @@ const cleanup = require('../src/scripts/cleanup-legacy-data.cjs');
 const repository = read('src/repositories/music-repository.js');
 const collections = read('src/constants/collections.js');
 const rules = read('firestore.rules');
-const workflow = read('.github/workflows/legacy-data-cleanup.yml');
 const script = read('src/scripts/cleanup-legacy-data.cjs');
 
 test('runtime de músicas usa somente a collection canônica songs', () => {
@@ -31,14 +30,10 @@ test('limpeza só apaga legado depois de verificar cobertura e arquivar', () => 
   assert.match(script, /--restore-musicas/);
 });
 
-test('workflow de limpeza em produção é exclusivamente manual', () => {
-  assert.match(workflow, /workflow_dispatch:/);
-  assert.doesNotMatch(workflow, /workflow_run:/);
-  assert.doesNotMatch(workflow, /\bpush:/);
-  assert.doesNotMatch(workflow, /\bschedule:/);
-  assert.match(workflow, /dry-run/);
-  assert.match(workflow, /cleanup-legacy-data\.cjs --apply/);
-  assert.match(workflow, /cleanup-legacy-data\.cjs --restore-musicas/);
+test('limpeza legada permanece como operação administrativa fora do Actions', () => {
+  assert.equal(fs.existsSync(path.join(root, '.github', 'workflows', 'legacy-data-cleanup.yml')), false);
+  assert.match(script, /--restore-musicas/);
+  assert.match(script, /async function main/);
 });
 
 test('utilitário de chunks respeita limite operacional de batch', () => {
