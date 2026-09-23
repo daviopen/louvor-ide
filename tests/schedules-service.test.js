@@ -6,7 +6,6 @@ function fakeRepository() {
   const schedules = new Map([['schedule_event_1', { id: 'schedule_event_1', eventId: 'event_1', status: 'DRAFT', slots: [{ id: 'slot_a', functionId: 'fn_back' }] }]]);
   const members = [];
   const audit = [];
-  const swaps = [];
   const users = [{ id: 'u1', name: 'Ana', active: true }, { id: 'u2', name: 'Bia', active: true }];
   const userFunctions = [{ userId: 'u1', functionId: 'fn_back', active: true }, { userId: 'u1', functionId: 'fn_keys', active: true }, { userId: 'u2', functionId: 'fn_back', active: true }];
   const unavailability = [{ id: 'un1', userId: 'u2', date: '2026-09-01', period: 'EVENING' }];
@@ -22,7 +21,7 @@ function fakeRepository() {
     listUnavailabilityForUser: 0
   };
   return {
-    schedules, members, audit, swaps, calls,
+    schedules, members, audit, calls,
     async getPermissionLevel() { return 'EDIT'; },
     async listSchedules() { calls.listSchedules += 1; return [{ ...schedules.get('schedule_event_1'), event: { id: 'event_1', name: 'Culto', date: '2026-09-01', time: '20:00' } }]; },
     async listActiveUsers() { return users.map(item => ({ ...item })); },
@@ -43,12 +42,7 @@ function fakeRepository() {
     async createMember(data) { const item = { id: `m${members.length + 1}`, ...data, active: true }; members.push(item); return item; },
     async removeMember(id) { const item = members.find(member => member.id === id); if (item) item.active = false; return item; },
     async addAuditLog(actor, action, entityId, details) { audit.push({ actor, action, entityId, details }); },
-    async listSwapRequestsForUser(userId) { return swaps.filter(item => item.requesterUserId === userId || item.targetUserId === userId); },
-    async findPendingSwapForSlot(scheduleId, slotId) { return swaps.find(item => item.scheduleId === scheduleId && item.slotId === slotId && item.status === 'PENDING') || null; },
-    async createSwapRequest(data, actorUserId) { const item = { id: `swap_${swaps.length + 1}`, ...data, requesterUserId: actorUserId, status: 'PENDING', createdAt: new Date() }; swaps.push(item); return item; },
-    async getSwapRequest(id) { return swaps.find(item => item.id === id) || null; },
-    async updateSwapRequest(id, patch) { const item = swaps.find(value => value.id === id); Object.assign(item, patch); return { ...item }; },
-    clock() { return new Date(); }
+
   };
 }
 
