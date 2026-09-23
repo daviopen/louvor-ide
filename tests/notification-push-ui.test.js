@@ -7,6 +7,8 @@ const root = path.resolve(__dirname, '..');
 const read = relativePath => fs.readFileSync(path.join(root, relativePath), 'utf8');
 const push = read('src/js/modules/notification-push.js');
 const center = read('src/js/modules/notification-center.js');
+const dashboard = read('src/js/modules/dashboard-page.js');
+const dashboardHtml = read('src/pages/index.html');
 
 test('push detecta iPhone/iPad fora do modo instalado antes de pedir permissão', () => {
   assert.match(push, /function isIosDevice\(\)/);
@@ -38,4 +40,15 @@ test('observador desconecta antes de sincronizar o botão e não cria ciclo de m
   assert.ok(observerCallback.indexOf('observer.disconnect()') < observerCallback.indexOf('syncExistingControl()'));
   assert.match(push, /label\.textContent !== nextLabel/);
   assert.match(push, /button\.dataset\.notificationStatus !== status/);
+});
+
+test('Dashboard oferece ativação de notificações sem depender da sidebar', () => {
+  assert.match(dashboardHtml, /id="dashboard-notification-prompt"/);
+  assert.match(dashboardHtml, /id="dashboard-enable-notifications"/);
+  assert.match(dashboard, /function setupNotificationPrompt\(\)/);
+  assert.match(dashboard, /MusicIdeNotificationPush/);
+  assert.match(dashboard, /api\.enable\(\)/);
+  assert.match(dashboard, /ide:notification-push-status/);
+  assert.match(dashboard, /status === 'ENABLED'/);
+  assert.match(dashboard, /status === 'IOS_INSTALL_REQUIRED'/);
 });

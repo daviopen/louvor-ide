@@ -175,6 +175,80 @@
     });
   }
 
+  function syncNotificationPrompt(statusInput) {
+    const prompt = scope.document.getElementById('dashboard-notification-prompt');
+    const text = scope.document.getElementById('dashboard-notification-text');
+    const button = scope.document.getElementById('dashboard-enable-notifications');
+    if (!prompt || !text || !button) return;
+
+    const api = scope.MusicIdeNotificationPush;
+    const status = typeof statusInput === 'string'
+      ? statusInput
+      : (typeof api?.currentStatus === 'function' ? api.currentStatus() : null);
+    const label = button.querySelector('span');
+
+    prompt.hidden = true;
+    button.hidden = false;
+    button.disabled = false;
+    button.dataset.notificationAction = 'enable';
+
+    if (!status || status === 'ENABLED' || status === 'NO_USER' || status === 'UNSUPPORTED') return;
+
+    prompt.hidden = false;
+
+    if (status === 'IOS_INSTALL_REQUIRED') {
+      text.textContent = 'Para receber avisos no iPhone/iPad, instale o IDE Music na Tela de Início e abra pelo ícone.';
+      button.dataset.notificationAction = 'install';
+      if (label) label.textContent = 'Como instalar';
+      return;
+    }
+
+    if (status === 'DENIED') {
+      text.textContent = 'As notificações estão bloqueadas. Ative o IDE Music nas configurações de Notificações do dispositivo.';
+      button.hidden = true;
+      return;
+    }
+
+    if (status === 'FAILED') {
+      text.textContent = 'Não foi possível ativar as notificações. Verifique a conexão e tente novamente.';
+      if (label) label.textContent = 'Tentar novamente';
+      return;
+    }
+
+    text.textContent = 'Receba avisos de escalas e setlists mesmo com o IDE Music fechado.';
+    if (label) label.textContent = 'Ativar notificações';
+  }
+
+  async function handleNotificationPromptClick(event) {
+    const button = event.currentTarget;
+    if (button.dataset.notificationAction === 'install') {
+      scope.location.href = 'help.html#help-install-title';
+      return;
+    }
+
+    const api = scope.MusicIdeNotificationPush;
+    if (!api?.enable) {
+      syncNotificationPrompt('UNSUPPORTED');
+      return;
+    }
+
+    button.disabled = true;
+    const label = button.querySelector('span');
+    if (label) label.textContent = 'Ativando…';
+    const result = await api.enable();
+    syncNotificationPrompt(result?.status || 'FAILED');
+  }
+
+  function setupNotificationPrompt() {
+    const button = scope.document.getElementById('dashboard-enable-notifications');
+    if (!button) return;
+    button.addEventListener('click', handleNotificationPromptClick);
+    scope.document.addEventListener('ide:notification-push-status', event => {
+      syncNotificationPrompt(event?.detail?.status);
+    });
+    syncNotificationPrompt();
+  }
+
   function setStatus(message, type = 'loading') {
     const status = scope.document.getElementById('dashboard-status');
     if (!status) return;
@@ -209,6 +283,7 @@
   }
 
   function bootstrap() {
+    setupNotificationPrompt();
     if (!scope.firebase || !scope.firebase.auth) return setStatus('Autenticação indisponível.', 'error');
     scope.firebase.auth().onAuthStateChanged(user => {
       if (user) loadForUser(user);

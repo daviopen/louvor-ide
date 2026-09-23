@@ -108,6 +108,20 @@
 
     <div id="dashboard-status" class="ide-dashboard__status" role="status" aria-live="polite">Atualizando seu painel…</div>
 
+    <section id="dashboard-notification-prompt" class="ide-dashboard-notification-prompt" aria-labelledby="dashboard-notification-title" hidden>
+      <div class="ide-dashboard-notification-prompt__content">
+        <span class="ide-dashboard-notification-prompt__icon" aria-hidden="true"><i class="fa-solid fa-bell"></i></span>
+        <div>
+          <h2 id="dashboard-notification-title">Ative as notificações</h2>
+          <p id="dashboard-notification-text">Receba avisos de escalas e setlists mesmo com o IDE Music fechado.</p>
+        </div>
+      </div>
+      <button id="dashboard-enable-notifications" class="ide-button ide-button--primary ide-dashboard-notification-prompt__button" type="button">
+        <i class="fa-solid fa-bell" aria-hidden="true"></i>
+        <span>Ativar notificações</span>
+      </button>
+    </section>
+
     <section class="ide-dashboard-grid" aria-label="Meus próximos compromissos">
       <article class="ide-dashboard-card">
         <header class="ide-dashboard-card__header"><i class="fa-solid fa-people-group" aria-hidden="true"></i><h2><a id="dashboard-schedules-title-link" class="ide-dashboard-card__title-link" href="module.html?section=schedules" aria-label="Abrir minhas próximas escalas">Minhas próximas escalas</a></h2></header>
