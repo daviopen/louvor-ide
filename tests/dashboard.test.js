@@ -145,7 +145,9 @@ test('index.html contém somente as áreas pessoais solicitadas no Dashboard', (
     'dashboard-user-indicators',
     'dashboard-schedules-title-link',
     'dashboard-setlists-title-link',
-    'dashboard-unavailability-title-link'
+    'dashboard-unavailability-title-link',
+    'dashboard-notification-prompt',
+    'dashboard-enable-notifications'
   ].forEach(id => assert.match(html, new RegExp(`id="${id}"`)));
   assert.match(html, /Dashboard — IDE Music/);
   assert.match(html, /class="ide-dashboard-card__title-link"/);
@@ -185,6 +187,8 @@ test('Dashboard possui layout responsivo e usa tokens do Design System', () => {
   assert.match(css, /@media \(max-width: 520px\)/);
   assert.match(css, /var\(--ide-background\)/);
   assert.match(css, /\.ide-dashboard-indicator:hover/);
+  assert.match(css, /\.ide-dashboard-notification-prompt/);
+  assert.match(css, /min-height: 44px/);
   assert.match(css, /\.ide-dashboard-card__title-link:hover/);
   assert.match(css, /\.ide-dashboard-card__title-link:focus-visible/);
   assert.match(css, /cursor: pointer/);
