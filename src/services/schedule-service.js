@@ -161,7 +161,7 @@
         const scheduleMembers = membersBySchedule.get(schedule.id) || [];
         return { ...schedule, members: scheduleMembers, completeness: scheduleCompleteness(schedule, scheduleMembers) };
       });
-      const swapRequests = await readDependency('solicitações de troca', () => this.repository.listSwapRequestsForUser(userId));
+      const swapRequests = typeof this.repository.listSwapRequestsForUser === 'function' ? await readDependency('solicitações de troca', () => this.repository.listSwapRequestsForUser(userId)) : [];
       return { access, schedules: result, users, functions, userFunctions, unavailability, swapRequests };
     }
 
@@ -185,7 +185,7 @@
         access,
         schedules: [{ ...orderedSchedule, event: event || null, members: activeMembers, completeness: scheduleCompleteness(orderedSchedule, activeMembers) }],
         users, functions, userFunctions, unavailability,
-        swapRequests: await readDependency('solicitações de troca', () => this.repository.listSwapRequestsForUser(userId))
+        swapRequests: typeof this.repository.listSwapRequestsForUser === 'function' ? await readDependency('solicitações de troca', () => this.repository.listSwapRequestsForUser(userId)) : []
       };
     }
 
