@@ -95,7 +95,9 @@
     proto.save = async function saveWithNotification(setlistId, input, user, profile) {
       const result = await originalSave.call(this, setlistId, input, user, profile);
       const setlist = await this.repository.getSetlist(setlistId);
-      if (setlist?.scheduleId) {
+      const schedule = setlist?.scheduleId ? await this.repository.getSchedule(setlist.scheduleId) : null;
+      const scheduleIsComplete = String(schedule?.status || '').toUpperCase() === 'COMPLETE';
+      if (setlist?.scheduleId && scheduleIsComplete) {
         await enqueueSafe(this, {
           type: 'SETLIST_UPDATED', aggregateType: 'setlist', scheduleId: setlist.scheduleId,
           eventId: setlist.eventId || null, setlistId,
