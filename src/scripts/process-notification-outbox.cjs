@@ -69,13 +69,26 @@ function buildCalendarInvite({ schedule, event, user, functionName, cancelled = 
 async function ensureWebPushKeys() {
   const secretRef = db.collection('notificationSecrets').doc('webPush');
   const configRef = db.collection('notificationConfig').doc('webPush');
-  let snapshot = await secretRef.get();
-  let keys = snapshot.exists ? snapshot.data() : null;
+  const [secretSnapshot, configSnapshot] = await Promise.all([secretRef.get(), configRef.get()]);
+  let keys = secretSnapshot.exists ? secretSnapshot.data() : null;
+
   if (!keys?.publicKey || !keys?.privateKey) {
     keys = webpush.generateVAPIDKeys();
-    await secretRef.set({ ...keys, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+    await secretRef.set({
+      ...keys,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    });
   }
-  await configRef.set({ publicKey: keys.publicKey, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+
+  const configuredPublicKey = configSnapshot.exists ? String(configSnapshot.data()?.publicKey || '') : '';
+  if (configuredPublicKey !== String(keys.publicKey)) {
+    await configRef.set({
+      publicKey: keys.publicKey,
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+  }
+
   webpush.setVapidDetails('mailto:notifications@ide-music.app', keys.publicKey, keys.privateKey);
   return keys.publicKey;
 }
