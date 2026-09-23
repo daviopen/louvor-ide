@@ -194,12 +194,9 @@ async function claim(ref) {
 }
 
 async function recoverStaleLocks() {
-  const snapshot = await db.collection('notificationOutbox').where('status', '==', 'PROCESSING').limit(MAX_BATCH).get();
-  const now = Date.now();
-  const stale = snapshot.docs.filter(doc => {
-    const locked = asDate(doc.data().lockedAt);
-    return locked && now - locked.getTime() > STALE_LOCK_MS;
-  });
+  const cutoff = new Date(Date.now() - STALE_LOCK_MS);
+  const snapshot = await db.collection('notificationOutbox').where('status', '==', 'PROCESSING').where('lockedAt', '<=', cutoff).limit(MAX_BATCH).get();
+  const stale = snapshot.docs;
   await Promise.all(stale.map(doc => doc.ref.update({ status: 'PENDING', lockedAt: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp(), lastError: 'Lock expirado; item devolvido para a fila.' })));
   return stale.length;
 }
