@@ -149,16 +149,14 @@
     const unread = currentItems.filter(item => item.read !== true);
     if (!unread.length) return;
     const db = scope.firebase.firestore();
-    const batch = db.batch();
-    unread.forEach(item => {
-      const now = scope.firebase.firestore.FieldValue.serverTimestamp();
-      batch.update(db.collection('notifications').doc(item.id), {
-        read: true,
-        readAt: now,
-        updatedAt: now
-      });
-    });
-    await batch.commit();
+    // No iOS/PWA, batch writes can fail silently/offline and leave the UI unchanged.
+    // Update each owned notification independently so the same rules/path used by markRead apply.
+    const now = scope.firebase.firestore.FieldValue.serverTimestamp();
+    await Promise.all(unread.map(item => db.collection('notifications').doc(item.id).update({
+      read: true,
+      readAt: now,
+      updatedAt: now
+    })));
     unread.forEach(item => { item.read = true; });
     render([...currentItems]);
   }
