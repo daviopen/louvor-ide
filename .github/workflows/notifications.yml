@@ -37,6 +37,12 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
 
+      - name: Enqueue birthday notifications
+        env:
+          GOOGLE_CLOUD_PROJECT: louvor-ide
+          GCLOUD_PROJECT: louvor-ide
+        run: node src/scripts/enqueue-birthday-notifications.cjs
+
       - name: Process notification outbox
         env:
           GOOGLE_CLOUD_PROJECT: louvor-ide
