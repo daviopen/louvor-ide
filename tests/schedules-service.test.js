@@ -6,6 +6,7 @@ function fakeRepository() {
   const schedules = new Map([['schedule_event_1', { id: 'schedule_event_1', eventId: 'event_1', status: 'DRAFT', slots: [{ id: 'slot_a', functionId: 'fn_back' }] }]]);
   const members = [];
   const audit = [];
+  const swaps = [];
   const users = [{ id: 'u1', name: 'Ana', active: true }, { id: 'u2', name: 'Bia', active: true }];
   const userFunctions = [{ userId: 'u1', functionId: 'fn_back', active: true }, { userId: 'u1', functionId: 'fn_keys', active: true }, { userId: 'u2', functionId: 'fn_back', active: true }];
   const unavailability = [{ id: 'un1', userId: 'u2', date: '2026-09-01', period: 'EVENING' }];
@@ -21,7 +22,7 @@ function fakeRepository() {
     listUnavailabilityForUser: 0
   };
   return {
-    schedules, members, audit, calls,
+    schedules, members, audit, swaps, calls,
     async getPermissionLevel() { return 'EDIT'; },
     async listSchedules() { calls.listSchedules += 1; return [{ ...schedules.get('schedule_event_1'), event: { id: 'event_1', name: 'Culto', date: '2026-09-01', time: '20:00' } }]; },
     async listActiveUsers() { return users.map(item => ({ ...item })); },
@@ -41,7 +42,13 @@ function fakeRepository() {
     async updateSchedule(id, patch) { const next = { ...schedules.get(id), ...patch }; schedules.set(id, next); return next; },
     async createMember(data) { const item = { id: `m${members.length + 1}`, ...data, active: true }; members.push(item); return item; },
     async removeMember(id) { const item = members.find(member => member.id === id); if (item) item.active = false; return item; },
-    async addAuditLog(actor, action, entityId, details) { audit.push({ actor, action, entityId, details }); }
+    async addAuditLog(actor, action, entityId, details) { audit.push({ actor, action, entityId, details }); },
+    async listSwapRequestsForUser(userId) { return swaps.filter(item => item.requesterUserId === userId || item.targetUserId === userId); },
+    async findPendingSwapForSlot(scheduleId, slotId) { return swaps.find(item => item.scheduleId === scheduleId && item.slotId === slotId && item.status === 'PENDING') || null; },
+    async createSwapRequest(data, actorUserId) { const item = { id: `swap_${swaps.length + 1}`, ...data, requesterUserId: actorUserId, status: 'PENDING', createdAt: new Date() }; swaps.push(item); return item; },
+    async getSwapRequest(id) { return swaps.find(item => item.id === id) || null; },
+    async updateSwapRequest(id, patch) { const item = swaps.find(value => value.id === id); Object.assign(item, patch); return { ...item }; },
+    clock() { return new Date(); }
   };
 }
 
@@ -156,4 +163,18 @@ test('selecionar novamente a pessoa já vinculada ao slot é idempotente', async
   assert.equal(second.member.id, first.member.id);
   assert.equal(repository.members.filter(item => item.active !== false).length, 1);
   assert.equal(repository.audit.length, auditCount);
+});
+
+test('troca permite destinatário indisponível e só efetiva após aceite', async () => {
+  const repository = fakeRepository();
+  repository.members.push({ id: 'm1', scheduleId: 'schedule_event_1', slotId: 'slot_a', userId: 'u1', functionId: 'fn_back', active: true });
+  const service = new ScheduleService(repository);
+  const request = await service.requestSwap('schedule_event_1', 'slot_a', 'u2', { uid: 'u1' }, { permissions: { schedules: 'READ' } });
+  assert.equal(request.status, 'PENDING');
+  assert.equal(request.targetWasUnavailable, true);
+  assert.equal(repository.members.find(item => item.id === 'm1').active, true);
+  const result = await service.respondSwap(request.id, 'ACCEPTED', { uid: 'u2' });
+  assert.equal(result.accepted, true);
+  assert.equal(repository.members.find(item => item.id === 'm1').active, false);
+  assert.equal(repository.members.some(item => item.active !== false && item.userId === 'u2' && item.slotId === 'slot_a'), true);
 });
