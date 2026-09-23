@@ -44,7 +44,8 @@
       .ide-notification-item{display:grid;gap:.22rem;text-decoration:none;color:inherit;padding:.8rem 1rem;border-top:1px solid rgba(255,255,255,.08)}
       .ide-notification-item:first-child{border-top:0}
       .ide-notification-item:hover,.ide-notification-item:focus-visible{background:rgba(255,255,255,.07)}
-      .ide-notification-item.is-unread{font-weight:750}
+.ide-notification-item.is-unread{font-weight:750}
+      .ide-notification-item.is-read{opacity:.62}
       .ide-notification-item small{font-weight:400;color:rgba(245,247,246,.68)}
       .ide-notification-empty{padding:1.15rem 1rem;color:rgba(245,247,246,.68);text-align:center;font-size:.9rem}
       .ide-notification-mark-all{border:0;background:transparent;color:var(--primary,#b7ff35);font:inherit;font-size:.76rem;font-weight:750;cursor:pointer;padding:.3rem;border-radius:8px}
@@ -94,7 +95,7 @@
 
     items.forEach(item => {
       const link = scope.document.createElement('a');
-      link.className = `ide-notification-item${item.read === true ? '' : ' is-unread'}`;
+      link.className = `ide-notification-item${item.read === true ? ' is-read' : ' is-unread'}`;
       link.href = item.url || '#';
       const title = scope.document.createElement('span');
       title.textContent = item.title || 'IDE Music';
@@ -152,13 +153,21 @@
     // No iOS/PWA, batch writes can fail silently/offline and leave the UI unchanged.
     // Update each owned notification independently so the same rules/path used by markRead apply.
     const now = scope.firebase.firestore.FieldValue.serverTimestamp();
-    await Promise.all(unread.map(item => db.collection('notifications').doc(item.id).update({
-      read: true,
-      readAt: now,
-      updatedAt: now
-    })));
+    // Optimistic UI: the user gets immediate feedback even while Firestore confirms the writes.
     unread.forEach(item => { item.read = true; });
     render([...currentItems]);
+    try {
+      await Promise.all(unread.map(item => db.collection('notifications').doc(item.id).update({
+        read: true,
+        readAt: now,
+        updatedAt: now
+      })));
+      await load();
+    } catch (error) {
+      unread.forEach(item => { item.read = false; });
+      render([...currentItems]);
+      throw error;
+    }
   }
 
   function resolvePushStatus(input, api) {
