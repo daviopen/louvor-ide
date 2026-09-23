@@ -200,8 +200,22 @@ async function recoverStaleLocks() {
   return stale.length;
 }
 
+function requiresCompleteSchedule(item) {
+  return String(item?.aggregateType || '').toLowerCase() === 'schedule'
+    || String(item?.type || '').startsWith('SCHEDULE_');
+}
+
 async function processItem(item, ref) {
   const context = await contextFor(item);
+  if (requiresCompleteSchedule(item) && String(context.schedule?.status || '').toUpperCase() !== 'COMPLETE') {
+    await ref.update({
+      status: 'PENDING',
+      lockedAt: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+      deferredReason: 'SCHEDULE_NOT_COMPLETE'
+    });
+    return { deferred: true };
+  }
   const results = [];
   for (const user of context.users) {
     const message = messageFor(item, context);
@@ -217,7 +231,8 @@ async function processItem(item, ref) {
     }
     results.push(result);
   }
-  await ref.update({ status: 'SENT', sentAt: FieldValue.serverTimestamp(), lockedAt: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp(), delivery: { recipientCount: context.users.length, results } });
+  await ref.update({ status: 'SENT', sentAt: FieldValue.serverTimestamp(), lockedAt: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp(), deferredReason: FieldValue.delete(), delivery: { recipientCount: context.users.length, results } });
+  return { deferred: false };
 }
 
 async function failItem(item, ref, error) {
@@ -240,8 +255,8 @@ async function main() {
     const item = await claim(doc.ref);
     if (!item) continue;
     try {
-      await processItem(item, doc.ref);
-      sent += 1;
+      const outcome = await processItem(item, doc.ref);
+      if (!outcome?.deferred) sent += 1;
     } catch (error) {
       failed += 1;
       console.error(`notification-outbox: ${item.id} falhou: ${compactError(error)}`);
