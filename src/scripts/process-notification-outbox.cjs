@@ -128,6 +128,12 @@ function messageFor(item, context) {
       const birthdayName = String(item.payload?.birthdayName || 'alguém especial').trim();
       return { title: `🎂 Hoje é aniversário de ${birthdayName}!`, body: `Vamos celebrar a vida de ${birthdayName}. Que Deus abençoe seu novo ciclo! 💚`, url: '/module.html?section=dashboard', emailSubject: `IDE Music • Aniversário de ${birthdayName}` };
     }
+    case 'SCHEDULE_SWAP_REQUEST':
+      return { title: 'Solicitação de troca de escala', body: `${eventName}${suffix}${functionName ? ` • ${functionName}` : ''} — toque para aceitar ou recusar.`, url: `/module.html?section=schedules&scheduleId=${encodeURIComponent(item.scheduleId)}`, emailSubject: `IDE Music • Solicitação de troca: ${eventName}` };
+    case 'SCHEDULE_SWAP_ACCEPTED':
+      return { title: 'Troca de escala aceita', body: `${eventName}${suffix}${functionName ? ` • ${functionName}` : ''}`, url: `/module.html?section=schedules&scheduleId=${encodeURIComponent(item.scheduleId)}`, emailSubject: `IDE Music • Troca aceita: ${eventName}` };
+    case 'SCHEDULE_SWAP_REJECTED':
+      return { title: 'Troca de escala recusada', body: `${eventName}${suffix}${functionName ? ` • ${functionName}` : ''}`, url: `/module.html?section=schedules&scheduleId=${encodeURIComponent(item.scheduleId)}`, emailSubject: `IDE Music • Troca recusada: ${eventName}` };
     case 'SCHEDULE_MEMBER_ASSIGNED':
       return { title: 'Você foi escalado', body: `${eventName}${suffix}${functionName ? ` • ${functionName}` : ''}`, url: '/module.html?section=schedules', emailSubject: `IDE Music • Você foi escalado para ${eventName}` };
     case 'SCHEDULE_MEMBER_REMOVED':
@@ -202,6 +208,7 @@ async function recoverStaleLocks() {
 }
 
 function requiresCompleteSchedule(item) {
+  if (['SCHEDULE_SWAP_REQUEST', 'SCHEDULE_SWAP_ACCEPTED', 'SCHEDULE_SWAP_REJECTED'].includes(String(item?.type || ''))) return false;
   return String(item?.aggregateType || '').toLowerCase() === 'schedule'
     || String(item?.type || '').startsWith('SCHEDULE_');
 }
