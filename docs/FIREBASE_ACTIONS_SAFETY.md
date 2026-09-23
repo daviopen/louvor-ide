@@ -2,71 +2,79 @@
 
 Este documento define a política de uso do Firebase pelos GitHub Actions do IDE Music.
 
-## Regra principal
+## Workflows permanentes
 
-Produção (`louvor-ide`) não pode ser usada como ambiente de escrita por testes automatizados.
+A automação do repositório é deliberadamente mínima:
 
-- CI de `pull_request`/`push`: somente testes locais, mocks e Firebase Emulator.
-- Deploy: pode publicar Hosting e Firestore Rules, mas não executa E2E mutável.
-- QA de produção: somente leitura, sem service account administrativa e sem criar/apagar fixtures.
-- E2E que cria, altera ou apaga dados: somente em projeto Firebase separado de staging/teste.
-- Migrações, backfills, cleanup e operações administrativas reais: somente `workflow_dispatch` e com confirmação explícita quando houver escrita.
+- `.github/workflows/tests.yml` — validação de código e build;
+- `.github/workflows/deploy.yml` — publicação em produção;
+- `.github/workflows/notifications.yml` — processamento da fila de notificações.
 
-## Produção read-only
+Migrações, backfills, cleanup, reconciliações e auditorias não ficam expostos como workflows permanentes.
 
-`.github/workflows/production-e2e.yml` valida apenas páginas/assets públicos e configuração pública do Hosting. Ele não recebe `FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE` e não deve acessar Firestore/Auth de forma mutável.
+## Tests
 
-## E2E mutável em staging
+`Tests` executa em `pull_request` e `push` para `main`.
 
-Os workflows abaixo são isolados de produção:
+Pode executar:
 
-- `.github/workflows/full-system-playwright-e2e.yml`
-- `.github/workflows/visual-audit.yml`
+- lint;
+- testes unitários e de integração;
+- build;
+- testes de Firestore Rules usando Firebase Emulator;
+- verificações estáticas de segurança do repositório.
 
-Configuração esperada no GitHub:
+Não pode usar o Firestore/Auth de produção como ambiente de teste.
 
-- Repository variable `E2E_BASE_URL`: URL publicada do ambiente de teste.
-- Repository variable `E2E_FIREBASE_PROJECT_ID`: project id Firebase do ambiente de teste.
-- Repository secret `FIREBASE_SERVICE_ACCOUNT_E2E`: service account exclusiva desse ambiente.
+## Deploy
 
-Os workflows abortam antes da autenticação quando detectam `louvor-ide`, `louvor-ide.web.app` ou `louvor-ide.firebaseapp.com`.
+`Deploy` pode ser acionado manualmente ou automaticamente após `Tests` concluir com sucesso em `main`.
 
-## Operações administrativas de produção
+Pode:
 
-Workflows de migração, cleanup, reconciliação e backfill permanecem manuais. Operações mutáveis exigem o texto de confirmação:
+- construir o artefato;
+- publicar Firestore Rules;
+- publicar Firebase Hosting;
+- executar smoke test estático de páginas e assets públicos.
 
-`LOUVOR-IDE-PRODUCTION`
+Não pode:
 
-A confirmação reduz disparos acidentais, mas não substitui revisão do script/diff antes da execução.
+- criar usuários;
+- autenticar usuários de teste;
+- persistir fixtures;
+- executar E2E mutável;
+- executar migrações, cleanup ou backfills.
 
-## Worker de notificações de produção
+## Notifications
 
-O workflow `.github/workflows/notification-outbox.yml` é uma exceção operacional explícita às regras de testes automáticos: ele faz parte do runtime de entrega do IDE Music, não é teste, migração, backfill ou QA.
+`Notifications` é uma exceção operacional explícita: faz parte do runtime do IDE Music e acessa produção para entregar notificações.
 
-Regras obrigatórias desse worker:
+Regras obrigatórias:
 
-- executa a cada 10 minutos e também por `workflow_dispatch`;
-- usa uma única execução concorrente (`notification-outbox-production`);
-- consulta somente a fila de notificações e os documentos necessários aos destinatários;
-- limita cada ciclo a no máximo 25 itens pendentes;
-- usa a service account de produção apenas no job do worker;
-- não executa navegação E2E, crawler, migração ou varredura global;
-- a configuração pública VAPID só é gravada quando a chave efetivamente muda;
-- chaves privadas VAPID permanecem em `notificationSecrets/webPush` e nunca são expostas no workflow ou no frontend.
+- agenda a cada 10 minutos e permite `workflow_dispatch`;
+- usa concorrência única `notification-outbox-production`;
+- processa no máximo 25 itens por ciclo;
+- limita tentativas e recupera locks antigos;
+- acessa apenas a fila e os documentos necessários aos destinatários;
+- usa a service account de produção somente nesse job;
+- não executa E2E, migração ou varredura global;
+- a chave VAPID pública só é atualizada quando necessário;
+- a chave privada VAPID permanece em `notificationSecrets/webPush`.
+
+## Operações administrativas
+
+Scripts de migração, backfill, cleanup, reconciliação e auditoria continuam versionados quando forem úteis, mas devem ser executados manualmente em ambiente controlado.
+
+Antes de qualquer execução contra produção:
+
+1. revisar o diff e o script;
+2. estimar leituras, gravações e exclusões;
+3. usar dry-run quando disponível;
+4. confirmar explicitamente qualquer operação mutável;
+5. garantir que a operação não esteja acoplada a `Tests` ou `Deploy`.
 
 ## Custo e consumo
 
-Leituras/escritas do Firestore e operações do Firebase Auth feitas por testes em staging ficam separadas do banco de produção. O `Quality Gate` usa o Firestore Emulator (`demo-louvor-ide`) e, portanto, não deve consumir operações de documentos do Firestore de produção.
+`Tests` deve usar Emulator e recursos locais sempre que possível. `Deploy` deve evitar repetir testes já executados. `Notifications` deve permanecer limitado por lote e frequência.
 
-O worker de notificações é deliberadamente limitado: mesmo sem itens pendentes ele faz apenas as consultas de controle necessárias; não regrava a configuração VAPID a cada ciclo.
-
-## Ao criar um novo workflow
-
-Antes de adicionar um Action que use Firebase:
-
-1. determine se ele precisa apenas de Hosting estático, leitura ou escrita;
-2. prefira Emulator para testes automatizados;
-3. nunca forneça service account de produção a um teste que possa persistir dados;
-4. se houver escrita de teste, use staging e bloqueie explicitamente o project id/URL de produção;
-5. se for uma operação administrativa real, use somente `workflow_dispatch`, dry-run quando possível e confirmação explícita;
-6. não encadeie E2E mutável ao deploy de produção.
+A criação de um quarto workflow permanente exige justificativa operacional clara.
