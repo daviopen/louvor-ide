@@ -3,6 +3,7 @@ name: Notifications
 on:
   schedule:
     - cron: "*/10 * * * *"
+    - cron: "0 11 * * *" # 08:00 em Brasília (UTC-3)
   workflow_dispatch:
 
 concurrency:
@@ -38,6 +39,7 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
 
       - name: Enqueue birthday notifications
+        if: github.event_name == 'schedule' && github.event.schedule == '0 11 * * *'
         env:
           GOOGLE_CLOUD_PROJECT: louvor-ide
           GCLOUD_PROJECT: louvor-ide
