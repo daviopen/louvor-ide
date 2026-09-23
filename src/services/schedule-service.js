@@ -169,6 +169,7 @@
     async loadEditor(scheduleId, user, profile = null) {
       const access = await this.resolveAccess(user, profile);
       if (!access.canRead) throw new Error('Você não possui permissão para consultar escalas.');
+      const userId = this.actorId(user);
       const schedule = await this.repository.getSchedule(scheduleId);
       if (!schedule) return { access, schedules: [], users: [], functions: [], userFunctions: [], unavailability: [] };
       const [event, members, users, functions] = await Promise.all([
