@@ -91,6 +91,7 @@
     userFunctions() { return this.db.collection('userFunctions'); }
     unavailability() { return this.db.collection('unavailability'); }
     auditLogs() { return this.db.collection('auditLogs'); }
+    swapRequests() { return this.db.collection('scheduleSwapRequests'); }
 
     async cached(key, loader, ttlMs = this.cacheTtlMs) {
       const current = this.cache.get(key);
@@ -203,6 +204,45 @@
       return { ...current, ...patch, id, updatedBy: actorUserId, updatedAt };
     }
     async removeMember(id, actorUserId) { return this.updateMember(id, { active: false, removedAt: this.clock() }, actorUserId); }
+
+    async getSwapRequest(id) { return entity(await this.swapRequests().doc(id).get()); }
+
+    async listSwapRequestsForUser(userId) {
+      const [incoming, outgoing] = await Promise.all([
+        this.swapRequests().where('targetUserId', '==', userId).get(),
+        this.swapRequests().where('requesterUserId', '==', userId).get()
+      ]);
+      const merged = new Map([...entities(incoming), ...entities(outgoing)].map(item => [item.id, item]));
+      return [...merged.values()].sort((a, b) => {
+        const left = a.createdAt?.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt || 0).getTime();
+        const right = b.createdAt?.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt || 0).getTime();
+        return right - left;
+      });
+    }
+
+    async findPendingSwapForSlot(scheduleId, slotId) {
+      const snapshot = await this.swapRequests()
+        .where('scheduleId', '==', scheduleId)
+        .where('slotId', '==', slotId)
+        .where('status', '==', 'PENDING')
+        .get();
+      return entities(snapshot)[0] || null;
+    }
+
+    async createSwapRequest(data, actorUserId) {
+      const now = this.clock();
+      const document = { ...data, status: 'PENDING', requesterUserId: actorUserId, createdAt: now, updatedAt: now };
+      const ref = await this.swapRequests().add(document);
+      return { id: ref.id, ...document };
+    }
+
+    async updateSwapRequest(id, patch) {
+      const current = await this.getSwapRequest(id);
+      if (!current) throw new Error('Solicitação de troca não encontrada.');
+      const updatedAt = this.clock();
+      await this.swapRequests().doc(id).set({ ...patch, updatedAt }, { merge: true });
+      return { ...current, ...patch, id, updatedAt };
+    }
 
     async listActiveUsers() {
       return this.cached('activeUsers', async () => {
