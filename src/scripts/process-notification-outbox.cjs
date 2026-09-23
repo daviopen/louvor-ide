@@ -124,6 +124,10 @@ function messageFor(item, context) {
   const suffix = when ? ` • ${when}` : '';
   const functionName = context.ministryFunction?.name || '';
   switch (item.type) {
+    case 'BIRTHDAY_TODAY': {
+      const birthdayName = String(item.payload?.birthdayName || 'alguém especial').trim();
+      return { title: `🎂 Hoje é aniversário de ${birthdayName}!`, body: `Vamos celebrar a vida de ${birthdayName}. Que Deus abençoe seu novo ciclo! 💚`, url: '/module.html?section=dashboard', emailSubject: `IDE Music • Aniversário de ${birthdayName}` };
+    }
     case 'SCHEDULE_MEMBER_ASSIGNED':
       return { title: 'Você foi escalado', body: `${eventName}${suffix}${functionName ? ` • ${functionName}` : ''}`, url: '/module.html?section=schedules', emailSubject: `IDE Music • Você foi escalado para ${eventName}` };
     case 'SCHEDULE_MEMBER_REMOVED':
