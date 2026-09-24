@@ -158,6 +158,147 @@ test('abre o Google em popup e força seleção explícita da conta', async () =
   assert.deepEqual(customParameters, { prompt: 'select_account' });
 });
 
+test('vincula Google à conta existente de senha preservando a mesma identidade', async () => {
+  const googleCredential = { providerId: 'google.com', token: 'test-only' };
+  let linkedCredential = null;
+  let redirected = null;
+  const messageElement = { dataset: {}, hidden: true, textContent: '' };
+  const emailInput = {
+    value: '',
+    readOnly: false,
+    setAttribute() {}
+  };
+
+  const passwordUser = {
+    uid: 'uid-canonic',
+    providerData: [{ providerId: 'password' }],
+    async linkWithCredential(credential) {
+      linkedCredential = credential;
+      this.providerData.push({ providerId: 'google.com' });
+      return { user: this };
+    }
+  };
+
+  const auth = {
+    useDeviceLanguage() {},
+    getRedirectResult: async () => null,
+    onAuthStateChanged(callback) { callback(null); },
+    signOut: async () => null,
+    setPersistence: async () => null,
+    fetchSignInMethodsForEmail: async email => email === 'rayane@example.com' ? ['password'] : [],
+    signInWithPopup: async () => {
+      const error = new Error('existing password account');
+      error.code = 'auth/account-exists-with-different-credential';
+      error.email = 'rayane@example.com';
+      error.credential = googleCredential;
+      throw error;
+    },
+    signInWithEmailAndPassword: async (email, password) => {
+      assert.equal(email, 'rayane@example.com');
+      assert.equal(password, 'senha-correta');
+      return { user: passwordUser };
+    }
+  };
+
+  function authFactory() { return auth; }
+  authFactory.Auth = { Persistence: { LOCAL: 'local' } };
+  authFactory.GoogleAuthProvider = class GoogleAuthProvider {
+    addScope() {}
+    setCustomParameters() {}
+  };
+
+  const scope = {
+    MusicIdeAuth: {},
+    firebase: { auth: authFactory },
+    location: {
+      pathname: '/login.html',
+      search: '',
+      hash: '',
+      replace(value) { redirected = value; }
+    },
+    sessionStorage: { getItem() { return null; }, removeItem() {}, setItem() {} },
+    document: {
+      body: {},
+      documentElement: { classList: { add() {}, remove() {} } },
+      getElementById(id) {
+        if (id === 'auth-message') return messageElement;
+        if (id === 'login-email') return emailInput;
+        return null;
+      }
+    },
+    CustomEvent: class CustomEvent {},
+    dispatchEvent() {}
+  };
+
+  bootstrap(scope);
+  await scope.MusicIdeAuth.signInWithGoogle();
+
+  assert.equal(emailInput.value, 'rayane@example.com');
+  assert.equal(emailInput.readOnly, true);
+  assert.match(messageElement.textContent, /vinculado automaticamente/i);
+
+  await scope.MusicIdeAuth.signInWithEmail('rayane@example.com', 'senha-correta');
+
+  assert.equal(linkedCredential, googleCredential);
+  assert.deepEqual(passwordUser.providerData.map(item => item.providerId), ['password', 'google.com']);
+  assert.equal(redirected, 'login.html');
+  assert.match(messageElement.textContent, /Google vinculado com sucesso/i);
+});
+
+test('impede vincular Google usando senha de outro e-mail', async () => {
+  let passwordSignInCalls = 0;
+  const auth = {
+    useDeviceLanguage() {},
+    getRedirectResult: async () => null,
+    onAuthStateChanged(callback) { callback(null); },
+    signOut: async () => null,
+    setPersistence: async () => null,
+    fetchSignInMethodsForEmail: async () => ['password'],
+    signInWithPopup: async () => {
+      const error = new Error('existing password account');
+      error.code = 'auth/account-exists-with-different-credential';
+      error.email = 'conta@example.com';
+      error.credential = { providerId: 'google.com' };
+      throw error;
+    },
+    signInWithEmailAndPassword: async () => {
+      passwordSignInCalls += 1;
+      return { user: {} };
+    }
+  };
+
+  function authFactory() { return auth; }
+  authFactory.Auth = { Persistence: { LOCAL: 'local' } };
+  authFactory.GoogleAuthProvider = class GoogleAuthProvider { addScope() {} };
+
+  const messageElement = { dataset: {}, hidden: true, textContent: '' };
+  const emailInput = { value: '', readOnly: false, setAttribute() {} };
+  const scope = {
+    MusicIdeAuth: {},
+    firebase: { auth: authFactory },
+    location: { pathname: '/login.html', search: '', hash: '', replace() {} },
+    sessionStorage: { getItem() { return null; }, removeItem() {}, setItem() {} },
+    document: {
+      body: {},
+      documentElement: { classList: { add() {}, remove() {} } },
+      getElementById(id) {
+        if (id === 'auth-message') return messageElement;
+        if (id === 'login-email') return emailInput;
+        return null;
+      }
+    },
+    CustomEvent: class CustomEvent {},
+    dispatchEvent() {}
+  };
+
+  bootstrap(scope);
+  await scope.MusicIdeAuth.signInWithGoogle();
+  await scope.MusicIdeAuth.signInWithEmail('outra@example.com', 'senha');
+
+  assert.equal(passwordSignInCalls, 0);
+  assert.match(messageElement.textContent, /conta@example\.com/);
+});
+
 test('entra com e-mail e senha usando persistência local', async () => {
   let receivedCredentials = null;
   let persistence = null;
