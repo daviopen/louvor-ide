@@ -60,3 +60,10 @@ test('marcação como lida mantém estado confirmado sem reler cache imediatamen
   assert.doesNotMatch(markAll, /await load\(\)/);
   assert.match(markAll, /unread\.forEach\(item => \{ item\.read = true; \}\)/);
 });
+
+
+test('marcação como lida usa write mínimo compatível com as regras', () => {
+  assert.match(center, /\.doc\(item\.id\)\.update\(\{ read: true \}\)/);
+  assert.doesNotMatch(center, /readAt: now/);
+  assert.doesNotMatch(center, /updatedAt: now/);
+});
