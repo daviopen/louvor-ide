@@ -52,3 +52,11 @@ test('Dashboard oferece ativação de notificações sem depender da sidebar', (
   assert.match(dashboard, /status === 'ENABLED'/);
   assert.match(dashboard, /status === 'IOS_INSTALL_REQUIRED'/);
 });
+
+
+test('marcação como lida mantém estado confirmado sem reler cache imediatamente', () => {
+  assert.match(center, /item\.read = true;\s*render\(\[\.\.\.currentItems\]\);/s);
+  const markAll = center.slice(center.indexOf('async function markAllRead'), center.indexOf('function resolvePushStatus'));
+  assert.doesNotMatch(markAll, /await load\(\)/);
+  assert.match(markAll, /unread\.forEach\(item => \{ item\.read = true; \}\)/);
+});
