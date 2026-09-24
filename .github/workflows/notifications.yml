@@ -3,6 +3,7 @@ name: Notifications
 on:
   schedule:
     - cron: "*/10 * * * *"
+    - cron: "20 10 * * *" # 07:20 em Brasília (UTC-3) - reconciliação diária de identidades
     - cron: "0 11 * * *" # 08:00 em Brasília (UTC-3)
   workflow_dispatch:
 
@@ -28,15 +29,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install worker dependencies
-        run: npm install --no-save --package-lock=false --omit=dev firebase-admin@14.4.0 web-push@3.6.7
+        run: npm install --no-save --package-lock=false --omit=dev firebase-admin@14.4.0 @google-cloud/firestore@7.11.6 web-push@3.6.7
 
       - name: Authenticate Firebase
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
+
+      - name: Reconcile Firebase Auth
+        if: github.event_name == 'schedule' && github.event.schedule == '20 10 * * *'
+        env:
+          GOOGLE_CLOUD_PROJECT: louvor-ide
+          GCLOUD_PROJECT: louvor-ide
+        run: node src/scripts/reconcile-auth-identities.cjs
 
       - name: Enqueue birthday notifications
         if: github.event_name == 'schedule' && github.event.schedule == '0 11 * * *'
