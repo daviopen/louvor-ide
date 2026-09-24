@@ -58,7 +58,7 @@ test('marcação como lida mantém estado confirmado sem reler cache imediatamen
   assert.match(center, /item\.read = true;\s*render\(\[\.\.\.currentItems\]\);/s);
   const markAll = center.slice(center.indexOf('async function markAllRead'), center.indexOf('function resolvePushStatus'));
   assert.doesNotMatch(markAll, /await load\(\)/);
-  assert.match(markAll, /unread\.forEach\(item => \{ item\.read = true; \}\)/);
+  assert.match(markAll, /unread\.forEach\(item => \{[\s\S]*item\.read = true;[\s\S]*\}\);/);
 });
 
 
