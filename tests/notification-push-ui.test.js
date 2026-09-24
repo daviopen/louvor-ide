@@ -67,3 +67,13 @@ test('marcação como lida usa write mínimo compatível com as regras', () => {
   assert.doesNotMatch(center, /readAt: now/);
   assert.doesNotMatch(center, /updatedAt: now/);
 });
+
+
+test('marcar como lida fecha também o alerta push correspondente já exibido', () => {
+  assert.match(center, /function closeDisplayedPushNotifications\(items\)/);
+  assert.match(center, /item\.outboxId \? `ide-music-\$\{item\.outboxId\}` : null/);
+  assert.match(center, /registration\.getNotifications\(\)/);
+  assert.match(center, /notification\.close\(\)/);
+  assert.match(center, /await closeDisplayedPushNotifications\(item\)/);
+  assert.match(center, /await closeDisplayedPushNotifications\(unread\)/);
+});
