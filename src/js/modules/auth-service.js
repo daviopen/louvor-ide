@@ -474,7 +474,63 @@
     }
     auth.useDeviceLanguage();
 
+    function pendingGoogleLink() {
+      return scope.__musicIdePendingGoogleLink || null;
+    }
+
+    function clearPendingGoogleLink() {
+      scope.__musicIdePendingGoogleLink = null;
+    }
+
+    function googleConflictEmail(error) {
+      return String(error?.email || error?.customData?.email || '').trim().toLowerCase();
+    }
+
+    function prefillLoginEmail(email) {
+      const input = scope.document && scope.document.getElementById('login-email');
+      if (!input || !email) return;
+      input.value = email;
+      input.readOnly = true;
+      input.setAttribute('aria-describedby', 'auth-message');
+    }
+
+    scope.MusicIdeAuth.handleGoogleAccountConflict = async function handleGoogleAccountConflict(error) {
+      if (String(error?.code || '') !== 'auth/account-exists-with-different-credential') return false;
+
+      const email = googleConflictEmail(error);
+      const credential = error?.credential || null;
+      if (!email || !credential) {
+        setLoginMessage(scope, friendlyAuthError(error));
+        return true;
+      }
+
+      let methods = [];
+      try {
+        if (typeof auth.fetchSignInMethodsForEmail === 'function') {
+          methods = await auth.fetchSignInMethodsForEmail(email);
+        }
+      } catch (methodsError) {
+        reportAuthError(scope, 'consulta de provedores para vinculação', methodsError);
+      }
+
+      if (methods.length && !methods.includes('password')) {
+        setLoginMessage(scope, 'Este e-mail já possui outro método de acesso. Entre primeiro pelo método já vinculado e tente novamente.');
+        return true;
+      }
+
+      scope.__musicIdePendingGoogleLink = { email, credential };
+      prefillLoginEmail(email);
+      finishPageReveal(scope);
+      setLoginMessage(
+        scope,
+        'Este e-mail já possui acesso por senha. Digite sua senha abaixo para entrar; o Google será vinculado automaticamente à mesma conta.',
+        'info'
+      );
+      return true;
+    };
+
     scope.MusicIdeAuth.signInWithGoogle = async function signInWithGoogle() {
+      clearPendingGoogleLink();
       setLoginMessage(scope, 'Abrindo o Google...', 'info');
       try {
         await auth.setPersistence(scope.firebase.auth.Auth.Persistence.LOCAL);
@@ -487,23 +543,55 @@
         return result;
       } catch (error) {
         reportAuthError(scope, 'login Google', error);
+        if (await scope.MusicIdeAuth.handleGoogleAccountConflict(error)) return null;
         setLoginMessage(scope, friendlyAuthError(error));
         return null;
       }
     };
 
     scope.MusicIdeAuth.signInWithEmail = async function signInWithEmail(email, password) {
-      const normalizedEmail = typeof email === 'string' ? email.trim() : '';
+      const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+      const pendingLink = pendingGoogleLink();
+
       if (!normalizedEmail || typeof password !== 'string' || !password) {
         setLoginMessage(scope, 'Informe seu e-mail e sua senha.');
         return null;
       }
-      setLoginMessage(scope, 'Entrando...', 'info');
+
+      if (pendingLink && normalizedEmail !== pendingLink.email) {
+        setLoginMessage(scope, `Para vincular o Google, entre com a senha da conta ${pendingLink.email}.`);
+        return null;
+      }
+
+      scope.__musicIdeLinkingGoogle = Boolean(pendingLink);
+      setLoginMessage(scope, pendingLink ? 'Confirmando sua senha e vinculando o Google...' : 'Entrando...', 'info');
+
       try {
         await auth.setPersistence(scope.firebase.auth.Auth.Persistence.LOCAL);
-        return await auth.signInWithEmailAndPassword(normalizedEmail, password);
+        const result = await auth.signInWithEmailAndPassword(normalizedEmail, password);
+
+        if (pendingLink) {
+          try {
+            await result.user.linkWithCredential(pendingLink.credential);
+          } catch (linkError) {
+            if (String(linkError?.code || '') !== 'auth/provider-already-linked') {
+              await auth.signOut().catch(() => null);
+              throw linkError;
+            }
+          }
+
+          clearPendingGoogleLink();
+          scope.__musicIdeLinkingGoogle = false;
+          setLoginMessage(scope, 'Google vinculado com sucesso. A partir de agora você pode entrar com Google ou com e-mail e senha.', 'info');
+          if (scope.location && typeof scope.location.replace === 'function') {
+            scope.setTimeout ? scope.setTimeout(() => scope.location.replace('login.html'), 250) : scope.location.replace('login.html');
+          }
+        }
+
+        return result;
       } catch (error) {
-        reportAuthError(scope, 'login e-mail/senha', error);
+        scope.__musicIdeLinkingGoogle = false;
+        reportAuthError(scope, pendingLink ? 'vinculação Google' : 'login e-mail/senha', error);
         setLoginMessage(scope, friendlyAuthError(error));
         return null;
       }
@@ -545,13 +633,18 @@
       }
     };
 
-    auth.getRedirectResult().catch(error => {
+    auth.getRedirectResult().catch(async error => {
       reportAuthError(scope, 'retorno de autenticação', error);
+      if (await scope.MusicIdeAuth.handleGoogleAccountConflict(error)) return;
       setLoginMessage(scope, friendlyAuthError(error));
     });
 
     auth.onAuthStateChanged(async user => {
       const onLoginPage = isLoginPage(scope.location.pathname);
+
+      if (user && onLoginPage && scope.__musicIdeLinkingGoogle) {
+        return;
+      }
 
       if (user && !isAllowedUser(user)) {
         clearAuthorizationCache(scope);
