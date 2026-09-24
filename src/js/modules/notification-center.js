@@ -137,15 +137,10 @@
   async function markRead(item) {
     if (!item?.id || item.read === true) return;
     const db = scope.firebase.firestore();
-    const now = scope.firebase.firestore.FieldValue.serverTimestamp();
     item.read = true;
     render([...currentItems]);
     try {
-      await db.collection('notifications').doc(item.id).update({
-        read: true,
-        readAt: now,
-        updatedAt: now
-      });
+      await db.collection('notifications').doc(item.id).update({ read: true });
     } catch (error) {
       item.read = false;
       render([...currentItems]);
@@ -159,16 +154,11 @@
     const db = scope.firebase.firestore();
     // No iOS/PWA, batch writes can fail silently/offline and leave the UI unchanged.
     // Update each owned notification independently so the same rules/path used by markRead apply.
-    const now = scope.firebase.firestore.FieldValue.serverTimestamp();
     // Optimistic UI: the user gets immediate feedback even while Firestore confirms the writes.
     unread.forEach(item => { item.read = true; });
     render([...currentItems]);
     try {
-      await Promise.all(unread.map(item => db.collection('notifications').doc(item.id).update({
-        read: true,
-        readAt: now,
-        updatedAt: now
-      })));
+      await Promise.all(unread.map(item => db.collection('notifications').doc(item.id).update({ read: true })));
       // Não releia imediatamente do cache local do Firestore no iOS. A UI já
       // representa o write confirmado; uma leitura cacheada aqui podia trazer
       // read=false e fazer o contador reaparecer.
