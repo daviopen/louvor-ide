@@ -6,6 +6,7 @@
   const MAX_ITEMS = 30;
   let currentItems = [];
   let loading = false;
+  const locallyReadIds = new Set();
 
   function toMillis(value) {
     if (!value) return 0;
@@ -144,7 +145,10 @@
         .limit(MAX_ITEMS)
         .get();
       const items = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .map(doc => {
+          const data = doc.data();
+          return { id: doc.id, ...data, read: data.read === true || locallyReadIds.has(doc.id) };
+        })
         .sort((left, right) => toMillis(right.createdAt) - toMillis(left.createdAt));
       render(items);
     } catch (error) {
@@ -157,12 +161,14 @@
   async function markRead(item) {
     if (!item?.id || item.read === true) return;
     const db = scope.firebase.firestore();
+    locallyReadIds.add(item.id);
     item.read = true;
     render([...currentItems]);
     try {
       await db.collection('notifications').doc(item.id).update({ read: true });
       await closeDisplayedPushNotifications(item);
     } catch (error) {
+      locallyReadIds.delete(item.id);
       item.read = false;
       render([...currentItems]);
       throw error;
@@ -176,7 +182,10 @@
     // No iOS/PWA, batch writes can fail silently/offline and leave the UI unchanged.
     // Update each owned notification independently so the same rules/path used by markRead apply.
     // Optimistic UI: the user gets immediate feedback even while Firestore confirms the writes.
-    unread.forEach(item => { item.read = true; });
+    unread.forEach(item => {
+      locallyReadIds.add(item.id);
+      item.read = true;
+    });
     render([...currentItems]);
     try {
       await Promise.all(unread.map(item => db.collection('notifications').doc(item.id).update({ read: true })));
@@ -186,7 +195,10 @@
       // read=false e fazer o contador reaparecer.
       render([...currentItems]);
     } catch (error) {
-      unread.forEach(item => { item.read = false; });
+      unread.forEach(item => {
+        locallyReadIds.delete(item.id);
+        item.read = false;
+      });
       render([...currentItems]);
       throw error;
     }

@@ -34,6 +34,9 @@ jobs:
       - name: Install worker dependencies
         run: npm install --no-save --package-lock=false --omit=dev firebase-admin@14.4.0 @google-cloud/firestore@7.11.6 web-push@3.6.7
 
+      - name: Verify worker runtime
+        run: node -e "require('firebase-admin/firestore'); require('@google-cloud/firestore'); require('web-push'); console.log('Notification runtime OK')"
+
       - name: Authenticate Firebase
         uses: google-github-actions/auth@v2
         with:
@@ -54,6 +57,7 @@ jobs:
         run: node src/scripts/enqueue-birthday-notifications.cjs
 
       - name: Process notification outbox
+        if: always()
         env:
           GOOGLE_CLOUD_PROJECT: louvor-ide
           GCLOUD_PROJECT: louvor-ide

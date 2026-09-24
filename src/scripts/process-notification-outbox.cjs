@@ -186,7 +186,20 @@ async function sendEmail(user, message, calendarContent, calendarMethod) {
 
 async function upsertInAppNotification(item, user, message) {
   const userId = user.id || user.uid;
-  await db.collection('notifications').doc(`${item.id}__${userId}`).set({ userId, outboxId: item.id, type: item.type, title: message.title, body: message.body, url: message.url, read: false, createdAt: item.createdAt || FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  const notification = {
+    userId,
+    outboxId: item.id,
+    type: item.type,
+    title: message.title,
+    body: message.body,
+    url: message.url,
+    createdAt: item.createdAt || FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp()
+  };
+  // read é monotônico: retries nunca podem transformar uma notificação lida em não lida.
+  // Na primeira tentativa gravamos false; nas seguintes preservamos o valor já existente.
+  if (Number(item.attempts || 0) === 1) notification.read = false;
+  await db.collection('notifications').doc(`${item.id}__${userId}`).set(notification, { merge: true });
 }
 
 async function claim(ref) {

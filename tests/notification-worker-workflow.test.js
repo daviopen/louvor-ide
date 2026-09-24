@@ -27,8 +27,13 @@ test('worker impede sobreposição e limita o processamento', () => {
 test('worker autentica no Firebase e executa apenas o processador da outbox', () => {
   assert.match(workflow, /FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE/);
   assert.match(workflow, /node src\/scripts\/process-notification-outbox\.cjs/);
+  assert.match(workflow, /node-version:\s*["']22["']/);
   assert.match(workflow, /firebase-admin@14\.4\.0/);
+  assert.match(workflow, /@google-cloud\/firestore@7\.11\.6/);
   assert.match(workflow, /web-push@3\.6\.7/);
+  assert.match(workflow, /Verify worker runtime/);
+  assert.match(workflow, /require\('@google-cloud\/firestore'\)/);
+  assert.match(workflow, /Process notification outbox\s*\n\s*if:\s*always\(\)/);
 });
 
 test('configuração VAPID pública só é regravada quando a chave muda', () => {
@@ -48,4 +53,15 @@ test('processador usa a API modular do firebase-admin v14', () => {
   assert.match(processor, /const db = getFirestore\(\)/);
   assert.doesNotMatch(processor, /admin\.apps/);
   assert.doesNotMatch(processor, /admin\.firestore/);
+});
+
+
+test('retry do worker preserva notificação que o usuário já marcou como lida', () => {
+  const upsert = processor.slice(
+    processor.indexOf('async function upsertInAppNotification'),
+    processor.indexOf('async function claim')
+  );
+  assert.match(upsert, /Number\(item\.attempts \|\| 0\) === 1/);
+  assert.match(upsert, /notification\.read = false/);
+  assert.doesNotMatch(upsert, /set\(\{[^}]*read:\s*false/s);
 });

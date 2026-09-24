@@ -77,3 +77,11 @@ test('marcar como lida fecha também o alerta push correspondente já exibido', 
   assert.match(center, /await closeDisplayedPushNotifications\(item\)/);
   assert.match(center, /await closeDisplayedPushNotifications\(unread\)/);
 });
+
+
+test('estado local de leitura é monotônico mesmo se uma leitura antiga terminar depois', () => {
+  assert.match(center, /const locallyReadIds = new Set\(\)/);
+  assert.match(center, /read: data\.read === true \|\| locallyReadIds\.has\(doc\.id\)/);
+  assert.match(center, /locallyReadIds\.add\(item\.id\)/);
+  assert.match(center, /locallyReadIds\.delete\(item\.id\)/);
+});
