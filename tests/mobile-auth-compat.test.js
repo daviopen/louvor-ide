@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   embeddedBrowserMessage,
   googleAuthStrategy,
+  installGoogleSignIn,
   isEmbeddedBrowser,
   isIpadOs,
   isMobileBrowser,
@@ -99,4 +100,42 @@ test('userAgentData.mobile tem precedência quando disponível', () => {
   });
   assert.equal(isMobileBrowser(navigatorLike), true);
   assert.equal(googleAuthStrategy(navigatorLike), 'redirect');
+});
+
+
+test('login Google responsivo encaminha conflito de conta para vinculação segura', async () => {
+  let conflictHandled = null;
+  const error = new Error('existing password account');
+  error.code = 'auth/account-exists-with-different-credential';
+  error.email = 'rayane@example.com';
+  error.credential = { providerId: 'google.com' };
+
+  const auth = {
+    setPersistence: async () => null,
+    signInWithPopup: async () => { throw error; }
+  };
+  function authFactory() { return auth; }
+  authFactory.Auth = { Persistence: { LOCAL: 'local' } };
+  authFactory.GoogleAuthProvider = class GoogleAuthProvider {
+    addScope() {}
+    setCustomParameters() {}
+  };
+
+  const scope = {
+    navigator: navigatorFixture(),
+    firebase: { auth: authFactory },
+    MusicIdeAuth: {
+      signInWithGoogle() {},
+      async handleGoogleAccountConflict(received) { conflictHandled = received; return true; }
+    },
+    document: {
+      getElementById() { return null; }
+    },
+    console: { warn() {} }
+  };
+
+  assert.equal(installGoogleSignIn(scope), true);
+  await scope.MusicIdeAuth.signInWithGoogle();
+
+  assert.equal(conflictHandled, error);
 });
