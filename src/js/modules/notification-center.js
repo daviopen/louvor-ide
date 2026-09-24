@@ -73,6 +73,26 @@
     button.hidden = !items.some(item => item.read !== true);
   }
 
+  async function closeDisplayedPushNotifications(items) {
+    if (!scope.navigator?.serviceWorker) return;
+    const tags = new Set((Array.isArray(items) ? items : [items])
+      .filter(Boolean)
+      .map(item => item.outboxId ? `ide-music-${item.outboxId}` : null)
+      .filter(Boolean));
+    if (!tags.size) return;
+
+    try {
+      const registration = await scope.navigator.serviceWorker.getRegistration();
+      if (!registration?.getNotifications) return;
+      const notifications = await registration.getNotifications();
+      notifications.forEach(notification => {
+        if (tags.has(String(notification.tag || ''))) notification.close();
+      });
+    } catch (error) {
+      console.warn('Não foi possível fechar o alerta push já exibido.', error);
+    }
+  }
+
   function render(items) {
     currentItems = items;
     const node = root();
@@ -141,6 +161,7 @@
     render([...currentItems]);
     try {
       await db.collection('notifications').doc(item.id).update({ read: true });
+      await closeDisplayedPushNotifications(item);
     } catch (error) {
       item.read = false;
       render([...currentItems]);
@@ -159,6 +180,7 @@
     render([...currentItems]);
     try {
       await Promise.all(unread.map(item => db.collection('notifications').doc(item.id).update({ read: true })));
+      await closeDisplayedPushNotifications(unread);
       // Não releia imediatamente do cache local do Firestore no iOS. A UI já
       // representa o write confirmado; uma leitura cacheada aqui podia trazer
       // read=false e fazer o contador reaparecer.
