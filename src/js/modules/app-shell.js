@@ -61,8 +61,27 @@
     scope.document.head.appendChild(script);
   }
 
+  function initializeNotificationUi() {
+    ensureStylesheet('../styles/app-header-controls.css?v=20260923-notification-read-v2', 'data-ide-header-controls');
+
+    const scripts = [
+      ['../js/modules/notification-push.js?v=20260923-notification-read-v2', 'data-ide-notification-push'],
+      ['../js/modules/notification-center.js?v=20260923-notification-read-v2', 'data-ide-notification-center'],
+      ['../js/modules/app-header-controls.js?v=20260923-notification-read-v2', 'data-ide-header-controls-script']
+    ];
+    scripts.forEach(([src, marker]) => {
+      if (scope.document.querySelector(`script[${marker}]`)) return;
+      const script = scope.document.createElement('script');
+      script.src = src;
+      script.defer = true;
+      script.setAttribute(marker, 'true');
+      scope.document.head.appendChild(script);
+    });
+  }
+
   initializeObservability();
   initializeSettingsPage();
+  initializeNotificationUi();
 
   function currentPage(pathname) {
     return String(pathname || '').split('/').filter(Boolean).pop() || 'index.html';
