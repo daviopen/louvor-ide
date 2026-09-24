@@ -81,6 +81,20 @@ test('usuário comum pode registrar somente o aceite LGPD vigente no próprio pe
   assert.match(rules, /affectedKeys\(\)\.hasAny\(\['uid', 'role', 'permissions', 'accessProfile'\]\)/);
 });
 
+test('primeiro aceite LGPD pode consultar o documento determinístico antes de ele existir', () => {
+  const lgpdConsents = extractMatch('lgpdConsents/{documentId}');
+  assert.match(
+    rules,
+    /function currentConsentDocumentId\(\) \{[\s\S]*request\.auth\.uid \+ '__terms-2026-08-25-privacy-2026-08-25'/
+  );
+  assert.match(
+    lgpdConsents,
+    /allow get: if isSuperAdmin\(\) \|\| \(activeUser\(\) && documentId == currentConsentDocumentId\(\)\);/
+  );
+  assert.match(lgpdConsents, /allow list: if isSuperAdmin\(\);/);
+  assert.doesNotMatch(lgpdConsents, /allow read: if[\s\S]*resource\.data\.userId/);
+});
+
 test('operações administrativas impedem exclusão física de usuário', () => {
   const users = extractMatch('users/{userId}');
   assert.match(users, /allow delete: if false;/);
