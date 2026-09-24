@@ -186,7 +186,17 @@ async function sendEmail(user, message, calendarContent, calendarMethod) {
 
 async function upsertInAppNotification(item, user, message) {
   const userId = user.id || user.uid;
-  await db.collection('notifications').doc(`${item.id}__${userId}`).set({ userId, outboxId: item.id, type: item.type, title: message.title, body: message.body, url: message.url, read: false, createdAt: item.createdAt || FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  const ref = db.collection('notifications').doc(`${item.id}__${userId}`);
+  await db.runTransaction(async tx => {
+    const snapshot = await tx.get(ref);
+    const mutable = { userId, outboxId: item.id, type: item.type, title: message.title, body: message.body, url: message.url, updatedAt: FieldValue.serverTimestamp() };
+    if (snapshot.exists) {
+      // Retries may refresh delivery content, but must never reset the user's read acknowledgement.
+      tx.set(ref, mutable, { merge: true });
+      return;
+    }
+    tx.set(ref, { ...mutable, read: false, createdAt: item.createdAt || FieldValue.serverTimestamp() });
+  });
 }
 
 async function claim(ref) {

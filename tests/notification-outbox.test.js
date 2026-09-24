@@ -82,3 +82,11 @@ test('aceita tipos de notificação de troca de escala com destinatário explíc
   assert.deepEqual(db.writes[0].targetUserIds, ['rogerio']);
   assert.equal(db.writes[0].channels.email, false);
 });
+
+
+test('worker não reseta notificação já lida ao reprocessar o outbox', () => {
+  assert.match(worker, /if \(snapshot\.exists\) \{[\s\S]*tx\.set\(ref, mutable, \{ merge: true \}\)/);
+  const existingBranch = worker.slice(worker.indexOf('if (snapshot.exists)'), worker.indexOf('tx.set(ref, { ...mutable'));
+  assert.doesNotMatch(existingBranch, /read:\s*false/);
+  assert.match(worker, /tx\.set\(ref, \{ \.\.\.mutable, read: false, createdAt:/);
+});
