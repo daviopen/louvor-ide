@@ -39,9 +39,11 @@ test('EDIT em Eventos só pode sincronizar campos vinculados de escala e setlist
 test('exclusão de evento permite cascata controlada dos vínculos sem conceder CRUD manual', () => {
   assert.match(rules, /function eventCascadeScheduleMemberDelete\(\)/);
   assert.match(rules, /function eventCascadeSetlistSongDelete\(\)/);
-  assert.match(rules, /allow create, update: if canEdit\('schedules'\);/);
+  assert.match(rules, /allow create: if canEdit\('schedules'\) \|\| eventManagedScheduleWrite\(documentId\);/);
+  assert.match(rules, /allow update: if canEdit\('schedules'\) \|\| eventManagedScheduleUpdate\(documentId\)/);
   assert.match(rules, /allow delete: if canEdit\('schedules'\) \|\| eventCascadeScheduleMemberDelete\(\);/);
-  assert.match(rules, /allow create, update: if canEdit\('setlists'\);/);
+  assert.match(rules, /allow create: if canEdit\('setlists'\) \|\| eventManagedSetlistWrite\(documentId\);/);
+  assert.match(rules, /allow update: if canEdit\('setlists'\) \|\| eventManagedSetlistUpdate\(documentId\)/);
   assert.match(rules, /allow delete: if canEdit\('setlists'\) \|\| eventCascadeSetlistSongDelete\(\);/);
 });
 
