@@ -136,14 +136,21 @@
 
   async function markRead(item) {
     if (!item?.id || item.read === true) return;
+    const db = scope.firebase.firestore();
     const now = scope.firebase.firestore.FieldValue.serverTimestamp();
-    await scope.firebase.firestore().collection('notifications').doc(item.id).update({
-      read: true,
-      readAt: now,
-      updatedAt: now
-    });
     item.read = true;
     render([...currentItems]);
+    try {
+      await db.collection('notifications').doc(item.id).update({
+        read: true,
+        readAt: now,
+        updatedAt: now
+      });
+    } catch (error) {
+      item.read = false;
+      render([...currentItems]);
+      throw error;
+    }
   }
 
   async function markAllRead() {
@@ -162,7 +169,10 @@
         readAt: now,
         updatedAt: now
       })));
-      await load();
+      // Não releia imediatamente do cache local do Firestore no iOS. A UI já
+      // representa o write confirmado; uma leitura cacheada aqui podia trazer
+      // read=false e fazer o contador reaparecer.
+      render([...currentItems]);
     } catch (error) {
       unread.forEach(item => { item.read = false; });
       render([...currentItems]);
