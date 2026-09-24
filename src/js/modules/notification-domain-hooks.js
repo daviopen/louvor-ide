@@ -78,6 +78,30 @@
       return result;
     };
 
+    const originalRequestSwap = proto.requestSwap;
+    proto.requestSwap = async function requestSwapWithNotification(scheduleId, slotId, targetUserId, user, profile) {
+      const result = await originalRequestSwap.call(this, scheduleId, slotId, targetUserId, user, profile);
+      await enqueueSafe(this, {
+        type: 'SCHEDULE_SWAP_REQUEST', aggregateType: 'schedule', scheduleId, eventId: result.eventId || null,
+        targetUserIds: [targetUserId], channels: { push: true, email: false, calendar: false },
+        payload: { swapRequestId: result.id, requesterUserId: result.requesterUserId, targetUserId, functionId: result.functionId, slotId: result.slotId, targetWasUnavailable: result.targetWasUnavailable === true }
+      }, user);
+      return result;
+    };
+
+    const originalRespondSwap = proto.respondSwap;
+    proto.respondSwap = async function respondSwapWithNotification(requestId, decision, user) {
+      const result = await originalRespondSwap.call(this, requestId, decision, user);
+      const request = result.request;
+      await enqueueSafe(this, {
+        type: result.accepted ? 'SCHEDULE_SWAP_ACCEPTED' : 'SCHEDULE_SWAP_REJECTED',
+        aggregateType: 'schedule', scheduleId: request.scheduleId, eventId: request.eventId || null,
+        targetUserIds: [request.requesterUserId], channels: { push: true, email: false, calendar: false },
+        payload: { swapRequestId: request.id, requesterUserId: request.requesterUserId, targetUserId: request.targetUserId, functionId: request.functionId, slotId: request.slotId }
+      }, user);
+      return result;
+    };
+
     const originalRemoveMember = proto.removeMember;
     proto.removeMember = async function removeMemberWithNotification(scheduleId, memberId, user, profile) {
       return originalRemoveMember.call(this, scheduleId, memberId, user, profile);

@@ -71,3 +71,14 @@ test('composer insere regras de notificações antes do fallback exatamente uma 
   assert.equal((composed.match(/notificationOutbox/g) || []).length, 1);
   assert.equal(composeRules(composed, fragment), composed);
 });
+
+test('aceita tipos de notificação de troca de escala com destinatário explícito', async () => {
+  const db = fakeDb();
+  const repository = new NotificationOutboxRepository(db);
+  await repository.enqueue({
+    type: 'SCHEDULE_SWAP_REQUEST', aggregateType: 'schedule', scheduleId: 's1', eventId: 'e1',
+    targetUserIds: ['rogerio'], channels: { push: true }, payload: { requesterUserId: 'marina', targetUserId: 'rogerio' }
+  }, 'marina');
+  assert.deepEqual(db.writes[0].targetUserIds, ['rogerio']);
+  assert.equal(db.writes[0].channels.email, false);
+});

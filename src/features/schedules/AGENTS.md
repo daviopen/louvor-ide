@@ -19,7 +19,8 @@ Montar uma escala por evento, relacionando funções ministeriais e usuários at
 - O template inicial não é limite estrutural: qualquer posição pode ser removida pelo editor e novas posições/funções podem ser adicionadas conforme o evento.
 - Funções/posições são dinâmicas, podem repetir a mesma função e não possuem limite estrutural fixo.
 - Selecionar função antes do usuário.
-- Usuário elegível deve estar ativo, possuir a função e estar disponível.
+- Usuário elegível para escala administrativa deve estar ativo, possuir a função e estar disponível.
+- Em solicitação de troca entre integrantes, pessoas ativas com a mesma função permanecem selecionáveis mesmo quando possuem indisponibilidade; a UI deve alertar e o aceite explícito prevalece somente para aquela escala, sem apagar a indisponibilidade.
 - Considerar indisponibilidades por data, horário/período e evento.
 - Uma pessoa pode exercer múltiplas funções quando permitido pelo caso de uso.
 - A mesma pessoa não deve ser duplicada na mesma função; conflitos devem gerar alerta.
@@ -53,6 +54,7 @@ Montar uma escala por evento, relacionando funções ministeriais e usuários at
 - `unavailability`
 - `settings`
 - `auditLogs`
+- `scheduleSwapRequests`
 
 ## Segurança e LGPD
 - Validar server-side/Rules as operações permitidas quando aplicável.

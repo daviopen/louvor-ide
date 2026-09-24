@@ -124,3 +124,12 @@ test('UI não acessa collections do Firestore diretamente', () => {
   assert.match(css, /schedule-summary-card/);
   assert.match(css, /schedule-slot/);
 });
+
+test('troca entre integrantes mantém indisponíveis selecionáveis e exige aceite', () => {
+  assert.match(page, /service\.swapCandidates/);
+  assert.match(page, /Possui indisponibilidade nesta data/);
+  assert.match(page, /Solicitar troca/);
+  assert.match(page, /Troca aguardando aceite/);
+  assert.match(page, /accept-swap/);
+  assert.match(page, /reject-swap/);
+});

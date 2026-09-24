@@ -137,6 +137,7 @@
     async load(user, profile = null) {
       const access = await this.resolveAccess(user, profile);
       if (!access.canRead) throw new Error('Você não possui permissão para consultar escalas.');
+      const userId = this.actorId(user);
 
       const [schedules, users, functions] = await Promise.all([
         readDependency('escalas e eventos', () => this.repository.listSchedules({ limit: 120 })),
@@ -161,12 +162,14 @@
         const scheduleMembers = membersBySchedule.get(schedule.id) || [];
         return { ...schedule, members: scheduleMembers, completeness: scheduleCompleteness(schedule, scheduleMembers) };
       });
-      return { access, schedules: result, users, functions, userFunctions, unavailability };
+      const swapRequests = typeof this.repository.listSwapRequestsForUser === 'function' ? await readDependency('solicitações de troca', () => this.repository.listSwapRequestsForUser(userId)) : [];
+      return { access, schedules: result, users, functions, userFunctions, unavailability, swapRequests };
     }
 
     async loadEditor(scheduleId, user, profile = null) {
       const access = await this.resolveAccess(user, profile);
       if (!access.canRead) throw new Error('Você não possui permissão para consultar escalas.');
+      const userId = this.actorId(user);
       const schedule = await this.repository.getSchedule(scheduleId);
       if (!schedule) return { access, schedules: [], users: [], functions: [], userFunctions: [], unavailability: [] };
       const [event, members, users, functions] = await Promise.all([
@@ -183,7 +186,8 @@
       return {
         access,
         schedules: [{ ...orderedSchedule, event: event || null, members: activeMembers, completeness: scheduleCompleteness(orderedSchedule, activeMembers) }],
-        users, functions, userFunctions, unavailability
+        users, functions, userFunctions, unavailability,
+        swapRequests: typeof this.repository.listSwapRequestsForUser === 'function' ? await readDependency('solicitações de troca', () => this.repository.listSwapRequestsForUser(userId)) : []
       };
     }
 
@@ -269,6 +273,78 @@
         memberId: member.id, slotId, userId, functionId: slot.functionId, reason: options.reason || null
       });
       return { member, conflict, completeness };
+    }
+
+    swapCandidates(functionId, event, context) {
+      const functionUsers = new Set((context.userFunctions || []).filter(item => item.active !== false && item.functionId === functionId).map(item => item.userId));
+      return (context.users || []).filter(user => user.active !== false && functionUsers.has(user.id || user.uid)).map(user => {
+        const id = user.id || user.uid;
+        const unavailable = (context.unavailability || []).some(item => item.userId === id && unavailabilityMatches(item, event));
+        return { user, unavailable };
+      });
+    }
+
+    async requestSwap(scheduleId, slotId, targetUserId, user, profile = null) {
+      const requesterUserId = this.actorId(user);
+      const access = await this.resolveAccess(user, profile);
+      if (!access.canRead) throw new Error('Você não possui permissão para consultar escalas.');
+      if (targetUserId === requesterUserId) throw new Error('Selecione outra pessoa para a troca.');
+      const { schedule, members, event, selectedUser, userFunctions, unavailability } = await this.loadAssignmentContext(scheduleId, targetUserId);
+      const slot = (schedule.slots || []).find(item => item.id === slotId);
+      const current = members.find(item => item.active !== false && item.slotId === slotId);
+      if (!slot || !current || current.userId !== requesterUserId) throw new Error('Você só pode solicitar troca de uma posição em que está escalado.');
+      if (!selectedUser || selectedUser.active === false) throw new Error('Pessoa selecionada está inativa ou não existe.');
+      if (!userFunctions.some(item => item.active !== false && item.userId === targetUserId && item.functionId === slot.functionId)) throw new Error('A pessoa selecionada não possui esta função ministerial.');
+      if (await this.repository.findPendingSwapForSlot(scheduleId, slotId)) throw new Error('Já existe uma solicitação de troca pendente para esta posição.');
+      const unavailable = unavailability.some(item => item.userId === targetUserId && unavailabilityMatches(item, event));
+      const request = await this.repository.createSwapRequest({
+        scheduleId, eventId: schedule.eventId, slotId, functionId: slot.functionId,
+        sourceMemberId: current.id, targetUserId, targetWasUnavailable: unavailable
+      }, requesterUserId);
+      await this.repository.addAuditLog(requesterUserId, 'SCHEDULE_SWAP_REQUESTED', scheduleId, { swapRequestId: request.id, slotId, functionId: slot.functionId, targetUserId, targetWasUnavailable: unavailable });
+      return request;
+    }
+
+    async respondSwap(requestId, decision, user) {
+      const actorUserId = this.actorId(user);
+      const request = await this.repository.getSwapRequest(requestId);
+      if (!request || request.status !== 'PENDING') throw new Error('Esta solicitação de troca não está mais pendente.');
+      if (request.targetUserId !== actorUserId) throw new Error('Somente a pessoa convidada pode responder esta troca.');
+      const normalized = String(decision || '').toUpperCase();
+      if (!['ACCEPTED', 'REJECTED'].includes(normalized)) throw new Error('Resposta de troca inválida.');
+      if (normalized === 'REJECTED') {
+        const rejected = await this.repository.updateSwapRequest(requestId, { status: 'REJECTED', respondedAt: this.repository.clock(), respondedBy: actorUserId });
+        await this.repository.addAuditLog(actorUserId, 'SCHEDULE_SWAP_REJECTED', request.scheduleId, { swapRequestId: request.id, requesterUserId: request.requesterUserId, targetUserId: actorUserId });
+        return { request: rejected, accepted: false };
+      }
+      const schedule = await this.repository.getSchedule(request.scheduleId);
+      const members = await this.repository.listMembers(request.scheduleId);
+      const current = members.find(item => item.active !== false && item.slotId === request.slotId);
+      if (!schedule || !current || current.id !== request.sourceMemberId || current.userId !== request.requesterUserId) {
+        await this.repository.updateSwapRequest(requestId, { status: 'INVALIDATED', respondedAt: this.repository.clock(), respondedBy: actorUserId });
+        throw new Error('A escala mudou desde a solicitação. A troca foi invalidada.');
+      }
+      await this.repository.removeMember(current.id, actorUserId);
+      const member = await this.repository.createMember({
+        scheduleId: request.scheduleId, slotId: request.slotId, userId: actorUserId, functionId: request.functionId,
+        swapRequestId: request.id, exception: request.targetWasUnavailable ? { override: true, reason: 'Troca aceita pelo próprio integrante apesar de indisponibilidade cadastrada.' } : null
+      }, actorUserId);
+      const nextMembers = members.filter(item => item.active !== false && item.id !== current.id).concat(member);
+      const completeness = scheduleCompleteness(schedule, nextMembers);
+      await this.repository.updateSchedule(request.scheduleId, { status: completeness.complete ? 'COMPLETE' : 'DRAFT' }, actorUserId);
+      const accepted = await this.repository.updateSwapRequest(requestId, { status: 'ACCEPTED', acceptedMemberId: member.id, respondedAt: this.repository.clock(), respondedBy: actorUserId });
+      await this.repository.addAuditLog(actorUserId, 'SCHEDULE_SWAP_ACCEPTED', request.scheduleId, { swapRequestId: request.id, requesterUserId: request.requesterUserId, targetUserId: actorUserId, memberId: member.id });
+      return { request: accepted, accepted: true, member, completeness };
+    }
+
+    async cancelSwap(requestId, user) {
+      const actorUserId = this.actorId(user);
+      const request = await this.repository.getSwapRequest(requestId);
+      if (!request || request.status !== 'PENDING') throw new Error('Esta solicitação de troca não está mais pendente.');
+      if (request.requesterUserId !== actorUserId) throw new Error('Somente quem solicitou pode cancelar a troca.');
+      const cancelled = await this.repository.updateSwapRequest(requestId, { status: 'CANCELLED', respondedAt: this.repository.clock(), respondedBy: actorUserId });
+      await this.repository.addAuditLog(actorUserId, 'SCHEDULE_SWAP_CANCELLED', request.scheduleId, { swapRequestId: request.id, targetUserId: request.targetUserId });
+      return cancelled;
     }
 
     async removeMember(scheduleId, memberId, user, profile = null) {

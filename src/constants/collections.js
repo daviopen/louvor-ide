@@ -8,6 +8,7 @@ export const COLLECTIONS = Object.freeze({
   UNAVAILABILITY: 'unavailability',
   SCHEDULES: 'schedules',
   SCHEDULE_MEMBERS: 'scheduleMembers',
+  SCHEDULE_SWAP_REQUESTS: 'scheduleSwapRequests',
   SETLISTS: 'setlists',
   SETLIST_SONGS: 'setlistSongs',
   SONGS: 'songs',

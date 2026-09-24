@@ -41,7 +41,8 @@ function fakeRepository() {
     async updateSchedule(id, patch) { const next = { ...schedules.get(id), ...patch }; schedules.set(id, next); return next; },
     async createMember(data) { const item = { id: `m${members.length + 1}`, ...data, active: true }; members.push(item); return item; },
     async removeMember(id) { const item = members.find(member => member.id === id); if (item) item.active = false; return item; },
-    async addAuditLog(actor, action, entityId, details) { audit.push({ actor, action, entityId, details }); }
+    async addAuditLog(actor, action, entityId, details) { audit.push({ actor, action, entityId, details }); },
+
   };
 }
 
@@ -157,3 +158,4 @@ test('selecionar novamente a pessoa já vinculada ao slot é idempotente', async
   assert.equal(repository.members.filter(item => item.active !== false).length, 1);
   assert.equal(repository.audit.length, auditCount);
 });
+

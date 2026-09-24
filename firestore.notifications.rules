@@ -38,7 +38,7 @@
           'channels', 'payload', 'actorUserId', 'status', 'attempts', 'createdAt', 'updatedAt'
         ])
         && request.resource.data.type in [
-          'SCHEDULE_MEMBER_ASSIGNED', 'SCHEDULE_MEMBER_REMOVED', 'SCHEDULE_UPDATED', 'SETLIST_UPDATED'
+          'SCHEDULE_MEMBER_ASSIGNED', 'SCHEDULE_MEMBER_REMOVED', 'SCHEDULE_UPDATED', 'SCHEDULE_SWAP_REQUEST', 'SCHEDULE_SWAP_ACCEPTED', 'SCHEDULE_SWAP_REJECTED', 'SETLIST_UPDATED'
         ]
         && request.resource.data.aggregateType in ['schedule', 'setlist']
         && request.resource.data.scheduleId is string
@@ -58,6 +58,18 @@
           (request.resource.data.aggregateType == 'schedule'
             && request.resource.data.type in ['SCHEDULE_MEMBER_ASSIGNED', 'SCHEDULE_MEMBER_REMOVED', 'SCHEDULE_UPDATED']
             && canEdit('schedules'))
+          || (request.resource.data.aggregateType == 'schedule'
+            && request.resource.data.type == 'SCHEDULE_SWAP_REQUEST'
+            && request.resource.data.actorUserId == request.resource.data.payload.requesterUserId
+            && request.resource.data.targetUserIds.size() == 1
+            && request.resource.data.targetUserIds[0] == request.resource.data.payload.targetUserId
+            && request.resource.data.payload.requesterUserId == request.auth.uid)
+          || (request.resource.data.aggregateType == 'schedule'
+            && request.resource.data.type in ['SCHEDULE_SWAP_ACCEPTED', 'SCHEDULE_SWAP_REJECTED']
+            && request.resource.data.actorUserId == request.resource.data.payload.targetUserId
+            && request.resource.data.targetUserIds.size() == 1
+            && request.resource.data.targetUserIds[0] == request.resource.data.payload.requesterUserId
+            && request.resource.data.payload.targetUserId == request.auth.uid)
           || (request.resource.data.aggregateType == 'setlist'
             && request.resource.data.type == 'SETLIST_UPDATED'
             && canEdit('setlists'))
