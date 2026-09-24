@@ -111,6 +111,7 @@
     const initialStrategy = googleAuthStrategy(scope.navigator);
 
     scope.MusicIdeAuth.signInWithGoogle = async function signInWithGoogleResponsive() {
+      scope.__musicIdePendingGoogleLink = null;
       const strategy = googleAuthStrategy(scope.navigator);
       report(scope, 'auth.google.strategy', { strategy, mobile: isMobileBrowser(scope.navigator), embedded: isEmbeddedBrowser(scope.navigator) });
 
@@ -140,6 +141,13 @@
       } catch (error) {
         if (scope.console && typeof scope.console.warn === 'function') {
           scope.console.warn(`[Auth] login Google responsivo: ${error && error.code || 'auth/unknown'}`);
+        }
+        if (
+          String(error && error.code || '') === 'auth/account-exists-with-different-credential'
+          && typeof scope.MusicIdeAuth.handleGoogleAccountConflict === 'function'
+        ) {
+          await scope.MusicIdeAuth.handleGoogleAccountConflict(error);
+          return null;
         }
         setLoginMessage(scope, friendlyAuthError(scope, error));
         return null;
