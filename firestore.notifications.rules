@@ -104,8 +104,6 @@
       allow update: if activeUser()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == resource.data.userId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt', 'updatedAt'])
-        && request.resource.data.read is bool
-        && request.resource.data.updatedAt == request.time
-        && (!('readAt' in request.resource.data) || request.resource.data.readAt == null || request.resource.data.readAt == request.time);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && request.resource.data.read == true;
     }
