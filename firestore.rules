@@ -92,6 +92,9 @@ service cloud.firestore {
         && profile().data.role in ['MEMBER', 'ADMIN', 'SUPER_ADMIN'];
     }
     function ownsUserDocument(userId) { return activeUser() && request.auth.uid == userId; }
+    function currentConsentDocumentId() {
+      return request.auth.uid + '__terms-2026-08-25-privacy-2026-08-25';
+    }
     function validSelfProfileUpdate() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       return changed.hasOnly([
@@ -428,7 +431,10 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     match /lgpdConsents/{documentId} {
-      allow read: if isSuperAdmin() || (activeUser() && resource.data.userId == request.auth.uid);
+      // O primeiro aceite consulta o ID determinístico antes de criá-lo. A regra
+      // não pode depender de resource.data nesse GET, pois o documento ainda não existe.
+      allow get: if isSuperAdmin() || (activeUser() && documentId == currentConsentDocumentId());
+      allow list: if isSuperAdmin();
       allow create: if activeUser() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if false;
     }
