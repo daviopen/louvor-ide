@@ -100,23 +100,26 @@
     if (!node) return;
     const list = node.querySelector('.ide-notification-list');
     const badge = node.querySelector('.ide-notification-badge');
-    const unread = items.filter(item => item.read !== true).length;
+    const unreadItems = items.filter(item => item.read !== true);
+    const unread = unreadItems.length;
     badge.textContent = unread > 99 ? '99+' : String(unread);
     badge.hidden = unread === 0;
     updateMarkAllVisibility(items);
     list.textContent = '';
 
-    if (!items.length) {
+    // The bell is an inbox: once read, an item leaves the visible list.
+    // Keep read records in Firestore for audit/history, but do not show them here.
+    if (!unreadItems.length) {
       const empty = scope.document.createElement('div');
       empty.className = 'ide-notification-empty';
-      empty.textContent = 'Nenhuma notificação por aqui.';
+      empty.textContent = 'Não há notificações pendentes.';
       list.appendChild(empty);
       return;
     }
 
-    items.forEach(item => {
+    unreadItems.forEach(item => {
       const link = scope.document.createElement('a');
-      link.className = `ide-notification-item${item.read === true ? ' is-read' : ' is-unread'}`;
+      link.className = 'ide-notification-item is-unread';
       link.href = item.url || '#';
       const title = scope.document.createElement('span');
       title.textContent = item.title || 'IDE Music';

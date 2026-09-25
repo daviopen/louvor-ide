@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { NotificationOutboxRepository, normalizeChannels, normalizeIds } = require('../src/repositories/notification-outbox-repository.js');
 const { composeRules } = require('../src/scripts/build-firestore-rules.cjs');
 
@@ -61,6 +63,14 @@ test('rejeita tipos não suportados antes de escrever no Firestore', async () =>
     type: 'UNKNOWN', aggregateType: 'schedule', scheduleId: 's1'
   }, 'admin_1'), /não suportado/i);
   assert.equal(db.writes.length, 0);
+});
+
+test('recuperação de locks não depende de índice composto ausente', () => {
+  const worker = fs.readFileSync(path.join(__dirname, '..', 'src/scripts/process-notification-outbox.cjs'), 'utf8');
+  const recovery = worker.slice(worker.indexOf('async function recoverStaleLocks'), worker.indexOf('async function processItem'));
+  assert.match(recovery, /where\('lockedAt', '<=', cutoff\)/);
+  assert.match(recovery, /doc\.data\(\)\.status === 'PROCESSING'/);
+  assert.doesNotMatch(recovery, /where\('status',\s*'==',\s*'PROCESSING'\).*where\('lockedAt'/s);
 });
 
 test('composer insere regras de notificações antes do fallback exatamente uma vez', () => {

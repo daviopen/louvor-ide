@@ -214,8 +214,11 @@ async function claim(ref) {
 
 async function recoverStaleLocks() {
   const cutoff = new Date(Date.now() - STALE_LOCK_MS);
-  const snapshot = await db.collection('notificationOutbox').where('status', '==', 'PROCESSING').where('lockedAt', '<=', cutoff).limit(MAX_BATCH).get();
-  const stale = snapshot.docs;
+  // Query only on lockedAt (single-field index). Combining status equality with
+  // this range requires an undeployed composite index and currently aborts every run.
+  // Only PROCESSING documents should have a lock; keep the status check as a guard.
+  const snapshot = await db.collection('notificationOutbox').where('lockedAt', '<=', cutoff).limit(MAX_BATCH).get();
+  const stale = snapshot.docs.filter(doc => doc.data().status === 'PROCESSING');
   await Promise.all(stale.map(doc => doc.ref.update({ status: 'PENDING', lockedAt: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp(), lastError: 'Lock expirado; item devolvido para a fila.' })));
   return stale.length;
 }
