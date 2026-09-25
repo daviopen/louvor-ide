@@ -32,6 +32,13 @@ test('falha de ativação vira feedback visível e permite nova tentativa', () =
   assert.match(center, /Tentar novamente/);
 });
 
+test('central remove notificações lidas da lista e do contador do sino', () => {
+  assert.match(center, /const unreadItems = items\.filter\(item => item\.read !== true\)/);
+  assert.match(center, /if \(!unreadItems\.length\)/);
+  assert.match(center, /unreadItems\.forEach\(item =>/);
+  assert.match(center, /Não há notificações pendentes\./);
+});
+
 test('observador desconecta antes de sincronizar o botão e não cria ciclo de mutações', () => {
   const observerCallback = push.slice(
     push.indexOf('const observer = new scope.MutationObserver'),
