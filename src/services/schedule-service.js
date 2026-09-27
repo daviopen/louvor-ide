@@ -29,6 +29,19 @@
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
 
+  /** Filters the list without changing stored schedules or loading extra data. */
+  function matchesListPeriodAndStatus(schedule, filters = {}, now = new Date()) {
+    const key = dateKey(schedule.event?.date || schedule.eventDate);
+    const today = dateKey(now);
+    const from = filters.from || '';
+    const to = filters.to || '';
+    const includesHistory = (from && from < today) || (to && to < today);
+    if (!key || (!includesHistory && key < today)) return false;
+    if ((from && key < from) || (to && key > to)) return false;
+    const status = schedule.completeness?.complete ? 'COMPLETE' : 'DRAFT';
+    return !filters.status || filters.status === 'ALL' || filters.status === status;
+  }
+
   function periodForTime(time) {
     if (!time) return null;
     const hour = Number(String(time).split(':')[0]);
@@ -360,5 +373,5 @@
     }
   }
 
-  return Object.freeze({ ScheduleService, dateKey, periodForTime, dateMatchesUnavailability, unavailabilityMatches, scheduleCompleteness, sortSlotsByFunction, hasProfilePermission });
+  return Object.freeze({ ScheduleService, matchesListPeriodAndStatus, dateKey, periodForTime, dateMatchesUnavailability, unavailabilityMatches, scheduleCompleteness, sortSlotsByFunction, hasProfilePermission });
 });
