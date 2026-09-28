@@ -64,6 +64,9 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOUVOR_IDE }}
 
+      - name: Ensure notification history index
+        run: node src/scripts/ensure-notification-index.cjs
+
       - name: Publish Firestore Rules
         run: |
           set -euo pipefail

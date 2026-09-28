@@ -1,0 +1,12 @@
+#ide-notification-feed { min-width: 0; margin-block: 1rem; }
+.ide-notification-list { display: grid; min-width: 0; }
+.ide-notification-item { display: grid; gap: .35rem; padding: 1rem; min-height: 44px; color: var(--ide-text-primary); text-decoration: none; border-bottom: 1px solid var(--ide-border); overflow-wrap: anywhere; }
+.ide-notification-item small { color: var(--ide-text-secondary); }
+.ide-notification-item:hover { background: var(--ide-surface-secondary); }
+.ide-notification-item:focus-visible { outline: 2px solid var(--ide-text-primary); outline-offset: -2px; }
+.ide-notification-push { padding: 1rem; background: var(--ide-surface); border: 1px solid var(--ide-border); border-radius: var(--ide-radius-md); margin-bottom: 1rem; }
+.ide-notification-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+#ide-notification-feed button, #ide-notification-feed .ide-button { min-height: 44px; white-space: normal; }
+#ide-notification-feed [hidden] { display: none !important; }
+#ide-notification-feed [data-notification-status]:empty { display: none; }
+@media (max-width: 900px) { .ide-notification-actions > button { flex: 1 1 100%; } }

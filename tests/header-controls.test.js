@@ -9,15 +9,15 @@ const read = relativePath => fs.readFileSync(path.join(root, relativePath), 'utf
 const header = read('src/js/modules/app-header-controls.js');
 const css = read('src/styles/app-header-controls.css');
 
-test('desktop leva conta e notificações para o topo direito', () => {
+test('desktop leva somente a conta para o topo direito', () => {
   assert.match(header, /DESKTOP_QUERY = '\(min-width: 901px\)'/);
   assert.match(header, /mountDesktopAccount/);
-  assert.match(header, /header\.prepend\(center\)/);
+  assert.doesNotMatch(header, /mountNotification|header\.prepend\(center\)/);
   assert.match(css, /\.ide-app-header-actions\{[^}]*position:fixed[^}]*right:/s);
   assert.match(css, /\.ide-header-account-summary/);
 });
 
-test('mobile mantém a conta dentro do menu e o sino no topo', () => {
+test('mobile mantém a conta dentro do menu', () => {
   assert.match(header, /mountMobileAccount/);
   assert.match(header, /sidebarAccount\(\)/);
   assert.match(header, /account\.appendChild\(controls\)/);
@@ -25,7 +25,7 @@ test('mobile mantém a conta dentro do menu e o sino no topo', () => {
   assert.match(css, /\.ide-header-account\{display:none!important\}/);
 });
 
-test('mobile oculta o sino enquanto o drawer está aberto para evitar sobreposição', () => {
+test('mobile oculta controles do cabeçalho enquanto o drawer está aberto', () => {
   assert.match(css, /body\.ide-sidebar-open \.ide-app-header-actions\{[^}]*visibility:hidden[^}]*opacity:0[^}]*pointer-events:none/s);
 });
 

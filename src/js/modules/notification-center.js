@@ -1,13 +1,18 @@
 (function initNotificationCenter(scope) {
   'use strict';
-  if (!scope?.document || !scope.firebase?.auth || !scope.firebase?.firestore) return;
-
-  const ROOT_ID = 'ide-notification-center';
-  const MAX_ITEMS = 30;
+  if (!scope?.document) return;
+  const page = scope.location.pathname.split('/').pop() || 'index.html';
+  if (!['index.html', 'mural.html', 'profile.html'].includes(page)) return;
+  const ROOT_ID = 'ide-notification-feed';
   let currentItems = [];
+  let service = null;
   let loading = false;
-  const locallyReadIds = new Set();
-
+  let generation = 0;
+  const root = () => scope.document.getElementById(ROOT_ID);
+  const status = message => {
+    const node = root()?.querySelector('[data-notification-status]');
+    if (node) node.textContent = message;
+  };
   function toMillis(value) {
     if (!value) return 0;
     if (typeof value.toMillis === 'function') return value.toMillis();
@@ -25,53 +30,6 @@
       hour: '2-digit',
       minute: '2-digit'
     }).format(new Date(ms));
-  }
-
-  function ensureStyles() {
-    if (scope.document.getElementById('ide-notification-center-styles')) return;
-    const style = scope.document.createElement('style');
-    style.id = 'ide-notification-center-styles';
-    style.textContent = `
-      .ide-notification-center{position:relative;width:100%}
-      .ide-notification-summary{width:100%;display:flex;align-items:center;gap:.65rem;justify-content:flex-start;list-style:none;cursor:pointer}
-      .ide-notification-summary::-webkit-details-marker{display:none}
-      .ide-notification-summary::marker{display:none;content:''}
-      .ide-notification-badge{margin-left:auto;min-width:1.35rem;height:1.35rem;padding:0 .35rem;border-radius:999px;display:inline-grid;place-items:center;font-size:.72rem;font-weight:800;background:var(--primary,#b7ff35);color:#111}
-      .ide-notification-badge[hidden]{display:none}
-      .ide-notification-panel{position:fixed;z-index:10050;width:min(360px,calc(100vw - 24px));max-height:min(430px,calc(100vh - 24px));display:flex;flex-direction:column;border:1px solid rgba(255,255,255,.16);border-radius:16px;background:var(--sidebar-bg,var(--surface-elevated,#101513));color:var(--sidebar-text,#f5f7f6);box-shadow:0 18px 48px rgba(0,0,0,.42);overflow:hidden}
-      .ide-notification-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.85rem 1rem;border-bottom:1px solid rgba(255,255,255,.1)}
-      .ide-notification-head strong{font-size:.92rem}
-      .ide-notification-list{display:grid;overflow:auto;overscroll-behavior:contain}
-      .ide-notification-item{display:grid;gap:.22rem;text-decoration:none;color:inherit;padding:.8rem 1rem;border-top:1px solid rgba(255,255,255,.08)}
-      .ide-notification-item:first-child{border-top:0}
-      .ide-notification-item:hover,.ide-notification-item:focus-visible{background:rgba(255,255,255,.07)}
-.ide-notification-item.is-unread{font-weight:750}
-      .ide-notification-item.is-read{opacity:.62}
-      .ide-notification-item small{font-weight:400;color:rgba(245,247,246,.68)}
-      .ide-notification-empty{padding:1.15rem 1rem;color:rgba(245,247,246,.68);text-align:center;font-size:.9rem}
-      .ide-notification-mark-all{border:0;background:transparent;color:var(--primary,#b7ff35);font:inherit;font-size:.76rem;font-weight:750;cursor:pointer;padding:.3rem;border-radius:8px}
-      .ide-notification-mark-all[hidden]{display:none}
-      .ide-notification-push{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.7rem 1rem;border-bottom:1px solid rgba(255,255,255,.1);font-size:.8rem;line-height:1.35;color:rgba(245,247,246,.78)}
-      .ide-notification-push[hidden]{display:none}
-      .ide-notification-push button{flex:0 0 auto}
-      .ide-notification-backdrop{position:fixed;inset:0;z-index:10040;background:transparent}
-      @media (max-width:600px){.ide-notification-panel{width:calc(100vw - 24px);max-height:min(70vh,430px)}.ide-notification-push{align-items:flex-start}}
-    `;
-    scope.document.head.appendChild(style);
-  }
-
-  function root() {
-    return scope.document.getElementById(ROOT_ID);
-  }
-
-  function panel() {
-    return root()?.querySelector('.ide-notification-panel') || null;
-  }
-
-  function updateMarkAllVisibility(items) {
-    const button = root()?.querySelector('.ide-notification-mark-all');
-    if (!button) return;
-    button.hidden = !items.some(item => item.read !== true);
   }
 
   async function closeDisplayedPushNotifications(items) {
@@ -94,119 +52,93 @@
     }
   }
 
+
   function render(items) {
     currentItems = items;
-    const node = root();
-    if (!node) return;
-    const list = node.querySelector('.ide-notification-list');
-    const badge = node.querySelector('.ide-notification-badge');
-    const unreadItems = items.filter(item => item.read !== true);
-    const unread = unreadItems.length;
-    badge.textContent = unread > 99 ? '99+' : String(unread);
-    badge.hidden = unread === 0;
-    updateMarkAllVisibility(items);
-    list.textContent = '';
-
-    // The bell is an inbox: once read, an item leaves the visible list.
-    // Keep read records in Firestore for audit/history, but do not show them here.
-    if (!unreadItems.length) {
-      const empty = scope.document.createElement('div');
-      empty.className = 'ide-notification-empty';
-      empty.textContent = 'Não há notificações pendentes.';
-      list.appendChild(empty);
-      return;
+    const list = root()?.querySelector('.ide-notification-list');
+    if (!list) return;
+    list.replaceChildren();
+    if (!items.length) {
+      const empty = scope.document.createElement('p');
+      empty.textContent = 'Você ainda não recebeu notificações.';
+      list.append(empty);
     }
-
-    unreadItems.forEach(item => {
+    items.forEach(item => {
       const link = scope.document.createElement('a');
-      link.className = 'ide-notification-item is-unread';
-      link.href = item.url || '#';
-      const title = scope.document.createElement('span');
+      link.className = 'ide-notification-item';
+      link.href = scope.MusicIdeNotificationService.safeNotificationUrl(item.url, scope.location.href);
+      const title = scope.document.createElement('strong');
       title.textContent = item.title || 'IDE Music';
-      const body = scope.document.createElement('small');
+      const body = scope.document.createElement('span');
       body.textContent = item.body || '';
       const when = scope.document.createElement('small');
-      when.textContent = formatWhen(item.createdAt);
+      when.textContent = `${formatWhen(item.createdAt)} · ${item.read ? 'Lida' : 'Não lida'}`;
       link.append(title, body, when);
-      link.addEventListener('click', event => {
-        if (item.read === true) return;
+      link.addEventListener('click', async event => {
+        if (item.read || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
-        markRead(item).finally(() => { scope.location.href = link.href; });
+        const active = service;
+        try {
+          await active.markRead(item);
+          if (active !== service) return;
+          await closeDisplayedPushNotifications(item);
+          scope.location.href = link.href;
+        } catch (_) {
+          status('Não foi possível registrar a leitura. Tente novamente.');
+        }
       });
-      list.appendChild(link);
+      list.append(link);
     });
+    const more = root().querySelector('[data-notification-more]');
+    if (more) more.hidden = !service?.hasMore;
+    const mark = root().querySelector('[data-notification-mark-all]');
+    if (mark) mark.hidden = !items.some(item => !item.read);
   }
 
-  async function load() {
-    if (loading) return;
-    const user = scope.firebase.auth().currentUser;
-    if (!user) return;
+  async function load(append = false) {
+    if (loading || !service || page === 'profile.html') return;
+    const active = service;
+    const run = generation;
     loading = true;
+    status('Carregando notificações…');
+    const more = root()?.querySelector('[data-notification-more]');
+    if (more) more.disabled = true;
     try {
-      const snapshot = await scope.firebase.firestore().collection('notifications')
-        .where('userId', '==', user.uid)
-        .limit(MAX_ITEMS)
-        .get();
-      const items = snapshot.docs
-        .map(doc => {
-          const data = doc.data();
-          return { id: doc.id, ...data, read: data.read === true || locallyReadIds.has(doc.id) };
-        })
-        .sort((left, right) => toMillis(right.createdAt) - toMillis(left.createdAt));
+      const items = await active.load({ append, pageSize: page === 'index.html' ? 5 : 30 });
+      if (run !== generation) return;
       render(items);
-    } catch (error) {
-      console.warn('Não foi possível carregar a Central de Notificações.', error);
+      status('');
+    } catch (_) {
+      if (run === generation) status('Não foi possível carregar as notificações. Use Atualizar para tentar novamente.');
     } finally {
-      loading = false;
-    }
-  }
-
-  async function markRead(item) {
-    if (!item?.id || item.read === true) return;
-    const db = scope.firebase.firestore();
-    locallyReadIds.add(item.id);
-    item.read = true;
-    render([...currentItems]);
-    try {
-      await db.collection('notifications').doc(item.id).update({ read: true });
-      await closeDisplayedPushNotifications(item);
-    } catch (error) {
-      locallyReadIds.delete(item.id);
-      item.read = false;
-      render([...currentItems]);
-      throw error;
+      if (run === generation) {
+        loading = false;
+        if (more) more.disabled = false;
+      }
     }
   }
 
   async function markAllRead() {
-    const unread = currentItems.filter(item => item.read !== true);
-    if (!unread.length) return;
-    const db = scope.firebase.firestore();
-    // No iOS/PWA, batch writes can fail silently/offline and leave the UI unchanged.
-    // Update each owned notification independently so the same rules/path used by markRead apply.
-    // Optimistic UI: the user gets immediate feedback even while Firestore confirms the writes.
-    unread.forEach(item => {
-      locallyReadIds.add(item.id);
-      item.read = true;
-    });
-    render([...currentItems]);
+    if (!service) return;
+    const active = service;
+    const button = root()?.querySelector('[data-notification-mark-all]');
+    if (button) button.disabled = true;
+    const unread = currentItems.filter(item => !item.read);
     try {
-      await Promise.all(unread.map(item => db.collection('notifications').doc(item.id).update({ read: true })));
+      await active.markAllRead(unread);
+      if (active !== service) return;
       await closeDisplayedPushNotifications(unread);
-      // Não releia imediatamente do cache local do Firestore no iOS. A UI já
-      // representa o write confirmado; uma leitura cacheada aqui podia trazer
-      // read=false e fazer o contador reaparecer.
-      render([...currentItems]);
-    } catch (error) {
-      unread.forEach(item => {
-        locallyReadIds.delete(item.id);
-        item.read = false;
-      });
-      render([...currentItems]);
-      throw error;
+      render(active.items);
+      status('Notificações exibidas marcadas como lidas.');
+    } catch (_) {
+      if (active === service) {
+        render(active.items);
+        status('Não foi possível marcar todas como lidas. Tente novamente.');
+      }
+    } finally {
+      if (button) button.disabled = false;
     }
   }
-
   function resolvePushStatus(input, api) {
     if (typeof input === 'string') return input;
     if (input?.detail?.status) return input.detail.status;
@@ -233,7 +165,8 @@
     row.hidden = false;
 
     if (status === 'ENABLED') {
-      row.hidden = true;
+      text.textContent = 'Notificações push ativadas neste dispositivo.';
+      button.hidden = true;
       return;
     }
 
@@ -266,147 +199,38 @@
     if (label) label.textContent = 'Ativar';
   }
 
-  function positionPanel() {
-    const node = root();
-    const popup = panel();
-    const summary = node?.querySelector('.ide-notification-summary');
-    if (!node?.open || !popup || !summary) return;
-
-    const margin = 12;
-    const gap = 8;
-    const summaryRect = summary.getBoundingClientRect();
-    const popupRect = popup.getBoundingClientRect();
-    const maxLeft = Math.max(margin, scope.innerWidth - popupRect.width - margin);
-    const left = Math.min(Math.max(summaryRect.left, margin), maxLeft);
-    const spaceAbove = summaryRect.top - margin;
-    const spaceBelow = scope.innerHeight - summaryRect.bottom - margin;
-    const top = spaceAbove >= popupRect.height + gap || spaceAbove >= spaceBelow
-      ? Math.max(margin, summaryRect.top - popupRect.height - gap)
-      : Math.min(scope.innerHeight - popupRect.height - margin, summaryRect.bottom + gap);
-
-    popup.style.left = `${Math.round(left)}px`;
-    popup.style.top = `${Math.round(Math.max(margin, top))}px`;
-  }
-
-  function removeBackdrop() {
-    scope.document.getElementById('ide-notification-backdrop')?.remove();
-  }
-
-  function closePanel() {
-    const node = root();
-    if (node?.open) node.open = false;
-  }
-
-  function addBackdrop() {
-    removeBackdrop();
-    const backdrop = scope.document.createElement('button');
-    backdrop.id = 'ide-notification-backdrop';
-    backdrop.className = 'ide-notification-backdrop';
-    backdrop.type = 'button';
-    backdrop.setAttribute('aria-label', 'Fechar notificações');
-    backdrop.addEventListener('click', closePanel);
-    scope.document.body.appendChild(backdrop);
-  }
-
-  function mount() {
-    if (root()) return true;
-    const account = scope.document.getElementById('ide-sidebar-account');
-    if (!account) return false;
-    ensureStyles();
-
-    const details = scope.document.createElement('details');
-    details.id = ROOT_ID;
-    details.className = 'ide-notification-center';
-    details.innerHTML = `
-      <summary class="ide-button ide-button--ghost ide-button--md ide-notification-summary">
-        <i class="fa-solid fa-bell" aria-hidden="true"></i>
-        <span>Notificações</span>
-        <span class="ide-notification-badge" hidden>0</span>
-      </summary>
-      <div class="ide-notification-panel">
-        <div class="ide-notification-head">
-          <strong>Notificações</strong>
-          <button type="button" class="ide-notification-mark-all" hidden>Marcar todas como lidas</button>
-        </div>
-        <div class="ide-notification-push" hidden>
-          <span data-notification-push-text></span>
-          <button id="ide-enable-notifications" type="button" class="ide-button ide-button--primary ide-button--sm"><i class="fa-solid fa-bell" aria-hidden="true"></i><span>Ativar</span></button>
-        </div>
-        <div class="ide-notification-list"><div class="ide-notification-empty">Carregando…</div></div>
-      </div>`;
-
-    details.addEventListener('toggle', () => {
-      if (details.open) {
-        syncPushControl();
-        addBackdrop();
-        scope.requestAnimationFrame(positionPanel);
-        load();
-      } else {
-        removeBackdrop();
-      }
-    });
-
-    details.querySelector('.ide-notification-mark-all').addEventListener('click', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      const button = event.currentTarget;
-      if (button.disabled) return;
-      button.disabled = true;
-      markAllRead()
-        .catch(error => console.warn('Não foi possível marcar notificações como lidas.', error))
-        .finally(() => { button.disabled = false; });
-    });
-
-    details.querySelector('#ide-enable-notifications').addEventListener('click', event => {
-      const button = event.currentTarget;
-      if (button.dataset.notificationAction === 'install') {
-        closePanel();
-        scope.location.href = 'help.html#help-install-title';
-        return;
-      }
-
-      const api = scope.MusicIdeNotificationPush;
-      if (!api?.enable) {
-        syncPushControl('UNSUPPORTED');
-        return;
-      }
-      button.disabled = true;
-      const label = button.querySelector('span');
-      if (label) label.textContent = 'Ativando…';
-      api.enable()
-        .then(result => syncPushControl(result?.status))
-        .catch(() => syncPushControl('FAILED'));
-    });
-
-    account.prepend(details);
-    syncPushControl();
-    load();
-    return true;
-  }
 
   function boot() {
-    scope.firebase.auth().onAuthStateChanged(user => {
-      if (!user) return;
-      mount();
-      syncPushControl();
-      load();
-    });
-
-    scope.addEventListener('resize', positionPanel, { passive: true });
-    scope.addEventListener('scroll', positionPanel, { passive: true, capture: true });
-    scope.document.addEventListener('keydown', event => {
-      if (event.key === 'Escape') closePanel();
+    if (!root() || !scope.firebase?.auth) return;
+    root().querySelector('[data-notification-more]')?.addEventListener('click', () => load(true));
+    root().querySelector('[data-notification-refresh]')?.addEventListener('click', () => load());
+    root().querySelector('[data-notification-mark-all]')?.addEventListener('click', markAllRead);
+    root().querySelector('#ide-enable-notifications')?.addEventListener('click', event => {
+      const button = event.currentTarget;
+      if (button.dataset.notificationAction === 'install') {
+        scope.location.href = 'help.html#install-title';
+        return;
+      }
+      const api = scope.MusicIdeNotificationPush;
+      if (!api?.enable) return syncPushControl('UNSUPPORTED');
+      button.disabled = true;
+      api.enable().then(result => syncPushControl(result?.status)).catch(() => syncPushControl('FAILED'));
     });
     scope.document.addEventListener('ide:notification-push-status', syncPushControl);
-
-    let attempts = 0;
-    const timer = scope.setInterval(() => {
-      attempts += 1;
-      if (mount() || attempts >= 40) scope.clearInterval(timer);
-    }, 250);
+    syncPushControl();
+    scope.firebase.auth().onAuthStateChanged(user => {
+      generation += 1;
+      loading = false;
+      service = null;
+      render([]);
+      if (!user) { status('Entre na sua conta para ver as notificações.'); return; }
+      if (page === 'profile.html') return;
+      const Repository = scope.MusicIdeNotificationRepository.NotificationRepository;
+      service = new scope.MusicIdeNotificationService.NotificationService(new Repository(scope.firebase.firestore(), () => scope.firebase.auth().currentUser?.uid), user.uid);
+      load();
+    });
   }
-
-  scope.MusicIdeNotificationCenter = Object.freeze({ load, markAllRead, close: closePanel, syncPushControl });
+  scope.MusicIdeNotificationCenter = Object.freeze({ load, markAllRead, syncPushControl });
   if (scope.document.readyState === 'loading') scope.document.addEventListener('DOMContentLoaded', boot, { once: true });
   else boot();
 })(typeof window !== 'undefined' ? window : null);

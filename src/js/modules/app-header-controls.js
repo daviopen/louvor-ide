@@ -22,10 +22,6 @@
     return header;
   }
 
-  function notificationCenter() {
-    return scope.document.getElementById('ide-notification-center');
-  }
-
   function accountControls() {
     return scope.document.getElementById('music-ide-user');
   }
@@ -91,19 +87,12 @@
     }
   }
 
-  function mountNotification(header) {
-    const center = notificationCenter();
-    if (!center) return;
-    if (center.parentElement !== header) header.prepend(center);
-  }
-
   function sync() {
     scheduled = false;
     if (!scope.document.body) return;
     const header = ensureHeader();
     const controls = accountControls();
 
-    mountNotification(header);
     if (controls) {
       if (isDesktop()) mountDesktopAccount(header, controls);
       else mountMobileAccount(controls);
