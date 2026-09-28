@@ -12,7 +12,10 @@ async function ensureIndex() {
     let index;
     do {
       const response = await fetch(`${endpoint}?pageSize=100${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`, { headers });
-      if (!response.ok) throw new Error(`Index lookup failed (${response.status}).`);
+      if (!response.ok) {
+        const failure = await response.json().catch(() => ({}));
+        throw new Error(`Index lookup failed (${response.status}): ${String(failure.error?.message || failure.error?.status || 'unknown').replaceAll(token, '[redacted]')}`);
+      }
       const body = await response.json();
       index = (body.indexes || []).find(item => item.queryScope === 'COLLECTION' && item.fields?.length === 3 && fields.every((field, i) => item.fields[i]?.fieldPath === field.fieldPath && item.fields[i]?.order === field.order));
       pageToken = body.nextPageToken || '';
