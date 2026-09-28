@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard — IDE Music</title>
+  <title>Mural — IDE Music</title>
   <style>
     /* Safari/iOS standalone: não esconda a árvore real da aplicação durante a
        hidratação. O WebKit do Home Screen app pode remover o splash sem repintar
@@ -85,10 +85,6 @@
   <script src="../config/firebase-config.js"></script>
   <script src="../js/modules/auth-service.js?v=20260902-safari-auth-v2"></script>
   <script src="../js/modules/app-shell.js?v=20260902-safari-auth-v2" defer></script>
-  <script src="../repositories/dashboard-repository.js?v=20260903-schedule-status" defer></script>
-  <script src="../services/schedule-completeness.js?v=20260903-schedule-status" defer></script>
-  <script src="../services/dashboard-service.js?v=20260903-schedule-status" defer></script>
-  <script src="../js/modules/dashboard-page.js?v=20260903-schedule-status" defer></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../styles/tokens.css?v=20260902-safari-auth-v2">
   <link rel="stylesheet" href="../styles/design-system.css?v=20260902-safari-auth-v2">
@@ -96,62 +92,18 @@
   <link rel="stylesheet" href="../styles/dashboard.css?v=20260902-safari-auth-v2">
 </head>
 <body>
-  <main class="ide-dashboard" id="dashboard-main">
-    <header class="ide-dashboard__header">
-      <div>
-        <span class="ide-dashboard__eyebrow">Meu painel</span>
-        <h1 id="dashboard-greeting">Dashboard</h1>
-        <p class="ide-dashboard__subtitle">Veja somente suas indisponibilidades, escalas e setlists dos eventos em que você está envolvido.</p>
-      </div>
-      <span class="ide-dashboard__date" aria-label="Painel pessoal">IDE Music · Comunidade IDE</span>
-    </header>
-
-    <div id="dashboard-status" class="ide-dashboard__status" role="status" aria-live="polite">Atualizando seu painel…</div>
-
-    <section id="dashboard-notification-prompt" class="ide-dashboard-notification-prompt" aria-labelledby="dashboard-notification-title" hidden>
-      <div class="ide-dashboard-notification-prompt__content">
-        <span class="ide-dashboard-notification-prompt__icon" aria-hidden="true"><i class="fa-solid fa-mobile-screen"></i></span>
-        <div>
-          <h2 id="dashboard-notification-title">Ative as notificações</h2>
-          <p id="dashboard-notification-text">Receba avisos de escalas e setlists mesmo com o IDE Music fechado.</p>
-        </div>
-      </div>
-      <button id="dashboard-enable-notifications" class="ide-button ide-button--primary ide-dashboard-notification-prompt__button" type="button">
-        <i class="fa-solid fa-mobile-screen" aria-hidden="true"></i>
-        <span>Ativar notificações</span>
-      </button>
-    </section>
-
-    <section id="ide-notification-feed" class="ide-dashboard-card" aria-labelledby="dashboard-mural-title">
-      <header class="ide-dashboard-card__header"><h2 id="dashboard-mural-title">Últimas notificações</h2><a class="ide-button ide-button--ghost" href="mural.html">Ver todas</a></header>
-      <p data-notification-status role="status" aria-live="polite"></p>
+  <main class="ide-dashboard" id="ide-notification-feed">
+    <header class="ide-dashboard__header"><div><h1>Mural</h1><p>Seu histórico de notificações, das mais recentes às mais antigas.</p></div></header>
+    <section class="ide-notification-push" aria-label="Preferências de notificações">
+        <h2>Notificações no dispositivo</h2><p data-notification-push-text></p>
+        <button id="ide-enable-notifications" type="button" class="ide-button ide-button--primary"><span>Ativar</span></button>
+      </section><p data-notification-status role="status" aria-live="polite"></p>
       <div class="ide-notification-list"></div>
-      <button type="button" class="ide-button ide-button--ghost" data-notification-refresh>Atualizar</button>
-    </section>
-
-    <section class="ide-dashboard-grid" aria-label="Meus próximos compromissos">
-      <article class="ide-dashboard-card">
-        <header class="ide-dashboard-card__header"><i class="fa-solid fa-people-group" aria-hidden="true"></i><h2><a id="dashboard-schedules-title-link" class="ide-dashboard-card__title-link" href="module.html?section=schedules" aria-label="Abrir minhas próximas escalas">Minhas próximas escalas</a></h2></header>
-        <div id="dashboard-upcoming-schedules" class="ide-dashboard-list" aria-live="polite"></div>
-      </article>
-
-      <article class="ide-dashboard-card">
-        <header class="ide-dashboard-card__header"><i class="fa-solid fa-list-check" aria-hidden="true"></i><h2><a id="dashboard-setlists-title-link" class="ide-dashboard-card__title-link" href="setlists.html?view=upcoming" aria-label="Abrir meus setlists">Meus setlists</a></h2></header>
-        <div id="dashboard-upcoming-setlists" class="ide-dashboard-list" aria-live="polite"></div>
-      </article>
-
-      <article class="ide-dashboard-card">
-        <header class="ide-dashboard-card__header"><i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i><h2><a id="dashboard-unavailability-title-link" class="ide-dashboard-card__title-link" href="module.html?section=unavailability" aria-label="Abrir minhas indisponibilidades">Minhas indisponibilidades</a></h2></header>
-        <div id="dashboard-upcoming-unavailability" class="ide-dashboard-list" aria-live="polite"></div>
-      </article>
-    </section>
-
-    <section class="ide-dashboard-section" aria-labelledby="user-indicators-title">
-      <div class="ide-dashboard-section__heading">
-        <h2 id="user-indicators-title">Meus indicadores</h2>
+      <div class="ide-notification-actions">
+        <button type="button" class="ide-button ide-button--secondary" data-notification-refresh>Atualizar</button>
+        <button type="button" class="ide-button ide-button--secondary" data-notification-mark-all hidden>Marcar exibidas como lidas</button>
+        <button type="button" class="ide-button ide-button--secondary" data-notification-more hidden>Carregar mais</button>
       </div>
-      <div id="dashboard-user-indicators" class="ide-dashboard-indicators"></div>
-    </section>
   </main>
 </body>
 </html>

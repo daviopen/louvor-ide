@@ -22,7 +22,7 @@ test('Central orienta instalação no iOS em vez de deixar Ativar sem resposta',
   assert.match(center, /status === 'IOS_INSTALL_REQUIRED'/);
   assert.match(center, /instale o IDE Music na Tela de Início/);
   assert.match(center, /dataset\.notificationAction = 'install'/);
-  assert.match(center, /help\.html#help-install-title/);
+  assert.match(center, /help\.html#install-title/);
 });
 
 test('falha de ativação vira feedback visível e permite nova tentativa', () => {
@@ -32,11 +32,10 @@ test('falha de ativação vira feedback visível e permite nova tentativa', () =
   assert.match(center, /Tentar novamente/);
 });
 
-test('central remove notificações lidas da lista e do contador do sino', () => {
-  assert.match(center, /const unreadItems = items\.filter\(item => item\.read !== true\)/);
-  assert.match(center, /if \(!unreadItems\.length\)/);
-  assert.match(center, /unreadItems\.forEach\(item =>/);
-  assert.match(center, /Não há notificações pendentes\./);
+test('Mural preserva notificações lidas e remove o sino da interface', () => {
+  assert.match(center, /items.forEach/);
+  assert.match(center, /'Lida' : 'Não lida'/);
+  assert.doesNotMatch(center, /fa-bell|ide-notification-badge|<summary/);
 });
 
 test('observador desconecta antes de sincronizar o botão e não cria ciclo de mutações', () => {
@@ -61,34 +60,8 @@ test('Dashboard oferece ativação de notificações sem depender da sidebar', (
 });
 
 
-test('marcação como lida mantém estado confirmado sem reler cache imediatamente', () => {
-  assert.match(center, /item\.read = true;\s*render\(\[\.\.\.currentItems\]\);/s);
-  const markAll = center.slice(center.indexOf('async function markAllRead'), center.indexOf('function resolvePushStatus'));
-  assert.doesNotMatch(markAll, /await load\(\)/);
-  assert.match(markAll, /unread\.forEach\(item => \{[\s\S]*item\.read = true;[\s\S]*\}\);/);
-});
-
-
-test('marcação como lida usa write mínimo compatível com as regras', () => {
-  assert.match(center, /\.doc\(item\.id\)\.update\(\{ read: true \}\)/);
-  assert.doesNotMatch(center, /readAt: now/);
-  assert.doesNotMatch(center, /updatedAt: now/);
-});
-
-
-test('marcar como lida fecha também o alerta push correspondente já exibido', () => {
-  assert.match(center, /function closeDisplayedPushNotifications\(items\)/);
-  assert.match(center, /item\.outboxId \? `ide-music-\$\{item\.outboxId\}` : null/);
-  assert.match(center, /registration\.getNotifications\(\)/);
-  assert.match(center, /notification\.close\(\)/);
-  assert.match(center, /await closeDisplayedPushNotifications\(item\)/);
-  assert.match(center, /await closeDisplayedPushNotifications\(unread\)/);
-});
-
-
-test('estado local de leitura é monotônico mesmo se uma leitura antiga terminar depois', () => {
-  assert.match(center, /const locallyReadIds = new Set\(\)/);
-  assert.match(center, /read: data\.read === true \|\| locallyReadIds\.has\(doc\.id\)/);
-  assert.match(center, /locallyReadIds\.add\(item\.id\)/);
-  assert.match(center, /locallyReadIds\.delete\(item\.id\)/);
+test('leitura fecha o push correspondente sem excluir o histórico', () => {
+  assert.match(center, /registration.getNotifications/);
+  assert.match(center, /notification.close/);
+  assert.match(center, /await closeDisplayedPushNotifications/);
 });
