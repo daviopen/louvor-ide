@@ -11,7 +11,7 @@ async function ensureIndex() {
     let pageToken = '';
     let index;
     do {
-      const response = await fetch(`${endpoint}?pageSize=100${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`, { headers });
+      const response = await fetch(`${endpoint}${pageToken ? `?pageToken=${encodeURIComponent(pageToken)}` : ''}`, { headers });
       if (!response.ok) {
         const failure = await response.json().catch(() => ({}));
         throw new Error(`Index lookup failed (${response.status}): ${String(failure.error?.message || failure.error?.status || 'unknown').replaceAll(token, '[redacted]')}`);
