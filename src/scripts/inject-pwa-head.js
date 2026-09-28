@@ -19,7 +19,7 @@ const PWA_HEAD = `  <link rel="manifest" href="/manifest.webmanifest" ${PWA_HEAD
   <script src="/repositories/notification-outbox-repository.js?v=20260923-notification-read-v6" defer></script>
   <script src="/js/modules/notification-domain-hooks.js?v=20260923-notification-read-v6" defer></script>
   <script src="/js/modules/notification-push.js?v=20260923-notification-read-v6" defer></script>
-  <link rel="stylesheet" href="/styles/notifications.css?v=20260928-compact">
+  <link rel="stylesheet" href="/styles/notifications.css?v=20260928-compact-bell">
   <script src="/repositories/notification-repository.js?v=20260927-mural" defer></script>
   <script src="/services/notification-service.js?v=20260927-mural" defer></script>
   <script src="/js/modules/notification-center.js?v=20260927-mural" defer></script>`;

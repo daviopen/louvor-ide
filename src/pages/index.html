@@ -124,7 +124,11 @@
 
     <section id="ide-notification-feed" class="ide-dashboard-card ide-dashboard-notifications" aria-labelledby="dashboard-mural-title">
       <details>
-        <summary><h2 id="dashboard-mural-title">Últimas notificações</h2></summary>
+        <summary>
+          <svg class="ide-dashboard-notifications__bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+          <h2 id="dashboard-mural-title">Notificações</h2>
+          <svg class="ide-dashboard-notifications__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
         <div class="ide-dashboard-notifications__content">
           <p data-notification-status role="status" aria-live="polite"></p>
           <div class="ide-notification-list"></div>
