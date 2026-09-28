@@ -10,3 +10,44 @@
 #ide-notification-feed [hidden] { display: none !important; }
 #ide-notification-feed [data-notification-status]:empty { display: none; }
 @media (max-width: 900px) { .ide-notification-actions > button { flex: 1 1 100%; } }
+
+/* Dashboard: disclosure keeps the operational cards close to the top. */
+.ide-dashboard-notifications { position: relative; }
+.ide-dashboard-notifications summary {
+  min-height: 68px;
+  line-height: 44px;
+  padding: var(--ide-space-3) calc(7rem + var(--ide-space-4)) var(--ide-space-3) var(--ide-space-4);
+  color: var(--ide-text-primary);
+  cursor: pointer;
+}
+.ide-dashboard-notifications summary h2 {
+  display: inline-block;
+  max-width: calc(100% - 1rem);
+  vertical-align: middle;
+  line-height: 1.4;
+  margin: 0;
+  font-size: var(--ide-font-size-md);
+  overflow-wrap: anywhere;
+}
+.ide-dashboard-notifications summary:hover { background: var(--ide-surface-secondary); }
+.ide-dashboard-notifications summary:focus-visible {
+  outline: 2px solid var(--ide-text-primary);
+  outline-offset: -3px;
+}
+.ide-dashboard-notifications__all {
+  position: absolute;
+  top: var(--ide-space-3);
+  right: var(--ide-space-3);
+}
+.ide-dashboard-notifications details[open] summary { border-bottom: 1px solid var(--ide-border); }
+.ide-dashboard-notifications__content { padding: var(--ide-space-2) var(--ide-space-3); }
+.ide-dashboard-notifications .ide-notification-item {
+  gap: var(--ide-space-1);
+  padding: var(--ide-space-2);
+}
+.ide-dashboard-notifications .ide-notification-item > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}

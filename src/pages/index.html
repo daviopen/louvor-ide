@@ -122,11 +122,16 @@
       </button>
     </section>
 
-    <section id="ide-notification-feed" class="ide-dashboard-card" aria-labelledby="dashboard-mural-title">
-      <header class="ide-dashboard-card__header"><h2 id="dashboard-mural-title">Últimas notificações</h2><a class="ide-button ide-button--ghost" href="mural.html">Ver todas</a></header>
-      <p data-notification-status role="status" aria-live="polite"></p>
-      <div class="ide-notification-list"></div>
-      <button type="button" class="ide-button ide-button--ghost" data-notification-refresh>Atualizar</button>
+    <section id="ide-notification-feed" class="ide-dashboard-card ide-dashboard-notifications" aria-labelledby="dashboard-mural-title">
+      <details>
+        <summary><h2 id="dashboard-mural-title">Últimas notificações</h2></summary>
+        <div class="ide-dashboard-notifications__content">
+          <p data-notification-status role="status" aria-live="polite"></p>
+          <div class="ide-notification-list"></div>
+          <button type="button" class="ide-button ide-button--ghost" data-notification-refresh>Atualizar</button>
+        </div>
+      </details>
+      <a class="ide-button ide-button--ghost ide-dashboard-notifications__all" href="mural.html" aria-label="Ver todas as notificações no Mural">Ver todas</a>
     </section>
 
     <section class="ide-dashboard-grid" aria-label="Meus próximos compromissos">
