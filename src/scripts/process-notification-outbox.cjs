@@ -273,9 +273,39 @@ async function main() {
     return;
   }
   const docs = [...pending.docs].sort((left, right) => (asDate(left.data().createdAt)?.getTime() || 0) - (asDate(right.data().createdAt)?.getTime() || 0));
+
+  // Consolida várias edições do mesmo Setlist dentro do mesmo ciclo do worker.
+  // Apenas a alteração mais recente gera notificação para os participantes.
+  const latestSetlistUpdate = new Map();
+  for (const doc of docs) {
+    const data = doc.data();
+    if (data.type !== 'SETLIST_UPDATED') continue;
+    const key = String(data.setlistId || data.scheduleId || '');
+    if (key) latestSetlistUpdate.set(key, doc.id);
+  }
+  const superseded = docs.filter(doc => {
+    const data = doc.data();
+    if (data.type !== 'SETLIST_UPDATED') return false;
+    const key = String(data.setlistId || data.scheduleId || '');
+    return key && latestSetlistUpdate.get(key) !== doc.id;
+  });
+  if (superseded.length) {
+    await Promise.all(superseded.map(doc => {
+      const data = doc.data();
+      const key = String(data.setlistId || data.scheduleId || '');
+      return doc.ref.update({
+        status: 'SENT',
+        sentAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        delivery: { recipientCount: 0, results: [], supersededBy: latestSetlistUpdate.get(key) }
+      });
+    }));
+  }
+  const processableDocs = docs.filter(doc => !superseded.some(oldDoc => oldDoc.id === doc.id));
+
   let sent = 0;
   let failed = 0;
-  for (const doc of docs) {
+  for (const doc of processableDocs) {
     const item = await claim(doc.ref);
     if (!item) continue;
     try {
