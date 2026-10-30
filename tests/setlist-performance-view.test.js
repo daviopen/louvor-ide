@@ -58,3 +58,10 @@ test('stage mode is responsive, high contrast and keeps mobile-specific layout',
   assert.match(css, /var\(--ide-text-primary\)/);
   assert.match(css, /var\(--ide-primary\)/);
 });
+
+test('displayed transpose control key follows temporary chord transposition', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../src/js/modules/setlist-performance-view.js'), 'utf8');
+  assert.match(source, /el\['execution-key'\]\.textContent = viewKey;/);
+  assert.equal(viewer.shiftKey('F', 2), 'G');
+  assert.equal(viewer.shiftKey('F', 0), 'F');
+});
