@@ -65,3 +65,13 @@ test('displayed transpose control key follows temporary chord transposition', ()
   assert.equal(viewer.shiftKey('F', 2), 'G');
   assert.equal(viewer.shiftKey('F', 0), 'F');
 });
+
+test('non-stage viewer provides edit shortcut and preserves the active song on return', () => {
+  assert.match(html, /id="edit-song-link"/);
+  assert.match(html, /stage-mode \\.performance-edit-song\\{display:none!important/);
+  const source = fs.readFileSync(path.join(__dirname, '../src/js/modules/setlist-performance-view.js'), 'utf8');
+  assert.match(source, /nova-musica\\.html\\?edit=/);
+  assert.match(source, /returnParams\\.set\\('position', String\\(state\\.activeIndex\\)\\)/);
+  const formSource = fs.readFileSync(path.join(__dirname, '../src/js/pages/song-form.js'), 'utf8');
+  assert.match(formSource, /params\\.get\\('returnTo'\\)/);
+});
