@@ -86,7 +86,7 @@
       'transpose-reset', 'transpose-up', 'execution-key', 'font-down', 'font-up',
       'font-size-value', 'chords-content', 'lyrics-content', 'content-empty',
       'previous-song', 'next-song', 'previous-song-label', 'next-song-label', 'song-navigation',
-      'stage-mode-button', 'exit-stage-button', 'performance-eyebrow', 'performance-back-link',
+      'stage-mode-button', 'exit-stage-button', 'performance-eyebrow', 'performance-back-link', 'edit-song-link',
       'performance-back-label'
     ].forEach(id => { el[id] = document.getElementById(id); });
   }
@@ -169,6 +169,8 @@
     state.setlist = setlistSnapshot.data() || {};
     const rawSongs = resolveSetlistSongs(state.setlist);
     state.songs = await Promise.all(rawSongs.map(loadSong));
+    const position = Number(params.get('position'));
+    if (params.has('position') && Number.isInteger(position) && position >= 0 && position < state.songs.length) state.activeIndex = position;
   }
 
   function renderHeader() {
@@ -251,9 +253,24 @@
     el['next-song-label'].textContent = next?.title || 'Fim do setlist';
   }
 
+  function renderEditLink(song) {
+    const link = el['edit-song-link'];
+    link.hidden = !song?.id || !isValidDocumentId(song.id);
+    if (link.hidden) { link.removeAttribute('href'); return; }
+    const returnParams = new URLSearchParams();
+    if (state.songId) returnParams.set('song', state.songId);
+    else {
+      returnParams.set('id', state.setlistId);
+      returnParams.set('position', String(state.activeIndex));
+    }
+    const back = `setlist-view.html?${returnParams}`;
+    link.href = `nova-musica.html?edit=${encodeURIComponent(song.id)}&returnTo=${encodeURIComponent(back)}`;
+  }
+
   function renderActiveSong({ focusContent = false } = {}) {
     const song = getActiveSong();
     if (!song) {
+      renderEditLink(null);
       el.viewer.hidden = false;
       el['song-title'].textContent = 'Nenhuma música neste setlist';
       el['song-artist'].textContent = 'Adicione músicas na edição do setlist.';
@@ -268,6 +285,7 @@
     }
 
     el['song-position'].textContent = state.songId ? 'Música avulsa' : `Música ${state.activeIndex + 1} de ${state.songs.length}`;
+    renderEditLink(song);
     el['song-title'].textContent = song.title;
     el['song-artist'].textContent = song.artist;
     el['song-minister'].innerHTML = `<i class="fa-solid fa-user" aria-hidden="true"></i> ${escapeHtml(song.minister)}`;
