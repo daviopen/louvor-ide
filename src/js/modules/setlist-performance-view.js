@@ -208,7 +208,7 @@
   function renderContent(song) {
     const viewKey = shiftKey(song.executionKey, state.transposeOffset);
     el['song-key'].textContent = `Tom ${viewKey}`;
-    el['execution-key'].textContent = song.executionKey;
+    el['execution-key'].textContent = viewKey;
 
     const chordSource = song.chordText;
     const transposed = chordSource
