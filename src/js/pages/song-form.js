@@ -16,6 +16,16 @@ let ministers = [];
 let activePreview = 'cifra';
 
 function returnUrl() {
+  const requested = params.get('returnTo');
+  if (requested) {
+    try {
+      const destination = new URL(requested, location.href);
+      if (destination.origin === location.origin && destination.pathname.endsWith('/setlist-view.html') && destination.searchParams.has('id') ||
+          destination.origin === location.origin && destination.pathname.endsWith('/setlist-view.html') && destination.searchParams.has('song')) {
+        return destination.pathname + destination.search;
+      }
+    } catch (_) { /* Ignore invalid return links. */ }
+  }
   const navigation = window.MusicIdeNavigationState;
   return navigation ? navigation.resolveReturnUrl('consultar.html', 'songs') : 'consultar.html';
 }
